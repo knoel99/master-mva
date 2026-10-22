@@ -1,0 +1,2250 @@
+---
+title: "Geometry Processing and Geometric Deep Learning"
+subtitle: "M2 MVA · Semester 1 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: calculus on surfaces, linear algebra and convolution](#ch0)
+-   [1. Triangle meshes and discrete differential operators](#ch1)
+-   [2. Heat diffusion, geodesics and convolution on surfaces](#ch2)
+-   [3. Spectral geometry, curvature and spectral signatures](#ch3)
+-   [4. Deformation, parameterization and topology](#ch4)
+-   [5. Maps between surfaces and shape matching](#ch5)
+-   [6. Deep learning on curved surfaces](#ch6)
+-   [7. Architectures and applications: from PointNet to DiffusionNet](#ch7)
+-   [8. Neural fields for surfaces](#ch8)
+-   [9. Generative modelling of geometry](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Geometry Processing and Geometric Deep Learning
+  Official title       Geometry Processing and Geometric Deep Learning
+  Instructors          E. CORMAN, J.DIGNE, M. OVSJANIKOV (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 26 h (lectures 12 h, labs 14 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Deep Learning, Geometry
+  Language             Course materials in English; the course may be given in English if there is a non-French speaker in the class (master-mva.com)
+  Assessment           Practical sessions (TPs); mini quizzes (15 minutes every 2 lectures); final projects (implement a paper from a list proposed by the instructors) (master-mva.com). Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment). Weights: not displayed.
+  Prerequisites        Not displayed
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who knows linear algebra, multivariable calculus and the basics of neural networks, and who wants to analyse, match, learn on and generate 3D shapes.
+
+**Empirical first**: take a scan of a human body and the same body in another pose. Its $(x, y, z)$ coordinates change completely, yet the geodesic distances measured *on* the surface hardly move. A network fed with coordinates must learn every pose; a network built from the Laplace–Beltrami operator is blind to the change of pose by construction. Then remesh the same body with three times more triangles: a graph network trained on the first mesh breaks, while an operator-based network keeps 96 % accuracy on a toy version of this test (Code 7.9).
+
+The course builds the calculus of surfaces on triangle meshes (gradients, Laplacians, curvature, geodesics), uses it to deform, flatten and match shapes, and then turns the same operators into neural network layers. It ends with neural fields and generative models that produce geometry.
+
+Its closest neighbours are [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (distances between shapes and measures) and [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html) (acquisition and reconstruction). It complements [Deep Learning](../s1-deep-learning/index.html) with learning on non-Euclidean domains.
+
+### What you will be able to do
+
+-   Assemble the cotangent Laplacian, the mass matrix, the gradient and the divergence of a triangle mesh from the finite element method, and state their properties.
+-   Compute heat diffusion, geodesic distances with the heat method, and spectral filters on a surface.
+-   Compute discrete mean and Gaussian curvature and prove the discrete Gauss–Bonnet theorem.
+-   Build the heat, wave and global point signatures and explain why they are invariant to isometries.
+-   Deform a mesh with the as-rigid-as-possible energy and flatten a disk-like mesh with Tutte's method, and explain the topological obstructions to flattening.
+-   Compute a functional map between two shapes and convert it into a point-to-point correspondence.
+-   Define parallel transport on a mesh, prove that its holonomy equals the angle defect, and build gauge-equivariant layers.
+-   Compare PointNet, graph networks, MeshCNN, SpiralNet++, DiffusionNet and DeltaConv, and train an operator-based network.
+-   Fit neural signed distance fields with Fourier features, SIREN and eikonal regularisation, and write the NeRF rendering equation.
+-   Explain how meshes are generated and made differentiable, and fit a template mesh to a point cloud.
+-   Reimplement a research paper of the field and evaluate it, as the course project asks.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the objective of introducing advanced topics in modern geometric data analysis, the field known as Geometry Processing. It focuses on mathematical foundations (discrete differential geometry, mapping, optimization) and on the deep learning methods that perform best.
+
+The description announces an overview of surface-based analysis and processing, then modern deep learning techniques for 3D shape classification, correspondence and parametrization, and finally recent approaches for generating geometry from both the mesh and the shape perspectives. It lists six lectures, each with practical sessions (TPs), and the themes (“Thèmes abordés”) matched below. The Université Paris-Saclay course detail gives the volume (12 h of lectures, 14 h of labs) and the nature of the assessment, but no programme items.
+
+| Official topic (master-mva.com) | Course section |
+|---|---|
+| Objective: mathematical foundations (discrete differential geometry, mapping, optimization) | [ch. 0](#ch0)–[ch. 5](#ch5) |
+| Objective: deep learning for the best-performing methods | [ch. 6](#ch6)–[ch. 9](#ch9) |
+| Objective: foundations of surface-based analysis and processing | [ch. 1](#ch1)–[ch. 3](#ch3) |
+| Objective: deep learning for 3D shape classification, correspondence, parametrization | [ch. 7](#ch7) (classification, segmentation, correspondence, Section 7.8); [ch. 4](#ch4) (parametrization and toric covers); [ch. 5](#ch5) (correspondence) |
+| Objective: recent approaches for generating geometry, mesh-based and shape-based | [ch. 8](#ch8) (neural fields), [ch. 9](#ch9) (generative modelling) |
+| Lecture 1: introduction to discrete differential geometry; basic differential operators on surfaces, smooth and discrete | [ch. 0](#ch0) (smooth operators, Definitions 0.1–0.2, Theorem 0.3); [ch. 1](#ch1) (discrete operators) |
+| Lecture 1: operator discretization through FEM | [ch. 1](#ch1): hat functions, mass and stiffness matrices, cotangent formula (Theorem 1.6), gradient and divergence (Proposition 1.8) |
+| Lecture 1: geodesics | [ch. 2](#ch2): geodesic distance, eikonal equation, Varadhan's formula, heat method (2.3–2.7) |
+| Lecture 1: functions, derivatives, integration, convolution on surfaces | [ch. 1](#ch1) (functions, gradients, integration); [ch. 2](#ch2) (convolution on surfaces, Definition 2.8, Proposition 2.9) |
+| TP: diffusion, geodesics in heat | [ch. 2](#ch2): Code 2.7, Exercise 8 |
+| Lecture 2: spectral methods and manipulating geometry | [ch. 3](#ch3): manifold harmonics, spectral filtering of coordinates (3.1–3.4) |
+| Lecture 2: curvature | [ch. 3](#ch3): mean curvature as the gradient of area (Theorem 3.6), angle defect and discrete Gauss–Bonnet (Definition 3.7, Theorem 3.8) |
+| Lecture 2: shape deformation, optimization of geometric energies | [ch. 4](#ch4): Laplacian editing, the as-rigid-as-possible energy and its local–global optimization (4.1–4.4) |
+| Lecture 2: surface parameterization | [ch. 4](#ch4): distortion, Tutte and harmonic maps, conformal maps (4.6–4.9) |
+| Lecture 2: mappings between surfaces | [ch. 5](#ch5): pointwise and functional maps (5.1–5.7) |
+| Lecture 2: basic surface topology, topological constraints | [ch. 1](#ch1) (Euler characteristic, Proposition 1.2); [ch. 4](#ch4) (genus, classification, Gauss–Bonnet obstructions, Proposition 4.5) |
+| TP: toric covers, CNNs on surfaces | [ch. 4](#ch4): toric covers (Definition 4.10) |
+| Shape comparison and basic shape matching | [ch. 3](#ch3) (spectra as shape signatures, Proposition 3.3); [ch. 5](#ch5) (descriptor matching, functional maps, Code 5.8) |
+| Spectral signatures: HKS, WKS, GPS, etc. | [ch. 3](#ch3): Definitions 3.9–3.11, Code 3.12 |
+| Lecture 3: deep learning on curved surfaces; intrinsic representations | [ch. 6](#ch6): extrinsic versus intrinsic, spectral networks (6.1–6.3) |
+| Lecture 3: surface-based learning; convolution on surfaces and triangle meshes | [ch. 6](#ch6): spectral and patch-based convolutions (6.2–6.4) |
+| Lecture 3: parallel transport; vector fields | [ch. 6](#ch6): Definitions 6.5–6.6, Theorem 6.7 |
+| Lecture 3: geodesic CNNs and their variants | [ch. 6](#ch6): Definition 6.4 (GCNN, anisotropic and mixture-model variants) |
+| Lecture 3: feature propagation through parallel transport | [ch. 6](#ch6): Proposition 6.9, Code 6.11 |
+| Lecture 3: invariant versus equivariant features | [ch. 6](#ch6): Note 6.10 |
+| TP: CNNs on surfaces using rotation-equivariant features | [ch. 6](#ch6): harmonic surface networks (Note 6.10), Code 6.11 |
+| Lecture 4: global and local coordinate systems | [ch. 7](#ch7): Definition 7.1 |
+| Lecture 4: other surface-based learning methods: PointNet (for context), MeshCNN, DiffusionNet, DeltaConv, SpiralNet++ | [ch. 7](#ch7): 7.2–7.7 |
+| Lecture 4: applications and training (segmentation, correspondence, classification) | [ch. 7](#ch7): Note 7.8, Code 7.9 |
+| Lecture 4: graph-based learning | [ch. 7](#ch7): Definition 7.3 |
+| TP: DiffusionNet | [ch. 7](#ch7): Code 7.9, Exercise 15 |
+| Lecture 5: neural fields for surface representation, generation and analysis | [ch. 8](#ch8): Definitions 8.1–8.2 |
+| Lecture 5: neural radiance fields and neural field regularization | [ch. 8](#ch8): Definition 8.8 (NeRF), Definition 8.6 (eikonal and other regularizers) |
+| Lecture 5: DeepSDF, occupancy networks, Fourier features | [ch. 8](#ch8): Definition 8.2, Theorem 8.3, Code 8.4 |
+| TP: SIREN, implicit displacement field | [ch. 8](#ch8): Definition 8.5, Note 8.9, Code 8.7 |
+| Lecture 6: generative modelling (how to generate the surface structure) | [ch. 9](#ch9): 9.1–9.2 |
+| Lecture 6: local synthesis, e.g. geometric texture synthesis; in-painting | [ch. 9](#ch9): Note 9.3 |
+| Lecture 6: mesh generation, differentiable meshing | [ch. 9](#ch9): Note 9.4, Proposition 9.5 |
+| TP: Point2Mesh | [ch. 9](#ch9): Definition 9.6, Code 9.7 |
+| Course supports in English | the fiche above (language), not a topic |
+| Theme 1: mathematical foundations of mesh-based 3D shape analysis (discrete differential geometry, geometry processing) | [ch. 1](#ch1)–[ch. 5](#ch5) |
+| Theme 2: deep learning on shapes represented as triangle meshes; intrinsic geometric deep learning | [ch. 6](#ch6)–[ch. 7](#ch7) |
+| Theme 3: generative 3D modelling, neural fields, differentiable meshing; practical works on mesh deformation, isometric shape matching, intrinsic learning on surfaces | [ch. 8](#ch8)–[ch. 9](#ch9); deformation in [ch. 4](#ch4), isometric matching in [ch. 5](#ch5), intrinsic learning in [ch. 6](#ch6)–[ch. 7](#ch7) |
+| Theme 4: difference with “Nuages de points et modélisation” | a positioning statement, not a topic; see [Where this course fits](#fits) |
+| Theme 5a: deep learning on surfaces, point clouds and neural fields | [ch. 6](#ch6)–[ch. 8](#ch8) |
+| Theme 5b: triangle meshes and discrete differential geometry | [ch. 1](#ch1)–[ch. 3](#ch3) |
+| Theme 5c: 3D shape understanding: classification, segmentation, parametrization, correspondence | [ch. 4](#ch4), [ch. 5](#ch5), [ch. 7](#ch7) |
+| Theme 5d: spectral methods (feature extraction, non-rigid shape correspondence) | [ch. 3](#ch3), [ch. 5](#ch5) |
+| Theme 5e: implicit neural representations | [ch. 8](#ch8) |
+| Theme 5f: “convolutions on 3D objects”, foundation and extended treatment | [ch. 2](#ch2) (Definition 2.8), [ch. 6](#ch6) |
+| Theme 6: topology only as a constraint on shape understanding, e.g. parametrization | [ch. 4](#ch4): Proposition 4.5, toric covers |
+| Complement to the course “Deep Learning” | a positioning statement; see [Where this course fits](#fits) |
+| “Plus de détails” and “Les intervenants” | a link and the heading of the instructors list, not topics; the instructors appear in the fiche |
+| Mode de validation: TPs, mini quizzes, final project on a paper | [Projects and assessment](#projects) |
+
+Beyond the syllabus, this page adds a review chapter ([ch. 0](#ch0)), a research chapter for self-study ([ch. 10](#ch10)), proofs of the central discrete theorems, and a written-exam proposal.
+
+### Where this course fits in the programme {#fits}
+
+Official prerequisites: not displayed. The course page lists Etienne Corman (CNRS, LORIA), Julie Digne (CNRS, LIRIS) and Maks Ovsjanikov (École Polytechnique, LIX) as instructors. The description presents the course as complementary to three others: it analyses shapes rather than reconstructing them, it treats triangle meshes and spectral methods, and it uses topology only as a constraint.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (spectral theorem, sparse systems, gradient descent) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the labs); [Probability and Statistics](../s0-refresher-probability-statistics/index.html) helps for the generative chapter.
+-   **Related courses of semester 1** — [Deep Learning](../s1-deep-learning/index.html) (the networks used from ch. 6 on), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (kernels and distances between shapes), [Topological Data Analysis for Imaging and Machine Learning](../s1-tda-imaging-ml/index.html), [3D Computer Vision](../s1-3d-computer-vision/index.html) and [Medical Image Analysis Based on Generative, Geometric and Biophysical Models](../s1-medical-image-analysis/index.html).
+-   **Semester 2 courses that build on it** — [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Geometry and Shape Spaces](../s2-shape-spaces/index.html), [Deformable Models and Geodesic Methods for Image Analysis](../s2-deformable-models-geodesics/index.html), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), [Generative Models for Images](../s2-generative-models-images/index.html) and [Algorithms and Learning for Protein Science](../s2-protein-science/index.html) (learning on molecular surfaces).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html), for which the paper-implementation project is a rehearsal.
+
+### Course outline
+
+-   **Review: calculus on surfaces, linear algebra and convolution** — the metric, the Laplace–Beltrami operator, Green's formula, generalised eigenproblems, a 1D finite element model, convolution and equivariance.
+-   **Triangle meshes and discrete differential operators** — meshes, hat functions, mass and stiffness matrices, the cotangent Laplacian, gradient and divergence.
+-   **Heat diffusion, geodesics and convolution on surfaces** — the heat equation, Varadhan's formula, the heat method, and filters that act as convolutions.
+-   **Spectral geometry, curvature and spectral signatures** — manifold harmonics, mean and Gaussian curvature, Gauss–Bonnet, HKS, WKS and GPS.
+-   **Deformation, parameterization and topology** — Laplacian editing, as-rigid-as-possible deformation, Tutte and conformal maps, topological obstructions and toric covers.
+-   **Maps between surfaces and shape matching** — pointwise and functional maps, their computation from descriptors, spectral upsampling.
+-   **Deep learning on curved surfaces** — spectral and geodesic CNNs, parallel transport, holonomy, gauge-equivariant and rotation-equivariant features.
+-   **Architectures and applications** — coordinate systems, PointNet, graph networks, MeshCNN, SpiralNet++, DiffusionNet, DeltaConv; classification, segmentation, correspondence.
+-   **Neural fields for surfaces** — SDFs and occupancy, DeepSDF, occupancy networks, Fourier features, SIREN, eikonal regularisation, NeRF, implicit displacement fields.
+-   **Generative modelling of geometry** — Chamfer losses, texture synthesis and in-painting, mesh generation, differentiable meshing, Point2Mesh.
+-   **Research directions and open problems** — learned correspondence, equivariance, new neural representations and 3D generation (self-study).
+
+### Session plan {#sessions}
+
+**26 h in class = 8 sessions (6 × 3 h + 2 × 4 h).**
+
+The volume is the Université Paris-Saclay programme table: 12 h of lectures and 14 h of labs. master-mva.com organises the course as six lectures, each followed by a practical session (TP), with a 15-minute quiz every two lectures. The split below into eight sessions mixing lecture and lab is a proposal; the second lecture of the official list is spread over sessions 3 and 4 because it is the densest.
+
+Level 1 = foundations, 2 = core methods, 3 = advanced methods close to research; the level never decreases from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: metric, Laplace–Beltrami, Green's formula, generalised eigenproblems, 1D finite elements, convolution (0.1–0.7); ch. 1 Triangle meshes: hat functions, mass and stiffness matrices, cotangent formula, gradient and divergence (1.1–1.10) | Ex. 1–3; lab: assemble $L$ and $M$ (Code 1.10) |
+| 2 | 4 h | 1 | ch. 2 Heat diffusion, geodesics, Varadhan's formula, the heat method, convolution on surfaces (2.1–2.9) | Ex. 7, 8; official TP: diffusion, geodesics in heat (Code 2.7) |
+| 3 | 3 h | 2 | ch. 3 Manifold harmonics, spectral filtering, curvature, Gauss–Bonnet, HKS, WKS, GPS (3.1–3.12) | Ex. 4, 5; lab: curvature and signatures (Code 3.12) |
+| 4 | 4 h | 2 | ch. 4 Deformation energies, ARAP, topology, parameterization, toric covers (4.1–4.10); ch. 5 Pointwise and functional maps, spectral upsampling (5.1–5.9) | Ex. 9, 10, 11; official TP: toric covers (Definition 4.10); lab: Code 4.9, 5.8 |
+| 5 | 3 h | 2 | ch. 6 Spectral and geodesic CNNs, parallel transport, holonomy, gauge and rotation equivariance (6.1–6.11) | Ex. 12; official TP: rotation-equivariant features (Code 6.11) |
+| 6 | 3 h | 2 | ch. 7 Coordinate systems, PointNet, graph networks, MeshCNN, SpiralNet++, DiffusionNet, DeltaConv, applications (7.1–7.9) | Ex. 15; official TP: DiffusionNet (Code 7.9) |
+| 7 | 3 h | 3 | ch. 8 Implicit surfaces, DeepSDF, occupancy networks, Fourier features, SIREN, eikonal regularisation, NeRF, implicit displacement fields (8.1–8.10) | Ex. 6, 13, 14; official TP: SIREN and implicit displacement field (Code 8.4, 8.7) |
+| 8 | 3 h | 3 | ch. 9 Chamfer losses, local synthesis and in-painting, mesh generation, differentiable meshing, Point2Mesh (9.1–9.7) | Ex. 16; official TP: Point2Mesh (Code 9.7); choose the project |
+
+**Self-study, outside the 26 h** (about 4 h in total): ch. 10 Research directions and open problems — learned correspondence, equivariant and discretization-agnostic networks, new neural representations, 3D generation (≈ 4 h, with Ex. 17).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) first even if the material looks familiar: Green's formula and the generalised eigenproblem return in every later chapter.
+-   Keep one mental picture: almost everything in the course is built from two sparse matrices, the stiffness $L$ and the mass $M$ of [ch. 1](#ch1).
+-   After each session, run the code of the chapter and change one parameter (the diffusion time, the number of eigenfunctions, the regularisation weight) to see what breaks.
+-   Do the exercises listed in the session plan before the next session; the ★★★ ones are good starting points for the project.
+-   Python environment: NumPy, SciPy (`scipy.sparse`, `scipy.sparse.linalg.eigsh`, `scipy.spatial`) and PyTorch on CPU. Every code block builds its own synthetic mesh and runs in under 30 seconds on a laptop.
+-   For real data, read meshes with a library such as `trimesh` or `libigl`, and inspect them in a mesh viewer such as MeshLab. Public benchmarks include FAUST (Bogo et al., 2014) and ModelNet40 (Wu et al., 2015).
+-   Start choosing a paper for the project around session 5: the [solo subjects](#projects-solo) show the scale to aim at.
+
+## 0. Review: calculus on surfaces, linear algebra and convolution {#ch0}
+
+Every later chapter differentiates functions on a surface, integrates them, and solves eigenvalue problems with two matrices. This review recalls the smooth objects that the discrete operators imitate, and the linear algebra that computes them.
+
+::: def
+[Definition 0.1 — Regular surface, metric and area]{.tag} A **regular patch** is a smooth map $x : U \subset \mathbb{R}^2 \to \mathbb{R}^3$ whose Jacobian $J = (\partial_1 x, \partial_2 x)$ has rank 2. The tangent plane $T_p S$ is spanned by $\partial_1 x$ and $\partial_2 x$, and the unit normal is
+$$
+n = \frac{\partial_1 x \times \partial_2 x}{\|\partial_1 x \times \partial_2 x\|}.
+$$
+
+The **metric** (first fundamental form) is the $2 \times 2$ matrix $g = J^\top J$, with entries $g_{ij} = \langle \partial_i x, \partial_j x \rangle$. It gives lengths of curves and the area element:
+$$
+\mathrm{d}A = \sqrt{\det g}\; \mathrm{d}u^1 \mathrm{d}u^2 .
+$$
+
+A quantity is **intrinsic** when it depends on $g$ only. It is then unchanged by any isometry, a deformation that preserves the lengths of all curves on the surface, such as bending a sheet of paper.
+:::
+
+::: def
+[Definition 0.2 — Gradient, divergence, Laplace–Beltrami]{.tag} For $f : S \to \mathbb{R}$, the **gradient** $\nabla f$ is the tangent vector such that $\langle \nabla f, v \rangle = \mathrm{d}f(v)$ for every tangent vector $v$.
+
+In coordinates, with $g^{ij}$ the entries of $g^{-1}$ and $|g| = \det g$:
+$$
+\nabla f = \sum_{i,j} g^{ij}\, \partial_j f\; \partial_i x, \qquad
+\Delta f = \frac{1}{\sqrt{|g|}} \sum_{i,j} \partial_i \Big( \sqrt{|g|}\, g^{ij}\, \partial_j f \Big).
+$$
+
+The **divergence** of a tangent field is minus the adjoint of the gradient, and the **Laplace–Beltrami operator** is $\Delta = \operatorname{div} \nabla$. On a plane patch ($g = I$) it is the usual Laplacian $\partial_{11} + \partial_{22}$.
+:::
+
+:::: thm
+[Theorem 0.3 — Green's formula]{.tag} Let $S$ be a compact surface without boundary and $f, h$ smooth functions on it. Then
+$$
+\int_S f\, \Delta h \,\mathrm{d}A = - \int_S \langle \nabla f, \nabla h \rangle \,\mathrm{d}A .
+$$
+
+Consequently $-\Delta$ is symmetric and positive semi-definite for the $L^2$ inner product, and on a connected surface its kernel is the constant functions.
+
+::: proof
+The divergence theorem on a closed surface gives $\int_S \operatorname{div}(f \nabla h) = 0$. The product rule
+$$
+\operatorname{div}(f \nabla h) = \langle \nabla f, \nabla h \rangle + f\, \Delta h
+$$
+then gives the formula.
+
+Taking $f = h$ shows that $-\int h \Delta h = \int \|\nabla h\|^2 \geq 0$. Equality forces $\nabla h = 0$, so $h$ is constant on each connected component. [∎]{.qed}
+:::
+::::
+
+On a surface with boundary the formula gains a boundary term $\int_{\partial S} f\, \partial_\nu h$; it vanishes under Dirichlet ($f = 0$) or Neumann ($\partial_\nu h = 0$) conditions.
+
+::: ex
+[Example 0.4 — The round sphere]{.tag} On the unit sphere the eigenfunctions of $-\Delta$ are the spherical harmonics. The eigenvalue $\ell(\ell + 1)$ has multiplicity $2\ell + 1$, so the spectrum starts
+$$
+0,\ \ 2, 2, 2,\ \ 6 \ (\times 5),\ \ 12 \ (\times 7),\ \dots
+$$
+
+The three coordinate functions $x, y, z$ restricted to the sphere span the eigenspace of eigenvalue 2. This is the reference against which the discrete Laplacian of [ch. 1](#ch1) is tested.
+:::
+
+:::: thm
+[Theorem 0.5 — Generalised symmetric eigenproblem]{.tag} Let $A$ be symmetric and $B$ symmetric positive definite, both $n \times n$. There is a basis $\phi_1, \dots, \phi_n$ and reals $\lambda_1 \leq \dots \leq \lambda_n$ such that
+$$
+A \phi_k = \lambda_k B \phi_k, \qquad \phi_k^\top B \phi_l = \delta_{kl}.
+$$
+
+Moreover $\lambda_1$ is the minimum of the Rayleigh quotient $R(x) = x^\top A x / x^\top B x$, and $\lambda_k$ is its minimum on the $B$-orthogonal complement of $\phi_1, \dots, \phi_{k-1}$.
+
+::: proof
+Write $B = R^\top R$ (Cholesky) and set $y = R x$. The problem becomes the ordinary symmetric problem for $C = R^{-\top} A R^{-1}$.
+
+The spectral theorem gives an orthonormal eigenbasis $y_k$ of $C$; the vectors $\phi_k = R^{-1} y_k$ are then $B$-orthonormal and solve the original problem.
+
+The Rayleigh quotient of $x$ equals that of $y$ for $C$, which gives the variational characterisation. [∎]{.qed}
+:::
+::::
+
+In practice $A$ and $B$ are large and sparse. Only the smallest eigenpairs are needed; they are computed by shift-invert Lanczos (`scipy.sparse.linalg.eigsh` with `sigma`). Linear systems with a sparse symmetric positive definite matrix are solved by a sparse Cholesky factorisation, computed once and reused.
+
+::: ex
+[Example 0.6 — Finite elements in one dimension]{.tag} Solve $-u'' = \lambda u$ on $[0, 1]$ with $u(0) = u(1) = 0$.
+
+Write $u = \sum_i u_i \psi_i$ with the piecewise-linear “hat” functions $\psi_i$ of a grid of step $h$, and test the equation against each $\psi_j$. Integration by parts gives $K u = \lambda M u$ with
+$$
+K_{ij} = \int_0^1 \psi_i' \psi_j', \qquad M_{ij} = \int_0^1 \psi_i \psi_j .
+$$
+
+Here $K = \frac{1}{h}\,\mathrm{tridiag}(-1, 2, -1)$ and $M = \frac{h}{6}\,\mathrm{tridiag}(1, 4, 1)$. Replacing $M$ by the diagonal of its row sums, $h I$, is called **mass lumping**. The exact eigenvalues are $(k \pi)^2$.
+
+```python
+import numpy as np
+from scipy.linalg import eigh
+
+n = 50                                   # interior nodes on [0, 1], u(0) = u(1) = 0
+h = 1.0 / (n + 1)
+K = (np.diag(2 * np.ones(n)) - np.diag(np.ones(n - 1), 1) - np.diag(np.ones(n - 1), -1)) / h
+M = h / 6 * (np.diag(4 * np.ones(n)) + np.diag(np.ones(n - 1), 1) + np.diag(np.ones(n - 1), -1))
+lam_consistent = eigh(K, M, eigvals_only=True)[:4]
+lam_lumped = eigh(K, h * np.eye(n), eigvals_only=True)[:4]
+exact = (np.pi * np.arange(1, 5)) ** 2
+print("exact     ", np.round(exact, 2))
+print("consistent", np.round(lam_consistent, 2))
+print("lumped    ", np.round(lam_lumped, 2))
+```
+
+The output is
+
+```
+exact      [  9.87  39.48  88.83 157.91]
+consistent [  9.87  39.53  89.08 158.71]
+lumped     [  9.87  39.43  88.57 157.12]
+```
+
+The consistent mass matrix overestimates the eigenvalues and the lumped one underestimates them; both converge at order $h^2$. The same construction on triangles gives the operators of [ch. 1](#ch1).
+:::
+
+::: def
+[Definition 0.7 — Convolution and equivariance]{.tag} On $\mathbb{R}^n$ the convolution of a signal $f$ with a filter $a$ is
+$$
+(f * a)(x) = \int_{\mathbb{R}^n} f(y)\, a(x - y) \,\mathrm{d}y .
+$$
+
+It is **equivariant** to translations: with $(\tau_v f)(x) = f(x - v)$, we have $(\tau_v f) * a = \tau_v (f * a)$. The Fourier transform diagonalises it, $\widehat{f * a} = \hat f \cdot \hat a$, and the complex exponentials are the eigenfunctions of the Laplacian.
+
+A surface has no translations and no global Fourier basis. Two substitutes are developed later: filters that are functions of the Laplace–Beltrami operator ([ch. 2](#ch2)), and filters applied in local charts, which need parallel transport ([ch. 6](#ch6)).
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   The metric $g = J^\top J$ determines lengths, areas, gradients and the Laplace–Beltrami operator; such quantities are intrinsic.
+-   Green's formula makes $-\Delta$ symmetric and positive semi-definite, with constants in its kernel.
+-   $A\phi = \lambda B \phi$ with $B \succ 0$ has a $B$-orthonormal eigenbasis, characterised by Rayleigh quotients.
+-   The finite element method turns $-\Delta u = \lambda u$ into $K u = \lambda M u$ with a stiffness and a mass matrix.
+-   Convolution is the translation-equivariant linear operator; surfaces need other constructions.
+:::
+
+## 1. Triangle meshes and discrete differential operators {#ch1}
+
+A scanned or modelled surface reaches the computer as a list of triangles. This chapter defines functions on such a mesh and derives, with the finite element method, the discrete gradient, divergence and Laplacian that the rest of the course uses.
+
+::: def
+[Definition 1.1 — Triangle mesh]{.tag} A **triangle mesh** is a pair $(V, F)$: vertex positions $x_1, \dots, x_n \in \mathbb{R}^3$ and a list $F$ of triangles, each an ordered triple of vertex indices. The edges $E$ are the unordered pairs of vertices that share a triangle.
+
+The mesh is **manifold** when every edge lies in one or two triangles and the triangles around each vertex form a single fan, closed (interior vertex) or open (boundary vertex). It is **oriented** when two triangles sharing an edge traverse it in opposite directions; the normal of a triangle $(i, j, k)$ is then $(x_j - x_i) \times (x_k - x_i)$ normalised.
+:::
+
+:::: prop
+[Proposition 1.2 — Euler characteristic and counts]{.tag} The **Euler characteristic** of a mesh is $\chi = |V| - |E| + |F|$; it is $2$ for a sphere and $0$ for a torus, whatever the triangulation. For a closed manifold mesh,
+$$
+2|E| = 3|F|, \qquad |F| = 2|V| - 2\chi, \qquad |E| = 3|V| - 3\chi .
+$$
+
+::: proof
+Each triangle has three edges and each edge of a closed mesh lies in exactly two triangles, so $3|F| = 2|E|$. Substituting $|E| = \frac{3}{2}|F|$ in $\chi = |V| - |E| + |F|$ gives $|F| = 2|V| - 2\chi$, then $|E|$. [∎]{.qed}
+:::
+
+A large closed mesh has about twice as many triangles as vertices, and average degree close to 6.
+::::
+
+::: def
+[Definition 1.3 — Hat functions and the mass matrix]{.tag} The **hat function** $\psi_i$ is the continuous function, linear on each triangle, with $\psi_i(x_j) = \delta_{ij}$. A function given by its vertex values $u \in \mathbb{R}^n$ is interpolated as $u = \sum_i u_i \psi_i$.
+
+The **mass matrix** is $M_{ij} = \int \psi_i \psi_j \,\mathrm{d}A$. On a triangle of area $A$ its local block is $\frac{A}{12}(1 + \delta_{ij})$. The **lumped** mass matrix is diagonal, with $M_{ii}$ equal to one third of the area of the triangles around vertex $i$. Then
+$$
+\int_S u \, v \,\mathrm{d}A \approx u^\top M v, \qquad \int_S u \,\mathrm{d}A \approx \mathbf{1}^\top M u .
+$$
+:::
+
+:::: prop
+[Proposition 1.4 — Gradient of a hat function]{.tag} In a triangle with vertices $i, j, k$ in counter-clockwise order, area $A$ and unit normal $n$, let $e_i = x_k - x_j$ be the edge opposite to $i$. Then $\nabla \psi_i$ is constant on the triangle and
+$$
+\nabla \psi_i = \frac{n \times e_i}{2A} .
+$$
+
+::: proof
+$\psi_i$ is linear, vanishes on the edge $e_i$ and equals 1 at $x_i$. Its gradient is therefore orthogonal to $e_i$ within the plane of the triangle, pointing towards $x_i$, and of norm $1 / \text{height} = \|e_i\| / (2A)$.
+
+The vector $n \times e_i$ has exactly this direction, since the interior lies to the left of a counter-clockwise edge, and norm $\|e_i\|$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 1.5 — Stiffness matrix (weak Laplacian)]{.tag} The **stiffness matrix** is
+$$
+L_{ij} = \int_S \langle \nabla \psi_i, \nabla \psi_j \rangle \,\mathrm{d}A ,
+$$
+so that $u^\top L u = \int_S \|\nabla u\|^2$ is the Dirichlet energy of the interpolated function.
+
+Testing $-\Delta u = f$ against every $\psi_j$ and using Green's formula (Theorem 0.3) gives the discrete equation $L u = M f$. The pointwise discrete Laplacian is therefore $-M^{-1} L$.
+:::
+
+:::: thm
+[Theorem 1.6 — The cotangent formula]{.tag} For an interior edge $ij$, let $\alpha_{ij}$ and $\beta_{ij}$ be the two angles opposite to it in its two triangles (one angle for a boundary edge). Then
+$$
+L_{ij} = -\frac{1}{2} \big( \cot \alpha_{ij} + \cot \beta_{ij} \big), \qquad L_{ii} = - \sum_{j \neq i} L_{ij},
+$$
+and $L_{ij} = 0$ when $i \neq j$ are not joined by an edge.
+
+::: proof
+The integrand is constant on each triangle. In a triangle $(i, j, k)$ with angle $\theta_k$ at $k$, Proposition 1.4 gives
+$$
+A \,\langle \nabla \psi_i, \nabla \psi_j \rangle = \frac{\langle n \times e_i, n \times e_j \rangle}{4A} = \frac{\langle e_i, e_j \rangle}{4A}.
+$$
+
+The edges $e_i = x_k - x_j$ and $e_j = x_i - x_k$ meet at $x_k$, so $\langle e_i, e_j \rangle = -\|e_i\| \|e_j\| \cos \theta_k$. Since $2A = \|e_i\| \|e_j\| \sin \theta_k$, the contribution is $-\frac12 \cot \theta_k$.
+
+Summing over the triangles containing the edge gives the off-diagonal entry. The hats sum to 1, so $\sum_j \nabla \psi_j = 0$ and each row of $L$ sums to zero. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the cotangent Laplacian]{.tag}
+$$
+(L u)_i = \frac12 \sum_{j \sim i} \big( \cot \alpha_{ij} + \cot \beta_{ij} \big) (u_i - u_j), \qquad -\Delta u \approx M^{-1} L u
+$$
+:::
+
+::: prop
+[Proposition 1.7 — Properties of the cotangent Laplacian]{.tag}
+
+-   **Symmetric and positive semi-definite**, because $u^\top L u = \int \|\nabla u\|^2 \geq 0$, for every mesh, even with obtuse angles.
+-   **Constants in the kernel**, $L \mathbf{1} = 0$; on a connected mesh the kernel is exactly the constants.
+-   **Local and sparse**: about 7 non-zeros per row.
+-   **Positive weights** $\cot \alpha + \cot \beta \geq 0$ if and only if $\alpha_{ij} + \beta_{ij} \leq \pi$, the condition satisfied by an intrinsic Delaunay mesh. Only then is $L$ an M-matrix, which gives the discrete maximum principle used in [ch. 2](#ch2).
+:::
+
+::: prop
+[Proposition 1.8 — Gradient, divergence and the factorisation of $L$]{.tag} Let $G$ be the $3|F| \times n$ matrix that maps vertex values to the constant gradient on each triangle, and $\mathcal{A}$ the diagonal matrix of triangle areas, repeated three times. The **integrated divergence** of a field $X$, constant on each triangle, is the vector
+$$
+(\operatorname{div} X)_i = - \sum_{f \ni i} A_f \,\langle X_f, \nabla \psi_i|_f \rangle ,
+$$
+that is $\operatorname{div} = -G^\top \mathcal{A}$. Then
+$$
+L = G^\top \mathcal{A}\, G = -\operatorname{div} \circ \nabla .
+$$
+
+This mirrors Definition 0.2: the divergence is minus the adjoint of the gradient, now for the area-weighted inner products. The factorisation holds because each entry $L_{ij}$ is the area-weighted sum over triangles of $\langle \nabla \psi_i, \nabla \psi_j \rangle$.
+:::
+
+::: ex
+[Example 1.9 — A regular grid recovers finite differences]{.tag} Triangulate the square grid of step $h$ by cutting each square along the same diagonal.
+
+-   A diagonal edge faces two right angles, so its weight is $\frac12(\cot 90^\circ + \cot 90^\circ) = 0$.
+-   A horizontal or vertical edge faces two angles of $45^\circ$, so its weight is $\frac12 (1 + 1) = 1$.
+-   Each vertex lies in six triangles of area $h^2 / 2$, so its lumped mass is $h^2$.
+
+Hence the discrete Laplacian at an interior vertex is
+$$
+-(M^{-1} L u)_{p,q} = \frac{u_{p+1,q} + u_{p-1,q} + u_{p,q+1} + u_{p,q-1} - 4 u_{p,q}}{h^2},
+$$
+the classical five-point stencil. Note that $L$ itself does not depend on $h$: the Dirichlet energy is invariant under scaling in 2D.
+:::
+
+::: ex
+[Example 1.10 — The spectrum of a triangulated sphere]{.tag} The code below triangulates 2000 nearly uniform points of the unit sphere (the convex hull of a Fibonacci lattice), assembles $L$ and the lumped $M$, and solves $L \phi = \lambda M \phi$ (Theorem 0.5).
+
+```python
+import numpy as np, scipy.sparse as sp
+from scipy.sparse.linalg import eigsh
+from scipy.spatial import ConvexHull
+
+def sphere_mesh(n):
+    """Fibonacci points on the unit sphere, triangulated by their convex hull."""
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    V = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+    F = ConvexHull(V).simplices
+    nrm = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    flip = (nrm * V[F].sum(1)).sum(1) < 0          # orient every face outwards
+    F[flip] = F[flip][:, ::-1]
+    return V, F
+
+def cotan_laplacian(V, F):
+    """Stiffness matrix L (positive semi-definite) of Theorem 1.6."""
+    I, J, W = [], [], []
+    for k in range(3):
+        i, j, o = F[:, k], F[:, (k + 1) % 3], F[:, (k + 2) % 3]
+        u, v = V[i] - V[o], V[j] - V[o]               # the angle at o faces edge ij
+        cot = (u * v).sum(1) / np.linalg.norm(np.cross(u, v), axis=1)
+        I += [i, j]; J += [j, i]; W += [cot / 2, cot / 2]
+    W = sp.csr_matrix((np.concatenate(W), (np.concatenate(I), np.concatenate(J))),
+                      shape=(len(V), len(V)))
+    return (sp.diags(np.asarray(W.sum(1)).ravel()) - W).tocsc()
+
+def lumped_mass(V, F):
+    area = 0.5 * np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1)
+    return sp.diags(np.bincount(F.ravel(), np.repeat(area / 3, 3), len(V))).tocsc()
+
+V, F = sphere_mesh(2000)
+L, M = cotan_laplacian(V, F), lumped_mass(V, F)
+print("faces:", len(F), " Euler characteristic:", len(V) - len(F) * 3 // 2 + len(F))
+print("|L 1|_max =", abs(L @ np.ones(len(V))).max(), " area =", M.sum(), "(4 pi =", 4 * np.pi, ")")
+lam = eigsh(L, k=16, M=M, sigma=-1e-6, which="LM")[0]
+print(np.round(lam, 3))        # expected l(l+1): 0, 2 x3, 6 x5, 12 x7
+```
+
+It prints 3996 faces, $\chi = 2$, $\|L \mathbf{1}\|_\infty \approx 10^{-15}$, a total area of 12.547 (against $4\pi \approx 12.566$, the inscribed polyhedron is slightly smaller), and the spectrum
+$$
+0,\ \ 2.000\ (\times 3),\ \ 5.987\text{–}5.991\ (\times 5),\ \ 11.936\text{–}11.962\ (\times 7).
+$$
+
+The multiplicities of Example 0.4 are reproduced exactly, and the eigenvalues are within 0.5 %.
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   A closed mesh has $|F| \approx 2|V|$ and average degree near 6.
+-   Hat functions interpolate vertex values; the (lumped) mass matrix integrates them.
+-   The stiffness matrix is the Dirichlet energy, with entries $-\frac12(\cot \alpha + \cot \beta)$.
+-   $L$ is symmetric, positive semi-definite and sparse; positive weights need $\alpha + \beta \leq \pi$.
+-   $L = G^\top \mathcal{A} G$ and $-\Delta \approx M^{-1} L$.
+:::
+
+## 2. Heat diffusion, geodesics and convolution on surfaces {#ch2}
+
+Diffusing heat is the simplest process on a surface, and it encodes the geometry: the heat that reaches a point after a short time reveals its distance to the source. This chapter turns that remark into an algorithm for geodesic distances, and uses heat as the model of a convolution on a surface.
+
+::: def
+[Definition 2.1 — Heat equation and heat kernel]{.tag} The **heat equation** on a closed surface is $\partial_t u = \Delta u$ with $u(\cdot, 0) = u_0$. With the eigenpairs $-\Delta \phi_k = \lambda_k \phi_k$, orthonormal in $L^2$, its solution is $u(x, t) = \int_S k_t(x, y)\, u_0(y) \,\mathrm{d}A(y)$, where the **heat kernel** is
+$$
+k_t(x, y) = \sum_{k \geq 0} e^{-\lambda_k t} \phi_k(x) \phi_k(y).
+$$
+
+The kernel is symmetric and positive, and it preserves the total heat: $\int_S k_t(x, y)\, \mathrm{d}A(y) = 1$. Only the metric enters, so it is intrinsic.
+:::
+
+:::: prop
+[Proposition 2.2 — Discrete heat flow]{.tag} The backward Euler step of length $t$ for $M \dot u = -L u$ is
+$$
+(M + t L)\, u^{(1)} = M u^{(0)} .
+$$
+
+It is stable for every $t > 0$: the $M$-norm of $u$ does not increase. When all cotangent weights are positive, $M + tL$ is an M-matrix, so a non-negative initial heat stays non-negative.
+
+::: proof
+Write $u = u^{(1)}$ and $u_0 = u^{(0)}$. Multiplying the step by $u^\top$ gives
+$$
+u^\top M u + t\, u^\top L u = u^\top M u_0 .
+$$
+
+The term $u^\top L u$ is non-negative (Proposition 1.7), and Cauchy–Schwarz for the $M$ inner product gives $\|u\|_M^2 \leq \|u\|_M \|u_0\|_M$.
+
+For positivity, $M + tL$ has a positive diagonal and non-positive off-diagonal entries, and it is strictly diagonally dominant because the rows of $L$ sum to zero. Such a matrix has an entrywise non-negative inverse. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 2.3 — Geodesic distance and the eikonal equation]{.tag} The **geodesic distance** $d(x, y)$ is the infimum of the lengths of the curves on $S$ from $x$ to $y$; a curve that realises it locally is a **geodesic**. The distance $\phi = d(x_0, \cdot)$ to a source solves the **eikonal equation**
+$$
+\|\nabla \phi\| = 1, \qquad \phi(x_0) = 0 ,
+$$
+in the viscosity sense: it is smooth except on the cut locus, where several shortest paths meet.
+:::
+
+::: thm
+[Theorem 2.4 — Varadhan's formula (1967)]{.tag} On a compact Riemannian manifold, for points $x, y$,
+$$
+d(x, y) = \lim_{t \to 0} \sqrt{-4t \log k_t(x, y)} .
+$$
+
+The intuition is the Euclidean kernel $(4\pi t)^{-1} e^{-\|x - y\|^2 / 4t}$, whose logarithm is dominated by $-\|x - y\|^2 / 4t$ for small $t$. Varadhan (1967) proved the formula for heat equations with variable coefficients, which covers a metric written in local coordinates; the proof is beyond this course.
+:::
+
+Taking the formula literally is a bad algorithm: the logarithm amplifies the discretisation error of a tiny kernel. Crane, Weischedel and Wardetzky (2013) keep only the *direction* of the gradient of the heat, which is accurate, and recover the magnitude from the eikonal equation.
+
+::: def
+[Algorithm 2.5 — The heat method]{.tag} Given the source vertex $s$ and the mean edge length $h$:
+
+1.  **Diffuse**: solve $(M + t L)\, u = M \delta_s$ with $t = h^2$ (Proposition 2.2).
+2.  **Normalise**: on each triangle, set $X = -\nabla u / \|\nabla u\|$ (Proposition 1.4).
+3.  **Integrate**: solve the Poisson equation $L \phi = G^\top \mathcal{A} X$ and shift $\phi$ so that $\phi_s = 0$.
+
+Both matrices are fixed, so they are factorised once; each new source costs two sparse triangular solves.
+:::
+
+:::: prop
+[Proposition 2.6 — The Poisson step is a least-squares fit]{.tag} Among all functions $\phi$ (up to a constant), step 3 returns the minimiser of
+$$
+E(\phi) = \int_S \|\nabla \phi - X\|^2 \,\mathrm{d}A = (G\phi - X)^\top \mathcal{A}\, (G \phi - X).
+$$
+
+::: proof
+$E$ is a convex quadratic. Its gradient is $2 G^\top \mathcal{A} (G \phi - X)$, and it vanishes exactly when $G^\top \mathcal{A} G \phi = G^\top \mathcal{A} X$, which is $L \phi = G^\top \mathcal{A} X$ by Proposition 1.8. The solution is unique up to the kernel of $L$, the constants. [∎]{.qed}
+:::
+
+Since $X$ has unit norm and points away from the source, the fitted $\phi$ is the function whose gradient best satisfies the eikonal equation with the right direction.
+::::
+
+::: ex
+[Example 2.7 — Geodesics in heat on the sphere]{.tag} On the unit sphere the distance to a vertex $s$ is $\arccos \langle x, x_s \rangle$, which gives an exact reference. The gradients are computed per triangle with Proposition 1.4, and $L$ is assembled as $G^\top \mathcal{A} G$.
+
+```python
+import numpy as np, scipy.sparse as sp
+from scipy.sparse.linalg import splu
+from scipy.spatial import ConvexHull
+
+def sphere_mesh(n):
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    V = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+    F = ConvexHull(V).simplices
+    nrm = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    flip = (nrm * V[F].sum(1)).sum(1) < 0
+    F[flip] = F[flip][:, ::-1]
+    return V, F
+
+def hat_gradients(V, F):
+    """Per face: area, unit normal, and the gradients of the three hat functions."""
+    N = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    A = 0.5 * np.linalg.norm(N, axis=1); N = N / (2 * A[:, None])
+    G = [np.cross(N, V[F[:, (k + 2) % 3]] - V[F[:, (k + 1) % 3]]) / (2 * A[:, None]) for k in range(3)]
+    return A, N, G
+
+def heat_geodesic(V, F, src, c=1.0):
+    n = len(V)
+    A, N, G = hat_gradients(V, F)
+    rows = np.concatenate([F[:, a] for a in range(3) for b in range(3)])
+    cols = np.concatenate([F[:, b] for a in range(3) for b in range(3)])
+    vals = np.concatenate([A * (G[a] * G[b]).sum(1) for a in range(3) for b in range(3)])
+    L = sp.csc_matrix((vals, (rows, cols)), shape=(n, n))         # stiffness = cotan matrix
+    M = sp.diags(np.bincount(F.ravel(), np.repeat(A / 3, 3), n)).tocsc()
+    h = np.linalg.norm(V[F[:, 0]] - V[F[:, 1]], axis=1).mean()
+    u0 = np.zeros(n); u0[src] = 1.0
+    u = splu((M + c * h ** 2 * L).tocsc()).solve(M @ u0)           # step 1: heat flow
+    gu = sum(u[F[:, k], None] * G[k] for k in range(3))
+    X = -gu / np.linalg.norm(gu, axis=1, keepdims=True)              # step 2: normalise
+    b = np.zeros(n)
+    for k in range(3):                                                # step 3: Poisson
+        np.add.at(b, F[:, k], A * (X * G[k]).sum(1))
+    phi = splu((L + 1e-10 * sp.eye(n)).tocsc()).solve(b)
+    return phi - phi[src]
+
+V, F = sphere_mesh(4000)
+src = 0
+exact = np.arccos(np.clip(V @ V[src], -1, 1))
+for c in [0.1, 1.0, 10.0]:
+    d = heat_geodesic(V, F, src, c)
+    print(f"t = {c:4} h^2: mean |error| = {np.abs(d - exact).mean():.4f}, "
+          f"max = {np.abs(d - exact).max():.4f} (diameter pi)")
+```
+
+The mean errors are 0.106, 0.025 and 0.010 for $t = 0.1 h^2$, $h^2$ and $10 h^2$, against a diameter of $\pi$.
+
+A too small $t$ leaves the heat on a few vertices and the gradient directions are noisy. On the sphere every $t$ gives the exact direction field by symmetry, so a larger $t$ only averages the noise; on a general surface a large $t$ smooths the distance and rounds its corners (Exercise 8).
+:::
+
+The heat kernel acts on a function like a Gaussian blur of width about $\sqrt{2t}$. This suggests what a convolution on a surface can be.
+
+::: def
+[Definition 2.8 — Spectral filters as convolutions]{.tag} For a function $g : [0, \infty) \to \mathbb{R}$, the **filter** $g(-\Delta)$ acts on $f$ through its spectral coefficients $\hat f_k = \langle f, \phi_k \rangle$:
+$$
+g(-\Delta) f = \sum_{k} g(\lambda_k)\, \hat f_k\, \phi_k .
+$$
+
+On $\mathbb{R}^n$ this is exactly the convolution with the filter of Fourier transform $g(\|\xi\|^2)$, radial by construction. The heat flow is $g(\lambda) = e^{-t\lambda}$.
+
+Discretely, with the $M$-orthonormal eigenvectors $\Phi$ of $L$:
+$$
+g(-\Delta) f \approx \Phi\, g(\Lambda)\, \Phi^\top M f .
+$$
+:::
+
+:::: prop
+[Proposition 2.9 — Filters commute with isometries]{.tag} Let $T : S \to S'$ be an isometry and $T^* f = f \circ T$. Then $T^* \circ g(-\Delta') = g(-\Delta) \circ T^*$. In particular the filter does not depend on the choice of eigenbasis inside an eigenspace.
+
+::: proof
+An isometry preserves the metric, hence the Laplace–Beltrami operator: $\Delta (f \circ T) = (\Delta' f) \circ T$. So $T^*$ maps each eigenspace of $\Delta'$ onto the eigenspace of $\Delta$ with the same eigenvalue, and $g(-\Delta)$ multiplies each eigenspace by $g(\lambda)$, whatever basis is chosen in it. [∎]{.qed}
+:::
+
+The price is isotropy: a function of $\Delta$ cannot tell directions apart. Directional filters need local charts and parallel transport ([ch. 6](#ch6)).
+::::
+
+::: recap
+Key takeaways — chapter 2
+
+-   The heat kernel is intrinsic, positive and mass-preserving.
+-   Backward Euler $(M + tL) u = M u_0$ is stable, and positive when the weights are.
+-   Varadhan: $d^2 \approx -4t \log k_t$; the heat method keeps the gradient direction, then solves a Poisson equation.
+-   With $t = h^2$ and prefactored matrices, a new source costs two triangular solves.
+-   Functions of the Laplacian are isotropic convolutions and commute with isometries.
+:::
+
+## 3. Spectral geometry, curvature and spectral signatures {#ch3}
+
+Laplacian eigenfunctions are the Fourier basis of a surface, and curvature measures how it departs from a plane. This chapter computes both and combines them into descriptors that survive bending.
+
+::: def
+[Definition 3.1 — Manifold harmonics]{.tag} The **manifold harmonics** of a mesh are the solutions of
+$$
+L \phi_k = \lambda_k M \phi_k, \qquad \Phi^\top M \Phi = I, \qquad 0 = \lambda_0 \leq \lambda_1 \leq \dots
+$$
+(Theorem 0.5). The **spectral coefficients** of a function $f$ are $\hat f = \Phi^\top M f$, and the truncation to the first $k$ harmonics is $f_k = \Phi_k \Phi_k^\top M f$.
+:::
+
+:::: prop
+[Proposition 3.2 — Energy and low-pass filtering]{.tag} For $f = \Phi \hat f$,
+$$
+\|f\|_M^2 = \sum_k \hat f_k^2, \qquad f^\top L f = \sum_k \lambda_k \hat f_k^2 .
+$$
+
+The truncation $f_k$ is the $M$-orthogonal projection of $f$ on the span of the $k$ smoothest harmonics, and $\phi_k$ minimises the Dirichlet energy among unit functions orthogonal to $\phi_0, \dots, \phi_{k-1}$.
+
+::: proof
+Substitute $f = \Phi \hat f$ and use $\Phi^\top M \Phi = I$ and $\Phi^\top L \Phi = \Lambda$. The projection claim is the Pythagorean theorem in the $M$ inner product; the variational claim is Theorem 0.5. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 3.3 — The spectrum as a shape signature]{.tag} Isometric surfaces have the same Laplace–Beltrami spectrum, because an isometry preserves $\Delta$ (proof of Proposition 2.9). Reuter, Wolter and Peinecke (2006) use the first eigenvalues, normalised by the area, as a **Shape-DNA** to compare shapes up to isometry and scale.
+
+The converse fails: Gordon, Webb and Wolpert (1992) built planar domains that are isospectral without being isometric. The spectrum is a strong but incomplete signature.
+:::
+
+::: ex
+[Example 3.4 — Smoothing a shape by its spectrum]{.tag} Filter the three coordinate functions of a mesh: $V_k = \Phi_k \Phi_k^\top M V$. On a sphere, $V_4$ is already the sphere, since $x, y, z$ lie in the first eigenspaces (Example 0.4). On the prolate spheroid of Code 3.12 (semi-axes 2, 1, 1) the mean vertex displacement $\|x - x_k\|$ is
+$$
+1.380\ (k = 1), \qquad 0.125\ (k = 4), \qquad 0.028\ (k = 16), \qquad 0.0012\ (k = 80).
+$$
+
+With $k = 1$ every vertex collapses to the centroid. A few dozen harmonics keep the overall shape and drop the fine detail; editing the low coefficients deforms a shape smoothly.
+:::
+
+::: def
+[Definition 3.5 — Curvatures]{.tag} The **shape operator** at $p$ is the derivative of the unit normal, $\mathrm{d}n_p : T_p S \to T_p S$, a symmetric map. Its eigenvalues are the **principal curvatures** $\kappa_1, \kappa_2$. The **mean curvature** is $H = (\kappa_1 + \kappa_2)/2$ and the **Gaussian curvature** is $K = \kappa_1 \kappa_2$.
+
+For the unit sphere with outward normal, $\kappa_1 = \kappa_2 = 1$. By Gauss's Theorema Egregium, $K$ is intrinsic, while $H$ depends on the embedding: a rolled sheet has $K = 0$ and $H \neq 0$.
+:::
+
+On a smooth surface the coordinate map $x$ satisfies $\Delta x = -2H n$. The discrete counterpart is an exact statement about areas.
+
+:::: thm
+[Theorem 3.6 — Mean curvature as the gradient of area]{.tag} Let $\mathcal{A}(V)$ be the total area of a mesh with vertex positions $V$ (an $n \times 3$ matrix). Then for every vertex $i$
+$$
+\nabla_{x_i} \mathcal{A} = (L V)_i ,
+$$
+and $(M^{-1} L V)_i \approx 2 H n_i$ is the discrete mean curvature normal.
+
+::: proof
+In one triangle, moving $x_i$ changes the area through the height over the opposite edge $e_i$ only. The gradient is $\frac12 n \times e_i$, which equals $A \,\nabla \psi_i$ by Proposition 1.4.
+
+On the other hand,
+$$
+(LV)_i = \sum_f A_f \sum_j \langle \nabla \psi_i, \nabla \psi_j \rangle\, x_j .
+$$
+
+On a triangle, $\sum_j x_j \nabla \psi_j^\top$ is the gradient of the identity map, the orthogonal projector $P_f$ on the plane of the triangle, and $P_f \nabla \psi_i = \nabla \psi_i$.
+
+Hence
+$$
+(L V)_i = \sum_{f \ni i} A_f\, \nabla \psi_i|_f = \sum_{f \ni i} \nabla_{x_i} A_f .
+$$
+
+[∎]{.qed}
+:::
+
+Moving every vertex against this gradient decreases the area fastest: it is the discrete **mean curvature flow**, used for smoothing (Desbrun et al., 1999).
+::::
+
+::: def
+[Definition 3.7 — Angle defect]{.tag} At an interior vertex $i$ with triangle angles $\theta_i^f$, the **angle defect** is
+$$
+K_i = 2\pi - \sum_{f \ni i} \theta_i^f .
+$$
+
+It is zero when the triangles around $i$ unfold flat into the plane. Divided by the vertex area $M_{ii}$, it estimates the Gaussian curvature.
+:::
+
+:::: thm
+[Theorem 3.8 — Discrete Gauss–Bonnet]{.tag} For a closed manifold triangle mesh,
+$$
+\sum_{i} K_i = 2\pi \chi .
+$$
+
+::: proof
+The angles of a triangle sum to $\pi$, so $\sum_i K_i = 2\pi |V| - \pi |F|$. By Proposition 1.2, $|F| = 2|E| - 2|F|$, hence
+$$
+2\pi |V| - \pi |F| = 2\pi |V| - 2\pi |E| + 2\pi |F| = 2\pi \chi .
+$$
+
+[∎]{.qed}
+:::
+
+The smooth theorem $\int_S K \,\mathrm{d}A = 2\pi \chi$ says the same: the total curvature is fixed by the topology, whatever the geometry.
+::::
+
+::: def
+[Definition 3.9 — Heat kernel signature (HKS)]{.tag} Sun, Ovsjanikov and Guibas (2009) define, for each point and time,
+$$
+\mathrm{HKS}(x, t) = k_t(x, x) = \sum_k e^{-\lambda_k t} \phi_k(x)^2 .
+$$
+
+It is intrinsic, hence invariant to isometries, and multiscale: small $t$ sees the neighbourhood, large $t$ the whole shape. For small $t$,
+$$
+\mathrm{HKS}(x, t) = \frac{1}{4\pi t} + \frac{K(x)}{12 \pi} + O(t).
+$$
+
+If the eigenvalues are simple, a surjective map that preserves the HKS for all $t$ is an isometry (Sun et al., 2009): the signature is informative.
+:::
+
+::: def
+[Definition 3.10 — Wave kernel signature (WKS)]{.tag} Aubry, Schlickewei and Cremers (2011) replace the low-pass weights $e^{-\lambda t}$ by band-pass weights centred at the log-energy $e$:
+$$
+\mathrm{WKS}(x, e) = \frac{\sum_k \phi_k(x)^2\, w_e(\lambda_k)}{\sum_k w_e(\lambda_k)}, \qquad w_e(\lambda) = \exp\Big( -\frac{(e - \log \lambda)^2}{2\sigma^2} \Big).
+$$
+
+Each energy selects a band of frequencies, so the WKS separates scales better and locates points more precisely.
+:::
+
+::: def
+[Definition 3.11 — Global point signature (GPS)]{.tag} Rustamov (2007) embeds each point in a sequence space:
+$$
+\mathrm{GPS}(x) = \Big( \frac{\phi_1(x)}{\sqrt{\lambda_1}}, \frac{\phi_2(x)}{\sqrt{\lambda_2}}, \dots \Big).
+$$
+
+Squared distances in this embedding are $G(x, x) + G(y, y) - 2G(x, y)$, with $G$ the Green's function of $-\Delta$. The GPS depends on the signs of the eigenfunctions, so it serves for shape-level statistics such as histograms of distances.
+:::
+
+::: ex
+[Example 3.12 — Curvature and signatures of a spheroid]{.tag} For the prolate spheroid with semi-axes 2, 1, 1, the exact values are $K = 4$, $H = 2$ at the tips and $K = 0.25$, $H = 0.625$ on the equator.
+
+```python
+import numpy as np, scipy.sparse as sp
+from scipy.sparse.linalg import eigsh
+from scipy.spatial import ConvexHull
+
+def sphere_mesh(n):
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    V = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+    F = ConvexHull(V).simplices
+    nrm = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    flip = (nrm * V[F].sum(1)).sum(1) < 0
+    F[flip] = F[flip][:, ::-1]
+    return V, F
+
+def operators(V, F):
+    """Cotan stiffness L, lumped mass M, and the angle defect at each vertex."""
+    n = len(V); I, J, W = [], [], []; angle_sum = np.zeros(n)
+    for k in range(3):
+        i, j, o = F[:, k], F[:, (k + 1) % 3], F[:, (k + 2) % 3]
+        u, v = V[i] - V[o], V[j] - V[o]
+        cos_, sin_ = (u * v).sum(1), np.linalg.norm(np.cross(u, v), axis=1)
+        I += [i, j]; J += [j, i]; W += [cos_ / sin_ / 2] * 2
+        np.add.at(angle_sum, o, np.arctan2(sin_, cos_))       # interior angle at o
+    W = sp.csr_matrix((np.concatenate(W), (np.concatenate(I), np.concatenate(J))), shape=(n, n))
+    L = (sp.diags(np.asarray(W.sum(1)).ravel()) - W).tocsc()
+    area = 0.5 * np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1)
+    mass = np.bincount(F.ravel(), np.repeat(area / 3, 3), n)
+    return L, sp.diags(mass).tocsc(), mass, 2 * np.pi - angle_sum
+
+V, F = sphere_mesh(2000)
+V = V * np.array([2.0, 1.0, 1.0])                         # prolate spheroid, semi-axes 2, 1, 1
+L, M, mass, defect = operators(V, F)
+K = defect / mass                                          # Gaussian curvature per unit area
+H = np.linalg.norm((L @ V) / mass[:, None], axis=1) / 2   # |Delta x| / 2 = |H|
+tip, eq = np.argmax(V[:, 0]), np.argmin(np.abs(V[:, 0]) + np.abs(V[:, 2]))
+print(f"sum of angle defects = {defect.sum():.6f}   (2 pi chi = {4 * np.pi:.6f})")
+print(f"tip:     K = {K[tip]:.2f} (exact 4),    H = {H[tip]:.2f} (exact 2)")
+print(f"equator: K = {K[eq]:.2f} (exact 0.25), H = {H[eq]:.3f} (exact 0.625)")
+
+lam, phi = eigsh(L, k=80, M=M, sigma=-1e-6, which="LM")
+for t in [0.1, 1.0]:
+    hks = (np.exp(-lam * t) * phi ** 2).sum(1)              # Definition 3.9
+    print(f"HKS(t = {t}): tip {hks[tip]:.3f}, equator {hks[eq]:.3f};",
+          f"1/(4 pi t) + K/(12 pi): {1 / (4 * np.pi * t) + 4 / (12 * np.pi):.3f},",
+          f"{1 / (4 * np.pi * t) + 0.25 / (12 * np.pi):.3f}")
+for k in [1, 4, 16, 80]:                                     # Example 3.4: spectral smoothing
+    Vk = phi[:, :k] @ (phi[:, :k].T @ (mass[:, None] * V))
+    print(f"k = {k:2d}: mean |x - x_k| = {np.linalg.norm(V - Vk, axis=1).mean():.4f}")
+```
+
+The sum of the angle defects is $12.566371 = 4\pi$ to all printed digits, as Theorem 3.8 predicts. The mesh gives $K = 3.94$ and $H = 1.98$ at the tip, and $K = 0.25$, $H = 0.625$ on the equator.
+
+At $t = 0.1$ the HKS is 0.880 at the tip and 0.807 on the equator, close to the asymptotic values 0.902 and 0.802: the more curved tip keeps more heat. At $t = 1$ the expansion no longer applies (0.125 against 0.186).
+:::
+
+::: recap
+Key takeaways — chapter 3
+
+-   Manifold harmonics solve $L\phi = \lambda M \phi$ and give spectral coefficients and filters.
+-   Isometric shapes share their spectrum, a strong but incomplete signature.
+-   The area gradient is $LV$, so $M^{-1} L V \approx 2Hn$; angle defects give $K$.
+-   Discrete Gauss–Bonnet: $\sum_i K_i = 2\pi\chi$ exactly.
+-   HKS, WKS and GPS are isometry-invariant point signatures.
+:::
+
+## 4. Deformation, parameterization and topology {#ch4}
+
+Editing a shape and flattening it onto the plane both minimise geometric energies built from the operators of [ch. 1](#ch1). Topology decides what flattening can achieve.
+
+::: def
+[Definition 4.1 — Geometric energies and Laplacian editing]{.tag} A **geometric energy** is a function of the vertex positions that measures a deviation: the Dirichlet energy $\operatorname{tr}(V^\top L V)$ (Proposition 1.8), the area (Theorem 3.6), or the change of a rest shape. Deformation fixes some **handle** vertices at targets $c_i$ and minimises an energy over the others.
+
+**Laplacian editing** (Sorkine et al., 2004) keeps the differential coordinates $\delta = L V$ of the rest shape:
+$$
+\min_{V'} \ \|L V' - \delta\|^2 + w \sum_{i \in \text{handles}} \|x'_i - c_i\|^2 .
+$$
+
+It is a linear least-squares problem. Its weakness is that $\delta$ does not rotate: a handle turned by 90° shears the surface details instead of turning them.
+:::
+
+::: def
+[Definition 4.2 — As-rigid-as-possible energy]{.tag} Sorkine and Alexa (2007) let every vertex carry its own rotation $R_i \in SO(3)$ and penalise the deviation of each edge vector $e_{ij} = x_i - x_j$ from a rotated copy:
+$$
+E(V', R) = \sum_i \sum_{j \sim i} w_{ij}\, \big\| e'_{ij} - R_i\, e_{ij} \big\|^2 ,
+$$
+with the cotangent weights $w_{ij}$ of Theorem 1.6. A rigid motion of the whole shape costs nothing.
+:::
+
+:::: thm
+[Theorem 4.3 — The local step is an orthogonal Procrustes problem]{.tag} For fixed $V'$, let $S_i = \sum_{j \sim i} w_{ij}\, e_{ij} e'^{\top}_{ij}$ with singular value decomposition $S_i = U \Sigma W^\top$. The minimising rotation is
+$$
+R_i = W D U^\top, \qquad D = \mathrm{diag}\big(1, 1, \det(W U^\top)\big).
+$$
+
+::: proof
+Expanding the squares, the terms of $E$ that depend on $R_i$ are
+$$
+-2 \sum_j w_{ij}\, e'^\top_{ij} R_i e_{ij} = -2 \operatorname{tr}(R_i S_i).
+$$
+
+So $R_i$ maximises $\operatorname{tr}(R S_i) = \operatorname{tr}(Z \Sigma)$ with $Z = W^\top R U$ orthogonal.
+
+Since $|Z_{kk}| \leq 1$, $\operatorname{tr}(Z\Sigma) \leq \sum_k \sigma_k$, with equality at $Z = I$, that is $R = W U^\top$.
+
+If this matrix is a reflection, the best $Z$ with determinant $-1$ flips the sign attached to the smallest singular value, which gives $D$. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 4.4 — Local–global iterations]{.tag} For fixed rotations, $E$ is quadratic in $V'$ and its minimiser solves
+$$
+L V' = b, \qquad b_i = \sum_{j \sim i} \frac{w_{ij}}{2}\, (R_i + R_j)\, e_{ij},
+$$
+restricted to the free vertices. Alternating the local step (Theorem 4.3) and this global step never increases $E$.
+
+Each step minimises $E$ exactly over one block of variables, so the energy decreases monotonically: block coordinate descent. The matrix $L$ does not change, so its Cholesky factor is computed once.
+:::
+
+Flattening asks how much distortion is unavoidable; topology answers part of the question.
+
+::: prop
+[Proposition 4.5 — Topological constraints]{.tag} Closed orientable surfaces are classified, up to homeomorphism, by their **genus** $g$ (the number of handles), and $\chi = 2 - 2g$. The Gauss–Bonnet theorem $\int_S K = 2\pi\chi$ (Theorem 3.8) then implies:
+
+-   A closed surface with a flat metric ($K \equiv 0$) has $\chi = 0$: among closed orientable surfaces, only the torus can be flat.
+-   A sphere-like surface cannot be mapped to the plane without cutting it. A disk-like patch has a boundary and can be flattened, at the price of distortion when $K \neq 0$.
+-   A flattening that is flat everywhere except at a few **cone points** concentrates the curvature there; their angle defects sum to $2\pi\chi$.
+:::
+
+::: def
+[Definition 4.6 — Parameterization and distortion]{.tag} A **parameterization** of a disk-like mesh is a piecewise-linear map $u$ to $\mathbb{R}^2$, given by vertex positions $u_i$. On each triangle its Jacobian $J_f$ is a $2 \times 2$ matrix, in a local frame of the triangle, with singular values $\sigma_1 \geq \sigma_2$. The map is
+
+-   **isometric** if $\sigma_1 = \sigma_2 = 1$ (lengths kept),
+-   **conformal** if $\sigma_1 = \sigma_2$ (angles kept),
+-   **equiareal** if $\sigma_1 \sigma_2 = 1$ (areas kept),
+
+and **valid** if $\det J_f > 0$ on every triangle (no flip). Isometric is conformal plus equiareal; by the Theorema Egregium it requires $K = 0$.
+:::
+
+::: thm
+[Theorem 4.7 — Tutte (1963), Floater (1997)]{.tag} Let a disk-like mesh have its boundary vertices mapped, in order, onto a convex polygon. Put every interior vertex at a convex combination of its neighbours:
+$$
+u_i = \sum_{j \sim i} \lambda_{ij}\, u_j, \qquad \lambda_{ij} > 0, \quad \sum_{j} \lambda_{ij} = 1 .
+$$
+
+Then this linear system has a unique solution, and the resulting map is a valid parameterization: a bijection onto the polygon with no flipped or degenerate triangle.
+
+*Proof sketch.* The system matrix is a weakly diagonally dominant M-matrix, connected to the fixed boundary, hence invertible. Any linear function of $u$ satisfies a discrete maximum principle, so every interior vertex lies strictly inside the polygon. Injectivity follows by counting the angles around vertices; see Floater (2003) for the complete argument.
+:::
+
+::: def
+[Definition 4.8 — Harmonic and conformal parameterizations]{.tag} With $\lambda_{ij}$ proportional to the cotangent weights, $u$ minimises the Dirichlet energy $\operatorname{tr}(U^\top L U)$ with the boundary fixed: a **harmonic** map. It is closer to conformal, but negative weights (obtuse triangles) can break the guarantee of Theorem 4.7; Floater's mean-value weights are positive and stay close to it.
+
+**Least-squares conformal maps** (Lévy et al., 2002) free the boundary. They minimise the violation of the Cauchy–Riemann equations, $\sum_f A_f \|\nabla v - n \times \nabla u\|^2$, with two vertices pinned to remove similarities.
+:::
+
+::: ex
+[Example 4.9 — Tutte versus harmonic flattening]{.tag} A sphere minus a polar cap is a disk. Its boundary is pinned to the unit circle and Theorem 4.7 is solved with uniform (Tutte) and cotangent (harmonic) weights. The code counts flips and averages $\sigma_1 / \sigma_2$, equal to 1 for a conformal map.
+
+```python
+import numpy as np, scipy.sparse as sp
+from scipy.sparse.linalg import spsolve
+from scipy.spatial import ConvexHull
+
+def sphere_mesh(n):
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    V = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+    F = ConvexHull(V).simplices
+    nrm = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    flip = (nrm * V[F].sum(1)).sum(1) < 0
+    F[flip] = F[flip][:, ::-1]
+    return V, F
+
+V, F = sphere_mesh(1500)
+F = F[(V[F, 2] > -0.3).all(1)]                       # a disk: the sphere minus a polar cap
+used = np.unique(F); remap = -np.ones(len(V), int); remap[used] = np.arange(len(used))
+V, F = V[used], remap[F]
+n = len(V)
+
+# boundary edges appear in a single face; chain them into a loop
+E = np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]])
+key = {tuple(e) for e in E}
+nxt = {a: b for a, b in E if (b, a) not in key}
+loop = [next(iter(nxt))]
+while nxt[loop[-1]] != loop[0]:
+    loop.append(nxt[loop[-1]])
+seg = np.linalg.norm(V[loop] - V[np.roll(loop, -1)], axis=1)
+ang = 2 * np.pi * np.r_[0, np.cumsum(seg)[:-1]] / seg.sum()
+U_b = np.c_[np.cos(ang), np.sin(ang)]                 # boundary pinned to the unit circle
+
+def weights(kind):
+    I, J, W = [], [], []
+    for k in range(3):
+        i, j, o = F[:, k], F[:, (k + 1) % 3], F[:, (k + 2) % 3]
+        u, v = V[i] - V[o], V[j] - V[o]
+        w = np.ones(len(F)) if kind == "uniform" else \
+            (u * v).sum(1) / np.linalg.norm(np.cross(u, v), axis=1) / 2
+        I += [i, j]; J += [j, i]; W += [w, w]
+    Wm = sp.csr_matrix((np.concatenate(W), (np.concatenate(I), np.concatenate(J))), shape=(n, n))
+    if kind == "uniform":
+        Wm.data[:] = 1.0                              # each edge counted once
+    return (sp.diags(np.asarray(Wm.sum(1)).ravel()) - Wm).tocsr()
+
+inner = np.setdiff1d(np.arange(n), loop)
+for kind in ["uniform", "cotan"]:
+    L = weights(kind)
+    U = np.zeros((n, 2)); U[loop] = U_b
+    rhs = -L[inner][:, loop] @ U_b
+    U[inner] = np.c_[spsolve(L[inner][:, inner].tocsc(), rhs[:, 0]),
+                     spsolve(L[inner][:, inner].tocsc(), rhs[:, 1])]
+    e1, e2 = U[F[:, 1]] - U[F[:, 0]], U[F[:, 2]] - U[F[:, 0]]
+    signed = 0.5 * (e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0])
+    p1, p2 = V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]
+    x = p1 / np.linalg.norm(p1, axis=1, keepdims=True)           # local frame of each 3D face
+    y = p2 - (p2 * x).sum(1, keepdims=True) * x; y /= np.linalg.norm(y, axis=1, keepdims=True)
+    P = np.stack([np.c_[(p1 * x).sum(1), (p1 * y).sum(1)], np.c_[(p2 * x).sum(1), (p2 * y).sum(1)]], 2)
+    Q = np.stack([e1, e2], 2)                                      # columns = 2D edges
+    s = np.linalg.svd(Q @ np.linalg.inv(P), compute_uv=False)      # singular values of the Jacobian
+    print(f"{kind:8s}: flipped = {(signed <= 0).sum()}, mean sigma1/sigma2 = {(s[:, 0] / s[:, 1]).mean():.3f}")
+```
+
+Neither map flips a triangle. The mean ratio $\sigma_1/\sigma_2$ is 1.560 for Tutte's weights and 1.120 for the cotangent weights: the harmonic map is much closer to conformal.
+:::
+
+::: def
+[Definition 4.10 — Toric covers (Maron et al., 2017)]{.tag} CNNs need a flat domain with translations, and only the torus is a flat closed surface (Proposition 4.5). Maron et al. (2017) therefore map a sphere-like surface to a torus:
+
+-   choose a triplet of points on the surface;
+-   glue four copies of the surface, cut along paths through the three points, into a torus: a fourfold cover of the surface, branched at the triplet;
+-   map this torus conformally onto a flat square torus, which becomes an image with periodic boundaries.
+
+A standard CNN with cyclic padding convolves this image without seams. Several triplets give several images, and per-pixel predictions such as segmentation labels are pulled back to the surface and aggregated.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Laplacian editing keeps differential coordinates without rotating them; ARAP adds a rotation per vertex.
+-   ARAP alternates a Procrustes SVD step and a prefactored solve with $L$; the energy decreases.
+-   $\chi = 2 - 2g$ and Gauss–Bonnet: only the torus can be flat, so closed surfaces are cut or covered.
+-   Tutte's map of a disk is always valid; cotangent weights are closer to conformal; LSCM frees the boundary.
+-   Toric covers map a sphere-like surface to a flat torus, where an ordinary CNN applies.
+:::
+
+## 5. Maps between surfaces and shape matching {#ch5}
+
+Matching two shapes means finding, for each point of one, the corresponding point of the other: the same fingertip on a body in two poses. A point-to-point map is a hard combinatorial object; this chapter replaces it with a small matrix acting on functions, computed by linear algebra.
+
+::: def
+[Definition 5.1 — Pointwise maps and pullbacks]{.tag} A **pointwise map** $T : \mathcal{M} \to \mathcal{N}$ between meshes with $n_\mathcal{M}$ and $n_\mathcal{N}$ vertices sends each vertex of $\mathcal{M}$ to a vertex of $\mathcal{N}$. It is stored as a binary matrix $\Pi \in \{0, 1\}^{n_\mathcal{M} \times n_\mathcal{N}}$ with one 1 per row.
+
+Its **pullback** transports functions backwards, $T^F g = g \circ T$, and in matrix form $T^F g = \Pi g$. The pullback is linear even when $T$ is not smooth: this is the starting point of functional maps.
+:::
+
+::: def
+[Definition 5.2 — Functional map (Ovsjanikov et al., 2012)]{.tag} Let $\Phi_\mathcal{M}$ and $\Phi_\mathcal{N}$ hold the first $k$ manifold harmonics of each shape (Definition 3.1). The **functional map** of $T$ is the $k \times k$ matrix
+$$
+C = \Phi_\mathcal{M}^\top M_\mathcal{M}\, \Pi\, \Phi_\mathcal{N} .
+$$
+
+A function with coefficients $a$ on $\mathcal{N}$ is sent to the function with coefficients $C a$ on $\mathcal{M}$. A map between thousands of vertices becomes a matrix of a few hundred entries, and smooth maps have a nearly band-diagonal $C$.
+:::
+
+:::: thm
+[Theorem 5.3 — Isometries give structured functional maps]{.tag} Let $T$ be an isometry between smooth surfaces and use complete eigenbases. Then $C$ is orthogonal and commutes with the Laplacians:
+$$
+C\, \Lambda_\mathcal{N} = \Lambda_\mathcal{M}\, C, \qquad C^\top C = I .
+$$
+
+::: proof
+An isometry preserves the Laplace–Beltrami operator:
+$$
+\Delta_\mathcal{M}(g \circ T) = (\Delta_\mathcal{N} g) \circ T, \qquad \text{so} \qquad T^F \Delta_\mathcal{N} = \Delta_\mathcal{M} T^F .
+$$
+
+Writing this identity in the two eigenbases gives $C \Lambda_\mathcal{N} = \Lambda_\mathcal{M} C$.
+
+An isometry also preserves areas, so pullback preserves inner products:
+$$
+\langle g \circ T, h \circ T \rangle_\mathcal{M} = \langle g, h \rangle_\mathcal{N} .
+$$
+
+In orthonormal bases this reads $C^\top C = I$. [∎]{.qed}
+:::
+
+Entry by entry, commutation says
+$$
+c_{ij}\, (\lambda^\mathcal{N}_j - \lambda^\mathcal{M}_i) = 0 :
+$$
+$C$ only mixes eigenfunctions of equal eigenvalue. With simple eigenvalues it is diagonal with entries $\pm 1$ (Exercise 9).
+::::
+
+::: def
+[Definition 5.4 — Descriptor preservation]{.tag} Let $D_\mathcal{N}$ and $D_\mathcal{M}$ hold $q$ point descriptors per vertex, such as the WKS at $q$ energies (Definition 3.10), with $D_\mathcal{M} \approx \Pi D_\mathcal{N}$ when $T$ is an isometry.
+
+In spectral coefficients, $G = \Phi^\top M D$, preservation reads
+$$
+C\, G_\mathcal{N} = G_\mathcal{M} .
+$$
+:::
+
+:::: prop
+[Proposition 5.5 — Computing $C$ row by row]{.tag} The problem
+$$
+\min_C\ \|C G_\mathcal{N} - G_\mathcal{M}\|_F^2 + \alpha\, \|C \Lambda_\mathcal{N} - \Lambda_\mathcal{M} C\|_F^2
+$$
+separates over the rows of $C$. Row $c_i$ solves the $k \times k$ system
+$$
+\big( G_\mathcal{N} G_\mathcal{N}^\top + \alpha\, \mathrm{diag}_j (\lambda^\mathcal{M}_i - \lambda^\mathcal{N}_j)^2 \big)\, c_i^\top = G_\mathcal{N}\, (G_\mathcal{M})_i^\top .
+$$
+
+::: proof
+Both Frobenius norms are sums over rows. Row $i$ of the first residual is $c_i G_\mathcal{N} - (G_\mathcal{M})_i$, and entry $(i, j)$ of the commutator is
+$$
+c_{ij}\, (\lambda^\mathcal{N}_j - \lambda^\mathcal{M}_i).
+$$
+
+The cost of row $i$ is a convex quadratic in $c_i$, whose normal equations are the stated system. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 5.6 — From a functional map back to points]{.tag} If $\Pi \Phi_\mathcal{N} = \Phi_\mathcal{M} C$ held exactly, row $x$ would read $\Phi_\mathcal{N}(T(x))\, C^\top = \Phi_\mathcal{M}(x)$. Hence the recovery rule
+$$
+T(x) = \arg\min_{y} \big\| \Phi_\mathcal{N}(y)\, C^\top - \Phi_\mathcal{M}(x) \big\| ,
+$$
+a nearest-neighbour search among $n_\mathcal{N}$ points of $\mathbb{R}^k$, done with a kd-tree.
+:::
+
+::: def
+[Algorithm 5.7 — Spectral upsampling (ZoomOut)]{.tag} Melzi et al. (2019) start from a small $C$ of size $k_0$ and alternate:
+
+1.  recover $T$ from $C$ (Proposition 5.6);
+2.  recompute $C$ from $T$ with one more eigenfunction (Definition 5.2).
+
+The map is refined while the basis grows; no descriptor is used after the first step.
+:::
+
+::: ex
+[Example 5.8 — Matching two discretisations of a bumpy sphere]{.tag} Shape $\mathcal{N}$ is the same surface as $\mathcal{M}$, sampled with 1500 rotated Fibonacci directions instead of 1200. The ground truth is known through the directions. Errors are mean distances in units of $\sqrt{\text{area}}$.
+
+```python
+import numpy as np, scipy.sparse as sp
+from scipy.sparse.linalg import eigsh
+from scipy.spatial import ConvexHull, cKDTree
+
+def bumpy(n, R):
+    """Fibonacci directions rotated by R, triangulated, then pushed to radius r(d)."""
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    D = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)] @ R.T
+    F = ConvexHull(D).simplices
+    r = 1 + 0.25 * np.sin(3 * D[:, 0] + 1) * np.cos(2 * D[:, 1] + 0.5) + 0.2 * D[:, 2] ** 3
+    return D * r[:, None], F, D
+
+def eig(V, F, k):
+    n = len(V); I, J, W = [], [], []
+    for a in range(3):
+        i, j, o = F[:, a], F[:, (a + 1) % 3], F[:, (a + 2) % 3]
+        u, v = V[i] - V[o], V[j] - V[o]
+        c = (u * v).sum(1) / np.linalg.norm(np.cross(u, v), axis=1) / 2
+        I += [i, j]; J += [j, i]; W += [c, c]
+    W = sp.csr_matrix((np.concatenate(W), (np.concatenate(I), np.concatenate(J))), shape=(n, n))
+    L = sp.diags(np.asarray(W.sum(1)).ravel()) - W
+    area = 0.5 * np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1)
+    m = np.bincount(F.ravel(), np.repeat(area / 3, 3), n)
+    lam, phi = eigsh(L.tocsc(), k=k, M=sp.diags(m).tocsc(), sigma=-1e-6, which="LM")
+    return lam, phi, m
+
+def wks(lam, phi, q=40):
+    """Wave kernel signature (Definition 3.10) at q log-spaced energies."""
+    loglam = np.log(np.maximum(lam[1:], 1e-8))
+    e = np.linspace(loglam.min(), loglam.max(), q); s = 7 * (e[1] - e[0])
+    w = np.exp(-(e[None, :] - loglam[:, None]) ** 2 / (2 * s ** 2))
+    return (phi[:, 1:] ** 2) @ w / w.sum(0)
+
+rng = np.random.default_rng(0)
+Rb, _ = np.linalg.qr(rng.normal(size=(3, 3)))
+VA, FA, DA = bumpy(1200, np.eye(3))                # shape M
+VB, FB, DB = bumpy(1500, Rb)                       # shape N: same surface, another sampling
+lA, PA, mA = eig(VA, FA, 40); lB, PB, mB = eig(VB, FB, 40)
+k = 20
+gA = (PA[:, :k].T * mA) @ wks(lA, PA); gB = (PB[:, :k].T * mB) @ wks(lB, PB)
+alpha = 1e-2 * np.linalg.norm(gA) ** 2 / np.linalg.norm(lA[:k]) ** 2
+C = np.zeros((k, k))
+for i in range(k):                                 # row-wise closed form (Proposition 5.5)
+    C[i] = np.linalg.solve(gB @ gB.T + alpha * np.diag((lA[i] - lB[:k]) ** 2), gB @ gA[i])
+
+truth = cKDTree(DB).query(DA)[1]                   # ground truth through the directions
+def error(T):                                      # mean distance, in units of sqrt(area)
+    return np.linalg.norm(VB[T] - VB[truth], axis=1).mean() / np.sqrt(mB.sum())
+
+T = cKDTree(PB[:, :k] @ C.T).query(PA[:, :k])[1]  # Phi_N(T(x)) C^T ~ Phi_M(x)
+print(f"random map: {error(rng.integers(0, len(VB), len(VA))):.3f}")
+print(f"functional map, k = {k}: {error(T):.4f}, exact hits {np.mean(T == truth):.0%}")
+print("diagonal of C (first 8):", np.round(np.diag(C)[:8], 2))
+```
+
+A random map has error 0.360. The functional map has error 0.0053, and 79 % of the vertices land exactly on the true vertex. The diagonal entries of $C$ have moduli $1, 1.23, 0.97, 0.89, 1.08, \dots$, close to 1 as Theorem 5.3 predicts. Their signs change from run to run, because `eigsh` returns each eigenvector with an arbitrary sign; the descriptors fix them.
+:::
+
+::: note
+[Note 5.9 — Symmetries, evaluation and basic matching]{.tag}
+
+-   **Symmetries.** An intrinsic symmetry, such as the left–right flip of a body, is also an isometry; isometry-invariant descriptors cannot tell it from the identity. Making the bumpy sphere symmetric raises the error of Example 5.8 by a factor of about 25 (Exercise 10).
+-   **Evaluation.** Benchmarks such as FAUST (Bogo et al., 2014) report the geodesic distance between predicted and true points, normalised by $\sqrt{\text{area}}$, as a mean or as a cumulative curve.
+-   **Basic matching.** Matching each point to its nearest neighbour in descriptor space is the simplest method; it is noisy because descriptors repeat. Functional maps add the global, linear structure of Theorem 5.3, and the spectrum (Proposition 3.3) compares whole shapes.
+:::
+
+::: recap
+Key takeaways — chapter 5
+
+-   A pointwise map acts linearly on functions by pullback; in reduced bases it becomes a $k \times k$ matrix $C$ (Definition 5.2).
+-   Isometries give an orthogonal $C$ that commutes with the eigenvalues: nearly diagonal, with signs to fix.
+-   Descriptor preservation plus commutativity is a least-squares problem solved row by row.
+-   Points are recovered by nearest neighbours between $\Phi_\mathcal{N} C^\top$ and $\Phi_\mathcal{M}$; ZoomOut refines while upsampling.
+-   Intrinsic symmetries are the main ambiguity of intrinsic matching.
+:::
+
+## 6. Deep learning on curved surfaces {#ch6}
+
+A convolutional network slides one filter over a grid, using translations and a fixed “up”. A curved surface has neither. This chapter builds surface convolutions from the spectrum, from local charts and from parallel transport.
+
+::: note
+[Note 6.1 — Three obstacles, and intrinsic versus extrinsic]{.tag}
+
+-   **No translations**: the filter cannot be moved from point to point by a group action.
+-   **No canonical orientation**: each tangent plane has a circle of possible reference directions.
+-   **Varying discretisation**: the same surface comes with different meshes.
+
+An **extrinsic** input (coordinates, normals) depends on the pose; an **intrinsic** one (built from the metric, like the HKS) is invariant to isometric deformations but blind to the embedding.
+:::
+
+::: def
+[Definition 6.2 — Spectral convolution (Bruna et al., 2014)]{.tag} A **spectral convolutional layer** maps an input channel $x$ to an output channel through learned spectral coefficients $w \in \mathbb{R}^k$:
+$$
+y = \Phi_k\, \mathrm{diag}(w)\, \Phi_k^\top M x .
+$$
+
+It generalises Definition 2.8 by learning one coefficient per eigenfunction instead of a function of the eigenvalue.
+:::
+
+:::: prop
+[Proposition 6.3 — What spectral filters depend on]{.tag}
+
+-   If an eigenvalue is repeated and $w$ is not constant on its eigenspace, the layer depends on the arbitrary orthonormal basis chosen inside that eigenspace.
+-   If $w_k = g(\lambda_k)$ for a function $g$, the layer is $g(-\Delta)$: it does not depend on the basis and commutes with isometries.
+
+::: proof
+A change of basis inside an eigenspace is $\Phi' = \Phi Q$, with $Q$ orthogonal and block diagonal on the eigenspaces. The layer becomes $\Phi Q\, \mathrm{diag}(w)\, Q^\top \Phi^\top M$. It is unchanged for every such $Q$ exactly when $\mathrm{diag}(w)$ commutes with every orthogonal block, that is when $w$ is constant on each eigenspace. The second claim is Proposition 2.9. [∎]{.qed}
+:::
+
+Across non-isometric shapes the $k$-th eigenfunctions are unrelated, so index-based coefficients do not transfer; coefficients that depend on $\lambda$ do. This is the idea behind the learned diffusion of [ch. 7](#ch7).
+::::
+
+::: def
+[Definition 6.4 — Geodesic CNN and its variants]{.tag} The **exponential map** at $x$ sends a tangent vector $v$ to the end point of the geodesic of initial velocity $v$ and length $\|v\|$. Its inverse gives **geodesic polar coordinates** $(\rho, \theta)$ around $x$, valid within the injectivity radius.
+
+A **patch operator** samples a signal $f$ on soft bins of this chart:
+$$
+(D(x) f)(\rho, \theta) = \int_S w_{\rho\theta}(x, y)\, f(y)\, \mathrm{d}A(y).
+$$
+
+The angle origin is arbitrary. The **geodesic CNN** of Masci et al. (2015) correlates a filter $a$ with the patch for every rotation $\theta_0$ of a discrete set, and keeps the best response (**angular max pooling**):
+$$
+(f \star a)(x) = \max_{\theta_0} \sum_{\rho, \theta} a(\rho, \theta + \theta_0)\, (D(x) f)(\rho, \theta).
+$$
+
+**Anisotropic CNNs** (Boscaini et al., 2016) orient anisotropic heat kernels along principal curvature directions; **MoNet** (Monti et al., 2017) learns Gaussian patch weights.
+:::
+
+To compare directional features at neighbouring points, a network must move tangent vectors between tangent planes: parallel transport.
+
+::: def
+[Definition 6.5 — Vector fields, parallel transport, holonomy]{.tag} A **tangent vector field** assigns to each point $p$ a vector $X(p) \in T_p S$. Along a curve $\gamma$, the **covariant derivative** of $X$ is the tangential part of $\frac{\mathrm{d}}{\mathrm{d}t} X(\gamma(t))$.
+
+The field is **parallel** along $\gamma$ when this derivative vanishes, which defines a rotation $P_\gamma : T_{\gamma(0)} S \to T_{\gamma(1)} S$.
+
+Around a closed loop bounding a small disk $\Omega$, transport rotates every vector by the **holonomy** angle, equal to $\int_\Omega K \,\mathrm{d}A$ modulo $2\pi$. On a curved surface, transport depends on the path.
+:::
+
+::: def
+[Definition 6.6 — Discrete parallel transport]{.tag} Give each triangle $f$ a reference direction in its plane, its **frame**, and write a tangent vector as a complex number $z = r e^{i\theta}$, with $\theta$ measured from the frame.
+
+Across an edge $e$ shared by triangles $f$ and $g$, unfold $g$ into the plane of $f$ by rotating it about $e$. The angle between the vector and the edge is kept, so
+$$
+z_f = e^{i \rho_{g \to f}}\, z_g, \qquad \rho_{g \to f} = \alpha_f(e) - \alpha_g(e),
+$$
+where $\alpha_f(e)$ is the angle of the edge direction in the frame of $f$.
+:::
+
+:::: thm
+[Theorem 6.7 — Holonomy around a vertex is the angle defect]{.tag} Transporting a vector once around the fan of triangles of an interior vertex $v$ rotates it by
+$$
+K_v = 2\pi - \sum_{f \ni v} \theta^f_v \pmod{2\pi}.
+$$
+
+::: proof
+Unfold the fan triangle after triangle into the plane of the first one. Each transport is exactly this planar unfolding, so the transported vector is the same planar vector throughout.
+
+The unfolded fan covers an angle $\sum_f \theta_v^f$ around $v$, so the copy of the first triangle reached after one turn is rotated by this angle with respect to the original. Identifying the two copies, the vector read in the frame of the first triangle has turned by $2\pi - \sum_f \theta_v^f$, modulo $2\pi$. [∎]{.qed}
+:::
+
+Code 6.11 checks it at every vertex of a mesh.
+::::
+
+::: def
+[Definition 6.8 — Gauges and rotation orders]{.tag} The choice of frames is a **gauge**. Rotating the frame of triangle $f$ by $\varphi_f$ changes the coordinate of a feature of **rotation order** $m$ into
+$$
+z_f \mapsto e^{-i m \varphi_f}\, z_f ,
+$$
+and the transport angles into $\rho_{g \to f} - \varphi_f + \varphi_g$. Scalars have order 0, tangent vectors order 1, line fields such as principal directions order 2.
+:::
+
+:::: prop
+[Proposition 6.9 — Transported message passing is gauge equivariant]{.tag} For complex weights $w_0, w$, the layer
+$$
+(\mathcal{L} z)_f = w_0\, z_f + \sum_{g \sim f} w\, e^{i m \rho_{g \to f}}\, z_g
+$$
+satisfies $\mathcal{L}(z') = e^{-im\varphi} \mathcal{L}(z)$ for every gauge change $\varphi$. Without the transport factor, it does not.
+
+::: proof
+After the gauge change, each neighbour term becomes
+$$
+w\, e^{i m (\rho_{g \to f} - \varphi_f + \varphi_g)}\, e^{-i m \varphi_g} z_g = e^{-i m \varphi_f}\, w\, e^{i m \rho_{g \to f}} z_g ,
+$$
+and the first term is $e^{-im\varphi_f} w_0 z_f$. Complex multiplications commute, so the factor $e^{-im\varphi_f}$ comes out. Without transport, the factor $e^{-im\varphi_g}$ of each neighbour remains. [∎]{.qed}
+:::
+
+A non-linearity that acts on the modulus only, such as $z \mapsto \mathrm{ReLU}(|z| + b)\, z / |z|$, keeps the equivariance.
+::::
+
+::: note
+[Note 6.10 — Invariant versus equivariant features]{.tag}
+
+-   **Invariant** features (scalars, moduli $|z|$, angular max pooling) ignore the gauge but forget relative directions, such as whether a ridge runs along or across a bump.
+-   **Equivariant** features rotate predictably with the gauge and keep this information until a last layer takes moduli.
+-   **Harmonic surface networks** (Wiersma et al., 2020), the TP topic, apply filters $R(r)\, e^{i(m\theta + \beta)}$ in local polar coordinates to parallel-transported features, one stream per rotation order. Field convolutions (Mitchel et al., 2021) and gauge-equivariant mesh CNNs (de Haan et al., 2021) are related.
+:::
+
+::: ex
+[Example 6.11 — Holonomy and gauge equivariance, numerically]{.tag} The code checks Theorem 6.7 at every vertex of a bumpy sphere, and Proposition 6.9 with $m = 1$ under a random gauge change.
+
+```python
+import numpy as np
+from scipy.spatial import ConvexHull
+
+rng = np.random.default_rng(1)
+n = 400
+i = np.arange(n) + 0.5
+phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+D = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+F = ConvexHull(D).simplices
+flip = (np.cross(D[F[:, 1]] - D[F[:, 0]], D[F[:, 2]] - D[F[:, 0]]) * D[F].sum(1)).sum(1) < 0
+F[flip] = F[flip][:, ::-1]                                     # outward orientation
+V = D * (1 + 0.2 * np.sin(3 * D[:, :1]) * D[:, 1:2])          # a bumpy sphere
+
+N = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+N /= np.linalg.norm(N, axis=1, keepdims=True)
+X = V[F[:, 1]] - V[F[:, 0]]; X /= np.linalg.norm(X, axis=1, keepdims=True)
+Y = np.cross(N, X)                                             # face frames (X, Y): the gauge
+
+owner = {(t[k], t[(k + 1) % 3]): f for f, t in enumerate(F) for k in range(3)}
+rho = {}                                                        # transport angle from face g to face f
+for (a, b), f in owner.items():
+    g, d = owner[(b, a)], V[b] - V[a]
+    rho[(g, f)] = np.arctan2(d @ Y[f], d @ X[f]) - np.arctan2(d @ Y[g], d @ X[g])
+
+angle_sum = np.zeros(len(V))
+for k in range(3):
+    p, q = V[F[:, (k + 1) % 3]] - V[F[:, k]], V[F[:, (k + 2) % 3]] - V[F[:, k]]
+    np.add.at(angle_sum, F[:, k], np.arctan2(np.linalg.norm(np.cross(p, q), axis=1), (p * q).sum(1)))
+
+first_face = {v: f for f, t in enumerate(F) for v in t}
+gap = 0.0
+for v, f0 in first_face.items():                                # walk once around each vertex
+    f, hol = f0, 0.0
+    while True:
+        t = list(F[f]); g = owner[(v, t[(t.index(v) + 2) % 3])]
+        hol += rho[(f, g)]; f = g
+        if f == f0:
+            break
+    d = hol - (2 * np.pi - angle_sum[v])
+    gap = max(gap, abs((d + np.pi) % (2 * np.pi) - np.pi))
+print(f"max |holonomy - angle defect| over {len(V)} vertices: {gap:.1e}")
+
+z = rng.normal(size=len(F)) + 1j * rng.normal(size=len(F))    # one tangent vector per face
+def layer(z, rho, transport=True):
+    out = 0.5 * z.copy()
+    for (g, f), r in rho.items():
+        out[f] += 0.3 * (np.exp(1j * r) if transport else 1.0) * z[g]
+    return out
+gauge = rng.uniform(0, 2 * np.pi, len(F))                      # rotate every face frame
+z2 = np.exp(-1j * gauge) * z
+rho2 = {(g, f): r - gauge[f] + gauge[g] for (g, f), r in rho.items()}
+for transport in [True, False]:
+    err = np.abs(layer(z2, rho2, transport) - np.exp(-1j * gauge) * layer(z, rho, transport)).max()
+    print(f"transport = {transport}: equivariance gap {err:.1e}")
+```
+
+The holonomy matches the angle defect to $4 \times 10^{-15}$ at all 400 vertices. The equivariance gap is $10^{-15}$ with transport and 2.9 without.
+:::
+
+::: recap
+Key takeaways — chapter 6
+
+-   Surfaces lack translations, orientations and a fixed discretisation.
+-   Spectral filters indexed by eigenfunction do not transfer; functions of the eigenvalue do.
+-   Geodesic CNNs filter in polar charts, with angular max pooling or curvature for orientation.
+-   Discrete transport keeps the angle to the shared edge; its holonomy around a vertex is the angle defect.
+-   Transporting features before combining them gives gauge-equivariant layers that keep directions.
+:::
+
+## 7. Architectures and applications: from PointNet to DiffusionNet {#ch7}
+
+Architectures for 3D shapes differ by the representation they consume and the invariances they build in. This chapter compares them and trains a small operator-based network.
+
+::: def
+[Definition 7.1 — Global and local coordinate systems]{.tag}
+
+-   **Global**: raw coordinates in a world frame. They are informative but depend on the pose; networks use random-rotation augmentation or a canonical frame from principal axes, whose signs are ambiguous.
+-   **Local**: a frame per point (normal plus a tangent direction). Coordinates of neighbours in this frame are invariant to rigid motions, but the tangent direction must be chosen or made irrelevant ([ch. 6](#ch6)).
+-   **Intrinsic**: quantities computed from the metric (HKS, WKS, geodesic distances), invariant to isometric deformations.
+:::
+
+::: thm
+[Theorem 7.2 — PointNet (Qi et al., 2017)]{.tag} A point set $X = \{x_1, \dots, x_N\}$ has no order, so PointNet computes
+$$
+f(X) = \gamma\Big( \max_{i} h(x_i) \Big),
+$$
+with $h$ and $\gamma$ multilayer perceptrons and the maximum taken coordinate-wise. $f$ is invariant to permutations, and every function continuous for the Hausdorff distance can be approximated uniformly by this form.
+
+*Proof sketch.* Let $h$ return soft indicators of the cells of a fine voxel grid. The coordinate-wise maximum then records which cells are occupied, which determines the set up to the grid size. A continuous function of the set is approximated by a function $\gamma$ of this finite code. Zaheer et al. (2017) characterise the sum-decomposable version.
+:::
+
+PointNet sees each point alone before the maximum; local structure requires neighbourhoods.
+
+::: def
+[Definition 7.3 — Graph-based learning]{.tag} Build a graph on the shape, from the mesh edges or the $k$ nearest neighbours, and pass messages along it. EdgeConv (Wang et al., 2019) updates
+$$
+x'_i = \max_{j \in \mathcal{N}(i)} h_\theta\big(x_i,\ x_j - x_i\big),
+$$
+and recomputes the neighbours in feature space at each layer. Such networks depend on the connectivity: a remeshed shape is a different graph.
+:::
+
+::: def
+[Definition 7.4 — MeshCNN (Hanocka et al., 2019)]{.tag} MeshCNN puts features on edges. The input is five numbers per edge: the dihedral angle, the two angles opposite to it, and two ratios of edge length to triangle height; they are invariant to rigid motions and scale.
+
+Each edge has four neighbouring edges $(a, b, c, d)$ in its two triangles, known up to a symmetry. The convolution applies to the symmetric combinations $|a - c|$, $a + c$, $|b - d|$, $b + d$. Pooling collapses the edges of smallest feature norm, so the network simplifies the mesh where the task allows.
+:::
+
+::: def
+[Definition 7.5 — SpiralNet++ (Gong et al., 2019)]{.tag} For meshes that share one connectivity, such as registered faces or bodies, each vertex gets a **spiral**: a fixed-length sequence of vertices starting at a chosen neighbour and turning outwards ring by ring. A layer concatenates the features along the spiral and applies a linear map, like a 1D convolution. It is fast and expressive, but tied to the template connectivity.
+:::
+
+::: def
+[Definition 7.6 — DiffusionNet (Sharp et al., 2022)]{.tag} A DiffusionNet block takes per-vertex features $x \in \mathbb{R}^{n \times c}$ and applies three operations:
+
+1.  **Learned diffusion**: each channel $c$ is diffused for a learned time $t_c \geq 0$,
+    $$
+    h_c = \Phi\, e^{-t_c \Lambda}\, \Phi^\top M\, x_c ,
+    $$
+    a spectral filter of the form of Proposition 6.3, hence transferable. Small $t_c$ is local, large $t_c$ global: the receptive field is learned, with no pooling.
+2.  **Spatial gradient features**: the tangent gradient of each $h_c$ is a complex number in a local frame. Learned complex combinations $w = A \nabla h$ are paired with $\nabla h$ through $\tanh \operatorname{Re}(\overline{\nabla h_c}\, w_c)$, a quantity unchanged when the local frame rotates. These features see directions, such as which side of a ridge a point lies on.
+3.  **Pointwise MLP** on the concatenation $[x, h, \text{gradient features}]$, with a residual connection.
+
+Every operation is built from $L$, $M$ and the gradient, which converge when the mesh is refined. The network is therefore **discretisation agnostic**: trained on one mesh, it applies to another mesh, or to a point cloud with a point-cloud Laplacian.
+:::
+
+::: def
+[Definition 7.7 — DeltaConv (Wiersma et al., 2022)]{.tag} DeltaConv works on point clouds, where it estimates gradient, divergence, curl and Laplacian by local least squares in tangent frames. It keeps two streams, scalar features and tangent vector features. Gradients and co-gradients turn scalars into vectors; divergence, curl and norms turn vectors back into scalars. The result is anisotropic, direction-aware filtering without a choice of orientation.
+:::
+
+::: note
+[Note 7.8 — Applications and training]{.tag}
+
+-   **Classification**: per-vertex features pooled into one vector (mean or maximum), then an MLP; benchmarks include ModelNet40 (Wu et al., 2015).
+-   **Segmentation**: per-vertex cross-entropy, for example on the human body segmentation data set of Maron et al. (2017).
+-   **Correspondence**: either dense classification into the vertices of a template, or learned descriptors fed to the functional-map solve of Proposition 5.5. This solve is differentiable, so the descriptor network trains end to end (deep functional maps, Litany et al., 2017).
+-   **Practice**: centre and scale shapes to unit area; augment with random rotations if inputs are extrinsic, or use intrinsic inputs; augment with remeshing; precompute operators once per shape; test on other discretisations.
+:::
+
+::: ex
+[Example 7.9 — A mini DiffusionNet that survives remeshing]{.tag} Each vertex receives its segmentation label, replaced by a random label with probability 0.5, and must output the clean label. A per-vertex network cannot beat the input accuracy of 0.625, so any gain comes from diffusion. Two blocks with learned diffusion (no gradient features) are trained on an 800-vertex mesh and tested on a 2500-vertex mesh of the same surface.
+
+```python
+import numpy as np, scipy.sparse as sp, torch
+from scipy.sparse.linalg import eigsh
+from scipy.spatial import ConvexHull
+
+def bumpy_mesh(n, k=48):
+    """Bumpy sphere with n vertices, its first k Laplace-Beltrami eigenpairs and its masses."""
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    D = np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+    F = ConvexHull(D).simplices
+    V = D * (1 + 0.25 * np.sin(3 * D[:, :1] + 1) * np.cos(2 * D[:, 1:2] + 0.5))
+    I, J, W = [], [], []
+    for a in range(3):
+        p, q, o = F[:, a], F[:, (a + 1) % 3], F[:, (a + 2) % 3]
+        u, v = V[p] - V[o], V[q] - V[o]
+        c = (u * v).sum(1) / np.linalg.norm(np.cross(u, v), axis=1) / 2
+        I += [p, q]; J += [q, p]; W += [c, c]
+    W = sp.csr_matrix((np.concatenate(W), (np.concatenate(I), np.concatenate(J))), shape=(n, n))
+    L = sp.diags(np.asarray(W.sum(1)).ravel()) - W
+    area = 0.5 * np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1)
+    m = np.bincount(F.ravel(), np.repeat(area / 3, 3), n)
+    lam, Phi = eigsh(L.tocsc(), k=k, M=sp.diags(m).tocsc(), sigma=-1e-6, which="LM")
+    label = (D[:, 0] > 0.3 * np.sin(3 * D[:, 1])).astype(int) + 2 * (D[:, 2] > 0.2)
+    as_t = lambda x: torch.tensor(x, dtype=torch.float32)
+    return as_t(lam), as_t(Phi), as_t(m), torch.tensor(label)
+
+class DiffusionBlock(torch.nn.Module):
+    """Learned diffusion (one time per channel), then a pointwise MLP, with a residual."""
+    def __init__(self, c):
+        super().__init__()
+        self.log_t = torch.nn.Parameter(torch.full((c,), -3.0))
+        self.mlp = torch.nn.Sequential(torch.nn.Linear(2 * c, c), torch.nn.ReLU(), torch.nn.Linear(c, c))
+    def forward(self, x, lam, Phi, m):
+        coef = Phi.T @ (m[:, None] * x)                            # spectral coefficients
+        x_diff = Phi @ (torch.exp(-lam[:, None] * self.log_t.exp()[None, :]) * coef)
+        return x + self.mlp(torch.cat([x, x_diff], 1))
+
+class MiniDiffusionNet(torch.nn.Module):
+    def __init__(self, c_in=4, width=32, c_out=4, blocks=2):
+        super().__init__()
+        self.inp, self.out = torch.nn.Linear(c_in, width), torch.nn.Linear(width, c_out)
+        self.blocks = torch.nn.ModuleList(DiffusionBlock(width) for _ in range(blocks))
+    def forward(self, x, lam, Phi, m):
+        x = self.inp(x)
+        for b in self.blocks:
+            x = b(x, lam, Phi, m)
+        return self.out(x)
+
+def noisy_input(label, p, gen):
+    flip = torch.rand(len(label), generator=gen) < p
+    noisy = torch.where(flip, torch.randint(0, 4, (len(label),), generator=gen), label)
+    return torch.nn.functional.one_hot(noisy, 4).float()
+
+torch.set_num_threads(1)                    # small tensors: one thread is fastest
+torch.manual_seed(0); gen = torch.Generator().manual_seed(0)
+train, test = bumpy_mesh(800), bumpy_mesh(2500)                 # two discretisations
+net = MiniDiffusionNet(); opt = torch.optim.Adam(net.parameters(), lr=1e-2)
+for step in range(300):
+    x = noisy_input(train[3], 0.5, gen)
+    loss = torch.nn.functional.cross_entropy(net(x, *train[:3]), train[3])
+    opt.zero_grad(); loss.backward(); opt.step()
+with torch.no_grad():
+    x = noisy_input(test[3], 0.5, gen)
+    acc = (net(x, *test[:3]).argmax(1) == test[3]).float().mean()
+    print(f"input accuracy {(x.argmax(1) == test[3]).float().mean():.2f}, "
+          f"output accuracy on the unseen 2500-vertex mesh {acc:.3f}")
+    print("learned diffusion times:", [f"{b.log_t.exp().mean():.3f}" for b in net.blocks])
+```
+
+On the unseen mesh the accuracy rises from 0.63 to 0.961. The learned times, about 0.03, give an averaging radius $\sqrt{2t} \approx 0.25$ on a shape of radius 1. Only $\Phi$, $\Lambda$ and $M$ changed between the meshes.
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   Inputs are global (pose-dependent), local (rigid-invariant) or intrinsic (isometry-invariant).
+-   PointNet approximates any continuous set function but has no neighbourhoods; EdgeConv adds a graph.
+-   MeshCNN convolves edges symmetrically and pools by edge collapse; SpiralNet++ needs a shared connectivity.
+-   DiffusionNet (learned diffusion, gradient features, pointwise MLPs) is discretisation agnostic.
+-   DeltaConv carries scalar and vector streams on point clouds with gradient, divergence and curl.
+:::
+
+## 8. Neural fields for surfaces {#ch8}
+
+A mesh fixes a resolution and a topology. A neural field represents a surface as the zero set of a small network, queried anywhere. This chapter defines such fields, explains why plain networks miss detail, and regularises and renders them.
+
+::: def
+[Definition 8.1 — Implicit surfaces, SDF and occupancy]{.tag} A surface can be given as the zero level set $S = \{ x : f(x) = 0 \}$ of a function $f : \mathbb{R}^3 \to \mathbb{R}$. The **signed distance function** (SDF) is $f(x) = \pm\, d(x, S)$, negative inside. Where it is differentiable,
+$$
+\|\nabla f\| = 1, \qquad \nabla f = n \ \text{ on } S .
+$$
+
+An **occupancy** function $o(x) \in [0, 1]$ is the probability that $x$ is inside; the surface is $\{ o = 1/2 \}$. Implicit surfaces handle any topology, and a mesh is extracted by marching cubes (Note 8.10).
+:::
+
+::: def
+[Definition 8.2 — Neural fields, DeepSDF and occupancy networks]{.tag} A **neural field** is a coordinate network $f_\theta(x)$, possibly conditioned on a latent code $z$ that describes one shape of a collection.
+
+-   **DeepSDF** (Park et al., 2019) is an **auto-decoder**: each training shape $i$ has a code $z_i$, optimised jointly with $\theta$ on sampled pairs $(x, s)$ with a clamped $L^1$ loss and a Gaussian prior on $z_i$. A new shape, possibly partial, is fitted by optimising its code alone.
+-   **Occupancy networks** (Mescheder et al., 2019) encode an input (image, points, voxels) into $z$ and train $f_\theta(x, z) \in [0, 1]$ with a binary cross-entropy on occupancy labels.
+:::
+
+Fitting a field with a plain ReLU network fails in a specific way: the network learns low frequencies first and fine details very slowly. This **spectral bias** is fixed by changing the input.
+
+::: thm
+[Theorem 8.3 — Fourier features make the kernel stationary (Tancik et al., 2020)]{.tag} Map the input through
+$$
+\gamma(x) = \big( \cos 2\pi B x,\ \sin 2\pi B x \big), \qquad B \in \mathbb{R}^{m \times d},\ B_{jl} \sim \mathcal{N}(0, \sigma^2).
+$$
+
+Then the inner product
+$$
+\gamma(x)^\top \gamma(x') = \sum_j \cos 2\pi\, b_j^\top (x - x')
+$$
+depends only on $x - x'$, and so does the neural tangent kernel of a wide network on $\gamma(x)$. The bandwidth of this stationary kernel grows with $\sigma$.
+
+*Proof sketch.* The identity is $\cos a \cos b + \sin a \sin b = \cos(a - b)$. In the infinite-width limit, gradient descent on the network behaves as kernel regression with the neural tangent kernel, which for fully connected layers is a function of the inner products of the inputs. A larger $\sigma$ puts more weight on high frequencies, so they are learned early instead of late.
+:::
+
+::: ex
+[Example 8.4 — Spectral bias, measured]{.tag} Fit $f(x) = \sin 2\pi x + 0.5 \sin 24 \pi x$ on $[0, 1]$ from 256 random samples, with a ReLU network, the same network on Fourier features ($\sigma = 10$), and a SIREN (Definition 8.5).
+
+```python
+import numpy as np, torch
+torch.set_num_threads(1); torch.manual_seed(0)
+
+f = lambda x: torch.sin(2 * np.pi * x) + 0.5 * torch.sin(2 * np.pi * 12 * x)
+x_train, x_test = torch.rand(256, 1), torch.linspace(0, 1, 1000)[:, None]
+
+class FourierFeatures(torch.nn.Module):          # gamma(x) = [cos 2 pi Bx, sin 2 pi Bx]
+    def __init__(self, m=64, sigma=10.0):
+        super().__init__(); self.register_buffer("B", sigma * torch.randn(1, m))
+    def forward(self, x):
+        return torch.cat([torch.cos(2 * np.pi * x @ self.B), torch.sin(2 * np.pi * x @ self.B)], 1)
+
+class Sine(torch.nn.Module):                     # SIREN layer, omega_0 = 30
+    def __init__(self, d_in, d_out, first=False, w0=30.0):
+        super().__init__(); self.w0, self.lin = w0, torch.nn.Linear(d_in, d_out)
+        bound = 1 / d_in if first else np.sqrt(6 / d_in) / w0
+        torch.nn.init.uniform_(self.lin.weight, -bound, bound)
+    def forward(self, x):
+        return torch.sin(self.w0 * self.lin(x))
+
+relu_mlp = lambda d_in: [torch.nn.Linear(d_in, 128), torch.nn.ReLU(), torch.nn.Linear(128, 128),
+                         torch.nn.ReLU(), torch.nn.Linear(128, 1)]
+models = {"ReLU MLP": torch.nn.Sequential(*relu_mlp(1)),
+          "Fourier features + ReLU": torch.nn.Sequential(FourierFeatures(), *relu_mlp(128)),
+          "SIREN": torch.nn.Sequential(Sine(1, 128, first=True), Sine(128, 128), torch.nn.Linear(128, 1))}
+for name, net in models.items():
+    opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+    for step in range(1000):
+        loss = ((net(x_train) - f(x_train)) ** 2).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+    with torch.no_grad():
+        print(f"{name:24s} train MSE {loss.item():.4f}   test MSE {((net(x_test) - f(x_test)) ** 2).mean():.4f}")
+```
+
+After 1000 steps the ReLU network has a test error of 0.126; the Fourier-feature network reaches 0.0001 and the SIREN 0.0000. The ReLU error is almost exactly $0.5^2 / 2 = 0.125$, the energy of the high-frequency term: it has learned the low frequency and nothing else.
+:::
+
+::: def
+[Definition 8.5 — SIREN (Sitzmann et al., 2020)]{.tag} A **SIREN** uses the activation $\sin(\omega_0 (W x + b))$ with $\omega_0 = 30$. Its weights are drawn uniformly in $\pm \sqrt{6 / n_{\text{in}}} / \omega_0$, and in $\pm 1 / n_{\text{in}}$ in the first layer. With this initialisation the pre-activations keep the same distribution through depth, so deep SIRENs train.
+
+The derivative of a SIREN is again a SIREN-like network, so losses can involve $\nabla f$ and even $\Delta f$: normals, eikonal terms, or PDE constraints.
+:::
+
+::: def
+[Definition 8.6 — Regularising neural fields]{.tag} A field fitted only on the samples $x_i$ of a surface can take any value elsewhere. **Implicit geometric regularisation** (Gropp et al., 2020) adds the eikonal term of Definition 8.1:
+$$
+\mathcal{L}(\theta) = \frac{1}{N} \sum_i |f_\theta(x_i)| + \tau\, \|\nabla f_\theta(x_i) - n_i\| + \lambda\, \mathbb{E}_x \big( \|\nabla f_\theta(x)\| - 1 \big)^2 ,
+$$
+the expectation taken over points spread in a box. The normal term is optional. Gradient descent then favours smooth, plausible zero sets. Other regularisers bound the Lipschitz constant, penalise curvature, or, for radiance fields, penalise floating density.
+:::
+
+::: ex
+[Example 8.7 — An eikonal fit of a 2D curve]{.tag} Points are sampled on the curve $r = 1 + 0.3 \cos 5\theta$, without normals. A softplus network is trained with the data and eikonal terms ($\lambda = 0.1$).
+
+```python
+import numpy as np, torch
+torch.set_num_threads(1); torch.manual_seed(0)
+
+theta = torch.rand(512) * 2 * np.pi                   # samples of the curve r = 1 + 0.3 cos 5 theta
+r = 1 + 0.3 * torch.cos(5 * theta)
+pts = torch.stack([r * torch.cos(theta), r * torch.sin(theta)], 1)
+dense_t = torch.linspace(0, 2 * np.pi, 4000)           # dense copy, only to measure errors
+dense_r = 1 + 0.3 * torch.cos(5 * dense_t)
+dense = torch.stack([dense_r * torch.cos(dense_t), dense_r * torch.sin(dense_t)], 1)
+
+def true_sdf(x):                                       # sign: inside the curve is negative
+    dist = torch.cdist(x, dense).min(1).values
+    ang = torch.atan2(x[:, 1], x[:, 0])
+    return torch.where(x.norm(dim=1) < 1 + 0.3 * torch.cos(5 * ang), -dist, dist)
+
+net = torch.nn.Sequential(torch.nn.Linear(2, 64), torch.nn.Softplus(beta=100),
+                          torch.nn.Linear(64, 64), torch.nn.Softplus(beta=100),
+                          torch.nn.Linear(64, 64), torch.nn.Softplus(beta=100),
+                          torch.nn.Linear(64, 1))
+with torch.no_grad():                                  # start near the SDF of a disc
+    net[-1].bias.fill_(-1.0)
+
+def grad(x):
+    x = x.requires_grad_(True)
+    y = net(x)
+    return y, torch.autograd.grad(y.sum(), x, create_graph=True)[0]
+
+opt = torch.optim.Adam(net.parameters(), lr=2e-3)
+for step in range(600):
+    free = torch.rand(256, 2) * 3.2 - 1.6              # points of the box [-1.6, 1.6]^2
+    _, g = grad(free)
+    loss = net(pts).abs().mean() + 0.1 * ((g.norm(dim=1) - 1) ** 2).mean()   # data + eikonal
+    opt.zero_grad(); loss.backward(); opt.step()
+
+test = torch.rand(4000, 2) * 3.2 - 1.6
+f_test, g_test = grad(test)
+print(f"mean |f| on the curve:        {net(dense).abs().mean().item():.4f}")
+print(f"mean ||grad f|| - 1| in box:  {(g_test.norm(dim=1) - 1).abs().mean().item():.4f}")
+print(f"mean |f - true SDF| in box:   {(f_test[:, 0] - true_sdf(test)).abs().mean().item():.4f}")
+```
+
+The field vanishes on the curve to 0.005 on average, its gradient norm is within 0.15 of 1, and it is within 0.037 of the true signed distance over the box. The largest deviations sit near the medial axis, where the true SDF has kinks that a smooth network rounds off.
+:::
+
+::: def
+[Definition 8.8 — Neural radiance fields (Mildenhall et al., 2020)]{.tag} A **NeRF** is a field returning a density $\sigma(x)$ and a colour $c(x, d)$ that depends on the viewing direction $d$. The colour of a camera ray $r(t) = o + t d$ is the volume rendering integral
+$$
+C(r) = \int_{t_n}^{t_f} T(t)\, \sigma(r(t))\, c(r(t), d)\, \mathrm{d}t, \qquad T(t) = \exp\Big( -\int_{t_n}^{t} \sigma(r(s))\, \mathrm{d}s \Big).
+$$
+
+With samples $t_i$ and spacings $\delta_i$, the quadrature is
+$$
+\hat C(r) = \sum_i T_i \big(1 - e^{-\sigma_i \delta_i}\big)\, c_i, \qquad T_i = \exp\Big( -\sum_{j < i} \sigma_j \delta_j \Big).
+$$
+
+The fit minimises the error between rendered and photographed pixels; the positional encoding is a Fourier feature map with frequencies $2^l$. The density does not define a clean surface, which motivates SDF-based variants ([ch. 10](#ch10)).
+:::
+
+::: note
+[Note 8.9 — Implicit displacement fields]{.tag} Wang, Rahmann and Sorkine-Hornung (2022) separate a smooth base field $f$ from the detail. The detailed surface is the base surface moved along its normals $n = \nabla f / \|\nabla f\|$ by a scalar displacement field $d$. To first order, its implicit function is
+$$
+\hat f(x) = f\big( x - d(x)\, n(x) \big).
+$$
+
+The base is a low-frequency SIREN and the displacement a high-frequency SIREN whose effect is attenuated away from the surface. Details then follow the base geometry and can be transferred from one shape to another.
+:::
+
+::: note
+[Note 8.10 — From a field back to a mesh]{.tag} Marching cubes (Lorensen and Cline, 1987) evaluates $f$ on a grid. In every cube whose corners change sign, it places vertices on the edges by linear interpolation of $f$ and connects them with a lookup table. The cost grows as the cube of the resolution, and thin parts thinner than a cell vanish. [Ch. 9](#ch9) makes this step differentiable.
+:::
+
+::: recap
+Key takeaways — chapter 8
+
+-   Surfaces are zero sets of SDFs ($\|\nabla f\| = 1$) or half levels of occupancies, computed by coordinate networks.
+-   DeepSDF auto-decodes per-shape codes; occupancy networks encode inputs into a code.
+-   Fourier features and SIREN cure the spectral bias of ReLU networks.
+-   The eikonal term regularises fields; NeRF renders density by a transmittance quadrature.
+-   Displacement fields separate base and detail; marching cubes returns to meshes.
+:::
+
+## 9. Generative modelling of geometry {#ch9}
+
+The last step is to produce geometry rather than analyse it: add detail to a surface, fill a hole, create a mesh, or fit a surface to raw points. This chapter covers the losses, the generators and the differentiable meshing steps that make this possible.
+
+::: def
+[Definition 9.1 — What is generated, and how it is compared]{.tag} A generator outputs a **point set**, a **mesh** (positions and connectivity) or an **implicit field** ([ch. 8](#ch8)). Generation can be **local**, where details, texture or a missing region are added to a given shape, or **global**, where whole shapes are sampled from a learned distribution. Two outputs are compared with distances between point sets sampled on them, since their vertices do not correspond.
+:::
+
+:::: prop
+[Proposition 9.2 — The Chamfer distance and its gradient]{.tag} For finite sets $P, Q \subset \mathbb{R}^3$,
+$$
+\mathrm{CD}(P, Q) = \frac{1}{|P|} \sum_{p \in P} \min_{q \in Q} \|p - q\|^2 + \frac{1}{|Q|} \sum_{q \in Q} \min_{p \in P} \|p - q\|^2 .
+$$
+
+It is symmetric and vanishes exactly when $P = Q$. Almost everywhere, its gradient pulls each point towards its nearest neighbour in the other set, and each point of $Q$ pulls its own nearest neighbour in $P$.
+
+::: proof
+Each term is a minimum of finitely many smooth functions, so it is differentiable wherever the minimiser is unique, that is almost everywhere. There the gradient of $\min_q \|p - q\|^2$ with respect to $p$ is $2(p - q^*)$. If the distance is zero, every point of each set lies in the other, so $P = Q$. [∎]{.qed}
+:::
+
+The Chamfer distance ignores density and connectivity: many points of $P$ may share one neighbour, and a mesh can fold while its vertices fit. Generated meshes therefore need regularisers (Example 9.7).
+::::
+
+::: note
+[Note 9.3 — Local synthesis and in-painting]{.tag}
+
+-   **Geometric texture synthesis** (Hertz et al., 2020) learns the local displacement statistics of one textured mesh. A generator displaces the vertices of a coarse mesh in local frames, at several scales, and a discriminator compares local patches. The learned texture transfers to other shapes because it is defined intrinsically.
+-   **In-painting** fills a missing region. With an auto-decoder (Definition 8.2), the latent code is optimised on the observed part only, and the decoder completes the rest. With a mesh, the hole is filled by minimising a smoothness energy of [ch. 4](#ch4), then detail is synthesised.
+:::
+
+::: note
+[Note 9.4 — Mesh generation]{.tag} A mesh is a variable-size set of vertices and faces, so it is generated as a sequence. PolyGen (Nash et al., 2020) samples quantised vertices and then faces that point to them, with transformers. MeshGPT (Siddiqui et al., 2024) learns a vocabulary of triangle tokens and samples meshes with a decoder-only transformer. Both maximise the likelihood $\prod_t p(s_t \mid s_{<t})$ of the token sequence.
+:::
+
+The other road generates an implicit field and extracts its surface. Marching cubes is not differentiable as a whole, since the topology changes discontinuously, but the vertex positions are.
+
+:::: prop
+[Proposition 9.5 — Differentiating an iso-surface (MeshSDF)]{.tag} Let $v$ be a point of the zero level set of $f$ with $\nabla f(v) \neq 0$. If $f$ is perturbed into $f + \varepsilon g$, the nearest point of the new zero set moves, to first order, by
+$$
+\frac{\mathrm{d} v}{\mathrm{d} \varepsilon} = - g(v)\, \frac{\nabla f(v)}{\|\nabla f(v)\|^2} .
+$$
+
+::: proof
+Look for the moved point as $v + s\, n$ with $n = \nabla f(v)/\|\nabla f(v)\|$. The condition $(f + \varepsilon g)(v + s n) = 0$ expands as $s \|\nabla f(v)\| + \varepsilon g(v) + o(\varepsilon) = 0$, so $s = -\varepsilon g(v) / \|\nabla f(v)\|$. [∎]{.qed}
+:::
+
+Remelli et al. (2020) use this formula to backpropagate a loss on the mesh to the field. Deep Marching Cubes (Liao et al., 2018), DMTet (Shen et al., 2021) and FlexiCubes (Shen et al., 2023) instead place vertices by interpolation along grid edges, a differentiable function of the field values.
+::::
+
+::: def
+[Definition 9.6 — Point2Mesh (Hanocka et al., 2020)]{.tag} **Point2Mesh** reconstructs a watertight mesh from a point cloud. It starts from a coarse initial mesh that encloses the points. A MeshCNN (Definition 7.4) with fixed random input predicts vertex displacements, and its weights are optimised for this single shape to minimise a Chamfer-type distance between points sampled on the mesh and the cloud. The mesh is periodically refined and the optimisation continues.
+
+The network acts as a **self-prior**: its shared weights favour self-similar, regular displacements, which smooth noise and fill missing parts. A beam-gap term pulls the mesh into deep cavities. The genus of the result is that of the initial mesh.
+:::
+
+::: ex
+[Example 9.7 — Shrink-wrapping a sphere onto a point cloud]{.tag} Without the network, the vertices of a sphere template are optimised directly against 1500 noisy points of an elongated, bumpy surface, with and without a uniform Laplacian regulariser $\lambda \sum_i \|x_i - \bar x_{\mathcal{N}(i)}\|^2$.
+
+```python
+import numpy as np, torch
+from scipy.spatial import ConvexHull
+torch.set_num_threads(1); torch.manual_seed(0); rng = np.random.default_rng(0)
+
+def fib(n):
+    i = np.arange(n) + 0.5
+    phi, th = np.arccos(1 - 2 * i / n), np.pi * (1 + 5 ** 0.5) * i
+    return np.c_[np.cos(th) * np.sin(phi), np.sin(th) * np.sin(phi), np.cos(phi)]
+
+# target: 1500 noisy points on an elongated, bumpy surface (no mesh, no normals)
+d = rng.normal(size=(1500, 3)); d /= np.linalg.norm(d, axis=1, keepdims=True)
+r = 0.8 + 0.6 * d[:, 0] ** 2 + 0.15 * np.sin(4 * d[:, 1]) * d[:, 2]
+target = torch.tensor(d * r[:, None] + 0.005 * rng.normal(size=d.shape), dtype=torch.float32)
+
+D = fib(642); F = ConvexHull(D).simplices                     # template: a sphere of radius 1.2
+V0 = torch.tensor(1.2 * D, dtype=torch.float32)
+E = np.unique(np.sort(np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), 1), axis=0)
+i, j = torch.tensor(E[:, 0]), torch.tensor(E[:, 1])
+deg = torch.bincount(torch.cat([i, j]), minlength=len(D))[:, None].float()
+
+def umbrella(V):                                                # uniform Laplacian (I - D^-1 A) V
+    s = torch.zeros_like(V).index_add(0, i, V[j]).index_add(0, j, V[i])
+    return V - s / deg
+
+def chamfer(P, Q):
+    d2 = (P * P).sum(1)[:, None] - 2 * P @ Q.T + (Q * Q).sum(1)[None, :]   # squared distances
+    return d2.min(1).values.mean() + d2.min(0).values.mean()
+
+for lam in [0.0, 1.0]:
+    offset = torch.zeros_like(V0, requires_grad=True)
+    opt = torch.optim.Adam([offset], lr=1e-2)
+    for step in range(250):
+        V = V0 + offset
+        loss = chamfer(V, target) + lam * (umbrella(V) ** 2).sum(1).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+    V = (V0 + offset).detach()
+    e = V[E[:, 0]] - V[E[:, 1]]
+    print(f"lambda = {lam}: Chamfer {chamfer(V0, target):.4f} -> {chamfer(V, target):.5f}, "
+          f"edge length max/mean {e.norm(dim=1).max() / e.norm(dim=1).mean():.1f}")
+```
+
+Both runs bring the Chamfer distance from 0.144 to about 0.002–0.003. Without regularisation the longest edge is 3.5 times the mean edge; with it, 2.2 times, a more regular mesh for a slightly worse fit. Point2Mesh obtains this regularity from the network weights instead of an explicit term.
+:::
+
+::: recap
+Key takeaways — chapter 9
+
+-   Generated geometry is a point set, a mesh or a field; outputs are compared through sampled points.
+-   The Chamfer distance pulls points to nearest neighbours; it ignores density and folds, so meshes need regularisers.
+-   Texture synthesis learns local displacements; in-painting optimises a latent code on the observed part.
+-   Meshes are generated as token sequences (PolyGen, MeshGPT) or extracted from fields with differentiable iso-surfaces.
+-   Point2Mesh fits a mesh to a cloud with a per-shape network acting as a self-prior; the genus is fixed by the initial mesh.
+:::
+
+## 10. Research directions and open problems {#ch10}
+
+This chapter is for self-study. It points to active lines of work that extend the course, with papers that can serve as starting points for the project or the internship. Each paragraph names the question, a few representative works, and what remains open.
+
+### Learned correspondence
+
+Deep functional maps (Litany et al., 2017) learn the descriptors that feed the solve of Proposition 5.5, so that the whole pipeline of [ch. 5](#ch5) trains end to end. Later work removes the need for ground-truth maps by penalising violations of the structure of Theorem 5.3: orthogonality, commutativity with the Laplacians, and bijectivity.
+
+Work by Cao, Roetzer and Bernard (2023) learns spectral matching without labels and makes it robust to noise and partiality. Attaiki and Ovsjanikov (2023) analyse which properties of learned features make the pointwise map consistent with the functional map, and use this analysis to improve training.
+
+Open problems remain hard: partial shapes, strongly non-isometric pairs (a cat and a horse), and topological noise such as touching hands, which breaks the intrinsic metric.
+
+### Discretisation-agnostic and equivariant networks
+
+DiffusionNet (Definition 7.6) showed that networks built from converging operators transfer across meshes and point clouds. The operators themselves keep improving. Sharp and Crane (2020) define a Laplacian for nonmanifold meshes and point clouds through a “tufted” intrinsic Delaunay cover; Sharp, Soliman and Crane (2019) compute parallel transport and logarithmic maps by diffusing vectors (the vector heat method).
+
+Equivariance is the other axis. Gauge-equivariant convolutions (Cohen et al., 2019; de Haan et al., 2021) generalise Proposition 6.9 to general filters, and Vector Neurons (Deng et al., 2021) make point networks equivariant to 3D rotations by using vector-valued neurons.
+
+The open question is the price of these constraints: equivariant layers are more expensive and sometimes less expressive than augmented ones, and the best trade-off depends on the amount of data.
+
+### New neural representations
+
+Coordinate networks are slow to evaluate. Multiresolution hash encodings (Müller et al., 2022) replace most of the network by trainable grids and make fitting fast. VolSDF (Yariv et al., 2021) and NeuS (Wang et al., 2021) render an SDF through a density derived from it, so that photographs supervise a clean surface rather than a cloud of density.
+
+3D Gaussian splatting (Kerbl et al., 2023) represents a scene by explicit anisotropic Gaussians rendered by rasterisation, with real-time quality. Extracting a watertight, manifold surface from such representations, with guarantees, is an open problem at the meeting point of [ch. 8](#ch8) and [ch. 1](#ch1).
+
+### Generating 3D shapes
+
+Diffusion models generate point clouds by denoising (Luo and Hu, 2021). DreamFusion (Poole et al., 2023) optimises a radiance field so that its renderings score well under a pre-trained 2D text-to-image diffusion model. Transformers such as MeshGPT (Siddiqui et al., 2024) generate meshes as artists make them, with few, well-placed triangles.
+
+The open problems are the scarcity of 3D data compared with images, the control of topology and of validity (no self-intersection, manifoldness), and evaluation: Chamfer distances and their relatives measure fidelity poorly.
+
+### A short list of open questions
+
+-   Can a map between non-isometric shapes be learned with guarantees of continuity and bijectivity?
+-   Which operator-based architecture is universal on surfaces, in the way PointNet is on sets (Theorem 7.2)?
+-   How should meshes, point clouds and neural fields be handled by one network, without converting between them?
+-   What explains the generalisation of a neural field between its training points, beyond the kernel picture of Theorem 8.3?
+
+::: recap
+Key takeaways — chapter 10
+
+-   Learned correspondence now trains without labels by enforcing the structure of functional maps; partiality and non-isometry remain open.
+-   Better operators (nonmanifold Laplacians, vector heat) and equivariant layers extend the geometric networks of the course.
+-   Hash encodings, SDF-based volume rendering and Gaussian splatting change how fields are fitted and rendered; surface extraction with guarantees is open.
+-   3D generation borrows diffusion and transformers; data scarcity, validity and evaluation are the bottlenecks.
+:::
+
+## Exercises {#ex}
+
+1.  **★ The cotangent Laplacian on the equilateral lattice.** Tile the plane with equilateral triangles of side $h$. Compute the row of $L$ at a vertex and its lumped mass, and check that $-M^{-1} L$ is exact on $u(x, y) = x^2$.
+
+    *Solution*: every edge faces two angles of $60^\circ$, so its weight is $\frac12 \cdot 2 \cot 60^\circ = 1/\sqrt3 \approx 0.577$. The vertex has six neighbours, so $L_{ii} = 6/\sqrt3 \approx 3.464$.
+
+    Six triangles of area $\frac{\sqrt3}{4} h^2$ give $M_{ii} = \frac{\sqrt3}{2} h^2$. Hence
+    $$
+    (M^{-1} L u)_i = \frac{2}{3h^2} \sum_{j \sim i} (u_i - u_j).
+    $$
+
+    The neighbours of $x_i$ have abscissas $x_i + h \cos(k\pi/3)$, $k = 0, \dots, 5$, so
+    $$
+    \sum_j (u_j - u_i) = \sum_{k=0}^{5} \Big( 2 x_i h \cos\frac{k\pi}{3} + h^2 \cos^2 \frac{k\pi}{3} \Big) = 3h^2 .
+    $$
+
+    Then $(M^{-1}Lu)_i = -2 = -\Delta u$, exactly.
+
+2.  **★ The mass matrix of one triangle.** The barycentric coordinates $\lambda_1, \lambda_2, \lambda_3$ of a triangle $T$ of area $A$ satisfy
+    $$
+    \int_T \lambda_1^a \lambda_2^b \lambda_3^c \,\mathrm{d}A = 2A\, \frac{a!\, b!\, c!}{(a + b + c + 2)!}.
+    $$
+
+    Compute the local mass matrix, its eigenvalues, and its row sums.
+
+    *Solution*: $\int \psi_i^2 = 2A \cdot 2/24 = A/6$ and $\int \psi_i \psi_j = 2A/24 = A/12$, so the block is $\frac{A}{12}(1 + \delta_{ij})$.
+
+    Its eigenvalues are $A/3$ (on the constant vector) and $A/12$ twice. Each row sums to $A/6 + 2 \cdot A/12 = A/3$, the lumped mass of Definition 1.3.
+
+3.  **★ Counting with the Euler characteristic.** (a) A closed mesh of genus 2 has 1000 vertices: how many edges and triangles? (b) A torus is meshed as an $n \times m$ periodic grid of squares, each cut into two triangles: check that $\chi = 0$. (c) Express the average vertex degree in terms of $\chi$ and $|V|$.
+
+    *Solution*:
+
+    -   (a) $\chi = 2 - 2g = -2$, so $|F| = 2|V| - 2\chi = 2004$ and $|E| = 3|V| - 3\chi = 3006$ (Proposition 1.2).
+    -   (b) $|V| = nm$, $|E| = 3nm$ (two sides and one diagonal per square), $|F| = 2nm$, so $\chi = 0$.
+    -   (c) The average degree is $2|E|/|V| = 6 - 6\chi/|V|$.
+
+4.  **★ Angle defects of polyhedra.** Compute the angle defects of the regular tetrahedron, the octahedron and the cube (with each square cut into two triangles), and check Theorem 3.8.
+
+    *Solution*:
+
+    -   Tetrahedron: three angles of $\pi/3$ per vertex, defect $\pi$, total $4\pi$.
+    -   Octahedron: four angles of $\pi/3$, defect $2\pi/3$, total $6 \cdot 2\pi/3 = 4\pi$.
+    -   Cube: the angles at a corner sum to $3\pi/2$ whatever the diagonals, defect $\pi/2$, total $8 \cdot \pi/2 = 4\pi$.
+
+    All three give $2\pi\chi$ with $\chi = 2$.
+
+5.  **★ The HKS of the round sphere.** Using the multiplicities of Example 0.4 and the addition theorem $\sum_m Y_{\ell m}(x)^2 = (2\ell + 1)/(4\pi)$, compute $\mathrm{HKS}(x, t)$ on the unit sphere. Why is it constant? Compare its value at $t = 0.1$ with the expansion of Definition 3.9.
+
+    *Solution*: the signature does not depend on $x$:
+    $$
+    \mathrm{HKS}(x, t) = \sum_{\ell \geq 0} \frac{2\ell + 1}{4\pi}\, e^{-\ell(\ell + 1) t}.
+    $$
+
+    Rotations act transitively on the sphere and preserve every intrinsic quantity, so no intrinsic descriptor can distinguish points. At $t = 0.1$ the series gives 0.8228, and $\frac{1}{4\pi t} + \frac{K}{12\pi} = 0.8223$ with $K = 1$.
+
+6.  **★ Volume rendering by hand.** A ray crosses three samples with spacing $\delta = 0.5$, densities $\sigma = (0, 2, 4)$ and grey levels $c = (1, 0.5, 0)$. Compute the weights $T_i(1 - e^{-\sigma_i \delta})$, the rendered value and the transmittance left for the background (Definition 8.8).
+
+    *Solution*:
+
+    -   $T_1 = 1$ and the first weight is 0 (empty space).
+    -   $T_2 = 1$ and the second weight is $1 - e^{-1} = 0.632$.
+    -   $T_3 = e^{-1} = 0.368$ and the third weight is $0.368 (1 - e^{-2}) = 0.318$.
+
+    The rendered value is $0.632 \cdot 0.5 = 0.316$, and the background still receives $e^{-3} = 0.050$.
+
+7.  **★★ Obtuse angles and the maximum principle.** (a) Two triangles share the edge $ij$ and both have an angle of $100^\circ$ opposite to it: compute the weight of $ij$. (b) Show that $L$ is still positive semi-definite. (c) Explain why the heat flow of Proposition 2.2 may now create negative temperatures, and how an intrinsic Delaunay triangulation (Bobenko and Springborn, 2007) avoids it.
+
+    *Solution*:
+
+    -   (a) $\cot 100^\circ \approx -0.176$, so the weight is $-0.176$ and $L_{ij} > 0$.
+    -   (b) $u^\top L u = \int \|\nabla u\|^2 \geq 0$ for every mesh (Proposition 1.7).
+    -   (c) $M + tL$ is no longer a Z-matrix, so its inverse can have negative entries: heat at $j$ lowers the temperature at $i$. An intrinsic Delaunay triangulation flips edges in the intrinsic metric until $\alpha + \beta \leq \pi$ everywhere, without moving the surface.
+
+8.  **★★ The heat method on a flat square (computational).** Mesh $[0, 1]^2$ with a $41 \times 41$ grid and put the source at $(0.25, 0.25)$. Run Algorithm 2.5 for $t = c h^2$ with $c \in \{0.1, 1, 10, 100\}$, against the Euclidean distance.
+
+    Then replace the heat $u$ by the average of the Neumann solution and the Dirichlet solution ($u = 0$ on the boundary), as Crane et al. (2013) recommend.
+
+    *Hints and expected result*: the mean errors with the natural (Neumann) boundary condition are about 0.045, 0.006, 0.020 and 0.057. With the averaged condition they are 0.047, 0.010, 0.003 and 0.014. A small $t$ is noisy; a large $t$ lets the boundary bend the isolines, and the averaged condition largely cancels that effect.
+
+9.  **★★ Isometries give diagonal functional maps.** Assume both shapes have simple eigenvalues and $T$ is an isometry. Prove that $C$ is diagonal with entries $\pm 1$. What happens on the sphere?
+
+    *Solution*: by Theorem 5.3, every entry satisfies
+    $$
+    c_{ij}\, (\lambda^\mathcal{N}_j - \lambda^\mathcal{M}_i) = 0 .
+    $$
+
+    The spectra coincide (Proposition 3.3) and are simple, so $\lambda^\mathcal{N}_j = \lambda^\mathcal{M}_i$ only for $i = j$; hence $C$ is diagonal, and orthogonality gives $c_{ii}^2 = 1$.
+
+    On the sphere the eigenvalue 2 has multiplicity 3, and $C$ has an arbitrary $3 \times 3$ orthogonal block there: the rotations of the sphere.
+
+10. **★★ Symmetry and functional maps (computational).** In Code 5.8, replace `np.cos(2 * D[:, 1] + 0.5)` by `np.cos(2 * D[:, 1])`. Report the error and the diagonal of $C$, and explain.
+
+    *Hints and expected result*: the error rises from 0.0053 to 0.137 and the exact hits fall from 79 % to 28 %. Some diagonal entries of $C$ collapse towards 0 (moduli about 0.18, 0.15 and 0.07).
+
+    The surface is now symmetric under $y \mapsto -y$. The eigenfunctions that are odd under this reflection have zero coefficients on every intrinsic descriptor, which is even, so their sign cannot be determined.
+
+11. **★★ Procrustes with a reflection.** In 2D, take rest edges $e_1 = (1, 0)$, $e_2 = (0, 1)$ and deformed edges $e'_1 = (0, 1)$, $e'_2 = (1, 0)$, with unit weights.
+
+    Compute $S$, its SVD, and $\operatorname{tr}(R S)$ for every rotation $R$. Which orthogonal matrix would be optimal without the constraint $\det R = 1$?
+
+    *Solution*: $S = e_1 e_1'^\top + e_2 e_2'^\top$ has entries $S_{12} = S_{21} = 1$ and zeros elsewhere. Its singular values are $1, 1$ and $\det(WU^\top) = -1$.
+
+    For a rotation by $\theta$, $\operatorname{tr}(RS) = -\sin\theta + \sin\theta = 0$: every rotation is optimal, as Theorem 4.3 predicts ($\sigma_1 - \sigma_2 = 0$). The unconstrained optimum is the reflection $S$ itself, with trace 2. ARAP must exclude it, since a reflection turns triangles inside out.
+
+12. **★★ Angular max pooling.** (a) Show that rotating the angular origin of a patch by a multiple of $2\pi / N_\theta$ leaves the output of Definition 6.4 unchanged, when the maximum runs over the same $N_\theta$ rotations. (b) Give two signals whose patches differ, but which produce the same outputs for every filter supported on one ring $\rho = \rho_1$.
+
+    *Solution*:
+
+    -   (a) Shifting the origin by $2\pi k / N_\theta$ shifts the index $\theta$ of the patch. The shift is absorbed by the change of variable $\theta_0 \mapsto \theta_0 + 2\pi k / N_\theta$ in the maximum.
+    -   (b) Take two patches that agree on the ring $\rho_1$ up to a rotation by $2\pi/N_\theta$ but differ elsewhere: filters on that ring cannot tell them apart.
+
+    More generally, after the maximum the orientation at which each filter fired is lost, so the next layer cannot relate the orientations of neighbouring patches; parallel transport (Proposition 6.9) keeps them.
+
+13. **★★ What the eikonal term does not see.**
+
+    -   (a) On the line, take $\Gamma = \{0\}$ and the “tent” function
+        $$
+        f(x) = x \ \text{ on } [-1, 1], \qquad f(x) = 2 - x \ \text{ on } [1, 3].
+        $$
+        Show that $|f'| = 1$ almost everywhere and that $f$ vanishes on $\Gamma$, but has a spurious zero.
+    -   (b) Prove that a $C^2$ function with $\|\nabla f\| = 1$ near a smooth closed curve $\Gamma$, vanishing on $\Gamma$, coincides with the signed distance in a thin band around $\Gamma$.
+
+    *Solution*:
+
+    -   (a) $f(2) = 0$: the eikonal term is satisfied, yet a second zero appears. The data term only sees $\Gamma$, so nothing in the loss forbids it; IGR relies on the implicit bias of the network and of gradient descent.
+    -   (b) Differentiating $\|\nabla f\|^2 = 1$ gives $\nabla^2 f\, \nabla f = 0$, so $\nabla f$ is constant along its own integral curves, which are straight unit-speed lines. Starting from a point $p$ of $\Gamma$ in the normal direction, $f(p + s\, n(p)) = s$.
+
+    For $|s|$ below the reach of $\Gamma$, the point $p + s\, n(p)$ is at distance $|s|$ from $\Gamma$, so $f$ is the signed distance there.
+
+14. **★★ Fourier feature bandwidth (computational).** In Code 8.4, train only the Fourier-feature network, with $\sigma \in \{1, 10, 100\}$, and report train and test errors.
+
+    *Hints and expected result*: the test errors are about 0.005, 0.0001 and 0.43. With $\sigma = 1$ the high frequency is learned slowly. With $\sigma = 100$ the training error is zero but the network interpolates between samples with frequencies far above those of the signal: the kernel of Theorem 8.3 is too narrow, the analogue of overfitting.
+
+15. **★★★ Spectral filters that transfer (computational).** On the sphere of Code 1.10, compute 16 eigenpairs and build a second valid eigenbasis $\Phi Q$, with $Q$ a random orthogonal matrix acting inside the eigenspaces of sizes 1, 3, 5, 7. Apply the filter $\Phi\, \mathrm{diag}(w)\, \Phi^\top M f$ in both bases, (a) for random $w_k$, (b) for $w_k = e^{-0.1 \lambda_k}$. Then show that the DiffusionNet diffusion is case (b) and compute its derivative with respect to $t$.
+
+    *Hints and expected result*: the relative change of the output is about 1.5 for random coefficients and $7 \times 10^{-5}$ for $e^{-0.1\lambda}$; the residue comes from the discrete eigenvalues being only nearly equal (Proposition 6.3). The diffusion layer is $g(\Lambda) = e^{-t\Lambda}$, and its derivative is $-\Phi \Lambda e^{-t\Lambda} \Phi^\top M x$, which is how $t$ is learned.
+
+16. **★★★ Differentiable iso-surfaces.** (a) For $f(x) = \|x\| - r$, apply Proposition 9.5 to a change of $r$. (b) Do the same for $f(x) = \|x\|^2 - r^2$ and a change of $r^2$. (c) Implement marching squares for a 2D field on a grid and check numerically that the extracted vertices move as Proposition 9.5 predicts when the field is perturbed. (d) What happens when $\nabla f$ vanishes, or when the topology of the level set changes?
+
+    *Hints and expected result*: (a) $g = -1$ gives $\mathrm{d}v/\mathrm{d}r = n$: the circle grows at unit speed. (b) $\mathrm{d}v / \mathrm{d}(r^2) = 2x / (4r^2) = n / (2r)$, consistent with $\mathrm{d}r / \mathrm{d}(r^2) = 1/(2r)$. (c) With linear interpolation along grid edges, vertex derivatives match the formula up to the interpolation error. (d) The formula blows up at critical points; at a topology change, vertices appear or disappear, a discontinuity that no derivative captures.
+
+17. **★★★ A learned descriptor for functional maps (research-flavoured).** Replace the WKS of Code 5.8 by features computed by the network of Code 7.9, with the WKS or the coordinates as input. Write the solve of Proposition 5.5 with `torch.linalg.solve`, and train the network so that the computed $C$ matches the ground-truth functional map on pairs of bumpy spheres with random bumps. Evaluate on new shapes, and on symmetric ones.
+
+    *Hints and expected result*: this is a small version of deep functional maps (Litany et al., 2017; [ch. 10](#ch10)). The loss $\|C - C_{\text{gt}}\|_F^2$ is differentiable through the linear solve. A few dozen training pairs should match the WKS baseline on asymmetric shapes. On symmetric shapes, intrinsic inputs keep the ambiguity of Exercise 10, and extrinsic inputs or an orientation term are needed to resolve it.
+
+## Projects and assessment {#projects}
+
+The official assessment combines the practical sessions (TPs), mini quizzes of 15 minutes every two lectures, and a final project in which students implement a paper from a list proposed by the instructors (master-mva.com); the Université Paris-Saclay course detail lists partial continuous assessment, and no weights are displayed. The subjects below are proposals at the scale of that final project, each built on a named paper; the written exam is a proposal of what a quiz-style or final written test on the course could look like.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Geodesics in heat, reproduced.** Paper: Crane, Weischedel and Wardetzky (2013).
+    -   *Question*: how accurate and how fast is the heat method, and how do $t$ and the boundary conditions matter?
+    -   *Work*: implement Algorithm 2.5 with prefactored matrices; compare with exact distances on the sphere and the plane, and with a Dijkstra baseline on the edge graph; reproduce the effect of $t$ and of the averaged boundary condition (Exercise 8).
+    -   *Success*: mean error below 1 % of the diameter on a 10 000-vertex sphere, and a timing table for multiple sources.
+    -   *Deliverables*: code, 4–6 page report, 10-minute talk. Chapters: [ch. 1](#ch1), [ch. 2](#ch2).
+
+2.  **[Solo · ≈ 20 h] Functional maps and spectral upsampling.** Papers: Ovsjanikov et al. (2012), Melzi et al. (2019).
+    -   *Question*: how far do descriptors plus commutativity go, and what does ZoomOut add?
+    -   *Work*: extend Code 5.8 to pairs of synthetic shapes related by near-isometric deformations (bending a bumpy cylinder, for example); implement ZoomOut; plot cumulative error curves against $k$; study symmetric shapes.
+    -   *Success*: a cumulative error curve where ZoomOut improves on the initial map, and a correct diagnosis of the symmetric failures.
+    -   *Deliverables*: code, report, talk. Chapters: [ch. 3](#ch3), [ch. 5](#ch5).
+
+3.  **[Solo · ≈ 20 h] Neural signed distance fields: IGR versus SIREN.** Papers: Gropp et al. (2020), Sitzmann et al. (2020).
+    -   *Question*: which architecture and which regularisation give the most accurate surface from unoriented points?
+    -   *Work*: fit 3D SDFs of analytic shapes (sphere, torus, union of boxes) from sampled points, with and without normals and eikonal term; extract meshes by marching cubes (for example `skimage.measure.marching_cubes`); measure Chamfer distance and normal error.
+    -   *Success*: a table over shapes and settings, and a figure showing spurious zero sets when the eikonal term is removed.
+    -   *Deliverables*: code, report, talk. Chapters: [ch. 8](#ch8).
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] DiffusionNet from scratch.** Paper: Sharp, Attaiki, Crane and Ovsjanikov (2022).
+    -   *Question*: does a reimplementation reproduce the robustness of DiffusionNet to remeshing and to point-cloud inputs?
+    -   *Work*: implement the full block, with gradient features (Definition 7.6); train on the human body segmentation data of Maron et al. (2017), or on synthetic data if access is an issue; test on remeshed and decimated shapes and on point clouds.
+    -   *Split*: operators and data pipeline; network and training; robustness experiments and ablations (without gradient features, with xyz versus HKS inputs).
+    -   *Success*: accuracy within a few points of the paper's reported range on the original meshes, and a robustness curve.
+    -   *Deliverables*: code, joint report of 8–10 pages, 20-minute talk. Chapters: [ch. 3](#ch3), [ch. 6](#ch6), [ch. 7](#ch7).
+
+2.  **[Group of 2–3 · ≈ 30 h each] Point2Mesh with and without a self-prior.** Paper: Hanocka, Metzer, Giryes and Cohen-Or (2020).
+    -   *Question*: how much of the quality of Point2Mesh comes from the network prior, compared with explicit regularisers?
+    -   *Work*: start from Code 9.7; implement a displacement network on the mesh (a small MeshCNN or a graph network); add coarse-to-fine refinement; compare with direct optimisation plus Laplacian or ARAP regularisation (Definition 4.2) on noisy and incomplete synthetic clouds.
+    -   *Split*: data and metrics (Chamfer, normal consistency); network prior; explicit regularisers and the comparison.
+    -   *Success*: a figure and a table showing, on at least three shapes, when the self-prior wins.
+    -   *Deliverables*: code, joint report, talk. Chapters: [ch. 4](#ch4), [ch. 7](#ch7), [ch. 9](#ch9).
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no electronic device; four exercises.
+
+1.  **Question (4 points).** Define intrinsic and extrinsic quantities. Explain why the heat kernel signature is invariant to isometries, give one shape-analysis task where this is an advantage and one where it is a weakness. *Expected*: the metric determines $\Delta$ and its eigenpairs (Definition 0.1, Proposition 3.3); matching across poses benefits; intrinsic symmetries (left–right) cannot be resolved (Note 5.9).
+
+2.  **Question (6 points).** A regular square pyramid has a unit square base and four lateral equilateral triangles of side 1; consider the closed mesh with the base cut into two triangles. (a) Compute the angle defect at the apex and at a base vertex, and check Theorem 3.8. (b) Compute the cotangent weight of a lateral edge.
+
+    *Expected*: (a) the apex has four angles of $\pi/3$, defect $2\pi/3$. A base vertex has two angles of $\pi/3$ and a total of $\pi/2$ in the base, defect $5\pi/6$. The total is
+    $$
+    \frac{2\pi}{3} + 4 \cdot \frac{5\pi}{6} = 4\pi = 2\pi\chi .
+    $$
+
+    (b) Each lateral edge faces two angles of $60^\circ$, weight $1/\sqrt3$.
+
+3.  **Question (6 points).** Prove that the holonomy of discrete parallel transport around an interior vertex equals its angle defect (Theorem 6.7), and deduce the total holonomy over all vertices of a closed mesh. *Expected*: the unfolding argument; then by Theorem 3.8 the sum of holonomy angles is $2\pi\chi$ modulo the $2\pi$ ambiguities of each vertex.
+
+4.  **Question (4 points).** A ReLU network fitted to $\sin 2\pi x + 0.5 \sin 24\pi x$ reaches a test error of 0.125. Explain this number, and two ways to fix it. *Expected*: 0.125 is the energy $0.5^2/2$ of the missed high-frequency term (spectral bias); Fourier features with a suitable $\sigma$ (Theorem 8.3) or a SIREN with its initialisation (Definition 8.5).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Understanding of the paper and the theory | 25 % | Correct statement of the method, its assumptions and its link with the course chapters |
+| Implementation | 25 % | Correct, readable, reproducible code (fixed seeds, scripts that regenerate every figure) |
+| Experiments | 25 % | The success criterion reached or the gap explained; ablations; honest comparison with a baseline |
+| Analysis and critical view | 15 % | Failure cases, limits of the method, a proposed improvement |
+| Report and talk | 10 % | Clear structure, precise figures, talk within time, answers to questions |
+
+## References {#refs}
+
+The official course pages list no bibliography. The papers named in the official session organisation come first, then textbooks and the other works cited on this page.
+
+**Papers named in the official programme**
+
+-   Crane, K., Weischedel, C., Wardetzky, M. (2013). Geodesics in heat: a new approach to computing distance based on heat flow. *ACM Transactions on Graphics*, 32(5).
+-   Maron, H., Galun, M., Aigerman, N., Trope, M., Dym, N., Yumer, E., Kim, V. G., Lipman, Y. (2017). Convolutional neural networks on surfaces via seamless toric covers. *ACM Transactions on Graphics*, 36(4).
+-   Sun, J., Ovsjanikov, M., Guibas, L. (2009). A concise and provably informative multi-scale signature based on heat diffusion. *Computer Graphics Forum*, 28(5).
+-   Aubry, M., Schlickewei, U., Cremers, D. (2011). The wave kernel signature: a quantum mechanical approach to shape analysis. *ICCV Workshops*.
+-   Rustamov, R. M. (2007). Laplace–Beltrami eigenfunctions for deformation invariant shape representation. *Symposium on Geometry Processing*.
+-   Masci, J., Boscaini, D., Bronstein, M. M., Vandergheynst, P. (2015). Geodesic convolutional neural networks on Riemannian manifolds. *ICCV Workshops*.
+-   Wiersma, R., Eisemann, E., Hildebrandt, K. (2020). CNNs on surfaces using rotation-equivariant features. *ACM Transactions on Graphics*, 39(4).
+-   Qi, C. R., Su, H., Mo, K., Guibas, L. J. (2017). PointNet: deep learning on point sets for 3D classification and segmentation. *CVPR*.
+-   Hanocka, R., Hertz, A., Fish, N., Giryes, R., Fleishman, S., Cohen-Or, D. (2019). MeshCNN: a network with an edge. *ACM Transactions on Graphics*, 38(4).
+-   Sharp, N., Attaiki, S., Crane, K., Ovsjanikov, M. (2022). DiffusionNet: discretization agnostic learning on surfaces. *ACM Transactions on Graphics*, 41(3).
+-   Wiersma, R., Nasikun, A., Eisemann, E., Hildebrandt, K. (2022). DeltaConv: anisotropic operators for geometric deep learning on point clouds. *ACM Transactions on Graphics*, 41(4).
+-   Gong, S., Chen, L., Bronstein, M., Zafeiriou, S. (2019). SpiralNet++: a fast and highly efficient mesh convolution operator. *ICCV Workshops*.
+-   Mildenhall, B., Srinivasan, P. P., Tancik, M., Barron, J. T., Ramamoorthi, R., Ng, R. (2020). NeRF: representing scenes as neural radiance fields for view synthesis. *ECCV*.
+-   Park, J. J., Florence, P., Straub, J., Newcombe, R., Lovegrove, S. (2019). DeepSDF: learning continuous signed distance functions for shape representation. *CVPR*.
+-   Mescheder, L., Oechsle, M., Niemeyer, M., Nowozin, S., Geiger, A. (2019). Occupancy networks: learning 3D reconstruction in function space. *CVPR*.
+-   Tancik, M., Srinivasan, P. P., Mildenhall, B., Fridovich-Keil, S., Raghavan, N., Singhal, U., Ramamoorthi, R., Barron, J. T., Ng, R. (2020). Fourier features let networks learn high frequency functions in low dimensional domains. *NeurIPS*.
+-   Sitzmann, V., Martel, J. N. P., Bergman, A. W., Lindell, D. B., Wetzstein, G. (2020). Implicit neural representations with periodic activation functions. *NeurIPS*.
+-   Wang, Y., Rahmann, L., Sorkine-Hornung, O. (2022). Geometry-consistent neural shape representation with implicit displacement fields. *ICLR*.
+-   Hertz, A., Hanocka, R., Giryes, R., Cohen-Or, D. (2020). Deep geometric texture synthesis. *ACM Transactions on Graphics*, 39(4).
+-   Hanocka, R., Metzer, G., Giryes, R., Cohen-Or, D. (2020). Point2Mesh: a self-prior for deformable meshes. *ACM Transactions on Graphics*, 39(4).
+
+**Textbooks and surveys**
+
+-   do Carmo, M. P. (1976). *Differential Geometry of Curves and Surfaces*. Prentice-Hall.
+-   Botsch, M., Kobbelt, L., Pauly, M., Alliez, P., Lévy, B. (2010). *Polygon Mesh Processing*. A K Peters / CRC Press.
+-   Bronstein, A. M., Bronstein, M. M., Kimmel, R. (2008). *Numerical Geometry of Non-Rigid Shapes*. Springer.
+-   Crane, K. (2018). *Discrete Differential Geometry: An Applied Introduction*. Lecture notes, Carnegie Mellon University.
+-   Bronstein, M. M., Bruna, J., LeCun, Y., Szlam, A., Vandergheynst, P. (2017). Geometric deep learning: going beyond Euclidean data. *IEEE Signal Processing Magazine*, 34(4).
+-   Bronstein, M. M., Bruna, J., Cohen, T., Veličković, P. (2021). Geometric deep learning: grids, groups, graphs, geodesics, and gauges. arXiv:2104.13478.
+-   Ovsjanikov, M., Corman, E., Bronstein, M., Rodolà, E., Ben-Chen, M., Guibas, L., Chazal, F., Bronstein, A. (2016). Computing and processing correspondences with functional maps. *SIGGRAPH Asia Courses*.
+
+**Discrete differential geometry and geometry processing**
+
+-   Pinkall, U., Polthier, K. (1993). Computing discrete minimal surfaces and their conjugates. *Experimental Mathematics*, 2(1).
+-   Desbrun, M., Meyer, M., Schröder, P., Barr, A. H. (1999). Implicit fairing of irregular meshes using diffusion and curvature flow. *SIGGRAPH*.
+-   Meyer, M., Desbrun, M., Schröder, P., Barr, A. H. (2003). Discrete differential-geometry operators for triangulated 2-manifolds. In *Visualization and Mathematics III*, Springer.
+-   Bobenko, A. I., Springborn, B. A. (2007). A discrete Laplace–Beltrami operator for simplicial surfaces. *Discrete & Computational Geometry*, 38(4).
+-   Varadhan, S. R. S. (1967). On the behavior of the fundamental solution of the heat equation with variable coefficients. *Communications on Pure and Applied Mathematics*, 20(2).
+-   Reuter, M., Wolter, F.-E., Peinecke, N. (2006). Laplace–Beltrami spectra as “Shape-DNA” of surfaces and solids. *Computer-Aided Design*, 38(4).
+-   Gordon, C., Webb, D., Wolpert, S. (1992). One cannot hear the shape of a drum. *Bulletin of the American Mathematical Society*, 27(1).
+-   Sorkine, O., Cohen-Or, D., Lipman, Y., Alexa, M., Rössl, C., Seidel, H.-P. (2004). Laplacian surface editing. *Symposium on Geometry Processing*.
+-   Sorkine, O., Alexa, M. (2007). As-rigid-as-possible surface modeling. *Symposium on Geometry Processing*.
+-   Tutte, W. T. (1963). How to draw a graph. *Proceedings of the London Mathematical Society*, s3-13(1).
+-   Floater, M. S. (1997). Parametrization and smooth approximation of surface triangulations. *Computer Aided Geometric Design*, 14(3).
+-   Floater, M. S. (2003). One-to-one piecewise linear mappings over triangulations. *Mathematics of Computation*, 72(242).
+-   Lévy, B., Petitjean, S., Ray, N., Maillot, J. (2002). Least squares conformal maps for automatic texture atlas generation. *ACM Transactions on Graphics*, 21(3).
+-   Ovsjanikov, M., Ben-Chen, M., Solomon, J., Butscher, A., Guibas, L. (2012). Functional maps: a flexible representation of maps between shapes. *ACM Transactions on Graphics*, 31(4).
+-   Melzi, S., Ren, J., Rodolà, E., Sharma, A., Wonka, P., Ovsjanikov, M. (2019). ZoomOut: spectral upsampling for efficient shape correspondence. *ACM Transactions on Graphics*, 38(6).
+-   Lorensen, W. E., Cline, H. E. (1987). Marching cubes: a high resolution 3D surface construction algorithm. *SIGGRAPH* (Computer Graphics, 21(4)).
+-   Sharp, N., Soliman, Y., Crane, K. (2019). The vector heat method. *ACM Transactions on Graphics*, 38(3).
+-   Sharp, N., Crane, K. (2020). A Laplacian for nonmanifold triangle meshes. *Computer Graphics Forum*, 39(5).
+
+**Geometric deep learning**
+
+-   Bruna, J., Zaremba, W., Szlam, A., LeCun, Y. (2014). Spectral networks and locally connected networks on graphs. *ICLR*.
+-   Boscaini, D., Masci, J., Rodolà, E., Bronstein, M. M. (2016). Learning shape correspondence with anisotropic convolutional neural networks. *NeurIPS*.
+-   Monti, F., Boscaini, D., Masci, J., Rodolà, E., Svoboda, J., Bronstein, M. M. (2017). Geometric deep learning on graphs and manifolds using mixture model CNNs. *CVPR*.
+-   Zaheer, M., Kottur, S., Ravanbakhsh, S., Póczos, B., Salakhutdinov, R., Smola, A. (2017). Deep sets. *NeurIPS*.
+-   Wang, Y., Sun, Y., Liu, Z., Sarma, S. E., Bronstein, M. M., Solomon, J. M. (2019). Dynamic graph CNN for learning on point clouds. *ACM Transactions on Graphics*, 38(5).
+-   Litany, O., Remez, T., Rodolà, E., Bronstein, A., Bronstein, M. (2017). Deep functional maps: structured prediction for dense shape correspondence. *ICCV*.
+-   Cohen, T., Weiler, M., Kicanaoglu, B., Welling, M. (2019). Gauge equivariant convolutional networks and the icosahedral CNN. *ICML*.
+-   de Haan, P., Weiler, M., Cohen, T., Welling, M. (2021). Gauge equivariant mesh CNNs: anisotropic convolutions on geometric graphs. *ICLR*.
+-   Mitchel, T. W., Kim, V. G., Kazhdan, M. (2021). Field convolutions for surface CNNs. *ICCV*.
+-   Deng, C., Litany, O., Duan, Y., Poulenard, A., Tagliasacchi, A., Guibas, L. (2021). Vector neurons: a general framework for SO(3)-equivariant networks. *ICCV*.
+-   Cao, D., Roetzer, P., Bernard, F. (2023). Unsupervised learning of robust spectral shape matching. *ACM Transactions on Graphics*, 42(4).
+-   Attaiki, S., Ovsjanikov, M. (2023). Understanding and improving features learned in deep functional maps. *CVPR*.
+
+**Neural fields and 3D generation**
+
+-   Gropp, A., Yariv, L., Haim, N., Atzmon, M., Lipman, Y. (2020). Implicit geometric regularization for learning shapes. *ICML*.
+-   Müller, T., Evans, A., Schied, C., Keller, A. (2022). Instant neural graphics primitives with a multiresolution hash encoding. *ACM Transactions on Graphics*, 41(4).
+-   Yariv, L., Gu, J., Kasten, Y., Lipman, Y. (2021). Volume rendering of neural implicit surfaces. *NeurIPS*.
+-   Wang, P., Liu, L., Liu, Y., Theobalt, C., Komura, T., Wang, W. (2021). NeuS: learning neural implicit surfaces by volume rendering for multi-view reconstruction. *NeurIPS*.
+-   Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G. (2023). 3D Gaussian splatting for real-time radiance field rendering. *ACM Transactions on Graphics*, 42(4).
+-   Liao, Y., Donné, S., Geiger, A. (2018). Deep marching cubes: learning explicit surface representations. *CVPR*.
+-   Remelli, E., Lukoianov, A., Richter, S., Guillard, B., Bagautdinov, T., Baqué, P., Fua, P. (2020). MeshSDF: differentiable iso-surface extraction. *NeurIPS*.
+-   Shen, T., Gao, J., Yin, K., Liu, M.-Y., Fidler, S. (2021). Deep marching tetrahedra: a hybrid representation for high-resolution 3D shape synthesis. *NeurIPS*.
+-   Shen, T., Munkberg, J., Hasselgren, J., Yin, K., Wang, Z., Chen, W., Gojcic, Z., Fidler, S., Sharp, N., Gao, J. (2023). Flexible isosurface extraction for gradient-based mesh optimization. *ACM Transactions on Graphics*, 42(4).
+-   Nash, C., Ganin, Y., Eslami, S. M. A., Battaglia, P. (2020). PolyGen: an autoregressive generative model of 3D meshes. *ICML*.
+-   Siddiqui, Y., Alliegro, A., Artemov, A., Tommasi, T., Sirigatti, D., Rosov, V., Dai, A., Nießner, M. (2024). MeshGPT: generating triangle meshes with decoder-only transformers. *CVPR*.
+-   Luo, S., Hu, W. (2021). Diffusion probabilistic models for 3D point cloud generation. *CVPR*.
+-   Poole, B., Jain, A., Barron, J. T., Mildenhall, B. (2023). DreamFusion: text-to-3D using 2D diffusion. *ICLR*.
+
+**Data sets**
+
+-   Bogo, F., Romero, J., Loper, M., Black, M. J. (2014). FAUST: dataset and evaluation for 3D mesh registration. *CVPR*.
+-   Wu, Z., Song, S., Khosla, A., Yu, F., Zhang, L., Tang, X., Xiao, J. (2015). 3D ShapeNets: a deep representation for volumetric shapes. *CVPR*.

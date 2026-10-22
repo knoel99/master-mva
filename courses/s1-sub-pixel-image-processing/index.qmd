@@ -40,7 +40,19 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: Fourier analysis and differential calculus](#ch0)
+-   [1. The image formation process](#ch1)
+-   [2. Shannon sampling and Fourier interpolation](#ch2)
+-   [3. Splines and lossless geometric transforms](#ch3)
+-   [4. Image reduction: aliasing, ringing and blur](#ch4)
+-   [5. Differential operators and iterative filtering](#ch5)
+-   [6. Sub-pixel image geometry](#ch6)
+-   [7. The phase spectrum: textures and sharpness](#ch7)
+-   [8. Research directions and open problems](#ch8)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
@@ -51,21 +63,2693 @@ TODO: one bullet per level-2 heading, in page order.
   Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
   Credits and volume   5 ECTS · 36 h (lectures 20 h, labs 16 h) per the Université Paris-Saclay programme table
   Label                [Modelling]{.badge .label} · domains on master-mva.com: Image processing
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
+  Language             not displayed on the official pages (the master-mva.com course description is written in English)
+  Assessment           Exam (master-mva.com, “Mode de validation”); the Université Paris-Saclay course detail states “Evaluation Continue non Intégrale” (continuous assessment that is not the only component of the grade); no weighting displayed
+  Prerequisites        Basics of Fourier analysis and differential calculus (master-mva.com, “Prérequis”)
   -------------------- ------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+**Audience**: a student with a good M1 in applied mathematics, computer science or physics who knows the Fourier transform and wants image algorithms that stay exact at the scale of a fraction of a pixel.
+
+**Empirical first**: rotate a test image 36 times by 10° with bilinear interpolation and the full turn leaves it visibly blurred (an RMS error of 5.1 grey levels for an image of RMS 12, Code 3.11); the same full turn computed with FFT-based shears returns it to within $4 \times 10^{-8}$. A striped shirt photographed with a phone shows moiré for a related reason: frequencies above the sensor's Nyquist limit fold back as false patterns.
+
+A digital image is an array of numbers, but the scene, the optics and most image-processing models are continuous. This course builds the bridge in both directions. It explains which continuous image the pixels are samples of, how to turn a continuous operation (a translation, a rotation, a derivative, a diffusion) into an exact or controlled discrete algorithm, and how to read geometry from pixels at a precision far below the grid step.
+
+The tools are Fourier analysis, sampling theory, splines and a little probability. They reappear in [Mathematical Models for Digital Photography](../s1-digital-photography/index.html), [Image Denoising](../s1-image-denoising/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html) and [Generative Models for Images](../s2-generative-models-images/index.html).
+
+### What you will be able to do
+
+-   Model the acquisition chain of a digital image — projection, diffraction, pixel integration, sampling and noise — and predict where it aliases.
+-   State and prove the Poisson summation formula and the Shannon–Whittaker theorem, and bound the error made when an image is not band-limited.
+-   Implement exact sub-pixel translations and zooms with the FFT, including the delicate Nyquist coefficient of even sizes.
+-   Remove the border artefacts of the DFT with the periodic plus smooth decomposition.
+-   Build spline interpolators by prefiltering and compare interpolators through their frequency responses.
+-   Rotate images losslessly with three FFT-based shears, and explain why bilinear interpolation cannot do this.
+-   Choose a prefilter for image reduction by quantifying the aliasing, ringing and blur it produces.
+-   Design consistent, isotropic discrete derivatives and stable iterative filters, from the heat equation to curvature flows.
+-   Estimate translations, edges and shapes with sub-pixel accuracy, and compare the result with the Cramér–Rao bound.
+-   Use the phase spectrum to synthesise micro-textures and to compute phase-based sharpness indices.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the objective of exploring ways, and applications, of linking continuous and discrete image models. It asks two questions: how to translate a continuous image-processing model into a discrete numerical algorithm, and, conversely, how to extract geometric information from a discrete array of pixels.
+
+The same page announces sessions split half into lectures and half into exercise or computer practice, and an exam. Its two references are L. Moisan's lecture notes *Modeling and Image Processing* and his 2011 paper on the periodic plus smooth image decomposition, both available on the course web page. The table matches each official item with the section of these notes that teaches it.
+
+| Official topic (master-mva.com, “Thèmes abordés” and course page) | Course section |
+|---|---|
+| The image formation process: geometry, diffraction, sampling | ch. 1: pinhole geometry and homographies (1.1), diffraction and the optical cut-off (1.2), pixel integration (1.3), sampling and aliasing (1.4), noise (1.5), the acquisition model (1.6); Fourier tools in ch. 0 |
+| FFT- and Spline-based interpolations, lossless geometric transforms | ch. 2: Shannon–Whittaker theorem, discrete Shannon interpolation, FFT translation and zoom (2.1–2.4); ch. 3: interpolation kernels, B-splines, prefiltering, comparison (3.1–3.4), lossless transforms and the three-shear rotation (3.5) |
+| Image reduction and the aliasing/ringing/blur trade-off | ch. 4: reduction model (4.1), the three measures (4.2), Gibbs overshoot (Proposition 4.4), the trade-off theorem for non-negative filters (Theorem 4.5), practical algorithms (4.5–4.6) |
+| Implementation of differential operators, image iterative filtering | ch. 5: symbols and consistency (5.1), spectral derivatives (5.2), isotropic gradients and Laplacians (5.3), the heat equation and its stability (5.4), curvature motion and Perona–Malik (5.5) |
+| Sub-pixel image geometry | ch. 6: why sub-pixel (6.1), registration and the Cramér–Rao bound (6.2), phase correlation (6.3), peaks and edges (6.4), level lines and shape measurement (6.5) |
+| Phase spectrum and applications: sharpness metrics, texture synthesis | ch. 7: phase versus modulus (7.1), random phase noise and ADSN texture synthesis (7.2), global phase coherence and the sharpness index (7.3) |
+| Organisation: half course sessions, half exercise/computer practice sessions | session plan below: every session pairs a lecture part with exercises or a lab |
+| Reference: “Periodic plus smooth image decomposition” (Moisan, 2011) | ch. 2.5: Theorem 2.9 and Code 2.10 |
+| “Plus de détails” | not covered: a link to the course presentation, not a topic |
+| “Les intervenants” | not covered: a link to the instructor's page (Lionel Moisan, Université Paris Cité), not a topic |
+
+Beyond the syllabus, these notes add the Cramér–Rao analysis of sub-pixel registration ([ch. 6.2](#ch6)) and a self-study chapter on research directions: Shannon-consistent variational models, aliasing in neural networks, continuous neural image representations and multi-frame super-resolution ([ch. 8](#ch8)).
+
+### Where this course fits in the programme
+
+The official prerequisites are the basics of Fourier analysis and differential calculus.
+
+-   **Preparation** — the refresher [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) covers the analysis (Taylor formulas, integrals, Fourier series); [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) covers the FFT routines used in every lab; [Probability and Statistics](../s0-refresher-probability-statistics/index.html) covers the Gaussian noise models, the Cramér–Rao bound and the Gaussian random fields of [ch. 6–7](#ch6).
+-   **Related courses of the same semester** — [Mathematical Models for Digital Photography](../s1-digital-photography/index.html) (camera pipeline, noise, demosaicking), [Image Denoising](../s1-image-denoising/index.html), [3D Computer Vision](../s1-3d-computer-vision/index.html) (pinhole geometry, homographies, stereo), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html) and [Medical Image Analysis Based on Generative, Geometric and Biophysical Models](../s1-medical-image-analysis/index.html).
+-   **Courses that build on it (semester 2)** — [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html) (deconvolution, sampling models), [Generative Models for Images](../s2-generative-models-images/index.html) (texture synthesis), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html) (satellite sampling, sub-pixel registration), [Deformable Models and Geodesic Methods](../s2-deformable-models-geodesics/index.html) and [Audio Signal Processing: Time–Frequency Analysis](../s2-audio-time-frequency/index.html) (the same Fourier tools in one dimension).
+
+### Course outline
+
+-   **Review: Fourier analysis and differential calculus** — the Fourier transform, the Poisson summation formula, the DFT and the curvature of level lines.
+-   **The image formation process** — pinhole geometry, diffraction, pixel integration, sampling, aliasing and noise, combined into one acquisition model.
+-   **Shannon sampling and Fourier interpolation** — the Shannon–Whittaker theorem, the interpolation of finite images by the DFT, exact translations and zooms, and the periodic plus smooth decomposition.
+-   **Splines and lossless geometric transforms** — interpolation kernels, B-splines and prefiltering, frequency responses, and rotations by three FFT shears.
+-   **Image reduction: aliasing, ringing and blur** — three measures of the defects of a prefilter, the Gibbs overshoot, and a theorem showing that no positive filter escapes the trade-off.
+-   **Differential operators and iterative filtering** — consistency and isotropy of discrete derivatives, stability of the heat equation, curvature motion.
+-   **Sub-pixel image geometry** — registration at the Cramér–Rao bound, phase correlation, peak and edge localisation, level lines.
+-   **The phase spectrum: textures and sharpness** — what the phase carries, random phase textures, and the phase-coherence sharpness index.
+-   **Research directions and open problems** — self-study: Shannon-consistent variational models, aliasing in neural networks, continuous representations, super-resolution.
+
+### Session plan {#sessions}
+
+**36 h in class = 12 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (lectures 20 h, labs 16 h); master-mva.com organises the course as half lecture sessions and half exercise or computer-practice sessions. The split below is a proposal: each session pairs about 1 h 40 of lecture with 1 h 20 of exercises or lab, which gives the official 20 h and 16 h over the twelve sessions.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: Fourier transform, Poisson summation, DFT, curvature of level lines | Ex. 1; lab: Code 0.6 |
+| 2 | 3 h | 1 | ch. 1.1–1.3 Pinhole geometry and homographies, diffraction and the optical cut-off, pixel integration | Ex. 3 |
+| 3 | 3 h | 1 | ch. 1.4–1.6 Sampling and aliasing, noise, the acquisition model | Ex. 2; lab: Code 1.9 |
+| 4 | 3 h | 2 | ch. 2.1–2.3 Shannon–Whittaker theorem, aliasing bound, discrete Shannon interpolation | Ex. 7 |
+| 5 | 3 h | 2 | ch. 2.4–2.5 FFT translation and zoom, periodic plus smooth decomposition | Ex. 8; lab: Codes 2.7 and 2.10 |
+| 6 | 3 h | 2 | ch. 3.1–3.4 Interpolation kernels, B-splines, prefiltering, frequency responses | Ex. 4, 9; lab: Codes 3.7 and 3.8 |
+| 7 | 3 h | 2 | ch. 3.5 Lossless geometric transforms, three-shear rotation | Ex. 5; lab: Code 3.11 |
+| 8 | 3 h | 2 | ch. 4 Image reduction: aliasing, ringing and blur | Ex. 10; lab: Codes 4.6 and 4.8 |
+| 9 | 3 h | 2 | ch. 5.1–5.3 Symbols, spectral derivatives, isotropic gradients and Laplacians | Ex. 11; lab: Code 5.4 |
+| 10 | 3 h | 2 | ch. 5.4–5.5 Heat equation and stability, iterated filters, curvature motion, Perona–Malik | Ex. 6; lab: Code 5.7 |
+| 11 | 3 h | 3 | ch. 6 Sub-pixel geometry: registration, Cramér–Rao bound, phase correlation, edges, level lines | Ex. 12, 13; lab: Codes 6.6 and 6.11 |
+| 12 | 3 h | 3 | ch. 7 Phase spectrum: phase versus modulus, random phase textures, sharpness index | Ex. 14, 15; lab: Codes 7.6 and 7.10 |
+
+**Self-study, outside the 36 h** (about 4 h in total): ch. 8 Research directions and open problems (≈ 4 h, with Ex. 16).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before the first session even if Fourier analysis feels familiar: the conventions fixed there ($2\pi$ in the exponent, angular frequencies, unnormalised DFT) are used everywhere afterwards.
+-   Run every code block and change one parameter at a time; the numbers quoted in the text were produced by these blocks. They need Python 3 with NumPy, SciPy and Matplotlib (the level-line extraction of [ch. 6](#ch6) uses `contourpy`, which Matplotlib installs).
+-   Experiment with odd image sizes first, where the FFT tools are exactly invertible; then study the even case ([ch. 2.3](#ch2), Exercise 7).
+-   Do the exercises listed for each session before the next one; the ★★ proofs of [ch. 2](#ch2), 4 and 5 are typical exam questions.
+-   Keep two test images throughout the course: a smooth, well-sampled one and a sharp, aliased one. Most phenomena of the course appear as a difference between the two.
+
+## 0. Review: Fourier analysis and differential calculus {#ch0}
+
+Every chapter of the course moves between a continuous image and its samples. This review fixes the conventions of the Fourier transform, proves the one identity that links the two worlds (the Poisson summation formula), and recalls the differential geometry of level lines used in [ch. 5](#ch5) and [ch. 6](#ch6).
+
+### 0.1 The Fourier transform
+
+We use angular frequencies, so that the sampling grid $\mathbb{Z}^d$ corresponds to the frequency band $[-\pi, \pi]^d$.
+
+::: def
+[Definition 0.1 — Fourier transform]{.tag} For $f \in L^1(\mathbb{R}^d)$, the Fourier transform of $f$ is the bounded continuous function
+$$
+\hat f(\xi) = \int_{\mathbb{R}^d} f(x)\, e^{-i \langle x, \xi \rangle}\, dx, \qquad \xi \in \mathbb{R}^d .
+$$
+
+When $\hat f$ is also integrable, the inversion formula holds at every point of continuity of $f$:
+$$
+f(x) = \frac{1}{(2\pi)^d} \int_{\mathbb{R}^d} \hat f(\xi)\, e^{i \langle x, \xi \rangle}\, d\xi .
+$$
+
+The transform extends to $L^2(\mathbb{R}^d)$, where Plancherel's identity reads
+$$
+\int |f|^2 = \frac{1}{(2\pi)^d} \int |\hat f|^2 .
+$$
+:::
+
+The rules below are used without comment in the rest of the page. Each one follows from a change of variables or an integration by parts in the definition.
+
+| Operation | Function | Fourier transform |
+|---|---|---|
+| translation | $f(x - a)$ | $e^{-i\langle a, \xi\rangle} \hat f(\xi)$ |
+| modulation | $e^{i \langle \eta, x \rangle} f(x)$ | $\hat f(\xi - \eta)$ |
+| dilation ($\lambda > 0$) | $f(x / \lambda)$ | $\lambda^d \hat f(\lambda \xi)$ |
+| convolution | $f * g$ | $\hat f\, \hat g$ |
+| derivative | $\partial_j f$ | $i \xi_j \hat f(\xi)$ |
+| Gaussian density, variance $\sigma^2$ per axis | $g_\sigma(x)$ | $e^{-\sigma^2 \lvert\xi\rvert^2 / 2}$ |
+| box (1D) | $\mathbf{1}_{[-1/2, 1/2]}(x)$ | $\frac{\sin(\xi/2)}{\xi/2}$ |
+| cardinal sine (1D) | $\mathrm{sinc}(x) = \frac{\sin \pi x}{\pi x}$ | $\mathbf{1}_{[-\pi, \pi]}(\xi)$ |
+
+Two facts matter for imaging. First, a convolution — blur, pixel integration, any linear shift-invariant filter — acts frequency by frequency as a multiplication. Second, a translation changes only the *phase* of the transform, never its modulus; [ch. 6](#ch6) and [ch. 7](#ch7) exploit this.
+
+### 0.2 Fourier series and the Poisson summation formula
+
+A 1-periodic function $F$ that is regular enough is the sum of its Fourier series. Its coefficients are
+$$
+c_m(F) = \int_0^1 F(x)\, e^{-2 i \pi m x}\, dx, \qquad F(x) = \sum_{m \in \mathbb{Z}} c_m(F)\, e^{2 i \pi m x} .
+$$
+
+:::: thm
+[Theorem 0.2 — Poisson summation formula]{.tag} Let $f$ belong to the Schwartz class $\mathcal{S}(\mathbb{R})$. Then, for every $x \in \mathbb{R}$,
+$$
+\sum_{k \in \mathbb{Z}} f(x + k) = \sum_{m \in \mathbb{Z}} \hat f(2\pi m)\, e^{2 i \pi m x} .
+$$
+
+Equivalently, for every frequency $\xi \in \mathbb{R}$, the samples of $f$ satisfy
+$$
+\sum_{k \in \mathbb{Z}} f(k)\, e^{-i k \xi} = \sum_{m \in \mathbb{Z}} \hat f(\xi + 2\pi m) .
+$$
+
+::: proof
+The left-hand side $F(x) = \sum_k f(x + k)$ converges uniformly with all its derivatives, so $F$ is smooth and 1-periodic.
+
+Its Fourier coefficients are computed by exchanging sum and integral, then gluing the intervals $[k, k+1]$:
+$$
+c_m(F) = \sum_{k} \int_0^1 f(x + k)\, e^{-2 i \pi m x}\, dx = \int_{\mathbb{R}} f(y)\, e^{-2 i \pi m y}\, dy = \hat f(2\pi m) .
+$$
+
+A smooth periodic function equals its Fourier series everywhere, which gives the first identity.
+
+For the second one, apply the first at $x = 0$ to the function $f_\xi(y) = f(y)\, e^{-i y \xi}$, whose transform is $\hat f(\cdot + \xi)$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — sampling periodises the spectrum]{.tag}
+$$
+\sum_{k \in \mathbb{Z}} f(k)\, e^{-i k \xi} = \sum_{m \in \mathbb{Z}} \hat f(\xi + 2\pi m)
+$$
+:::
+
+The second form is the heart of sampling theory. The left side is computed from the samples only; the right side is the spectrum of $f$ *periodised* with period $2\pi$. Sampling a function therefore superposes copies of its spectrum. The identity extends to $d$ dimensions with $\mathbb{Z}^d$ in place of $\mathbb{Z}$, by applying it variable by variable.
+
+### 0.3 The discrete Fourier transform
+
+::: def
+[Definition 0.3 — Discrete Fourier transform (DFT)]{.tag} For a signal $u = (u_0, \dots, u_{M-1}) \in \mathbb{C}^M$, indices taken modulo $M$, the DFT is
+$$
+\hat u_p = \sum_{k=0}^{M-1} u_k\, e^{-2 i \pi p k / M}, \qquad u_k = \frac{1}{M} \sum_{p=0}^{M-1} \hat u_p\, e^{2 i \pi p k / M} .
+$$
+
+For an image $u$ of size $M \times N$, the 2D DFT applies the 1D transform along each axis. This is the convention of `numpy.fft`: unnormalised forward transform, factor $1/M$ in the inverse.
+:::
+
+:::: prop
+[Proposition 0.4 — Properties of the DFT]{.tag} For $u, v \in \mathbb{C}^M$:
+
+1.  Parseval: $\sum_k |u_k|^2 = \frac{1}{M} \sum_p |\hat u_p|^2$.
+2.  Circular convolution: if $(u \circledast v)_k = \sum_j u_j v_{k - j}$, then $\widehat{u \circledast v} = \hat u\, \hat v$.
+3.  Real signals: if $u$ is real, then $\hat u_{-p} = \overline{\hat u_p}$; the coefficients $\hat u_0$ and, for even $M$, $\hat u_{M/2}$ are real.
+4.  Sampling of the spectrum: $\hat u_p = U(2\pi p / M)$, where $U(\xi) = \sum_k u_k e^{-ik\xi}$ is the discrete-time Fourier transform.
+
+::: proof
+All four follow from the orthogonality relation below, which is a finite geometric sum:
+$$
+\sum_{k=0}^{M-1} e^{2 i \pi (p - q) k / M} = M\, \mathbf{1}[p \equiv q \bmod M] .
+$$
+
+For item 2, expand $\widehat{u \circledast v}_p$ and substitute $k = j + l$; the sum factorises because indices are periodic. Items 3 and 4 are read directly on the definition. [∎]{.qed}
+:::
+::::
+
+The fast Fourier transform computes the DFT in $\mathcal{O}(M \log M)$ operations instead of $\mathcal{O}(M^2)$. Every "exact" algorithm of [ch. 2](#ch2) and [ch. 3](#ch3) costs a few FFTs.
+
+The index $p$ should be read as a signed frequency. The coefficient $\hat u_p$ with $p > M/2$ describes the frequency $p - M$, and `numpy.fft.fftfreq` returns these signed values.
+
+For even $M$, the coefficient $p = M/2$ is the *Nyquist* frequency, shared between $+M/2$ and $-M/2$; [ch. 2.3](#ch2) shows that it needs special care.
+
+### 0.4 Differential calculus of level lines
+
+An image $u : \mathbb{R}^2 \to \mathbb{R}$ of class $C^2$ has gradient $\nabla u = (u_x, u_y)$ and Hessian $D^2 u$. Its *level lines* are the curves $\{u = \lambda\}$.
+
+Where $\nabla u \neq 0$, the implicit function theorem says that the level line through a point is locally a $C^2$ curve, orthogonal to $\nabla u$.
+
+:::: prop
+[Proposition 0.5 — Curvature of a level line]{.tag} Let $u$ be $C^2$ near a point where $\nabla u \neq 0$. The curvature of the level line through that point is
+$$
+\mathrm{curv}(u) = \mathrm{div}\Big( \frac{\nabla u}{|\nabla u|} \Big) = \frac{u_{xx} u_y^2 - 2 u_{xy} u_x u_y + u_{yy} u_x^2}{|\nabla u|^3} .
+$$
+
+With this sign convention, a bright disc of radius $R$ on a dark background has curvature $-1/R$ on its boundary.
+
+::: proof
+Parametrise the level line by arc length, $s \mapsto \gamma(s)$. Differentiating $u(\gamma(s)) = \lambda$ once gives $\langle \nabla u, \gamma' \rangle = 0$, so the unit tangent is
+$$
+\gamma' = \frac{(-u_y, u_x)}{|\nabla u|} .
+$$
+
+Differentiating a second time gives
+$$
+D^2 u(\gamma', \gamma') + \langle \nabla u, \gamma'' \rangle = 0 .
+$$
+
+With $n = \nabla u / |\nabla u|$, this reads
+$$
+\langle \gamma'', n \rangle = - \frac{D^2 u(\gamma', \gamma')}{|\nabla u|} = - \frac{u_{xx} u_y^2 - 2 u_{xy} u_x u_y + u_{yy} u_x^2}{|\nabla u|^3} .
+$$
+
+The signed curvature is $-\langle \gamma'', n \rangle$, and expanding the divergence of $\nabla u / |\nabla u|$ gives the same expression.
+
+For the disc, $n$ points towards the centre, as does $\gamma''$, with $|\gamma''| = 1/R$; hence the value $-1/R$. [∎]{.qed}
+:::
+::::
+
+The numerator is $|\nabla u|^2$ times the second derivative of $u$ in the direction of the level line. Ch. 5.5 discretises it, and [ch. 6.5](#ch6) measures shapes from level lines.
+
+**Code 0.6 — Checking the conventions.** The script verifies the Poisson summation formula on a Gaussian and the DFT conventions of NumPy.
+
+```python
+import numpy as np
+
+# Poisson summation for a Gaussian: sum_k g(k) e^{-i k xi} = sum_m ghat(xi + 2 pi m)
+s = 0.7                                   # standard deviation (pixels)
+g = lambda x: np.exp(-x**2 / (2 * s**2)) / np.sqrt(2 * np.pi * s**2)
+ghat = lambda xi: np.exp(-s**2 * xi**2 / 2)
+k, m = np.arange(-60, 61), np.arange(-20, 21)
+for xi in [0.0, 1.0, np.pi]:
+    lhs = np.sum(g(k) * np.exp(-1j * k * xi)).real
+    rhs = np.sum(ghat(xi + 2 * np.pi * m))
+    print(f"xi = {xi:.3f}:  samples side {lhs:.10f}   periodized side {rhs:.10f}")
+
+# DFT conventions of numpy: forward unnormalized, inverse with 1/M
+u = np.random.default_rng(0).normal(size=8)
+U = np.fft.fft(u)
+print("Parseval:", np.allclose(np.sum(u**2), np.sum(abs(U)**2) / 8))
+print("Hermitian symmetry:", np.allclose(U[1:], np.conj(U[1:][::-1])))
+```
+
+Both sides agree to ten digits at $\xi = 0$, $1$ and $\pi$.
+
+Note the value at $\xi = 0$: the sum of the samples of a Gaussian of unit mass is $1.000126$, not $1$. The excess is the contribution of the spectral copies $\hat g(\pm 2\pi)$, a first glimpse of aliasing.
+
+::: recap
+[Key takeaways — chapter 0]{.tag}
+
+-   The Fourier transform uses angular frequencies; the grid $\mathbb{Z}^d$ corresponds to the band $[-\pi, \pi]^d$.
+-   Convolutions become products, translations change only the phase.
+-   The Poisson summation formula says that sampling periodises the spectrum.
+-   The DFT samples the spectrum of a finite signal; the Nyquist coefficient of even sizes is special.
+-   The curvature of level lines is $\mathrm{div}(\nabla u / |\nabla u|)$, an expression in first and second derivatives.
+:::
+
+## 1. The image formation process {#ch1}
+
+Before processing an image we need to know what its pixels measure. This chapter follows light from the scene to the sensor: the geometry of the projection, the blur imposed by diffraction, the integration over each photosite, the sampling on a grid, and the noise. The result is an acquisition model that the rest of the course inverts or exploits.
+
+### 1.1 Geometry: the pinhole camera
+
+::: def
+[Definition 1.1 — Pinhole camera]{.tag} A point with coordinates $(X, Y, Z)$ in the camera frame, $Z > 0$, is imaged at $(f X / Z,\ f Y / Z)$ in the focal plane, where $f$ is the focal length.
+
+In pixel units and homogeneous coordinates, a world point $P_w$ is imaged at $x$ with
+$$
+\lambda \begin{pmatrix} x \\ y \\ 1 \end{pmatrix} = K\, [R \mid t] \begin{pmatrix} P_w \\ 1 \end{pmatrix}, \qquad K = \begin{pmatrix} f_p & 0 & c_x \\ 0 & f_p & c_y \\ 0 & 0 & 1 \end{pmatrix} .
+$$
+
+Here $(R, t)$ is the pose of the camera, $f_p$ the focal length measured in pixels, $(c_x, c_y)$ the principal point and $\lambda > 0$ a scale factor.
+:::
+
+:::: prop
+[Proposition 1.2 — Images of a plane are related by homographies]{.tag} The images of a planar scene taken by two pinhole cameras are related by a homography: there is an invertible $3 \times 3$ matrix $H$ such that corresponding points satisfy
+$$
+\tilde x_2 \sim H\, \tilde x_1 ,
+$$
+where $\tilde x$ denotes homogeneous coordinates and $\sim$ equality up to a non-zero factor. The same holds for any scene when the camera only rotates about its centre, with $H = K R K^{-1}$.
+
+::: proof
+Choose world coordinates in which the plane is $Z_w = 0$. A point $(X, Y, 0)$ is imaged by the first camera at
+$$
+\tilde x_1 \sim K_1 [r_1\ r_2\ t] \begin{pmatrix} X \\ Y \\ 1 \end{pmatrix} = H_1 \begin{pmatrix} X \\ Y \\ 1 \end{pmatrix},
+$$
+where $r_1, r_2$ are the first two columns of $R$. When the camera centre is not on the plane, $H_1$ is invertible, and likewise $H_2$ for the second camera. Hence $\tilde x_2 \sim H_2 H_1^{-1} \tilde x_1$.
+
+For a pure rotation, $\tilde x_1 \sim K P$ and $\tilde x_2 \sim K R P$ for the same point $P$ of the camera frame, so $\tilde x_2 \sim K R K^{-1} \tilde x_1$. [∎]{.qed}
+:::
+::::
+
+Homographies, and their affine approximations for small fields of view, are the geometric transforms that an image-processing chain must apply to pixels. Lens distortion adds a radial term, often modelled as $x_d = x (1 + k_1 r^2 + k_2 r^4)$, which is estimated by calibration and then undone by resampling — again an interpolation problem ([ch. 2–3](#ch2)).
+
+::: ex
+[Example 1.3 — How small are real displacements?]{.tag} A camera with $f_p = 3000$ pixels observes a scene at depth $Z = 10$ m and moves sideways by $b = 1$ mm between two shots. A point of the scene moves in the image by
+$$
+f_p\, \frac{b}{Z} = 3000 \times \frac{0.001}{10} = 0.3 \ \text{pixel}.
+$$
+
+Measuring such a displacement is a *sub-pixel* problem. Ch. 6 shows that it can be solved to a few hundredths of a pixel when the images are well sampled.
+:::
+
+### 1.2 Diffraction and the optical cut-off frequency
+
+Light is a wave. A lens with a finite aperture cannot focus a point of the scene into a point of the sensor; it produces a small diffraction pattern instead. The remarkable consequence is that optical images are band-limited.
+
+:::: thm
+[Theorem 1.4 — Incoherent diffraction-limited imaging is band-limited]{.tag} Consider an aberration-free optical system with a circular pupil of diameter $D$ and focal distance $f$, of f-number $N = f / D$. Assume monochromatic light of wavelength $\lambda$, incoherent illumination and the Fraunhofer approximation.
+
+The irradiance on the sensor is $E = O * h$, where $O$ is the geometric image and $h$ is the **Airy pattern**
+$$
+h(r) = C \Big( \frac{2 J_1(v)}{v} \Big)^2, \qquad v = \frac{\pi r}{\lambda N},
+$$
+with $J_1$ the Bessel function of order 1 and $C$ a normalising constant.
+
+Its Fourier transform, the optical transfer function, vanishes above the cut-off frequency:
+$$
+\nu_c = \frac{1}{\lambda N} \ \text{cycles per unit length}.
+$$
+
+For $s = \nu / \nu_c \in [0, 1]$, it equals
+$$
+H(\nu) = \frac{2}{\pi} \Big( \arccos s - s \sqrt{1 - s^2} \Big).
+$$
+
+::: proof
+We give the precise sketch; the details are in Goodman's *Introduction to Fourier Optics*, [ch. 6](#ch6).
+
+1.  In the Fraunhofer approximation, the complex amplitude produced in the focal plane by a point source is the Fourier transform of the pupil function $P$ (the indicator of a disc of radius $D/2$), evaluated at the scaled frequency $2\pi x / (\lambda f)$.
+2.  With incoherent light, the intensities of different points add, not their amplitudes. The irradiance point-spread function is therefore $h = |a|^2$, where $a$ is the amplitude of step 1. The 2D Fourier transform of the indicator of a disc is a multiple of $J_1(\rho)/\rho$, which gives the Airy formula.
+3.  The Fourier transform of $|a|^2$ is the autocorrelation of $P$, up to the same scaling. The autocorrelation of a disc of radius $D/2$ is supported in the disc of radius $D$, which becomes the frequency $\nu_c = D / (\lambda f)$ after scaling.
+4.  The autocorrelation at shift $d$ is the area of the intersection of two discs of radius $D/2$ whose centres are $d$ apart. Divided by the area of one disc, with $s = d / D$, it is the formula for $H$. [∎]{.qed}
+:::
+::::
+
+The first zero of $J_1$ is at $v \approx 3.832$, so the dark ring of the Airy pattern has radius $1.22\, \lambda N$. A sensor samples the irradiance without aliasing only if its Nyquist frequency $1/(2p)$, for a pixel pitch $p$, exceeds $\nu_c$. That is, only if
+$$
+p \le \frac{\lambda N}{2}.
+$$
+
+::: ex
+[Example 1.5 — A diffraction budget]{.tag} Take green light, $\lambda = 0.55$ µm, and an aperture $N = 2.8$.
+
+-   The cut-off frequency is $\nu_c = 1 / (0.55 \times 10^{-3} \times 2.8) \approx 649$ cycles/mm, and the first Airy zero lies at $1.88$ µm.
+-   Aliasing-free sampling would need a pitch $p \le 0.77$ µm, smaller than the pixels of any current camera.
+-   With $p = 2$ µm, the Nyquist frequency is $250$ cycles/mm and the optical transfer function there is $H = 0.522$: half of the contrast of the finest representable frequency survives the optics, and frequencies between 250 and 649 cycles/mm, which the optics let through, will alias.
+
+The numbers are computed by Code 1.9. Real cameras are therefore not exactly Shannon-sampled; the pixel integration of the next section attenuates the aliased frequencies further.
+:::
+
+### 1.3 Pixel integration and the total point-spread function
+
+::: def
+[Definition 1.6 — Pixel integration and total PSF]{.tag} A photosite of side $c$, at most the pitch $p$, integrates the irradiance over its square. In pixel units ($p = 1$), the measured value at the grid point $k$ is $(E * \chi_c)(k)$ up to a constant factor, where
+$$
+\chi_c = \frac{1}{c^2} \mathbf{1}_{[-c/2,\, c/2]^2}, \qquad \hat \chi_c(\xi) = \prod_{j=1}^{2} \frac{\sin(c \xi_j / 2)}{c \xi_j / 2} .
+$$
+
+The **total point-spread function** of the camera is the convolution of all the blurs met along the way:
+$$
+K = h_{\text{diffraction}} * h_{\text{aberrations, defocus}} * h_{\text{motion}} * \chi_c .
+$$
+:::
+
+With a fill factor of 100 % ($c = 1$), the pixel alone attenuates the Nyquist frequency $\xi = \pi$ by $\sin(\pi/2)/(\pi/2) = 2/\pi \approx 0.637$. Some cameras add a birefringent optical low-pass filter in front of the sensor to attenuate aliasing further.
+
+Because $K$ is a convolution of several kernels, the central limit theorem suggests a Gaussian approximation $K \approx g_\sigma$, with $\sigma$ measured in pixels. Its gain at the Nyquist frequency is $e^{-\sigma^2 \pi^2 / 2}$:
+
+| $\sigma$ (pixels) | 0.4 | 0.6 | 0.8 | 1.0 |
+|---|---|---|---|---|
+| gain at $\xi = \pi$ | 0.454 | 0.169 | 0.042 | 0.007 |
+
+An image whose PSF has $\sigma \approx 0.8$ pixel is nearly free of aliasing but slightly blurred; with $\sigma = 0.4$, it is sharp but aliased. This tension reappears as the central trade-off of [ch. 4](#ch4).
+
+### 1.4 Sampling and aliasing
+
+:::: prop
+[Proposition 1.7 — Spectrum of a sampled image]{.tag} Let $v = K * u$ be the irradiance image, assumed to be a Schwartz function on $\mathbb{R}^2$. The discrete-time Fourier transform of its samples is the $2\pi$-periodisation of $\hat v$:
+$$
+\sum_{k \in \mathbb{Z}^2} v(k)\, e^{-i \langle k, \xi \rangle} = \sum_{m \in \mathbb{Z}^2} \hat v(\xi + 2\pi m) .
+$$
+
+On the band $[-\pi, \pi]^2$, the samples therefore see $\hat v(\xi)$ plus the aliased terms $\hat v(\xi + 2\pi m)$ for $m \neq 0$.
+
+::: proof
+Apply the second form of Theorem 0.2 in each variable, or directly the $d$-dimensional Poisson formula. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.8 — Folding of frequencies]{.tag} In one dimension, a frequency of $\nu$ cycles per pixel is seen at $\nu - \mathrm{round}(\nu)$.
+
+-   A cosine at $0.7$ cycle/pixel is indistinguishable from one at $0.3$, because for every integer $k$
+    $$
+    \cos(2\pi \times 0.7\, k) = \cos(2\pi (1 - 0.3) k) = \cos(2\pi \times 0.3\, k) .
+    $$
+-   In two dimensions, stripes of frequency $(0.6, 0.1)$ cycle/pixel are seen as $(-0.4, 0.1)$. Their spacing *and* their orientation change.
+
+This is the moiré of fabrics and brick walls in photographs: false patterns with a different period and a different direction.
+:::
+
+**Code 1.9 — The acquisition budget.** The script evaluates the diffraction transfer function, the pixel attenuation and the folding of a pure frequency.
+
+```python
+import numpy as np
+
+# 1. Diffraction-limited OTF of a circular pupil (incoherent light)
+lam, N = 0.55e-3, 2.8                     # wavelength (mm), f-number
+nu_c = 1 / (lam * N)                      # cut-off frequency (cycles/mm)
+def otf(nu):
+    s = np.clip(nu / nu_c, 0, 1)
+    return 2 / np.pi * (np.arccos(s) - s * np.sqrt(1 - s**2))
+print(f"cut-off {nu_c:.0f} cycles/mm, first Airy zero {1.22*lam*N*1e3:.2f} um")
+for p_um in [1.0, 2.0, 4.0]:              # pixel pitch (micrometres)
+    nyq = 1 / (2 * p_um * 1e-3)           # Nyquist frequency (cycles/mm)
+    pix = np.sinc(nyq * p_um * 1e-3)      # 100 % fill-factor pixel: sinc(1/2)
+    print(f"pitch {p_um} um: Nyquist {nyq:.0f} c/mm, OTF {otf(nyq):.3f}, "
+          f"pixel {pix:.3f}, total {otf(nyq)*pix:.3f}")
+
+# 2. Aliasing of a pure frequency: 0.7 cycles/pixel is seen as 0.3
+k = np.arange(64)
+x = np.cos(2 * np.pi * 0.7 * k)
+print("max |cos(2pi 0.7 k) - cos(2pi 0.3 k)| =", np.max(abs(x - np.cos(2*np.pi*0.3*k))))
+
+# 3. Gaussian PSF: gain at Nyquist (xi = pi) as a function of sigma (pixels)
+for sigma in [0.4, 0.6, 0.8, 1.0]:
+    print(f"sigma = {sigma}: ghat(pi) = {np.exp(-sigma**2*np.pi**2/2):.3f}")
+```
+
+For pitches of 1, 2 and 4 µm, the product of the optical and pixel attenuations at the Nyquist frequency is 0.081, 0.332 and 0.482. Large pixels give a sharper-looking but more aliased image; small pixels approach Shannon sampling at the cost of contrast and of light per pixel.
+
+### 1.5 Noise and quantisation
+
+::: def
+[Definition 1.10 — Noise model]{.tag} The value recorded at pixel $k$ is
+$$
+u_d(k) = v(k) + n(k),
+$$
+where the noise terms $n(k)$ are independent, centred, and have the signal-dependent variance
+$$
+\mathrm{Var}\, n(k) = a\, v(k) + b .
+$$
+
+The term $a\, v(k)$ comes from photon noise: the number of photo-electrons is a Poisson variable, whose variance equals its mean. The constant $b$ collects read-out and thermal noise.
+:::
+
+Quantisation with step $\Delta$ adds an error that is close to uniform on $[-\Delta/2, \Delta/2]$ when the signal varies over many steps. Its variance is
+$$
+\frac{1}{\Delta} \int_{-\Delta/2}^{\Delta/2} t^2\, dt = \frac{\Delta^2}{12} .
+$$
+
+Noise sets the ultimate precision of every sub-pixel measurement: [ch. 6.2](#ch6) turns this into a lower bound, and [ch. 7.3](#ch7) shows how noise lowers the phase coherence of an image.
+
+### 1.6 The acquisition model
+
+::: def
+[Definition 1.11 — Acquisition model and well-sampled images]{.tag} A digital image of size $M \times N$ is modelled as
+$$
+u_d = \Pi_\Omega (K * u) + n ,
+$$
+where $u$ is the ideal continuous image, $K$ the total PSF, $\Pi_\Omega$ the restriction to the grid $\Omega = \{0, \dots, M-1\} \times \{0, \dots, N-1\}$, and $n$ the noise.
+
+The acquisition is **well sampled** when $\widehat{K * u}$ is negligible outside $[-\pi, \pi]^2$. The samples then determine $K * u$ ([ch. 2](#ch2)), and every geometric operation on the image can be computed on this continuous model.
+:::
+
+The rest of the course follows this model. Interpolation ([ch. 2–3](#ch2)) reconstructs $K * u$ from well-sampled data. Reduction ([ch. 4](#ch4)) produces well-sampled images from finer ones. Derivatives ([ch. 5](#ch5)), sub-pixel geometry ([ch. 6](#ch6)) and the phase analysis ([ch. 7](#ch7)) are all computed on the reconstructed continuous image.
+
+::: recap
+[Key takeaways — chapter 1]{.tag}
+
+-   The pinhole model maps planes to planes by homographies; real displacements between views are often fractions of a pixel.
+-   Diffraction makes optical images band-limited, with cut-off $1/(\lambda N)$ cycles per unit length.
+-   Pixel integration multiplies the spectrum by a product of cardinal sines; the total PSF is a convolution of several blurs.
+-   Sampling periodises the spectrum: frequencies beyond the Nyquist limit fold back and change both period and orientation.
+-   Noise is signal-dependent (photon noise) plus constant (read-out); quantisation adds $\Delta^2/12$.
+-   An image is well sampled when its spectrum is negligible outside $[-\pi, \pi]^2$; most of the course relies on this property.
+:::
+
+## 2. Shannon sampling and Fourier interpolation {#ch2}
+
+When can the samples of an image determine the continuous image, and how do we compute it between the pixels? This chapter answers the question for infinite signals (the Shannon–Whittaker theorem), then for the finite images we actually store, where the DFT gives exact sub-pixel translations and zooms. The last section removes the artefacts created by the borders of a finite image.
+
+### 2.1 The Shannon–Whittaker theorem
+
+:::: thm
+[Theorem 2.1 — Shannon–Whittaker sampling theorem]{.tag} Let $u \in L^2(\mathbb{R})$ be band-limited, that is, $\hat u(\xi) = 0$ for $|\xi| > \pi$. Then $u$ is continuous and
+$$
+u(x) = \sum_{k \in \mathbb{Z}} u(k)\, \mathrm{sinc}(x - k), \qquad \mathrm{sinc}(t) = \frac{\sin \pi t}{\pi t},
+$$
+where the series converges in $L^2(\mathbb{R})$ and uniformly on $\mathbb{R}$.
+
+::: proof
+Since $\hat u \in L^2([-\pi, \pi]) \subset L^1([-\pi, \pi])$, the inversion formula holds and shows that $u$ is continuous.
+
+Expand $\hat u$ in Fourier series on $[-\pi, \pi]$, in $L^2$:
+$$
+\hat u(\xi) = \sum_{k} c_k\, e^{-i k \xi}, \qquad c_k = \frac{1}{2\pi} \int_{-\pi}^{\pi} \hat u(\xi)\, e^{i k \xi}\, d\xi = u(k) ,
+$$
+the last equality being the inversion formula at $x = k$.
+
+Apply the inversion formula to the partial sums. A direct computation gives
+$$
+\frac{1}{2\pi} \int_{-\pi}^{\pi} e^{-i k \xi}\, e^{i x \xi}\, d\xi = \mathrm{sinc}(x - k) .
+$$
+
+Let $S_N$ be the partial sum of the Fourier series for $|k| \le N$. By Plancherel, the $L^2$ error of the truncated sinc series equals $\|\hat u - S_N\|_{L^2} / \sqrt{2\pi}$, which tends to 0.
+
+By Cauchy–Schwarz on $[-\pi, \pi]$, the uniform error is at most $\|\hat u - S_N\|_{L^2} / \sqrt{2\pi}$ as well, hence uniform convergence. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — Shannon–Whittaker interpolation]{.tag}
+$$
+\operatorname{supp} \hat u \subset [-\pi, \pi] \ \Longrightarrow\ u(x) = \sum_{k \in \mathbb{Z}} u(k)\, \mathrm{sinc}(x - k)
+$$
+:::
+
+The theorem extends to two dimensions with the tensor kernel $\mathrm{sinc}(x)\, \mathrm{sinc}(y)$ and the band $[-\pi, \pi]^2$. The band is sharp: the function $\sin(\pi x)$ has frequency exactly $\pi$ and vanishes at every integer, so the samples cannot distinguish it from zero.
+
+The theorem has two practical weaknesses. The kernel decays only like $1/|x|$, so a truncated series converges slowly. And real images are finite and not exactly band-limited. Sections 2.2 and 2.3 address both.
+
+### 2.2 What happens without band-limitation
+
+:::: prop
+[Proposition 2.2 — Aliasing error bound]{.tag} Let $u$ be a Schwartz function on $\mathbb{R}$, and let $\tilde u$ be the band-limited function obtained by Shannon interpolation of its samples. Then
+$$
+\hat{\tilde u}(\xi) = \mathbf{1}_{[-\pi, \pi]}(\xi) \sum_{m \in \mathbb{Z}} \hat u(\xi + 2\pi m) ,
+$$
+
+and the interpolation error is bounded by the spectral mass outside the band:
+$$
+\sup_{x \in \mathbb{R}} |u(x) - \tilde u(x)| \le \frac{1}{\pi} \int_{|\xi| > \pi} |\hat u(\xi)|\, d\xi .
+$$
+
+::: proof
+The samples of $\tilde u$ and $u$ coincide, so their discrete-time Fourier transforms coincide. By Theorem 0.2 the latter is the periodisation of $\hat u$, and the transform of $\tilde u$ is its restriction to $[-\pi, \pi]$.
+
+The transform of the error $u - \tilde u$ is $\hat u$ outside the band, minus the aliased copies $\hat u(\xi + 2\pi m)$, $m \neq 0$, inside it.
+
+The $L^1$ norm of the first part is $\int_{|\xi| > \pi} |\hat u|$. That of the second part is at most the same quantity, because the copies, translated back, tile the outside of the band. The inversion formula bounds the sup norm by $1/(2\pi)$ times the sum of the two $L^1$ norms. [∎]{.qed}
+:::
+::::
+
+The error has two halves of equal size: the high frequencies that are lost, and the same high frequencies that come back, folded, as false low frequencies.
+
+::: ex
+[Example 2.3 — A Gaussian spot]{.tag} Sample the Gaussian density $g_\sigma$ and interpolate it with Shannon's formula.
+
+-   For $\sigma = 0.6$ pixel, the bound of Proposition 2.2 is 11.9 % of the peak value $g_\sigma(0)$, and the actual worst error, computed numerically, is 6.4 %.
+-   For $\sigma = 1$ pixel, the bound drops to 0.34 % and the actual error to 0.16 %.
+
+The ratio between the two cases reflects the Gaussian decay of $\hat g_\sigma$ beyond $\pi$: the bound behaves like $\mathrm{erfc}(\sigma \pi / \sqrt 2)$.
+:::
+
+### 2.3 Discrete Shannon interpolation of a finite image
+
+A stored image has finitely many pixels. The natural continuous model is a trigonometric polynomial whose DFT coefficients are those of the image.
+
+::: def
+[Definition 2.4 — Discrete Shannon interpolate]{.tag} Let $u \in \mathbb{R}^M$, with DFT $\hat u$ and signed frequencies $p$. If $M$ is odd, its Shannon interpolate is
+$$
+U(x) = \frac{1}{M} \sum_{|p| \le (M-1)/2} \hat u_p\, e^{2 i \pi p x / M} .
+$$
+
+If $M$ is even, the Nyquist coefficient is split equally between the frequencies $\pm M/2$:
+$$
+U(x) = \frac{1}{M} \sum_{|p| < M/2} \hat u_p\, e^{2 i \pi p x / M} + \frac{1}{M}\, \hat u_{M/2} \cos(\pi x) .
+$$
+
+For an image of size $M \times N$, the interpolate is the tensor product of the two one-dimensional rules.
+:::
+
+:::: prop
+[Proposition 2.5 — Properties of the discrete Shannon interpolate]{.tag} The function $U$ of Definition 2.4 is real, $M$-periodic, and interpolates: $U(k) = u_k$ for every integer $k$. It can be written with a periodic sinc kernel,
+$$
+U(x) = \sum_{k=0}^{M-1} u_k\, s_M(x - k),
+$$
+where the kernel depends on the parity of $M$:
+$$
+s_M(x) = \frac{\sin \pi x}{M \sin(\pi x / M)} \ (M \text{ odd}), \qquad s_M(x) = \frac{\sin \pi x}{M \tan(\pi x / M)} \ (M \text{ even}).
+$$
+
+Moreover, $U$ is the Shannon interpolate of the $M$-periodised samples, in the sense of symmetric partial sums:
+$$
+U(x) = \lim_{N \to \infty} \sum_{|n| \le N} u_{n \bmod M}\, \mathrm{sinc}(x - n) .
+$$
+
+::: proof
+*Real and interpolating.* The coefficients of $p$ and $-p$ are conjugate (Proposition 0.4), so their terms add up to a real number. At an integer $k$, $\cos(\pi k) = e^{i \pi k}$, and $U(k)$ is exactly the inverse DFT.
+
+*Kernel, odd $M$.* Substitute the definition of $\hat u_p$ in $U$. Summing the geometric series in $p$ gives the Dirichlet kernel, with $t = 2\pi x / M$:
+$$
+\frac{1}{M} \sum_{|p| \le (M-1)/2} e^{i p t} = \frac{\sin(M t / 2)}{M \sin(t / 2)} = \frac{\sin \pi x}{M \sin(\pi x / M)} .
+$$
+
+*Kernel, even $M$.* The sum over $|p| \le M/2 - 1$ equals $\sin((M-1)t/2) / \sin(t/2)$. Adding $\cos(Mt/2)$ and using the identity
+$$
+\sin\big((M-1)t/2\big) = \sin(Mt/2)\cos(t/2) - \cos(Mt/2)\sin(t/2)
+$$
+
+gives $\sin(Mt/2)\cot(t/2)$, which is the formula.
+
+*Periodised sinc.* Group the terms $n = k + jM$. The classical partial-fraction expansions of $\pi / \sin(\pi y)$ (for odd $M$, alternating signs) and $\pi \cot(\pi y)$ (for even $M$), summed symmetrically, give $\sum_j \mathrm{sinc}(x - k - jM) = s_M(x - k)$. [∎]{.qed}
+:::
+::::
+
+The even case is not a detail. Images from cameras have even sizes, and the choice of the cosine for the Nyquist term is the only one that makes $U$ real, interpolating and symmetric. It has a price, shown in Proposition 2.6.
+
+### 2.4 Exact translation and zoom with the FFT
+
+:::: prop
+[Proposition 2.6 — Fourier translation and zoom]{.tag} Let $u \in \mathbb{R}^M$ with Shannon interpolate $U$.
+
+1.  For odd $M$, define $T_\tau u$ by multiplying the DFT by a phase ramp:
+    $$
+    \widehat{T_\tau u}_p = e^{-2 i \pi p \tau / M}\, \hat u_p .
+    $$
+    Then $(T_\tau u)_k = U(k - \tau)$. The operator $T_\tau$ is unitary, and $T_\tau T_\sigma = T_{\tau + \sigma}$.
+2.  For even $M$, the same formula holds for $|p| < M/2$, while the Nyquist coefficient is multiplied by $\cos(\pi \tau)$. In particular $T_{1/2}$ cancels it and is not invertible.
+3.  For odd $M$ and an integer $z \ge 1$, the zoomed signal $(U(j/z))_{0 \le j < zM}$ is $z$ times the inverse DFT, of size $zM$, of the spectrum of $u$ padded with zeros.
+
+::: proof
+1.  The trigonometric polynomial $x \mapsto U(x - \tau)$ has coefficients $e^{-2 i \pi p \tau / M} \hat u_p$; sampling it at the integers gives the claim. The multipliers have modulus 1, so $T_\tau$ preserves the energy by Parseval, and phase ramps compose additively.
+2.  The Nyquist term of $U(k - \tau)$ is proportional to $\cos(\pi(k - \tau)) = (-1)^k \cos(\pi \tau)$, because $\sin(\pi k) = 0$.
+3.  The inverse DFT of size $zM$ of the padded spectrum, multiplied by $z$, equals $\frac{1}{M} \sum_p \hat u_p e^{2 i \pi p (j/z) / M} = U(j/z)$. [∎]{.qed}
+:::
+::::
+
+The translation of item 1 is the reference sub-pixel translation of the course. It is exact for the band-limited periodic model, it can be undone, and translations compose without accumulating any blur. Item 2 is the reason why the code below works with odd sizes, or treats the Nyquist coefficient explicitly.
+
+**Code 2.7 — Shannon interpolation, translation and zoom.** The script evaluates $U$ at arbitrary points, translates by FFT, checks invertibility for odd and even sizes, and zooms by zero-padding.
+
+```python
+import numpy as np
+
+def shannon_eval(u, x):
+    """Evaluate the real trigonometric (Shannon) interpolate of u at the points x."""
+    M = len(u)
+    U = np.fft.fft(u)
+    p = np.fft.fftfreq(M, d=1 / M)                 # signed integer frequencies
+    w = np.ones(M)
+    if M % 2 == 0:                                 # split the Nyquist coefficient
+        p, U, w = np.append(p, M // 2), np.append(U, U[M // 2]), np.append(w, 0.5)
+        w[M // 2] = 0.5
+    E = np.exp(2j * np.pi * np.outer(x, p) / M)
+    return (E @ (w * U)).real / M
+
+def shannon_shift(u, tau):
+    """Exact sub-pixel translation k -> U(k - tau) (Proposition 2.6)."""
+    M = len(u)
+    p = np.fft.fftfreq(M, d=1 / M)
+    phase = np.exp(-2j * np.pi * p * tau / M)
+    if M % 2 == 0:
+        phase[M // 2] = np.cos(np.pi * tau)        # Nyquist coefficient
+    return np.fft.ifft(np.fft.fft(u) * phase).real
+
+def fourier_zoom(u, z):
+    """Zoom by an integer factor z (M odd): zero-padding of the centred spectrum."""
+    M = len(u)
+    pad = np.zeros(z * M, complex)
+    c = z * M // 2 - M // 2
+    pad[c:c + M] = np.fft.fftshift(np.fft.fft(u))
+    return np.fft.ifft(np.fft.ifftshift(pad)).real * z
+
+rng = np.random.default_rng(1)
+for M in (9, 8):
+    u = rng.normal(size=M)
+    print(f"M = {M}: interpolates {np.allclose(shannon_eval(u, np.arange(M)), u)}, "
+          f"shift = evaluation {np.allclose(shannon_shift(u, 0.3), shannon_eval(u, np.arange(M) - 0.3))}")
+    back = shannon_shift(shannon_shift(shannon_shift(u, 0.5), 0.5), -1.0)
+    print(f"        error after +1/2, +1/2, -1: {np.max(abs(back - u)):.2e}")
+u = rng.normal(size=9)
+print("zero-padding zoom = Shannon evaluation:",
+      np.allclose(fourier_zoom(u, 4), shannon_eval(u, np.arange(36) / 4)))
+```
+
+For $M = 9$, two half-pixel translations followed by a translation of $-1$ return the signal to $4 \times 10^{-16}$. For $M = 8$, the error is $0.30$: the first half-pixel translation destroyed the Nyquist coefficient. Exercise 7 asks for a proof and a fix.
+
+### 2.5 Borders: the periodic plus smooth decomposition
+
+The DFT treats an image as periodic. Its left and right borders, top and bottom borders, are glued together, and the jump between them acts like a sharp edge. In the spectrum this jump creates a bright cross along the frequency axes. In interpolation it creates ringing along the borders, and in translation it makes content wrap around.
+
+The decomposition of Moisan (2011), one of the official references of the course, splits the image into a periodic component, which carries the content and has a clean spectrum, and a smooth component, which absorbs the border jumps.
+
+::: def
+[Definition 2.8 — Boundary image]{.tag} For an image $u$ on $\Omega = \{0, \dots, M-1\} \times \{0, \dots, N-1\}$, the boundary image is $v = v_1 + v_2$, where
+$$
+v_1(x, y) = \begin{cases} u(M-1-x,\, y) - u(x, y) & \text{if } x \in \{0, M-1\}, \\ 0 & \text{otherwise}, \end{cases}
+$$
+
+and $v_2$ is defined in the same way along the second coordinate. At each border pixel, $v$ is the jump towards the opposite border, the pixel that becomes its neighbour when the image is made periodic.
+:::
+
+:::: thm
+[Theorem 2.9 — Periodic plus smooth decomposition (Moisan, 2011)]{.tag} Let $I$ be the set of pairs of 4-neighbours inside $\Omega$, and $B$ the set of pairs of pixels that become neighbours only through periodisation (opposite border pixels). Among all decompositions $u = p + s$, consider the energy
+$$
+E(p, s) = \sum_{\{a, b\} \in B} \big(p(a) - p(b)\big)^2 + \sum_{\{a, b\} \in I} \big(s(a) - s(b)\big)^2 .
+$$
+
+There is a unique minimiser with $s$ of zero mean. Its smooth component is the zero-mean solution of $\Delta_{\mathrm{per}}\, s = v$, where $\Delta_{\mathrm{per}}$ is the 5-point Laplacian with periodic boundary conditions. In Fourier, for $(q, r) \neq (0, 0)$,
+$$
+\hat s(q, r) = \frac{\hat v(q, r)}{2 \cos(2\pi q / M) + 2 \cos(2\pi r / N) - 4}, \qquad \hat s(0, 0) = 0 .
+$$
+
+In particular, $s$ is discrete-harmonic at every interior pixel, and $p = u - s$ is computed with two FFTs.
+
+::: proof
+Substitute $p = u - s$. The energy becomes a quadratic function of $s$ alone. Its derivative with respect to $s(a)$ vanishes when
+$$
+\sum_{b \sim_I a} \big(s(a) - s(b)\big) + \sum_{b \sim_B a} \big(s(a) - s(b)\big) = \sum_{b \sim_B a} \big(u(a) - u(b)\big) .
+$$
+
+The left-hand side runs over the four periodic neighbours of $a$, so it equals $-\Delta_{\mathrm{per}} s(a)$. The right-hand side is $-v(a)$ by Definition 2.8. The optimality condition is thus $\Delta_{\mathrm{per}} s = v$.
+
+The DFT diagonalises $\Delta_{\mathrm{per}}$, with the eigenvalues in the denominator above. They are negative except at $(0,0)$. The image $v$ has zero mean, since each pair of $B$ contributes two opposite values; so the equation has a solution, unique up to a constant.
+
+The quadratic part of the energy, $\sum_I (s(a) - s(b))^2$ plus a sum of squares, vanishes only for constant $s$ because $\Omega$ is connected. The energy is therefore strictly convex on zero-mean images, and the critical point is the unique minimiser.
+
+Finally, $v = 0$ at interior pixels, where $\Delta_{\mathrm{per}}$ is the ordinary Laplacian; hence $\Delta s = 0$ there. [∎]{.qed}
+:::
+::::
+
+**Code 2.10 — Periodic plus smooth decomposition.** The image below is deliberately non-periodic: a ramp, an oblique texture and a disc.
+
+```python
+import numpy as np
+
+def per_smooth(u):
+    """Periodic plus smooth decomposition u = p + s (Moisan, 2011)."""
+    M, N = u.shape
+    v = np.zeros_like(u)
+    v[0, :] += u[-1, :] - u[0, :]            # jumps across the periodic boundary
+    v[-1, :] += u[0, :] - u[-1, :]
+    v[:, 0] += u[:, -1] - u[:, 0]
+    v[:, -1] += u[:, 0] - u[:, -1]
+    q = np.arange(M)[:, None]
+    r = np.arange(N)[None, :]
+    den = 2 * np.cos(2 * np.pi * q / M) + 2 * np.cos(2 * np.pi * r / N) - 4
+    den[0, 0] = 1.0                          # avoid 0/0; the mean of s is set to 0
+    s_hat = np.fft.fft2(v) / den
+    s_hat[0, 0] = 0.0
+    s = np.fft.ifft2(s_hat).real
+    return u - s, s
+
+M = N = 128
+y, x = np.mgrid[0:M, 0:N].astype(float)
+rng = np.random.default_rng(0)
+u = 0.8 * x + 0.5 * y + 20 * np.sin(0.9 * x + 0.4 * y) + 60 * ((x - 70)**2 + (y - 50)**2 < 300)
+u += rng.normal(0, 2, u.shape)
+p, s = per_smooth(u)
+
+def axis_energy(img):
+    """Fraction of non-DC spectral energy lying on the two frequency axes."""
+    E = np.abs(np.fft.fft2(img - img.mean()))**2
+    return (E[0, 1:].sum() + E[1:, 0].sum()) / E.sum()
+
+print(f"energy on the axes: u {axis_energy(u):.3f}   p {axis_energy(p):.3f}")
+lap = np.roll(s, 1, 0) + np.roll(s, -1, 0) + np.roll(s, 1, 1) + np.roll(s, -1, 1) - 4 * s
+print(f"max |Laplacian(s)| inside the image: {np.abs(lap[1:-1, 1:-1]).max():.1e}")
+print(f"boundary jump of u: {np.abs(u[0] - u[-1]).mean():.1f}, of p: {np.abs(p[0] - p[-1]).mean():.1f}")
+```
+
+The share of spectral energy on the two axes falls from 0.797 for $u$ to 0.180 for $p$: the cross has disappeared. The mean jump across the top and bottom borders falls from 63.4 to 3.0 grey levels. The Laplacian of $s$ vanishes inside the image to $10^{-13}$, as Theorem 2.9 predicts.
+
+In practice, FFT-based operations are applied to $p$, while $s$ — smooth and harmonic — is handled by any simple method, or added back unchanged when the operation is a filtering with small support. Two alternatives are common: mirror symmetrisation, which doubles the image size and keeps continuity but not the derivative, and apodisation by a window, which alters the content near the borders.
+
+::: recap
+[Key takeaways — chapter 2]{.tag}
+
+-   A band-limited function is the sinc series of its samples (Theorem 2.1); without band-limitation, the error is bounded by the spectral mass beyond $\pi$, half lost and half folded back.
+-   A finite image is interpolated by the trigonometric polynomial with the same DFT; for even sizes the Nyquist coefficient becomes a cosine.
+-   Sub-pixel translation is a phase ramp on the DFT: exact, unitary and composable for odd sizes; for even sizes, the half-pixel translation kills the Nyquist coefficient.
+-   Zooming is zero-padding of the spectrum.
+-   The periodic plus smooth decomposition removes the border jump; its smooth part solves a Poisson equation, in two FFTs.
+:::
+
+## 3. Splines and lossless geometric transforms {#ch3}
+
+Shannon interpolation is exact for band-limited periodic images but global: every output value depends on every pixel. Local kernels are cheaper and handle non-periodic images, but they blur. This chapter compares interpolation kernels through their frequency responses, builds the B-spline family, and then asks which geometric transforms can be applied to an image without any loss.
+
+### 3.1 Interpolation kernels
+
+::: def
+[Definition 3.1 — Interpolation kernel]{.tag} Let $\varphi$ be a continuous integrable function. The *direct* interpolation of a sequence $u$ is
+$$
+U(x) = \sum_{k \in \mathbb{Z}} u_k\, \varphi(x - k) .
+$$
+
+It interpolates, $U(k) = u_k$, exactly when $\varphi(0) = 1$ and $\varphi(k) = 0$ for every integer $k \neq 0$.
+
+A *generalised* interpolation uses coefficients $c = (c_k)$ computed from $u$ by a discrete prefilter, so that $U = \sum_k c_k \varphi(\cdot - k)$ interpolates even when $\varphi$ does not. In 2D, the kernel is the tensor product $\varphi(x)\varphi(y)$.
+:::
+
+The classical kernels are nearest neighbour ($\beta^0$, the box), linear interpolation ($\beta^1$, the hat), the cubic convolution kernel of Keys (1981), cubic splines, and the sinc of [ch. 2](#ch2). With the parameter $a = -1/2$, the Keys kernel is
+$$
+\varphi_{\mathrm{K}}(x) = \begin{cases} \tfrac32 |x|^3 - \tfrac52 |x|^2 + 1 & |x| \le 1, \\ -\tfrac12 |x|^3 + \tfrac52 |x|^2 - 4|x| + 2 & 1 < |x| < 2, \\ 0 & |x| \ge 2 . \end{cases}
+$$
+
+:::: prop
+[Proposition 3.2 — Reproduction of constants]{.tag} Let $\varphi$ be continuous with compact support. Then the shifted kernels form a partition of unity,
+$$
+\sum_{k} \varphi(x - k) = 1 \quad \text{for all } x ,
+$$
+if and only if $\hat \varphi(0) = 1$ and $\hat \varphi(2\pi m) = 0$ for every integer $m \neq 0$.
+
+::: proof
+The function $F(x) = \sum_k \varphi(x - k)$ is 1-periodic and continuous. As in the proof of Theorem 0.2, its Fourier coefficients are $c_m(F) = \hat \varphi(2\pi m)$. A continuous periodic function equals the constant 1 if and only if its Fourier coefficients are $c_0 = 1$ and $c_m = 0$ otherwise. [∎]{.qed}
+:::
+::::
+
+Reproducing constants is the minimum one asks of an interpolator: a flat image must stay flat. More generally, when $\hat \varphi$ has zeros of order $L$ at every $2\pi m$, $m \neq 0$, the kernel reproduces polynomials of degree less than $L$.
+
+A smooth image sampled with step $h$ is then approximated with an error of order $h^L$. These are the Strang–Fix conditions, reviewed by Thévenaz, Blu and Unser (2000).
+
+| Kernel | Support | Approximation order $L$ |
+|---|---|---|
+| nearest neighbour $\beta^0$ | 1 | 1 |
+| linear $\beta^1$ | 2 | 2 |
+| Keys, $a = -1/2$ | 4 | 3 |
+| cubic spline interpolation | infinite, exponential decay | 4 |
+| Shannon (sinc) | infinite, decay in $1/\lvert x\rvert$ | exact on band-limited signals |
+
+### 3.2 B-splines
+
+::: def
+[Definition 3.3 — B-splines]{.tag} The centred B-spline of degree $n$ is defined recursively by
+$$
+\beta^0 = \mathbf{1}_{[-1/2,\, 1/2)}, \qquad \beta^n = \beta^0 * \beta^{n-1} .
+$$
+
+By the convolution rule, its Fourier transform is
+$$
+\hat \beta^n(\xi) = \Big( \frac{\sin(\xi / 2)}{\xi / 2} \Big)^{n+1} .
+$$
+:::
+
+:::: prop
+[Proposition 3.4 — Properties of B-splines]{.tag}
+
+1.  $\beta^n$ is non-negative, has integral 1 and support $[-(n+1)/2,\ (n+1)/2]$.
+2.  $\beta^n$ is a piecewise polynomial of degree $n$, of class $C^{n-1}$.
+3.  The integer shifts of $\beta^n$ form a partition of unity, and $\beta^n$ has approximation order $n + 1$.
+4.  The cubic B-spline is
+    $$
+    \beta^3(x) = \begin{cases} \tfrac23 - |x|^2 + \tfrac12 |x|^3 & |x| \le 1, \\ \tfrac16 (2 - |x|)^3 & 1 \le |x| < 2, \\ 0 & |x| \ge 2, \end{cases}
+    $$
+    with $\beta^3(0) = 2/3$ and $\beta^3(\pm 1) = 1/6$.
+
+::: proof
+1.  Positivity, mass and support are preserved by convolution with $\beta^0$, adding $1/2$ to the half-width at each step.
+2.  For any integrable $f$, $(\beta^0 * f)(x) = \int_{x - 1/2}^{x + 1/2} f$, whose derivative is $f(x + 1/2) - f(x - 1/2)$. Each convolution therefore raises the degree and the smoothness by one, starting from the piecewise constant $\beta^0$.
+3.  $\hat \beta^n(0) = 1$, and $\sin(\pi m) = 0$ makes $\hat \beta^n$ vanish to order $n+1$ at every $2\pi m$, $m \neq 0$. Proposition 3.2 and the Strang–Fix conditions conclude.
+4.  Convolve $\beta^2$ with $\beta^0$, or check that the formula is $C^2$, has integral 1 and the right support. [∎]{.qed}
+:::
+::::
+
+### 3.3 Spline interpolation by prefiltering
+
+The cubic B-spline does not interpolate, since $\beta^3(\pm 1) \neq 0$. Spline interpolation looks for coefficients $c$ such that the spline $U = \sum_k c_k \beta^3(\cdot - k)$ passes through the samples.
+
+:::: prop
+[Proposition 3.5 — Cubic spline interpolation as a recursive filter]{.tag} The interpolation conditions read $b * c = u$, where $b = (\tfrac16, \tfrac23, \tfrac16)$ is the sampled B-spline. Its symbol satisfies
+$$
+B(\xi) = \frac23 + \frac13 \cos \xi \ \ge\ \frac13 ,
+$$
+so $b$ has a stable inverse. With $z_1 = \sqrt 3 - 2 \approx -0.268$, the inverse filter is
+$$
+(b^{-1})_k = \sqrt 3\, z_1^{|k|} .
+$$
+
+It is computed by two first-order recursions, one causal and one anti-causal:
+$$
+c^+_k = u_k + z_1\, c^+_{k-1}, \qquad c^-_k = z_1 \big( c^-_{k+1} - c^+_k \big), \qquad c_k = 6\, c^-_k .
+$$
+
+::: proof
+In the $z$-transform, $B(z) = (z + 4 + z^{-1}) / 6$. The number $z_1$ is a root of $z^2 + 4z + 1$, so that $-1/z_1 - z_1 = 4$, and
+$$
+z + 4 + z^{-1} = -\frac{1}{z_1} (1 - z_1 z^{-1})(1 - z_1 z) .
+$$
+
+Hence the inverse is a product of a causal and an anti-causal first-order filter:
+$$
+\frac{6}{z + 4 + z^{-1}} = 6 \cdot \frac{1}{1 - z_1 z^{-1}} \cdot \frac{-z_1}{1 - z_1 z} .
+$$
+
+Both are stable because $|z_1| < 1$. The first gives the recursion for $c^+$; the second, written as $c^-_k - z_1 c^-_{k+1} = -z_1 c^+_k$, gives the recursion for $c^-$. Expanding the two geometric series gives the impulse response $\sqrt 3\, z_1^{|k|}$, as Exercise 4 checks. [∎]{.qed}
+:::
+::::
+
+The recursions cost a few operations per sample, independently of the size, and are applied along each axis of an image. They need an initial value at each end: Unser, Aldroubi and Eden (1993) derive it for mirror boundary conditions, and with periodic conditions the filter is a simple division by $B$ in the DFT domain.
+
+The equivalent interpolating kernel is the *cardinal cubic spline*
+$$
+\eta^3(x) = \sum_k (b^{-1})_k\, \beta^3(x - k), \qquad \hat \eta^3(\xi) = \frac{\hat \beta^3(\xi)}{B(\xi)} .
+$$
+
+It has infinite support but decays like $0.268^{|x|}$. As the degree tends to infinity, the cardinal splines converge to the sinc kernel (Aldroubi, Unser and Eden, 1992): splines interpolate between local kernels and Shannon interpolation.
+
+**Code 3.7 — Spline interpolation, checked against SciPy.** The prefilter is applied in Fourier with periodic boundary conditions; the result coincides with `scipy.ndimage.shift` in mode `grid-wrap`.
+
+```python
+import numpy as np
+from scipy import ndimage
+
+def bspline3(x):
+    x = np.abs(x)
+    return np.where(x <= 1, 2/3 - x**2 + x**3 / 2, np.where(x < 2, (2 - x)**3 / 6, 0.0))
+
+def spline_coefficients(u):
+    """Periodic cubic-spline prefilter: solve b * c = u by division in Fourier."""
+    M = len(u)
+    B = 2/3 + (1/3) * np.cos(2 * np.pi * np.arange(M) / M)   # DFT of (1/6, 2/3, 1/6)
+    return np.fft.ifft(np.fft.fft(u) / B).real
+
+def spline_shift(u, tau):
+    """Evaluate the periodic cubic-spline interpolate at the points k - tau, |tau| < 1."""
+    c, M = spline_coefficients(u), len(u)
+    k = np.arange(M)
+    return sum(c[(k - j) % M] * bspline3(j - tau) for j in range(-2, 3))
+
+rng = np.random.default_rng(2)
+u = rng.normal(size=32)
+print("interpolates:", np.allclose(spline_shift(u, 0.0), u))
+print("matches scipy.ndimage.shift(order=3, mode='grid-wrap'):",
+      np.allclose(spline_shift(u, 0.3), ndimage.shift(u, 0.3, order=3, mode="grid-wrap")))
+delta = np.zeros(32); delta[0] = 1.0
+z1 = np.sqrt(3) - 2
+print("impulse response = sqrt(3) z1^|k|:",
+      np.allclose(spline_coefficients(delta)[:5], np.sqrt(3) * z1**np.arange(5)))
+```
+
+### 3.4 Comparing interpolators in the frequency domain
+
+Translating samples by $\tau$ with a kernel $\varphi$ is a discrete filter. Its frequency response tells which frequencies survive. For a direct kernel, the response is
+$$
+H_\tau(\xi) = \sum_k \varphi(k - \tau)\, e^{-i k \xi},
+$$
+and for a spline it is divided by the prefilter symbol $B(\xi)$. The Shannon translation has $|H_\tau| = 1$ on the whole band. The half-pixel translation $\tau = 1/2$ is the worst case for local kernels.
+
+**Code 3.8 — Gain of the half-pixel translation.**
+
+```python
+import numpy as np
+
+def keys(x, a=-0.5):
+    x = np.abs(x)
+    return np.where(x <= 1, (a + 2) * x**3 - (a + 3) * x**2 + 1,
+           np.where(x < 2, a * x**3 - 5 * a * x**2 + 8 * a * x - 4 * a, 0.0))
+
+def bspline3(x):
+    x = np.abs(x)
+    return np.where(x <= 1, 2/3 - x**2 + x**3 / 2, np.where(x < 2, (2 - x)**3 / 6, 0.0))
+
+def gain(weights_at, xi, tau=0.5, prefilter=None):
+    """|frequency response| of the filter that shifts samples by tau."""
+    k = np.arange(-4, 5)
+    H = np.sum(weights_at(k - tau)[:, None] * np.exp(-1j * np.outer(k, xi)), axis=0)
+    if prefilter is not None:
+        H = H / np.sum(prefilter(k)[:, None] * np.exp(-1j * np.outer(k, xi)), axis=0)
+    return np.abs(H)
+
+xi = np.array([np.pi / 4, np.pi / 2, 3 * np.pi / 4, 0.95 * np.pi])
+print("xi/pi:               ", np.round(xi / np.pi, 2))
+print("linear (hat)         ", np.round(gain(lambda x: np.maximum(1 - abs(x), 0), xi), 3))
+print("Keys cubic a=-1/2    ", np.round(gain(keys, xi), 3))
+print("cubic B-spline interp", np.round(gain(bspline3, xi, prefilter=bspline3), 3))
+print("Shannon              ", np.ones(4))
+```
+
+| Frequency $\xi$ | $\pi/4$ | $\pi/2$ | $3\pi/4$ | $0.95\pi$ |
+|---|---|---|---|---|
+| linear | 0.924 | 0.707 | 0.383 | 0.078 |
+| Keys ($a = -1/2$) | 0.992 | 0.884 | 0.546 | 0.117 |
+| cubic spline | 0.999 | 0.972 | 0.762 | 0.194 |
+| Shannon | 1 | 1 | 1 | 1 |
+
+::: ex
+[Example 3.9 — The Keys gain by hand]{.tag} For $\tau = 1/2$ the Keys weights are $\varphi_{\mathrm{K}}(\pm 1/2) = 0.5625$ and $\varphi_{\mathrm{K}}(\pm 3/2) = -0.0625$. Pairing symmetric terms, the modulus of the response is
+$$
+|H_{1/2}(\xi)| = \big| 1.125 \cos(\xi/2) - 0.125 \cos(3\xi/2) \big| .
+$$
+
+At $\xi = \pi/2$ this gives $1.125 \times 0.7071 + 0.125 \times 0.7071 = 0.884$, the value of the table. For linear interpolation, the response is $\cos(\xi / 2)$, equal to $0.707$ at the same frequency.
+:::
+
+All local kernels attenuate the upper half of the band. One application costs little, but the attenuation compounds when transforms are chained: after ten half-pixel translations with linear interpolation, the gain at $\xi = \pi/2$ is $0.707^{10} \approx 0.031$.
+
+### 3.5 Lossless geometric transforms
+
+A discrete geometric transform is *lossless* when it is invertible and its inverse is a transform of the same family; ideally it is unitary, so that it preserves the energy and the noise level. A chain of lossless transforms can always be undone, and iterating them accumulates no blur.
+
+FFT translations of odd-sized images (Proposition 2.6), integer zooms by zero-padding (which have an exact left inverse, [ch. 4.6](#ch4)), flips and rotations by multiples of 90° are lossless. Interpolation with any kernel whose gain is below 1 somewhere in the band is not. Rotations by arbitrary angles become lossless thanks to a factorisation into shears.
+
+:::: thm
+[Theorem 3.10 — Rotation by three shears]{.tag} For every angle $\theta$ with $|\theta| < \pi$, with $t = \tan(\theta/2)$ and $s = \sin \theta$,
+$$
+\begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix} = \begin{pmatrix} 1 & -t \\ 0 & 1 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ s & 1 \end{pmatrix} \begin{pmatrix} 1 & -t \\ 0 & 1 \end{pmatrix} .
+$$
+
+Each shear translates every row (or every column) by an amount proportional to its index. Computed with the Fourier translation of Proposition 2.6 on rows of odd length, each shear is a unitary operator on images. The resulting discrete rotation is therefore unitary, and its inverse is the three-shear rotation by $-\theta$.
+
+::: proof
+Multiply the first two matrices:
+$$
+\begin{pmatrix} 1 & -t \\ 0 & 1 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ s & 1 \end{pmatrix} = \begin{pmatrix} 1 - ts & -t \\ s & 1 \end{pmatrix} .
+$$
+
+Multiplying by the third gives the diagonal entries $1 - ts$ and the off-diagonal entries $s$ and $-t(1 - ts) - t = -t(2 - ts)$.
+
+The half-angle formulas give $ts = 2 \sin^2(\theta/2) = 1 - \cos\theta$. Hence the diagonal entries equal $\cos\theta$, and the upper-right entry equals
+$$
+-\tan(\theta/2)\,(1 + \cos\theta) = -2 \sin(\theta/2) \cos(\theta/2) = -\sin\theta .
+$$
+
+A shear applies the unitary translation $T_{a(y - c)}$ to the row of index $y$, so it is unitary on the whole image, with inverse the shear of parameter $-a$. The inverse of the product is the product of the inverses in reverse order, which is the factorisation for $-\theta$, since $\tan$ and $\sin$ are odd. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — a rotation is three shears]{.tag}
+$$
+R_\theta = \begin{pmatrix} 1 & -\tan\frac{\theta}{2} \\ 0 & 1 \end{pmatrix} \begin{pmatrix} 1 & 0 \\ \sin\theta & 1 \end{pmatrix} \begin{pmatrix} 1 & -\tan\frac{\theta}{2} \\ 0 & 1 \end{pmatrix}
+$$
+:::
+
+Two remarks keep the method honest. The shears are periodic, so content pushed across a border wraps around: the image must be padded, by about $|t|$ times half its height. And the discrete rotation is not *exactly* the rotation of the trigonometric polynomial of the image, because a sheared trigonometric polynomial is no longer one of the same degree. The difference is tiny for well-sampled images, as the experiment shows, and the transform is exactly invertible in any case. For $|\theta| > \pi/2$, one first rotates by $\pm 90°$ exactly, so that $|t| \le 1$.
+
+**Code 3.11 — A full turn in 36 steps.** The test image is a sum of smooth Gaussian spots inside a zero margin, of odd size 129.
+
+```python
+import numpy as np
+from scipy import ndimage
+
+def shear_rows(u, a):
+    """Row y is translated by a*(y - c) with the exact Fourier (Shannon) translation."""
+    M, N = u.shape                                  # N odd: no Nyquist coefficient
+    c = (M - 1) / 2
+    p = np.fft.fftfreq(N, d=1 / N)
+    tau = a * (np.arange(M) - c)
+    phase = np.exp(-2j * np.pi * np.outer(tau, p) / N)
+    return np.fft.ifft(np.fft.fft(u, axis=1) * phase, axis=1).real
+
+def rotate_3shears(u, theta):
+    t, s = np.tan(theta / 2), np.sin(theta)
+    u = shear_rows(u, -t)
+    u = shear_rows(u.T, s).T                        # vertical shear
+    return shear_rows(u, -t)
+
+n = 129
+y, x = np.mgrid[0:n, 0:n] - (n - 1) / 2
+rng = np.random.default_rng(3)
+u = np.zeros((n, n))
+for _ in range(25):
+    cx, cy = rng.uniform(-30, 30, 2)
+    u += rng.uniform(50, 100) * np.exp(-((x - cx)**2 + (y - cy)**2) / (2 * 2.0**2))
+
+steps, theta = 36, 2 * np.pi / 36
+v_lin, v_fft = u.copy(), u.copy()
+for _ in range(steps):
+    v_lin = ndimage.rotate(v_lin, np.degrees(theta), reshape=False, order=1)
+    v_fft = rotate_3shears(v_fft, theta)
+rms = lambda e: np.sqrt(np.mean(e**2))
+print(f"after a full turn in {steps} steps: RMSE bilinear {rms(v_lin - u):.2f}, "
+      f"three shears {rms(v_fft - u):.2e}  (image RMS {rms(u):.2f})")
+w = rotate_3shears(rotate_3shears(u, 0.7), -0.7)
+print(f"rotate by 0.7 rad then back: max error {np.abs(w - u).max():.1e}")
+print("energy preserved by one rotation:", np.isclose(np.sum(rotate_3shears(u, 0.7)**2), np.sum(u**2)))
+```
+
+After the full turn, bilinear interpolation leaves an RMS error of 5.12 grey levels, for an image of RMS 12.04: the spots are visibly blurred. The three-shear rotation returns the image to within $3.9 \times 10^{-8}$. A rotation by 0.7 radian followed by its inverse is exact to $10^{-13}$, and one rotation preserves the energy exactly. This is the experiment announced in the introduction.
+
+::: recap
+[Key takeaways — chapter 3]{.tag}
+
+-   An interpolator is judged by its approximation order (zeros of $\hat \varphi$ at $2\pi m$) and by its frequency response on the band.
+-   B-splines are repeated convolutions of the box; cubic spline interpolation needs a prefilter, computed by two recursions with pole $z_1 = \sqrt 3 - 2$.
+-   At half a pixel, linear interpolation keeps 71 % of the amplitude at $\xi = \pi/2$, Keys 88 %, cubic splines 97 %, Shannon 100 %.
+-   Losses compound when transforms are chained; lossless transforms (FFT translations, three-shear rotations) are unitary and exactly invertible.
+-   $R_\theta$ is the product of three shears with parameters $-\tan(\theta/2)$, $\sin\theta$, $-\tan(\theta/2)$.
+:::
+
+## 4. Image reduction: aliasing, ringing and blur {#ch4}
+
+Reducing an image by a factor $z$ — for a thumbnail, a pyramid, or a coarser analysis scale — means sampling it on a grid $z$ times coarser. The new grid can carry only the frequencies below $\pi / z$. Whatever we do with the frequencies above, we pay in aliasing, in ringing or in blur. This chapter measures the three defects and proves that no filter without ringing can avoid trading blur against aliasing.
+
+### 4.1 The reduction model
+
+::: def
+[Definition 4.1 — Reduction with a prefilter]{.tag} Let $U$ be the continuous model of an image ([ch. 2](#ch2)), $z > 1$ the reduction factor, and $h$ an integrable prefilter with $\int h = 1$. The reduced image is
+$$
+v(k) = (h * U)(z k), \qquad k \in \mathbb{Z}^d .
+$$
+
+Naive subsampling, $v(k) = u(zk)$ for an integer $z$, corresponds to $h = \delta$.
+:::
+
+:::: prop
+[Proposition 4.2 — Spectrum of a reduced image]{.tag} With the notation of Definition 4.1, and $h * U$ regular enough for Theorem 0.2 to apply, the discrete-time Fourier transform of the reduced image is
+$$
+\sum_{k} v(k)\, e^{-i \langle k, \xi \rangle} = \frac{1}{z^d} \sum_{m \in \mathbb{Z}^d} \hat h\Big( \frac{\xi + 2\pi m}{z} \Big)\, \hat U\Big( \frac{\xi + 2\pi m}{z} \Big) .
+$$
+
+::: proof
+The function $w(x) = (h * U)(z x)$ has Fourier transform $z^{-d} (\hat h \hat U)(\xi / z)$ by the dilation rule. Its samples are $v$, and Theorem 0.2 periodises its transform. [∎]{.qed}
+:::
+::::
+
+On the band $[-\pi, \pi]^d$ of the coarse grid, the term $m = 0$ carries the frequencies of $U$ below $\pi / z$, attenuated by $\hat h$.
+
+The terms $m \neq 0$ carry frequencies above $\pi / z$, folded. An ideal prefilter would have $\hat h = 1$ below $\pi / z$ and $\hat h = 0$ above.
+
+### 4.2 Three measures of the defects
+
+::: def
+[Definition 4.3 — Aliasing, blur and ringing of a prefilter]{.tag} For a one-dimensional prefilter $h$ with $\int h = 1$ and $\hat h \in L^2$, and a factor $z$:
+
+-   the **aliasing** is the share of the energy of filtered white noise that lies beyond the new Nyquist frequency and will fold back,
+    $$
+    \mathcal{A}(h) = \frac{\int_{|\xi| > \pi / z} |\hat h(\xi)|^2\, d\xi}{\int_{\mathbb{R}} |\hat h(\xi)|^2\, d\xi} ;
+    $$
+-   the **blur** is the mean loss of energy over the frequencies that the coarse grid can carry,
+    $$
+    \mathcal{B}(h) = \frac{z}{2\pi} \int_{|\xi| \le \pi / z} \big( 1 - |\hat h(\xi)|^2 \big)\, d\xi ;
+    $$
+-   the **ringing** is the overshoot of the step response $S(x) = \int_{-\infty}^x h$,
+    $$
+    \mathcal{R}(h) = \max\Big( \sup_x S(x) - 1,\ -\inf_x S(x),\ 0 \Big) .
+    $$
+:::
+
+The three numbers are dimensionless and lie in $[0, 1]$ for reasonable filters. A filter with $h \ge 0$ has a non-decreasing step response with values in $[0, 1]$, so it has no ringing at all.
+
+### 4.3 The ideal low-pass filter and the Gibbs overshoot
+
+:::: prop
+[Proposition 4.4 — The ideal filter rings by 9 %]{.tag} The ideal low-pass prefilter $h(x) = \frac{1}{z} \mathrm{sinc}(x / z)$ has $\mathcal{A} = 0$ and $\mathcal{B} = 0$, and its ringing does not depend on $z$:
+$$
+\mathcal{R}(h) = \frac{1}{\pi}\, \mathrm{Si}(\pi) - \frac12 \approx 0.0895, \qquad \mathrm{Si}(t) = \int_0^t \frac{\sin s}{s}\, ds .
+$$
+
+::: proof
+By the table of [ch. 0.1](#ch0) and the dilation rule, $\hat h = \mathbf{1}_{[-\pi/z,\, \pi/z]}$, which gives $\mathcal{A} = \mathcal{B} = 0$.
+
+The change of variables $t = \pi s / z$ in the step response gives
+$$
+S(x) = \frac12 + \frac{1}{\pi} \mathrm{Si}\Big( \frac{\pi x}{z} \Big) .
+$$
+
+The function $\mathrm{Si}$ is odd. Its critical points are the zeros of $\sin t / t$, at $t = j\pi$, and between two of them it changes by the area of one lobe of $\sin t / t$. These areas alternate in sign and decrease in size, so the global maximum of $\mathrm{Si}$ is reached at $t = \pi$.
+
+Hence $\sup S = \frac12 + \mathrm{Si}(\pi)/\pi \approx 1.0895$, reached at $x = z$; by symmetry, $\inf S = -0.0895$. [∎]{.qed}
+:::
+::::
+
+This is the Gibbs phenomenon. Reducing the factor $z$ narrows the oscillations but never lowers them: every sharp edge of an image reduced with the ideal filter is surrounded by ripples of 9 % of its contrast. Exercise 10 adds a second obstruction: a filter with compact support cannot have $\hat h = 0$ on a whole interval, so zero aliasing needs an infinitely extended kernel.
+
+### 4.4 No escape without ringing
+
+:::: thm
+[Theorem 4.5 — Ringing-free prefilters trade blur against aliasing]{.tag} Let $h \ge 0$ with $\int h = 1$. For every frequency $\xi$,
+$$
+1 - \mathrm{Re}\, \hat h(2\xi) \le 4 \big( 1 - \mathrm{Re}\, \hat h(\xi) \big) .
+$$
+
+Consequently, suppose that the prefilter barely blurs the band of the coarse grid: $\mathrm{Re}\, \hat h(\xi) \ge 1 - \varepsilon$ for $|\xi| \le \pi / z$. Then the whole octave above the new Nyquist frequency passes almost unattenuated:
+$$
+\mathrm{Re}\, \hat h(\xi) \ge 1 - 4 \varepsilon \quad \text{for all } |\xi| \le 2\pi / z .
+$$
+
+::: proof
+Since $\int h = 1$ and $h$ is real,
+$$
+1 - \mathrm{Re}\, \hat h(\xi) = \int h(x) \big( 1 - \cos(x\xi) \big)\, dx .
+$$
+
+For every real $a$,
+$$
+1 - \cos 2a = 2 \sin^2 a = 2 (1 - \cos a)(1 + \cos a) \le 4 (1 - \cos a) .
+$$
+
+Apply this with $a = x \xi$ and integrate against $h(x)\, dx$. The weight $h$ is non-negative, so the inequality is preserved; this is where the absence of ringing is used.
+
+For the consequence, write any $|\xi'| \le 2\pi / z$ as $\xi' = 2\xi$ with $|\xi| \le \pi / z$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — no ringing, no free lunch]{.tag}
+$$
+h \ge 0,\ \int h = 1 \ \Longrightarrow\ 1 - \mathrm{Re}\, \hat h(2\xi) \le 4 \big( 1 - \mathrm{Re}\, \hat h(\xi) \big)
+$$
+:::
+
+The constant 4 cannot be improved: for a Gaussian, the ratio of the two sides tends to 1 as $\xi \to 0$. The theorem is the mathematical content of the trade-off of the syllabus. A filter without ringing that keeps the band within $\varepsilon$ passes the next octave within $4\varepsilon$, which then folds. To remove aliasing one must either blur — a wide Gaussian — or accept negative lobes and therefore ringing.
+
+### 4.5 The trade-off in numbers
+
+**Code 4.6 — Measuring prefilters for $z = 2$.** The integrals of Definition 4.3 are computed on a fine frequency grid, and the ringing of the ideal filter by the formula of Proposition 4.4.
+
+```python
+import numpy as np
+from scipy.special import sici
+
+z = 2.0                                          # reduction factor
+xi = np.linspace(-80, 80, 800001)                # angular frequencies
+x = np.linspace(-40, 40, 160001)                 # positions, in fine pixels
+
+def aliasing_blur(H):
+    E = np.abs(H)**2
+    band = np.abs(xi) <= np.pi / z
+    alias = E[~band].sum() / E.sum()             # energy that will fold back
+    blur = (z / (2 * np.pi)) * np.sum(1 - E[band]) * (xi[1] - xi[0])
+    return alias, blur
+
+rows = []
+for c in [0.3, 0.5, 0.8, 1.0]:                   # Gaussian, sigma = c z
+    rows.append((f"Gaussian sigma = {c} z", np.exp(-(c * z)**2 * xi**2 / 2), 0.0))
+rows.append(("box of width z", np.sinc(z * xi / (2 * np.pi)), 0.0))
+step = 0.5 + sici(np.pi * x / z)[0] / np.pi      # step response of the ideal filter
+rows.append(("ideal low-pass", (np.abs(xi) <= np.pi / z) * 1.0, step.max() - 1))
+print(f"{'prefilter':24s} aliasing   blur  ringing")
+for name, H, ring in rows:
+    a, b = aliasing_blur(H)
+    print(f"{name:24s} {a:8.4f} {b:6.3f} {ring:8.4f}")
+```
+
+| Prefilter ($z = 2$) | Aliasing $\mathcal{A}$ | Blur $\mathcal{B}$ | Ringing $\mathcal{R}$ |
+|---|---|---|---|
+| Gaussian, $\sigma = 0.3 z$ | 0.183 | 0.231 | 0 |
+| Gaussian, $\sigma = 0.5 z$ | 0.026 | 0.451 | 0 |
+| Gaussian, $\sigma = 0.8 z$ | 0.0004 | 0.647 | 0 |
+| Gaussian, $\sigma = 1.0 z$ | $< 10^{-4}$ | 0.718 | 0 |
+| box of width $z$ (pixel binning) | 0.223 | 0.226 | 0 |
+| ideal low-pass | 0 | 0 | 0.0895 |
+
+Each row sits on one side of the triangle. The Gaussian family slides from aliasing to blur as $\sigma$ grows; the common choice $\sigma \approx 0.8 z$ makes aliasing negligible but blurs noticeably. Averaging $z \times z$ blocks — what binning sensors and many resizing routines do — is the worst compromise: it blurs as much as a Gaussian of width $0.3z$ and aliases more. The ideal filter removes both but rings. Windowed sinc kernels, such as the Lanczos kernels, sit in between, with small negative lobes and small ringing.
+
+### 4.6 Reduction algorithms in practice
+
+-   **Fourier cropping** keeps the central frequencies of the DFT: the ideal low-pass filter on the periodic model. It has no aliasing but rings, and it should be applied to the periodic component of [ch. 2.5](#ch2) so that the border jump does not ring as well.
+-   **Gaussian filtering then subsampling** with $\sigma \approx 0.8 z$ has no ringing, almost no aliasing and visible blur. It is the standard choice for scale-space pyramids.
+-   **Block averaging** is cheap but aliases, as the table shows.
+-   **Least-squares spline reduction** projects the spline model of the fine image on the coarser spline space (Unser, Aldroubi and Eden, 1993); it sits between the Gaussian and the ideal filter.
+
+:::: prop
+[Proposition 4.7 — Fourier zoom and reduction are inverse to each other]{.tag} Let $M$ be odd and $z \ge 1$ an integer. Let $Z_z$ be the Fourier zoom of Proposition 2.6, from $\mathbb{R}^M$ to $\mathbb{R}^{zM}$.
+
+Let $R_z$ be the Fourier reduction, which keeps the coefficients $|p| \le (M-1)/2$ of a signal of length $zM$, divides them by $z$, and inverts a DFT of size $M$. Then
+$$
+R_z \circ Z_z = \mathrm{Id}_{\mathbb{R}^M},
+$$
+and $Z_z \circ R_z$ is the ideal low-pass filter on $\mathbb{R}^{zM}$, an orthogonal projection.
+
+::: proof
+By construction, the DFT of $Z_z u$ is $z \hat u_p$ for $|p| \le (M-1)/2$ and zero elsewhere. The reduction divides these coefficients by $z$ and drops the zeros, which gives back $\hat u$.
+
+Conversely, $Z_z R_z w$ keeps the low coefficients of $w$ and zeroes the others. This is a multiplication by an indicator in an orthogonal basis, hence an orthogonal projection. [∎]{.qed}
+:::
+::::
+
+**Code 4.8 — Reducing a zone plate.** A zone plate $\cos(\alpha r^2)$ has a local frequency $2\alpha r$ that grows with the radius. Reduced by $z = 2$, its outer ring, with local frequency above the new Nyquist limit, should disappear, while its centre, well inside the band, should keep its contrast (RMS $0.707$).
+
+```python
+import numpy as np
+from scipy import ndimage
+
+n, z = 256, 2
+y, x = np.mgrid[0:n, 0:n] - n / 2
+r = np.hypot(x, y)
+alpha = np.pi / n                             # local frequency 2*alpha*r = pi at r = n/2
+u = np.cos(alpha * r**2) * (r < 0.48 * n)     # zone plate, cut before the fine Nyquist
+
+def fourier_reduce(u, z):
+    """Keep the central (n/z)^2 DFT coefficients (ideal low-pass + subsampling)."""
+    m = u.shape[0] // z
+    U = np.fft.fftshift(np.fft.fft2(u))
+    c = u.shape[0] // 2
+    V = U[c - m // 2:c + m // 2, c - m // 2:c + m // 2].copy()
+    V[0, :] = 0; V[:, 0] = 0                  # drop the (ambiguous) Nyquist row/column
+    return np.fft.ifft2(np.fft.ifftshift(V)).real / z**2
+
+out = {
+    "naive subsampling": u[::z, ::z],
+    "Gaussian sigma=0.8z": ndimage.gaussian_filter(u, 0.8 * z, mode="wrap")[::z, ::z],
+    "Fourier cropping": fourier_reduce(u, z),
+}
+rc = r[::z, ::z]                              # radius of the coarse samples (fine units)
+outer = (rc > 80) & (rc < 115)                # local frequency above the coarse Nyquist
+inner = rc < 40                               # local frequency well inside the band
+for name, v in out.items():
+    print(f"{name:20s} RMS outer ring {np.sqrt(np.mean(v[outer]**2)):.3f}   "
+          f"RMS inner disc {np.sqrt(np.mean(v[inner]**2)):.3f}")
+```
+
+| Method | RMS in the outer ring (ideal: 0) | RMS in the centre (ideal: 0.707) | Defect |
+|---|---|---|---|
+| naive subsampling | 0.705 | 0.714 | aliasing: false rings at full contrast |
+| Gaussian, $\sigma = 0.8 z$ | 0.002 | 0.432 | blur: 39 % of the contrast lost |
+| Fourier cropping | 0.105 | 0.727 | ringing |
+
+The ringing of Fourier cropping is especially visible here. For a chirp, frequency and position are tied, so cutting the spectrum at $\pi / z$ cuts the pattern sharply at the radius where its local frequency crosses that value, $r = 64$. The sinc tail of that cut oscillates across the outer ring.
+
+::: recap
+[Key takeaways — chapter 4]{.tag}
+
+-   Reduction by $z$ keeps the frequencies below $\pi / z$; those above fold back unless the prefilter removes them.
+-   Aliasing, blur and ringing are measured by the three quantities $\mathcal{A}$, $\mathcal{B}$, $\mathcal{R}$ of Definition 4.3.
+-   The ideal low-pass filter overshoots every edge by 8.95 % (Gibbs), whatever $z$.
+-   A non-negative prefilter that keeps the band within $\varepsilon$ passes the next octave within $4 \varepsilon$ (Theorem 4.5): without ringing, blur and aliasing are coupled.
+-   Gaussian prefiltering with $\sigma \approx 0.8 z$ removes aliasing at the price of blur; block averaging both blurs and aliases.
+-   Fourier zoom followed by Fourier reduction is the identity: zooming is lossless.
+:::
+
+## 5. Differential operators and iterative filtering {#ch5}
+
+Edge detectors, curvature estimates and diffusion filters all need derivatives of an image that only exists on a grid. This chapter measures the quality of a discrete derivative by its symbol, compares finite differences with spectral derivatives, designs isotropic stencils, and studies the stability of filters applied many times in a row — linear (the heat equation) and nonlinear (curvature motion, Perona–Malik).
+
+### 5.1 Symbols and consistency
+
+::: def
+[Definition 5.1 — Symbol of a discrete operator]{.tag} A translation-invariant discrete operator $(L u)(k) = \sum_j a_j\, u(k - j)$, with finitely many non-zero weights $a_j$, has the symbol
+$$
+\hat L(\xi) = \sum_j a_j\, e^{-i \langle j, \xi \rangle} .
+$$
+
+It acts on a plane wave by multiplication:
+$$
+L\, e^{i \langle \cdot, \xi \rangle} = \hat L(\xi)\, e^{i \langle \cdot, \xi \rangle} .
+$$
+
+The operator is consistent of order $q$ with a differential operator $P(\partial)$ of degree $r$ when
+$$
+\hat L(\xi) = P(i \xi) + O(|\xi|^{r + q}) \quad \text{as } \xi \to 0 .
+$$
+:::
+
+On a well-sampled image, the relative error of $L$ at frequency $\xi$ is $|\hat L(\xi) - P(i\xi)| / |P(i\xi)|$. It is small at low frequencies and large near the Nyquist frequency.
+
+| Operator | Stencil (along $x$) | Symbol | Order |
+|---|---|---|---|
+| forward difference | $u(k+1) - u(k)$ | $e^{i\xi_1} - 1 = i\xi_1 - \xi_1^2/2 + \dots$ | 1 |
+| centred difference | $\frac12 (u(k+1) - u(k-1))$ | $i \sin \xi_1 = i\xi_1 - i\xi_1^3/6 + \dots$ | 2 |
+| spectral derivative | DFT multiplier | $i \xi_1$ on the band | exact |
+| 5-point Laplacian | $\sum_{\text{4 neighbours}} u - 4u$ | $2\cos\xi_1 + 2\cos\xi_2 - 4$ | 2 |
+
+At $\xi_1 = \pi/2$, the centred difference returns $\sin(\pi/2) = 1$ instead of $\pi/2 \approx 1.571$, an error of 36 %. At $\xi_1 = \pi$ it returns 0: the checkerboard pattern is invisible to it.
+
+### 5.2 Spectral derivatives
+
+:::: prop
+[Proposition 5.2 — Exact derivatives of the Shannon interpolate]{.tag} Let $u \in \mathbb{R}^M$ with $M$ odd and Shannon interpolate $U$. The samples of the derivatives of $U$ are obtained by DFT multipliers:
+$$
+\widehat{(U^{(r)}(k))_k}_{\,p} = \Big( \frac{2 i \pi p}{M} \Big)^r \hat u_p .
+$$
+
+For even $M$, the same holds for $|p| < M/2$. The Nyquist coefficient is multiplied by 0 for odd $r$ and by $(i\pi)^r$ for even $r$.
+
+::: proof
+Differentiate Definition 2.4 term by term. For even $M$, the Nyquist term is proportional to $\cos(\pi x)$. Its odd derivatives are multiples of $\sin(\pi x)$, which vanishes at integers. Its even derivatives are $(i\pi)^r \cos(\pi x)$. [∎]{.qed}
+:::
+::::
+
+Spectral derivatives are exact for the continuous model but inherit its weaknesses. On a non-periodic image, the border jump makes the derivative ring along the borders; one differentiates the periodic component $p$ of [ch. 2.5](#ch2) and the smooth component $s$ separately. And differentiation multiplies the noise at frequency $\xi$ by $|\xi|$. In practice one differentiates a slightly smoothed image, for example a Gaussian of width $\sigma \approx 1$, which is the derivative-of-Gaussian filter.
+
+### 5.3 Isotropic gradients and Laplacians
+
+The norm of the gradient should not depend on the orientation of an edge. On the plane wave of frequency $\xi$, the exact gradient has norm $|\xi|$. A stencil is isotropic to some order if its symbol depends only on $|\xi|$ up to that order.
+
+:::: prop
+[Proposition 5.3 — A gradient isotropic to fourth order]{.tag} Smooth the centred difference in $x$ by the weights $(1, w, 1)/(w+2)$ in $y$, and symmetrically for the derivative in $y$. The squared norm of the resulting gradient symbol is
+$$
+|\hat \nabla_w(\xi)|^2 = |\xi|^2 - \frac{\xi_1^4 + \xi_2^4}{3} - \frac{4\, \xi_1^2 \xi_2^2}{w + 2} + O(|\xi|^6) .
+$$
+
+It is isotropic at order 4 exactly when $w = 4$. Then
+$$
+|\hat \nabla_4(\xi)|^2 = |\xi|^2 - \frac{|\xi|^4}{3} + O(|\xi|^6) .
+$$
+
+::: proof
+The smoothing has the symbol
+$$
+\frac{w + 2\cos\xi_2}{w+2} = 1 - \frac{\xi_2^2}{w+2} + O(\xi_2^4),
+$$
+and $\sin^2 \xi_1 = \xi_1^2 - \xi_1^4 / 3 + O(\xi_1^6)$.
+
+The $x$-component of the symbol is $i \sin\xi_1$ times the smoothing, so its squared modulus is
+$$
+\xi_1^2 - \frac{\xi_1^4}{3} - \frac{2\, \xi_1^2 \xi_2^2}{w + 2} + O(|\xi|^6) .
+$$
+
+Adding the symmetric $y$-component gives the formula. The quartic part is a multiple of $|\xi|^4 = \xi_1^4 + \xi_2^4 + 2\xi_1^2\xi_2^2$ if and only if $4 / (w+2) = 2/3$, that is $w = 4$. [∎]{.qed}
+:::
+::::
+
+The Sobel operator uses $w = 2$; the weights $(3, 10, 3)$ used by the Scharr operator in OpenCV correspond to $w = 10/3$.
+
+**Code 5.4 — Isotropy of gradient stencils.** For each stencil, the gain $|\hat \nabla(\xi)| / |\xi|$ is computed over all directions, at two radii.
+
+```python
+import numpy as np
+
+def grad_gain(w, r, theta):
+    """|symbol of the smoothed centred-difference gradient| / r on the plane wave
+    of angular frequency r in direction theta; smoothing (1, w, 1)/(w + 2)."""
+    x1, x2 = r * np.cos(theta), r * np.sin(theta)
+    sm = lambda t: (w + 2 * np.cos(t)) / (w + 2)
+    gx, gy = np.sin(x1) * sm(x2), np.sin(x2) * sm(x1)
+    return np.hypot(gx, gy) / r
+
+theta = np.linspace(0, np.pi / 4, 91)
+print(f"{'smoothing weights':22s}  r = pi/4: min/max   r = pi/2: min/max")
+for name, w in [("none (1D centred)", np.inf), ("Sobel (1,2,1)", 2.0),
+                ("Scharr (3,10,3)", 10 / 3), ("(1,4,1)", 4.0)]:
+    out = []
+    for r in [np.pi / 4, np.pi / 2]:
+        if np.isinf(w):
+            g = np.hypot(np.sin(r * np.cos(theta)), np.sin(r * np.sin(theta))) / r
+        else:
+            g = grad_gain(w, r, theta)
+        out.append(f"{g.min():.3f}/{g.max():.3f}")
+    print(f"{name:22s}  {out[0]:>17s}   {out[1]:>17s}")
+```
+
+| Smoothing in the orthogonal direction | Gain at $\lvert\xi\rvert = \pi/4$ (min / max over directions) | Gain at $\lvert\xi\rvert = \pi/2$ |
+|---|---|---|
+| none (plain centred differences) | 0.900 / 0.949 | 0.637 / 0.807 |
+| Sobel $(1, 2, 1)$ | 0.878 / 0.900 | 0.582 / 0.637 |
+| Scharr $(3, 10, 3)$ | 0.896 / 0.900 | 0.637 / 0.639 |
+| $(1, 4, 1)$ | 0.900 / 0.902 | 0.637 / 0.657 |
+
+The $(1, 4, 1)$ weights are the most isotropic at low frequency, as Proposition 5.3 predicts. The Scharr weights, tuned on a wider band, are the most isotropic at $\pi/2$. All of them underestimate the gradient at mid frequencies, a consequence of the centred difference itself; a spectral or spline-based derivative removes this bias.
+
+The same analysis applies to the Laplacian.
+
+::: prop
+[Proposition 5.5 — The isotropic nine-point Laplacian]{.tag} Let $L_+$ be the 5-point Laplacian and $L_\times$ the Laplacian built on the four diagonal neighbours, divided by 2 to account for their distance $\sqrt 2$. The combination $\frac23 L_+ + \frac13 L_\times$ has the stencil
+$$
+\frac16 \begin{pmatrix} 1 & 4 & 1 \\ 4 & -20 & 4 \\ 1 & 4 & 1 \end{pmatrix}
+$$
+
+and its symbol is isotropic at order 4:
+$$
+-|\xi|^2 + \frac{|\xi|^4}{12} + O(|\xi|^6) .
+$$
+
+The proof is Exercise 11.
+:::
+
+### 5.4 Iterative linear filtering: the heat equation
+
+The simplest iterative filter repeats a small averaging. Its continuous model is the heat equation $\partial_t u = \Delta u$, whose solution at time $t$ is the convolution with the Gaussian of standard deviation $\sigma = \sqrt{2t}$. The explicit scheme with time step $\delta t$ reads
+$$
+u^{n+1} = u^n + \delta t\, \Delta_5 u^n .
+$$
+
+:::: thm
+[Theorem 5.6 — Stability of the explicit heat scheme]{.tag} The amplification factor of the explicit scheme is
+$$
+g(\xi) = 1 + \delta t \big( 2\cos\xi_1 + 2\cos\xi_2 - 4 \big) \in [1 - 8\,\delta t,\ 1] .
+$$
+
+1.  The scheme is stable in $\ell^2$, $\|u^n\| \le \|u^0\|$ for all $n$, if and only if $\delta t \le 1/4$.
+2.  It satisfies the discrete maximum principle, $\min u^0 \le u^n \le \max u^0$, if and only if $\delta t \le 1/4$.
+3.  Every frequency is damped without change of sign, $g \ge 0$, if and only if $\delta t \le 1/8$.
+
+::: proof
+1.  By Parseval, each Fourier coefficient is multiplied by $g(\xi)^n$. The extreme values of $g$ are 1 at $\xi = 0$ and $1 - 8\,\delta t$ at the checkerboard frequency $(\pi, \pi)$.
+
+    Hence $|g| \le 1$ everywhere if and only if $1 - 8\,\delta t \ge -1$. If $\delta t > 1/4$, the checkerboard component grows like $|1 - 8\,\delta t|^n$.
+2.  The new value
+    $$
+    u^{n+1}(k) = (1 - 4\,\delta t)\, u^n(k) + \delta t \sum_{\text{neighbours}} u^n
+    $$
+    is a convex combination if and only if $1 - 4\,\delta t \ge 0$. If $\delta t > 1/4$, the checkerboard $\pm 1$ is mapped to $\pm(1 - 8\,\delta t)$, which leaves $[-1, 1]$.
+3.  $\min g = g(\pi, \pi) = 1 - 8\,\delta t$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the explicit heat scheme]{.tag}
+$$
+u^{n+1} = u^n + \delta t\, \Delta_5 u^n \ \text{ is stable in } \ell^2 \iff \delta t \le \frac14
+$$
+:::
+
+Two exact alternatives avoid the time step altogether. The semi-discrete equation $\partial_t u = \Delta_5 u$ is solved exactly by multiplying the DFT by $e^{t \hat L_5(\xi)}$, a "discrete Gaussian". The continuous heat equation on the Shannon interpolate is solved by the multiplier $e^{-t|\xi|^2}$.
+
+**Code 5.7 — Stability in practice.** The explicit scheme is run up to $t = 2$ ($\sigma = 2$ pixels) on white noise, and compared with the exact semi-discrete solution.
+
+```python
+import numpy as np
+
+def lap5(u):
+    return (np.roll(u, 1, 0) + np.roll(u, -1, 0) + np.roll(u, 1, 1)
+            + np.roll(u, -1, 1) - 4 * u)
+
+def heat_explicit(u, t, dt):
+    for _ in range(int(round(t / dt))):
+        u = u + dt * lap5(u)
+    return u
+
+def heat_exact_discrete(u, t):
+    """Exact semigroup of the 5-point Laplacian: multiply the DFT by exp(t * symbol)."""
+    M, N = u.shape
+    q = 2 * np.pi * np.fft.fftfreq(M)[:, None]
+    r = 2 * np.pi * np.fft.fftfreq(N)[None, :]
+    sym = 2 * np.cos(q) + 2 * np.cos(r) - 4
+    return np.fft.ifft2(np.fft.fft2(u) * np.exp(t * sym)).real
+
+def heat_gaussian(u, t):
+    """Continuous heat equation on the Shannon interpolate: exp(-t |xi|^2)."""
+    M, N = u.shape
+    q = 2 * np.pi * np.fft.fftfreq(M)[:, None]
+    r = 2 * np.pi * np.fft.fftfreq(N)[None, :]
+    return np.fft.ifft2(np.fft.fft2(u) * np.exp(-t * (q**2 + r**2))).real
+
+rng = np.random.default_rng(4)
+u = rng.normal(size=(65, 65))
+t = 2.0                                          # sigma = sqrt(2t) = 2 pixels
+ref = heat_exact_discrete(u, t)
+for dt in [0.05, 0.125, 0.25, 0.30]:
+    v = heat_explicit(u, t, dt)
+    print(f"dt = {dt:5.3f}: max |explicit - exact discrete| = {np.abs(v - ref).max():.2e}")
+print(f"discrete vs continuous Gaussian semigroup: {np.abs(ref - heat_gaussian(u, t)).max():.2e}")
+```
+
+With $\delta t = 0.05$ and $0.125$, the explicit scheme is within $10^{-2}$ to $2 \times 10^{-2}$ of the exact solution.
+
+At $\delta t = 1/4$ it is stable but wrong by 0.46: the checkerboard has $g = -1$ and is never damped. At $\delta t = 0.3$ it explodes (error 5.1 after only seven steps). Stability is necessary, not sufficient.
+
+:::: prop
+[Proposition 5.8 — Iterated filters converge to a Gaussian]{.tag} Let $k$ be a non-negative, symmetric kernel on $\mathbb{Z}^d$ with $\sum_j k_j = 1$ and covariance $s^2 I$, that is, $\sum_j k_j\, j j^\top = s^2 I$, with finite third moments. Then its symbol satisfies, for every $\xi$,
+$$
+\hat k\Big( \frac{\xi}{\sqrt n} \Big)^n \xrightarrow[n \to \infty]{} e^{-s^2 |\xi|^2 / 2} .
+$$
+
+Iterating $k$ a number $n$ of times is asymptotically a Gaussian blur of standard deviation $s \sqrt n$.
+
+::: proof
+By symmetry the first moment vanishes, so a Taylor expansion gives $\hat k(\eta) = 1 - s^2 |\eta|^2 / 2 + O(|\eta|^3)$. Taking logarithms,
+$$
+n \log \hat k\Big( \frac{\xi}{\sqrt n} \Big) = -\frac{s^2 |\xi|^2}{2} + O(n^{-1/2}) .
+$$
+
+This is the central limit theorem for the random walk whose steps follow $k$. [∎]{.qed}
+:::
+::::
+
+One explicit heat step has kernel weights $1 - 4\,\delta t$ at the centre and $\delta t$ at the four neighbours, hence $s^2 = 2\,\delta t$ per axis. After $n$ steps, $s^2 n = 2 t$, as predicted by the heat equation. The Gaussian is the universal limit of iterated linear smoothing, which is why it dominates scale-space theory (Koenderink, 1984; Lindeberg, 1994).
+
+### 5.5 Nonlinear iterative filtering: curvature motion and Perona–Malik
+
+Linear smoothing blurs edges. Nonlinear filters can smooth along edges without blurring across them.
+
+::: def
+[Definition 5.9 — Mean curvature motion]{.tag} The mean curvature motion of an image $u$ is the evolution
+$$
+\partial_t u = |\nabla u|\, \mathrm{curv}(u) = \frac{u_{xx} u_y^2 - 2 u_{xy} u_x u_y + u_{yy} u_x^2}{u_x^2 + u_y^2} .
+$$
+
+By Proposition 0.5, it is the second derivative of $u$ in the direction of the level line. Each level line moves along its normal with a speed equal to its curvature.
+:::
+
+:::: prop
+[Proposition 5.10 — Contrast invariance]{.tag} Let $u$ be a smooth solution of the mean curvature motion with $\nabla u \neq 0$, and let $g : \mathbb{R} \to \mathbb{R}$ be of class $C^2$ with $g' \neq 0$. Then $g \circ u$ is also a solution.
+
+::: proof
+Write $w = g \circ u$, so that $\nabla w = g'(u) \nabla u$ and $\partial_t w = g'(u)\, \partial_t u$.
+
+The unit normal $\nabla w / |\nabla w|$ equals $\pm \nabla u / |\nabla u|$, with the sign of $g'$. Hence
+$$
+\mathrm{curv}(w) = \mathrm{sign}(g')\, \mathrm{curv}(u) .
+$$
+
+Multiplying by $|\nabla w| = |g'|\, |\nabla u|$ gives
+$$
+|\nabla w|\, \mathrm{curv}(w) = g'(u)\, |\nabla u|\, \mathrm{curv}(u) = g'(u)\, \partial_t u = \partial_t w .
+$$
+
+This is the equation for $w$. [∎]{.qed}
+:::
+::::
+
+Contrast invariance means that the filter acts on the level lines, not on the grey levels: changing the exposure or the gamma of the image commutes with the filtering. Alvarez, Guichard, Lions and Morel (1993) show that, together with a few other axioms, it singles out the curvature motions and their affine-invariant variant, $\partial_t u = |\nabla u|\, \mathrm{curv}(u)^{1/3}$.
+
+::: ex
+[Example 5.11 — A shrinking disc]{.tag} Under mean curvature motion, the boundary of a disc of radius $R$ moves inwards with speed $1/r$. The radius satisfies $\dot r = -1/r$, so
+$$
+r(t)^2 = R^2 - 2t ,
+$$
+and the disc vanishes at time $t = R^2 / 2$. A disc of radius 10 pixels disappears at $t = 50$, while a disc of radius 3 disappears at $t = 4.5$: small details are removed first.
+:::
+
+The discretisation uses the formula of Definition 5.9 with finite differences — preferably the isotropic stencils of [ch. 5.3](#ch5) — and a small $\varepsilon^2$ added to the denominator to avoid division by zero. Explicit steps with $\delta t \approx 0.1$ are common. Near flat regions the equation degenerates, and Moisan (1998) proposes a scheme for the affine variant that is consistent in all cases.
+
+:::: prop
+[Proposition 5.12 — Perona–Malik diffusion is backward across strong edges]{.tag} The Perona–Malik equation
+$$
+\partial_t u = \mathrm{div}\big( c(|\nabla u|)\, \nabla u \big), \qquad c(s) = \frac{1}{1 + s^2 / K^2},
+$$
+reads, in one dimension,
+$$
+\partial_t u = \phi'(u_x)\, u_{xx}, \qquad \phi(s) = s\, c(s), \qquad \phi'(s) = \frac{1 - s^2 / K^2}{(1 + s^2 / K^2)^2} .
+$$
+
+It diffuses forwards where $|u_x| < K$ and backwards where $|u_x| > K$.
+
+::: proof
+Expand $\partial_x(\phi(u_x)) = \phi'(u_x)\, u_{xx}$ and differentiate $\phi(s) = s / (1 + s^2/K^2)$. [∎]{.qed}
+:::
+::::
+
+Backward diffusion sharpens edges whose slope exceeds $K$, which is the purpose of the filter (Perona and Malik, 1990). It also makes the continuous problem ill-posed; discrete schemes behave well thanks to the implicit regularisation of the grid, at the price of "staircasing" of smooth ramps.
+
+::: recap
+[Key takeaways — chapter 5]{.tag}
+
+-   A discrete operator is judged by its symbol: consistency is the agreement at $\xi \to 0$, accuracy near Nyquist is another matter.
+-   Spectral derivatives are exact on the Shannon model; the Nyquist coefficient of even sizes is dropped for odd derivatives.
+-   Smoothing the centred difference by $(1, 4, 1)/6$ makes the gradient isotropic to fourth order; the nine-point Laplacian $\frac16[1, 4, 1; 4, -20, 4; 1, 4, 1]$ does the same for $\Delta$.
+-   The explicit heat scheme is stable for $\delta t \le 1/4$ and damps every frequency without sign change for $\delta t \le 1/8$.
+-   Iterating a positive filter converges to a Gaussian blur (central limit theorem).
+-   Mean curvature motion is contrast invariant and shrinks a disc as $r^2 = R^2 - 2t$; Perona–Malik diffuses backwards across strong edges.
+:::
+
+## 6. Sub-pixel image geometry {#ch6}
+
+A pixel is not the limit of geometric precision. When an image is well sampled, its continuous model is known everywhere, and positions, displacements and shapes can be measured to a small fraction of the grid step. The limit is set by noise and by model errors such as aliasing. This chapter derives that limit and the estimators that reach it.
+
+### 6.1 Why sub-pixel accuracy matters
+
+::: ex
+[Example 6.1 — Depth from a small disparity]{.tag} Two cameras with focal length $f_p = 3000$ pixels and baseline $B = 0.1$ m observe a point at depth $Z = 10$ m. Its disparity is $d = f_p B / Z = 30$ pixels, and an error $\delta d$ on the disparity produces a depth error
+$$
+\delta Z \approx \frac{Z^2}{f_p B}\, \delta d = 0.33 \ \text{m per pixel of disparity error}.
+$$
+
+An integer-pixel matcher has a depth resolution of about 33 cm; a matcher accurate to 0.1 pixel brings it to 3.3 cm.
+:::
+
+The same arithmetic drives satellite imaging, where small-baseline stereo needs disparities accurate to a few hundredths of a pixel (Delon and Rougé, 2007), and also image stabilisation, camera calibration, motion estimation and the measurement of displacement fields in mechanics.
+
+### 6.2 Registration and the Cramér–Rao bound
+
+::: def
+[Definition 6.2 — Translation model and least-squares estimator]{.tag} A reference signal $u$, with Shannon interpolate $U$, and an observation $v$ satisfy
+$$
+v(k) = U(k - \tau) + n(k), \qquad k \in \Omega ,
+$$
+with independent Gaussian noise $n(k) \sim \mathcal{N}(0, \sigma^2)$. The least-squares estimator, which is also the maximum-likelihood estimator, is
+$$
+\hat \tau = \arg\min_\tau \sum_{k \in \Omega} \big( v(k) - U(k - \tau) \big)^2 .
+$$
+:::
+
+The Gauss–Newton method linearises the residual around the current estimate. Since $\partial_\tau U(k - \tau) = -U'(k - \tau)$, one step reads
+$$
+\tau \leftarrow \tau - \frac{\sum_k \big( v(k) - U(k - \tau) \big)\, U'(k - \tau)}{\sum_k U'(k - \tau)^2} .
+$$
+
+In two dimensions, with the gradient in place of $U'$ and a $2 \times 2$ system, this is the Lucas–Kanade algorithm (Lucas and Kanade, 1981). The translations and derivatives are computed exactly by the FFT tools of [ch. 2](#ch2) and [ch. 5](#ch5).
+
+:::: thm
+[Theorem 6.3 — Cramér–Rao bound for sub-pixel translation]{.tag} In the model of Definition 6.2, every unbiased estimator of $\tau$ satisfies
+$$
+\mathrm{Var}(\hat \tau) \ge \frac{\sigma^2}{\sum_{k \in \Omega} U'(k - \tau)^2} .
+$$
+
+In two dimensions, with $\tau \in \mathbb{R}^2$, the covariance satisfies $\mathrm{Cov}(\hat\tau) \succeq \sigma^2 F^{-1}$ in the order of symmetric matrices, where $F$ is the structure matrix
+$$
+F = \sum_{k \in \Omega} \nabla U(k - \tau)\, \nabla U(k - \tau)^\top .
+$$
+
+::: proof
+Up to a constant, the log-likelihood of the observation is
+$$
+\ell(\tau) = -\frac{1}{2\sigma^2} \sum_k \big( v(k) - U(k - \tau) \big)^2 .
+$$
+
+Its derivative, the score, is at the true parameter
+$$
+\ell'(\tau) = -\frac{1}{\sigma^2} \sum_k n(k)\, U'(k - \tau) .
+$$
+
+The noise terms are independent with variance $\sigma^2$, so the Fisher information is
+$$
+I(\tau) = \mathbb{E}\big[ \ell'(\tau)^2 \big] = \frac{1}{\sigma^2} \sum_k U'(k - \tau)^2 .
+$$
+
+The Cramér–Rao inequality $\mathrm{Var}(\hat\tau) \ge 1 / I(\tau)$ concludes. The two-dimensional case is identical with the gradient, and $F / \sigma^2$ is the Fisher matrix. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the Cramér–Rao bound for a translation]{.tag}
+$$
+\mathrm{Var}(\hat\tau) \ \ge\ \frac{\sigma^2}{\sum_k U'(k - \tau)^2}
+$$
+:::
+
+The bound says that precision grows with contrast and with the number of edges, and decreases with noise. When the reference image is noisy too, the variance roughly doubles. In two dimensions, a single straight edge gives a singular structure matrix $F$: the displacement along the edge cannot be measured. This is the aperture problem, studied in Exercise 12. Robinson and Milanfar (2004) analyse these limits for image registration in detail.
+
+::: ex
+[Example 6.4 — A blurred edge]{.tag} Take an edge of contrast $A$ blurred by a Gaussian of width $s$, so that $U(x) = A\, \Phi(x / s)$ with $\Phi$ the standard normal distribution function. Then $U' = A\, g_s$, and approximating the sum by an integral,
+$$
+\sum_k U'(k)^2 \approx A^2 \int g_s^2 = \frac{A^2}{2 s \sqrt\pi} .
+$$
+
+The standard deviation of any unbiased estimator is at least $\sigma \sqrt{2 s \sqrt\pi} / A$. With $A = 100$, $s = 1$ and $\sigma = 2$, the bound is $0.038$ pixel for one line of the image; with 100 lines crossing the edge, it falls to $0.0038$ pixel.
+:::
+
+### 6.3 Phase correlation
+
+The phase correlation method uses the fact that a translation acts only on the phase of the DFT ([ch. 0.1](#ch0)).
+
+:::: prop
+[Proposition 6.5 — Phase correlation of a translated signal]{.tag} Let $M$ be odd, $v = T_\tau u$ without noise, and assume $\hat u_p \neq 0$ for all $p$. The normalised cross-power spectrum is a pure phase ramp,
+$$
+R_p = \frac{\hat v_p\, \overline{\hat u_p}}{|\hat v_p\, \overline{\hat u_p}|} = e^{-2 i \pi p \tau / M} ,
+$$
+
+and its inverse DFT is the periodic sinc of Proposition 2.5, centred at $\tau$:
+$$
+r(k) = s_M(k - \tau) .
+$$
+
+For an integer $\tau$, $r$ is a discrete Dirac at $\tau$.
+
+For a non-integer $\tau$, let $k_0$ be the integer maximiser of $r$ and $k_1$ its larger neighbour. In the limit of long signals, where the periodic sinc becomes the sinc kernel, the distance from $k_0$ to $\tau$ is exactly
+$$
+\delta = \frac{r(k_1)}{r(k_0) + r(k_1)} .
+$$
+
+::: proof
+By Proposition 2.6, $\hat v_p = e^{-2 i \pi p \tau / M} \hat u_p$, which gives $R_p$.
+
+The inverse DFT of the phase ramp is $\frac{1}{M} \sum_p e^{2 i \pi p (k - \tau) / M}$, the Dirichlet kernel of the proof of Proposition 2.5.
+
+As $M \to \infty$, $s_M(x) \to \mathrm{sinc}(x)$. With $\delta = |\tau - k_0|$, the sinc gives $r(k_0) = \sin(\pi\delta) / (\pi\delta)$ and $r(k_1) = \sin(\pi\delta) / (\pi (1 - \delta))$. Their ratio is $\delta / (1 - \delta)$, which gives the formula. [∎]{.qed}
+:::
+::::
+
+This two-sample formula is due to Foroosh, Zerubia and Berthod (2002). Guizar-Sicairos, Thurman and Fienup (2008) locate the peak instead by evaluating the cross-correlation on a finely upsampled grid around it, with small matrix-multiplication DFTs.
+
+Phase correlation is insensitive to changes of contrast and finds large displacements without any initial guess. But the normalisation gives the same weight to every frequency, including those where the signal is weaker than the noise. It is therefore a good initialisation and a poor final estimator.
+
+**Code 6.6 — Phase correlation, Gauss–Newton and the Cramér–Rao bound.** A smooth signal of length 129 is translated by $0.37$ pixel, and noise of standard deviation 2 is added; 400 trials are run.
+
+```python
+import numpy as np
+
+M = 129                                           # odd length: no Nyquist issue
+p = np.fft.fftfreq(M, d=1 / M)
+
+def shift(u, tau):
+    return np.fft.ifft(np.fft.fft(u) * np.exp(-2j * np.pi * p * tau / M)).real
+
+def derivative(u):
+    return np.fft.ifft(np.fft.fft(u) * 2j * np.pi * p / M).real
+
+def phase_correlation(u, v):
+    """Integer peak of the phase correlation, then Foroosh's two-sample formula."""
+    R = np.fft.fft(v) * np.conj(np.fft.fft(u))
+    r = np.fft.ifft(R / np.maximum(np.abs(R), 1e-12)).real
+    k0 = int(np.argmax(r))
+    k1 = (k0 + 1) % M if r[(k0 + 1) % M] > r[k0 - 1] else (k0 - 1) % M
+    d = r[k1] / (r[k0] + r[k1])                   # fraction of the way from k0 to k1
+    t = k0 + d if k1 == (k0 + 1) % M else k0 - d
+    return (t + M / 2) % M - M / 2
+
+def gauss_newton(u, v, tau0=0.0, iters=5):
+    """Minimise sum (v - u(. - tau))^2 over tau with Shannon interpolation."""
+    tau = tau0
+    for _ in range(iters):
+        w = shift(u, tau)
+        dw = derivative(w)                        # d/dtau u(k - tau) = -u'(k - tau)
+        tau += np.sum((v - w) * (-dw)) / np.sum(dw**2)
+    return tau
+
+# a well-sampled smooth signal: Gaussian-blurred random steps
+rng = np.random.default_rng(5)
+u0 = np.repeat(rng.uniform(0, 100, 16), 9)[:M]
+u = np.fft.ifft(np.fft.fft(u0) * np.exp(-(2 * np.pi * p / M)**2 * 1.5**2 / 2)).real
+tau, sigma, trials = 0.37, 2.0, 400
+est_pc, est_gn = [], []
+for _ in range(trials):
+    v = shift(u, tau) + rng.normal(0, sigma, M)
+    t0 = phase_correlation(u, v)
+    est_pc.append(t0)
+    est_gn.append(gauss_newton(u, v, t0))
+crb = sigma / np.sqrt(np.sum(derivative(u)**2))
+print(f"true shift {tau}")
+print(f"phase correlation: mean {np.mean(est_pc):.4f}, std {np.std(est_pc):.4f}")
+print(f"Gauss-Newton:      mean {np.mean(est_gn):.4f}, std {np.std(est_gn):.4f}")
+print(f"Cramer-Rao bound on the std: {crb:.4f}")
+v = shift(u, tau)
+print(f"noise-free: phase correlation {phase_correlation(u, v):.4f}, "
+      f"Gauss-Newton {gauss_newton(u, v, 0.0):.6f}")
+```
+
+| Estimator | Mean (true value 0.37) | Standard deviation |
+|---|---|---|
+| phase correlation + two-sample formula | 0.386 | 0.336 |
+| Gauss–Newton started from it | 0.369 | 0.0322 |
+| Cramér–Rao bound | — | 0.0325 |
+
+Without noise, phase correlation returns 0.3714 (the small bias comes from the finite length, $s_M \neq \mathrm{sinc}$) and Gauss–Newton returns 0.370000. With noise, Gauss–Newton reaches the Cramér–Rao bound, while phase correlation is ten times less precise. The good practice is the combination: phase correlation to find the integer part, least squares to reach the bound.
+
+### 6.4 Peaks and edges
+
+Many sub-pixel methods locate the maximum of a function known only at integer points: a correlation peak, a gradient norm across an edge, a spot in a fluorescence image.
+
+:::: prop
+[Proposition 6.7 — Parabolic peak interpolation]{.tag} Let $a, b, c$ be the values of a function at $-1, 0, 1$, with $b \ge \max(a, c)$ and $b > \min(a, c)$. The parabola through the three points has its vertex at
+$$
+\hat \delta = \frac{a - c}{2 (a - 2b + c)}, \qquad |\hat\delta| \le \frac12 .
+$$
+
+::: proof
+The parabola is $f(x) = b + \frac{c - a}{2} x + \frac{a - 2b + c}{2} x^2$; setting $f'(x) = 0$ gives $\hat\delta$.
+
+The denominator is negative because $b \ge a$, $b \ge c$ and one inequality is strict. Moreover $(2b - a - c) - |a - c| = 2b - 2\max(a, c) \ge 0$, so $|a - c| \le |a - 2b + c|$. [∎]{.qed}
+:::
+::::
+
+The parabola is exact only for parabolic peaks. For a Gaussian peak of width one pixel, its bias reaches $0.048$ pixel, and for a sinc peak $0.119$ pixel (Exercise 13). The estimates are pulled towards integer positions, a phenomenon called *pixel locking* in particle image velocimetry. Fitting the parabola to the logarithm of the values is exact for Gaussian peaks.
+
+::: def
+[Definition 6.8 — Sub-pixel edge points]{.tag} Following Canny (1986), the edge points of a smooth image $U$ are the local maxima of $|\nabla U|$ in the direction of the gradient $\eta = \nabla U / |\nabla U|$. Equivalently, they are the zero-crossings of the second derivative in that direction, where $|\nabla U|$ is large:
+$$
+U_{\eta\eta} = D^2 U(\eta, \eta) = 0 .
+$$
+:::
+
+Devernay (1995) makes Canny's detector sub-pixel with Proposition 6.7. At each pixel where the gradient norm is maximal along the gradient direction, he fits a parabola through the three norms along that direction and takes the vertex as the edge position. On a well-sampled image, one can instead search for the zero of $U_{\eta\eta}$ along the gradient line on the Shannon interpolate, with a few Newton steps.
+
+### 6.5 Level lines and shape measurement
+
+A level line of the continuous image is an exact sub-pixel object: its points are defined at any precision. The simplest continuous model that can be computed cell by cell is the bilinear interpolation.
+
+:::: prop
+[Proposition 6.9 — Level lines of the bilinear interpolate]{.tag} On the cell $[0, 1]^2$, with corner values $u_{00}, u_{10}, u_{01}, u_{11}$, the bilinear interpolate is $U(x, y) = a + bx + cy + dxy$, where
+$$
+a = u_{00}, \quad b = u_{10} - u_{00}, \quad c = u_{01} - u_{00}, \quad d = u_{11} - u_{10} - u_{01} + u_{00} .
+$$
+
+If $d \neq 0$, then, with the saddle point $(x_s, y_s) = (-c/d,\ -b/d)$ and the saddle value $u_s = a - bc/d$,
+$$
+U(x, y) = u_s + d\, (x - x_s)(y - y_s) .
+$$
+
+Each level line $\{U = \lambda\}$ in the cell is therefore an arc of the hyperbola $(x - x_s)(y - y_s) = (\lambda - u_s)/d$, or a straight segment if $d = 0$. It meets the edges of the cell at the points given by linear interpolation along the edges.
+
+::: proof
+Expanding $d (x + c/d)(y + b/d) = dxy + bx + cy + bc/d$ gives the factorised form. On each edge of the cell, one coordinate is fixed and $U$ is affine in the other, so its crossing of the value $\lambda$ is found by linear interpolation. [∎]{.qed}
+:::
+::::
+
+The marching-squares algorithm joins these edge crossings, cell by cell, into polygons. When a cell has four crossings, the saddle value decides how they connect: the two branches of the hyperbola are separated by the lines $x = x_s$ and $y = y_s$, and the sign of $\lambda - u_s$ tells which pairs of crossings belong to the same branch. Monasse and Guichard (2000) compute the tree of the level sets of an image, and Caselles and Monasse (2010) describe its version for the bilinear interpolate.
+
+:::: prop
+[Proposition 6.10 — Blur moves curved edges]{.tag} Let a bright region with a smooth boundary of curvature $1/R$ be blurred by a Gaussian of variance $\sigma^2$ per axis. To first order in $\sigma^2$, the level line $1/2$ of the blurred image is the boundary moved towards the inside of the region by
+$$
+\frac{\sigma^2}{2R} .
+$$
+
+::: proof
+Choose coordinates in which the boundary passes through the origin with the region locally equal to $\{y < -x^2 / (2R)\}$.
+
+At the point $(0, y_0)$, integrate first in $y$. With $\Phi$ the standard normal distribution function, the blurred value is
+$$
+w(y_0) = \int g_\sigma(x)\, \Phi\Big( \frac{-y_0 - x^2/(2R)}{\sigma} \Big)\, dx .
+$$
+
+Expand $\Phi$ to first order in $x^2$ and use $\int x^2 g_\sigma(x)\, dx = \sigma^2$:
+$$
+w(y_0) \approx \Phi\Big( -\frac{y_0}{\sigma} \Big) - \frac{\sigma}{2R}\, \Phi'\Big( \frac{y_0}{\sigma} \Big) .
+$$
+
+For small $y_0$, the two terms are approximately
+$$
+\Phi\Big(-\frac{y_0}{\sigma}\Big) \approx \frac12 - \frac{y_0}{\sigma\sqrt{2\pi}}, \qquad \Phi'\Big(\frac{y_0}{\sigma}\Big) \approx \frac{1}{\sqrt{2\pi}} .
+$$
+
+Setting $w(y_0) = \frac12$ gives $y_0 = -\sigma^2 / (2R)$. [∎]{.qed}
+:::
+::::
+
+This is the curvature motion of [ch. 5.5](#ch5) in disguise: by Example 5.11, a disc evolved for a time $t = \sigma^2/2$ has radius $\sqrt{R^2 - \sigma^2} \approx R - \sigma^2/(2R)$.
+
+**Code 6.11 — Measuring a disc to a hundredth of a pixel.** A disc of radius 10.3 is integrated over each pixel, blurred by a Gaussian of width 0.6 pixel, and corrupted by a small noise.
+
+```python
+import numpy as np
+import contourpy
+
+# A disc of radius R, integrated over each pixel (16 x 16 supersampling), then blurred
+n, R, c0 = 64, 10.3, (31.6, 32.2)
+ss = 16
+f = (np.arange(n * ss) + 0.5) / ss - 0.5
+yy, xx = np.meshgrid(f, f, indexing="ij")
+fine = ((xx - c0[0])**2 + (yy - c0[1])**2 < R**2).astype(float)
+u = fine.reshape(n, ss, n, ss).mean(axis=(1, 3))          # pixel integration
+q = 2 * np.pi * np.fft.fftfreq(n)
+u = np.fft.ifft2(np.fft.fft2(u) * np.exp(-0.6**2 * (q[:, None]**2 + q[None, :]**2) / 2)).real
+rng = np.random.default_rng(6)
+u = u + rng.normal(0, 0.01, u.shape)
+
+# 1. pixel counting: area of {u > 1/2}
+R_count = np.sqrt(np.sum(u > 0.5) / np.pi)
+# 2. level line of the bilinear interpolate (marching squares), polygon area
+line = contourpy.contour_generator(z=u).lines(0.5)[0]       # (x, y) vertices
+xs, ys = line[:, 0], line[:, 1]
+area = 0.5 * abs(np.dot(xs, np.roll(ys, 1)) - np.dot(ys, np.roll(xs, 1)))
+R_line = np.sqrt(area / np.pi)
+# 3. total mass (the integral of a disc of height 1 is pi R^2)
+R_mass = np.sqrt(u.sum() / np.pi)
+print(f"true radius {R}")
+print(f"pixel counting     {R_count:.3f}")
+print(f"bilinear level line {R_line:.3f}")
+print(f"integral of u       {R_mass:.3f}")
+cross = xs * np.roll(ys, -1) - np.roll(xs, -1) * ys        # shoelace terms
+A = cross.sum() / 2
+cx = np.sum((xs + np.roll(xs, -1)) * cross) / (6 * A)
+cy = np.sum((ys + np.roll(ys, -1)) * cross) / (6 * A)
+print(f"polygon centroid ({cx:.3f}, {cy:.3f}), true {c0}")
+s2 = 0.6**2 + 1 / 12                                        # blur + pixel variance
+print(f"curvature shift sigma^2/(2R) = {s2 / (2 * R):.3f} pixel")
+```
+
+| Method | Estimated radius (true: 10.3) |
+|---|---|
+| counting the pixels above 1/2 | 10.233 |
+| area of the bilinear level line 1/2 | 10.269 |
+| integral of the image (needs the contrast) | 10.315 |
+
+The level line is three times more accurate than pixel counting. Most of its remaining error is the curvature shift of Proposition 6.10: the total variance is $0.6^2 + 1/12$ (blur plus pixel integration), which predicts a shift of $0.022$ pixel, hence a radius of 10.278. The last $0.009$ pixel comes from the polygon being inscribed in the curve, and from the noise. The centroid of the polygon, $(31.595, 32.205)$, is within $0.005$ pixel of the true centre.
+
+::: recap
+[Key takeaways — chapter 6]{.tag}
+
+-   Sub-pixel precision is limited by noise, contrast and model errors, not by the grid.
+-   The Cramér–Rao bound for a translation is $\sigma^2 / \sum_k U'(k - \tau)^2$; in 2D the structure matrix must be invertible (aperture problem).
+-   Least squares with exact Shannon translations, solved by Gauss–Newton, reaches the bound; phase correlation is a robust initialisation.
+-   Parabolic peak fitting is biased towards integers (pixel locking); a parabola on the logarithm is exact for Gaussian peaks.
+-   Level lines of the bilinear interpolate are hyperbola arcs computed by marching squares; they measure areas and centroids to a hundredth of a pixel.
+-   Blurring shifts curved edges inwards by $\sigma^2 / (2R)$, the trace of curvature motion.
+:::
+
+## 7. The phase spectrum: textures and sharpness {#ch7}
+
+The DFT of an image has a modulus and a phase. The modulus is easy to interpret — how much energy at each frequency — and the phase looks like noise. Yet the phase carries the geometry: positions, edges, the alignment of structures. This chapter makes the statement precise and turns it into two tools of the syllabus: texture synthesis by random phases, and sharpness metrics based on phase coherence.
+
+### 7.1 Phase versus modulus
+
+**Code 7.1 — Swapping modulus and phase.** Two images made of different shapes exchange their DFT moduli; the result is compared with both sources.
+
+```python
+import numpy as np
+
+n = 128
+y, x = np.mgrid[0:n, 0:n]
+A = 100.0 * ((x - 40)**2 + (y - 50)**2 < 400) + 60.0 * ((abs(x - 90) < 15) & (abs(y - 80) < 25))
+B = 80.0 * ((x - 85)**2 + (y - 35)**2 < 250) + 70.0 * ((abs(x - 35) < 20) & (abs(y - 95) < 12))
+FA, FB = np.fft.fft2(A), np.fft.fft2(B)
+mag_A_phase_B = np.fft.ifft2(np.abs(FA) * np.exp(1j * np.angle(FB))).real
+corr = lambda s, t: np.corrcoef(s.ravel(), t.ravel())[0, 1]
+print(f"|A| with phase of B: correlation with A {corr(mag_A_phase_B, A):.2f}, "
+      f"with B {corr(mag_A_phase_B, B):.2f}")
+```
+
+The image built from the modulus of $A$ and the phase of $B$ looks like $B$: its correlation is $-0.02$ with the first image and $0.78$ with the second.
+
+This is the classical experiment of Oppenheim and Lim (1981). The next proposition explains why the modulus alone cannot carry positions.
+
+:::: prop
+[Proposition 7.2 — The modulus only knows the autocorrelation]{.tag} For a real image $u$ on the periodic domain $\Omega$, let its autocorrelation be
+$$
+\Gamma_u(z) = \sum_{y \in \Omega} u(y)\, u(y + z) .
+$$
+
+Its DFT is the squared modulus of the DFT of $u$:
+$$
+\hat \Gamma_u = |\hat u|^2 .
+$$
+
+Consequently, all the translates of $u$, and its point reflection $u(-\cdot)$, have the same DFT modulus.
+
+::: proof
+Write $e_p(y) = \exp\big(-2 i \pi (p_1 y_1 / M + p_2 y_2 / N)\big)$ for an $M \times N$ domain, so that $e_p(y + z) = e_p(y)\, e_p(z)$. Substituting $w = y + z$ in the DFT of $\Gamma_u$ gives
+$$
+\hat \Gamma_u(p) = \sum_y u(y)\, \overline{e_p(y)} \sum_w u(w)\, e_p(w) = \overline{\hat u(p)}\, \hat u(p) ,
+$$
+because $u$ is real. Translation changes the phase only (Proposition 2.6), and reflection conjugates $\hat u$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the modulus only knows the autocorrelation]{.tag}
+$$
+|\hat u|^2 = \hat \Gamma_u, \qquad \Gamma_u(z) = \sum_{y} u(y)\, u(y + z)
+$$
+:::
+
+An edge, in the Fourier view, is a set of frequencies whose phases *align* at the position of the edge: all the sinusoids reach an extremum or a zero crossing at the same place. Kovesi (1999) builds an edge detector, phase congruency, on this observation. Natural images have moduli that decay roughly like a power of $|\xi|$, much alike from one image to the next; what distinguishes them is the phase.
+
+### 7.2 Random phase textures
+
+If the phase carries the geometry, an image whose phase is replaced by noise should keep the "texture" of the original and lose its structures. This gives a remarkably simple texture synthesis method for textures without structure, called micro-textures.
+
+::: def
+[Definition 7.3 — Random phase noise (RPN)]{.tag} Let $u$ be an image on $\Omega$, with mean $m$. A random phase field is a function $\theta$ on the frequencies with three properties:
+
+-   it is odd, $\theta(-p) = -\theta(p)$ modulo $2\pi$;
+-   it is uniform on $[0, 2\pi)$ and independent on a half-space of frequencies;
+-   it is uniform on $\{0, \pi\}$ at the frequencies with $p \equiv -p$.
+
+The random phase noise associated with $u$ is
+$$
+\mathrm{RPN}(u) = m + \mathcal{F}^{-1}\big( |\widehat{u - m}|\, e^{i\theta} \big) .
+$$
+:::
+
+The phase of the DFT of a real Gaussian white noise has exactly the distribution of Definition 7.3, which gives the simplest way of sampling $\theta$.
+
+::: def
+[Definition 7.4 — Asymptotic discrete spot noise (ADSN)]{.tag} With $t = u - m$ and $W$ a Gaussian white noise of unit variance on $\Omega$, the ADSN associated with $u$ is the random image
+$$
+\mathrm{ADSN}(u) = m + \frac{1}{\sqrt{|\Omega|}}\, t \circledast W .
+$$
+
+It is the limit, by the central limit theorem, of the normalised sum of many randomly translated copies of $t$, the *spot noise* of van Wijk (1991).
+:::
+
+:::: prop
+[Proposition 7.5 — ADSN is a Gaussian field with the autocorrelation of $u$]{.tag} The field $f = \mathrm{ADSN}(u) - m$ is centred, Gaussian and stationary on the periodic domain, with covariance
+$$
+\mathbb{E}\big[ f(x)\, f(x + z) \big] = \frac{\Gamma_t(z)}{|\Omega|} .
+$$
+
+Its DFT is $\hat f = \hat t\, \hat W / \sqrt{|\Omega|}$. At each frequency with $p \not\equiv -p$, the phase of $\hat f(p)$ is uniform and independent of its modulus, and $\mathbb{E}|\hat f(p)|^2 = |\hat t(p)|^2$.
+
+::: proof
+$f$ is a linear function of the Gaussian vector $W$, hence Gaussian and centred. Writing $f(x) = |\Omega|^{-1/2} \sum_y t(y)\, W(x - y)$ and using $\mathbb{E}[W(a) W(b)] = \mathbf{1}[a = b]$,
+$$
+\mathbb{E}\big[ f(x) f(x + z) \big] = \frac{1}{|\Omega|} \sum_y t(y)\, t(y + z) = \frac{\Gamma_t(z)}{|\Omega|} .
+$$
+
+The DFT of a circular convolution is the product of the DFTs. For $p \not\equiv -p$, the real and imaginary parts of $\hat W(p)$ are independent centred Gaussians of variance $|\Omega|/2$. Thus $\hat W(p)$ is circularly symmetric: its phase is uniform and independent of its modulus, and $\mathbb{E}|\hat W(p)|^2 = |\Omega|$. Multiplying by $\hat t(p)$ rotates the phase by a fixed angle. [∎]{.qed}
+:::
+::::
+
+RPN and ADSN differ only by the modulus: RPN keeps $|\hat t|$ exactly, while ADSN multiplies it by a random Rayleigh factor. Galerne, Gousseau and Morel (2011) study both, show that they synthesise convincing micro-textures (sand, granite, fabric seen from afar), and apply them to the periodic component of [ch. 2.5](#ch2) to avoid the cross artefacts of the border jump. Both fail on textures made of distinct objects, whose structure lives in the phase.
+
+**Code 7.6 — Random phase synthesis.** The script checks that RPN preserves the DFT modulus exactly, and uses the kurtosis of the grey-level histogram (3 for a Gaussian) as a crude witness of structure.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(7)
+n = 128
+y, x = np.mgrid[0:n, 0:n]
+
+def random_phase_noise(u, rng):
+    """RPN: keep |DFT|, draw a uniform random phase with Hermitian symmetry."""
+    m = u.mean()
+    theta = np.angle(np.fft.fft2(rng.normal(size=u.shape)))  # odd and uniform phase field
+    return m + np.fft.ifft2(np.abs(np.fft.fft2(u - m)) * np.exp(1j * theta)).real
+
+def kurtosis(v):
+    v = v - v.mean()
+    return np.mean(v**4) / np.mean(v**2)**2
+
+# micro-texture: oriented filtered noise ; structured texture: random discs
+W = rng.normal(size=(n, n))
+q = np.fft.fftfreq(n)[:, None]; r = np.fft.fftfreq(n)[None, :]
+micro = np.fft.ifft2(np.fft.fft2(W) * np.exp(-((q * 0.8 - r * 0.6) * 60)**2
+                                             - ((q * 0.6 + r * 0.8) * 12)**2)).real
+discs = np.zeros((n, n))
+for cx, cy in rng.uniform(0, n, (40, 2)):                     # 40 random discs of radius 4
+    discs[((x - cx + n / 2) % n - n / 2)**2 + ((y - cy + n / 2) % n - n / 2)**2 < 16] = 1.0
+for name, u in [("micro-texture", micro), ("random discs", discs)]:
+    v = random_phase_noise(u, rng)
+    same = np.allclose(np.abs(np.fft.fft2(v - v.mean())), np.abs(np.fft.fft2(u - u.mean())))
+    print(f"{name:14s}: same |DFT| {same}, kurtosis {kurtosis(u):.2f} -> {kurtosis(v):.2f}")
+```
+
+Both syntheses keep the DFT modulus exactly. The micro-texture, already Gaussian-like (kurtosis 2.92), stays so (3.15): the synthesis is statistically faithful. The binary discs (kurtosis 6.50) become a Gaussian-looking field (2.91): their shapes, which were in the phase, are gone.
+
+### 7.3 Phase coherence and sharpness metrics
+
+A sharp image has strongly aligned phases. Blur and noise both weaken this alignment. Blanchet, Moisan and Rougé (2008) turned this into a measure by asking how unlikely the image would be if its phases were random.
+
+::: def
+[Definition 7.7 — Total variation and global phase coherence]{.tag} With periodic forward differences $\partial_x u$ and $\partial_y u$, the (anisotropic) total variation of an image is
+$$
+\mathrm{TV}(u) = \sum_{x \in \Omega} \big( |\partial_x u(x)| + |\partial_y u(x)| \big) .
+$$
+
+The global phase coherence of $u$ is
+$$
+\mathrm{GPC}(u) = -\log_{10} \mathbb{P}\big( \mathrm{TV}(\mathrm{RPN}(u)) \le \mathrm{TV}(u) \big) .
+$$
+:::
+
+Random phases spread the energy of edges over the whole image and increase the total variation. A sharp image therefore has a much smaller TV than its random-phase versions, and a large GPC. The probability must be estimated by Monte Carlo, which cannot reach values like $10^{-300}$. Blanchet and Moisan (2012) replace RPN by ADSN and approximate the distribution of the TV by a Gaussian, whose two moments are explicit.
+
+::: def
+[Definition 7.8 — Sharpness index]{.tag} Let $\mu$ and $\nu$ be the mean and the variance of $\mathrm{TV}(\mathrm{ADSN}(u))$, and let $\bar\Phi$ be the Gaussian tail,
+$$
+\bar\Phi(s) = \frac{1}{\sqrt{2\pi}} \int_s^{\infty} e^{-r^2/2}\, dr .
+$$
+
+The sharpness index of $u$ is
+$$
+\mathrm{SI}(u) = -\log_{10} \bar\Phi\Big( \frac{\mu - \mathrm{TV}(u)}{\sqrt\nu} \Big) .
+$$
+:::
+
+:::: prop
+[Proposition 7.9 — Moments of the total variation of ADSN]{.tag} Let $t = u - m$ and, for $a, b \in \{x, y\}$, define the cross-correlations of the derivatives and the standard deviations
+$$
+\Gamma_{ab}(z) = \sum_{y \in \Omega} \partial_a t(y)\, \partial_b t(y + z), \qquad \sigma_a^2 = \frac{\Gamma_{aa}(0)}{|\Omega|} .
+$$
+
+Then the mean of the total variation of ADSN is
+$$
+\mu = |\Omega| \sqrt{\frac{2}{\pi}}\, (\sigma_x + \sigma_y) .
+$$
+
+With the correlation coefficients and the function $\omega$ defined by
+$$
+\rho_{ab}(z) = \frac{\Gamma_{ab}(z)}{|\Omega|\, \sigma_a \sigma_b}, \qquad \omega(r) = r \arcsin r + \sqrt{1 - r^2} - 1,
+$$
+its variance is
+$$
+\nu = \frac{2 |\Omega|}{\pi} \sum_{z \in \Omega} \sum_{a, b \in \{x, y\}} \sigma_a \sigma_b\, \omega\big( \rho_{ab}(z) \big) .
+$$
+
+::: proof
+Finite differences commute with circular convolution, so
+$$
+\partial_a f = |\Omega|^{-1/2}\, \partial_a t \circledast W .
+$$
+
+As in Proposition 7.5, the pair $(\partial_a f(x), \partial_b f(x + z))$ is centred Gaussian with variances $\sigma_a^2, \sigma_b^2$ and covariance $\Gamma_{ab}(z) / |\Omega|$.
+
+*Mean.* For $X \sim \mathcal{N}(0, s^2)$, $\mathbb{E}|X| = s \sqrt{2/\pi}$. Summing over the $|\Omega|$ pixels and the two directions gives $\mu$.
+
+*Variance.* For a centred Gaussian pair with standard deviations $s_1, s_2$ and correlation $\rho$, a classical computation in polar coordinates gives
+$$
+\mathbb{E}\, |X Y| = \frac{2 s_1 s_2}{\pi} \Big( \sqrt{1 - \rho^2} + \rho \arcsin \rho \Big) ,
+$$
+so that
+$$
+\mathrm{Cov}(|X|, |Y|) = \frac{2 s_1 s_2}{\pi}\, \omega(\rho) .
+$$
+
+The variance of the TV is the sum of these covariances over all pairs of pixels and directions. By stationarity, it depends only on the offset $z$, which gives the factor $|\Omega|$ and the formula. [∎]{.qed}
+:::
+::::
+
+**Code 7.10 — The sharpness index.** The script computes $\mu$ and $\nu$ by Proposition 7.9, checks them by Monte Carlo on 2000 ADSN samples, then evaluates SI on a sharp synthetic image, two blurred versions and a noisy one.
+
+```python
+import numpy as np
+from scipy.special import log_ndtr
+
+def dx(u): return np.roll(u, -1, axis=1) - u          # periodic differences
+def dy(u): return np.roll(u, -1, axis=0) - u
+def tv(u): return np.abs(dx(u)).sum() + np.abs(dy(u)).sum()
+
+def tv_moments_adsn(u):
+    """Mean and variance of TV(ADSN(u)) (Proposition 7.9)."""
+    MN = u.size
+    g = {"x": dx(u - u.mean()), "y": dy(u - u.mean())}
+    F = {a: np.fft.fft2(g[a]) for a in g}
+    sd = {a: np.sqrt(np.sum(g[a]**2) / MN) for a in g}
+    mu = MN * np.sqrt(2 / np.pi) * (sd["x"] + sd["y"])
+    omega = lambda t: t * np.arcsin(t) + np.sqrt(1 - t**2) - 1
+    var = 0.0
+    for a in g:
+        for b in g:
+            gamma = np.fft.ifft2(np.conj(F[a]) * F[b]).real      # cross-correlation
+            rho = np.clip(gamma / (MN * sd[a] * sd[b]), -1, 1)
+            var += MN * (2 / np.pi) * sd[a] * sd[b] * omega(rho).sum()
+    return mu, var
+
+def sharpness_index(u):
+    mu, var = tv_moments_adsn(u)
+    return -log_ndtr(-(mu - tv(u)) / np.sqrt(var)) / np.log(10)   # -log10 P(N >= t)
+
+rng = np.random.default_rng(8)
+n = 64
+y, x = np.mgrid[0:n, 0:n]
+u = 100.0 * ((x - 30)**2 + (y - 34)**2 < 150) + 50.0 * ((abs(x - 45) < 8) & (abs(y - 15) < 6))
+u = u + 30.0 * (x > 52)
+
+mu, var = tv_moments_adsn(u)
+t = u - u.mean()
+samples = [tv(np.fft.ifft2(np.fft.fft2(t) * np.fft.fft2(rng.normal(size=t.shape))).real / n)
+           for _ in range(2000)]
+print(f"mean TV of ADSN: formula {mu:.0f}, Monte Carlo {np.mean(samples):.0f}")
+print(f"std  TV of ADSN: formula {np.sqrt(var):.0f}, Monte Carlo {np.std(samples):.0f}")
+
+q = 2 * np.pi * np.fft.fftfreq(n)
+def blur(v, s):
+    return np.fft.ifft2(np.fft.fft2(v) * np.exp(-s**2 * (q[:, None]**2 + q[None, :]**2) / 2)).real
+for name, v in [("sharp", u), ("blur sigma=1", blur(u, 1.0)), ("blur sigma=2", blur(u, 2.0)),
+                ("noise std 20", u + rng.normal(0, 20, u.shape))]:
+    print(f"{name:13s} SI = {sharpness_index(v):7.1f}")
+```
+
+The formulas agree with the simulation: mean 79 484 against 79 459, standard deviation 1707 against 1678 (the Monte Carlo standard error on the latter is about 27).
+
+| Image | Sharpness index |
+|---|---|
+| sharp | 304.6 |
+| Gaussian blur, $\sigma = 1$ | 20.9 |
+| Gaussian blur, $\sigma = 2$ | 4.8 |
+| additive noise, standard deviation 20 | 1.7 |
+
+An index of 300 means that an image with the same autocorrelation but random phases would have a total variation as small as the observed one with probability $10^{-300}$. A blur of one pixel divides the index by 15, and a strong noise almost cancels it. The index needs no reference image, which makes it useful for autofocus, quality assessment and the tuning of restoration methods.
+
+Leclaire and Moisan (2015) analyse these phase-based indices, propose a simplified variant, and use them for no-reference quality assessment and blind deblurring: among candidate deblurring kernels, the one that maximises the index is selected. Exercise 15 reproduces a small version of this experiment. Related ideas measure phase coherence locally, in a wavelet decomposition (Wang and Simoncelli, 2003).
+
+::: recap
+[Key takeaways — chapter 7]{.tag}
+
+-   The DFT modulus is the Fourier transform of the autocorrelation: it is blind to positions, which live in the phase.
+-   Random phase noise keeps the modulus and randomises the phase; ADSN is the Gaussian field with the same autocorrelation. Both synthesise micro-textures and destroy structured ones.
+-   Sharp images have coherent phases: their total variation is far below that of their random-phase versions.
+-   The sharpness index is $-\log_{10}$ of a Gaussian tail probability whose mean and variance are explicit (Proposition 7.9).
+-   Blur and noise lower the index, which can drive blind deblurring.
+:::
+
+## 8. Research directions and open problems {#ch8}
+
+This chapter is for self-study. It points to current research that extends the questions of the course — how to discretise continuous models consistently, and how to measure geometry below the pixel — with the main references. The descriptions are short; the papers are the place to go further.
+
+### 8.1 Shannon-consistent variational models
+
+Many restoration methods minimise an energy that involves the total variation. Its usual discretisation by finite differences is not invariant under sub-pixel translations or rotations, and its minimisers show pixel-scale artefacts that make them hard to interpolate afterwards. Abergel and Moisan (2017) define a *Shannon total variation*, the total variation of the Shannon interpolate estimated by oversampling the gradient, and show that its minimisers are well interpolable and free of these artefacts. Condat (2017) proposes another discrete total variation with better isotropy.
+
+The open question is general: for a non-smooth functional of a continuous image, which discretisation commutes with the geometric transforms of [ch. 3](#ch3) and keeps the result well sampled?
+
+### 8.2 Aliasing inside neural networks
+
+Convolutional networks subsample their feature maps with strides and pooling, without the prefilter that [ch. 4](#ch4) requires. Azulay and Weiss (2019) show that their outputs can change markedly when the input moves by one pixel. Zhang (2019) inserts a small blur before each subsampling ("anti-aliased" or "blur-pool" networks) and improves both shift-invariance and accuracy: Theorem 4.5 in a modern setting.
+
+Karras and coauthors (2021) go further for generative networks. They treat feature maps as samples of continuous band-limited signals, apply carefully designed low-pass filters around every nonlinearity, and obtain generated images whose details move coherently with the content instead of sticking to the pixel grid. Pointwise nonlinearities create frequencies beyond the band, which is the mechanism behind Exercise 16.
+
+Open problems include the best compromise between blur and ringing for learned filters, and the analysis of attention-based architectures, whose patch embeddings are strided operations without prefilter.
+
+### 8.3 Continuous image representations
+
+Several recent methods represent an image by a function of continuous coordinates. Chen, Liu and Wang (2021) learn a local implicit function that decodes features at any position, giving super-resolution at arbitrary, non-integer scales. Networks with Fourier features (Tancik and coauthors, 2020) or with periodic activations (Sitzmann and coauthors, 2020) fit images and scenes as coordinate-based functions; their ability to represent high frequencies is governed by the spectrum of the input encoding.
+
+These models raise the questions of [ch. 2](#ch2) in a new form. What is the effective band of a learned representation? Does it interpolate the samples, and is it consistent with the acquisition model of [ch. 1](#ch1)?
+
+### 8.4 Multi-frame super-resolution
+
+A single aliased image has lost information, but several images shifted by sub-pixel amounts sample the scene on a finer combined grid. Farsiu and coauthors (2004) formulate robust multi-frame super-resolution as a variational problem. Wronski and coauthors (2019) use the natural tremor of a hand holding a phone: the burst of frames, registered with sub-pixel accuracy, replaces demosaicking and increases resolution in commercial smartphones.
+
+Here aliasing is the signal, and sub-pixel registration ([ch. 6](#ch6)) is the bottleneck. Open questions concern the attainable resolution gain as a function of noise, of the number of frames and of the registration error, in the spirit of the Cramér–Rao analysis of [ch. 6.2](#ch6).
+
+### 8.5 Texture synthesis beyond random phases
+
+Random phase textures ([ch. 7.2](#ch7)) are exact and fast but limited to micro-textures. Portilla and Simoncelli (2000) match a richer set of statistics of a wavelet decomposition. Gatys, Ecker and Bethge (2015) match the correlations of the features of a pretrained network, at a much higher cost. Galerne, Leclaire and Moisan (2017) design a *texton*, a small image whose spot noise reproduces a Gaussian texture, for fast on-the-fly synthesis in graphics. An open problem is to find models that keep the explicit, analysable character of RPN while capturing some phase structure.
+
+### 8.6 Open problems
+
+-   **Optimal prefilters for real sensors.** Theorem 4.5 states a trade-off; which prefilter is optimal for a given PSF, noise level and downstream task is an open design question.
+-   **Sub-pixel accuracy under aliasing.** The Cramér–Rao bound of [ch. 6.2](#ch6) assumes a well-sampled model; quantifying the bias created by aliasing, such as pixel locking, remains largely empirical.
+-   **Interpolation on non-periodic domains.** The periodic plus smooth decomposition handles borders for the DFT. A theory of exact, lossless transforms for images with borders, masks or irregular sampling is incomplete.
+-   **Reference-free quality.** Phase-coherence indices measure sharpness; extending them to other degradations, such as compression, ringing or aliasing itself, is an active topic.
+
+::: recap
+[Key takeaways — chapter 8]{.tag}
+
+-   Discretising non-smooth energies consistently with the Shannon model is an active topic (Shannon total variation).
+-   Neural networks rediscover the sampling problems of the course; prefilters before subsampling restore shift-equivariance.
+-   Continuous neural representations and multi-frame super-resolution are new instances of interpolation and sub-pixel registration.
+-   Texture synthesis moves from explicit Gaussian models to learned statistics, with phase structure as the open frontier.
+:::
 
 ## Exercises {#ex}
 
-TODO
+1.  **★ Poisson summation for a Gaussian.** Using Theorem 0.2, show that the samples of the Gaussian density $g_\sigma$ satisfy
+    $$
+    \sum_k g_\sigma(k) = \sum_m e^{-2\pi^2 \sigma^2 m^2} .
+    $$
+    Evaluate the deviation from 1 for $\sigma = 1$ and $\sigma = 0.7$.
+
+    *Solution*: apply the first form of Theorem 0.2 at $x = 0$, with $\hat g_\sigma(2\pi m) = e^{-\sigma^2 (2\pi m)^2 / 2}$.
+
+    The dominant correction is $2 e^{-2\pi^2\sigma^2}$: about $5.4 \times 10^{-9}$ for $\sigma = 1$ and $1.26 \times 10^{-4}$ for $\sigma = 0.7$. The second value is the excess $1.000126$ printed by Code 0.6.
+
+2.  **★ Folding frequencies.** A signal sampled at the integers contains cosines of frequencies $0.7$, $1.2$ and $-0.45$ cycle per pixel. At which frequencies are they seen? In 2D, stripes have frequency $(0.55, -0.3)$ cycle per pixel: give the apparent frequency, period and orientation.
+
+    *Solution*: subtracting the nearest integer gives $-0.3$ (seen as $0.3$ for a cosine), $0.2$, and $-0.45$, which is already in the band. In 2D, the stripes are seen at $(-0.45, -0.3)$, equivalent to $(0.45, 0.3)$ for a cosine.
+
+    The period changes from $1/0.627 = 1.60$ to $1/0.541 = 1.85$ pixels, and the direction of the frequency vector changes from $-28.6°$ to $33.7°$: the stripes turn by about $62°$.
+
+3.  **★ A diffraction and pixel budget.** A lens at $N = 4$ images light of wavelength $0.5$ µm on a sensor of pitch 3 µm with a 100 % fill factor. Compute the optical cut-off, the Nyquist frequency, the optical and pixel attenuations at the Nyquist frequency, and the largest pitch that would avoid aliasing.
+
+    *Solution*: $\nu_c = 1/(0.5 \times 10^{-3} \times 4) = 500$ cycles/mm, and the Nyquist frequency is $1/(2 \times 0.003) = 166.7$ cycles/mm. With $s = 1/3$, Theorem 1.4 gives $H = 0.584$; the pixel gives $2/\pi = 0.637$; the product is $0.372$.
+
+    Frequencies between 166.7 and 500 cycles/mm pass the optics and alias. Aliasing-free sampling needs $p \le \lambda N / 2 = 1$ µm.
+
+4.  **★ Cardinal cubic spline coefficients.** Check that $c_k = \sqrt 3\, z_1^{|k|}$, with $z_1 = \sqrt 3 - 2$, solves $b * c = \delta$ for $b = (\tfrac16, \tfrac23, \tfrac16)$. Compute $c_0, \dots, c_3$ and the value of the cardinal spline $\eta^3(1/2)$.
+
+    *Solution*: at $k = 0$, $\frac23 c_0 + \frac13 c_1 = \sqrt 3\, (2 + z_1)/3 = 1$, since $2 + z_1 = \sqrt 3$.
+
+    At $k \ge 1$, the value is $\sqrt 3\, z_1^{k-1} (1 + 4 z_1 + z_1^2) / 6 = 0$, because $z_1$ is a root of $z^2 + 4z + 1$.
+
+    Numerically, $c = (1.7321, -0.4641, 0.1244, -0.0333)$. Then
+    $$
+    \eta^3(1/2) = \beta^3(1/2)(c_0 + c_1) + \beta^3(3/2)(c_1 + c_2) \approx 0.6005,
+    $$
+    to compare with $\mathrm{sinc}(1/2) = 0.6366$, Keys $0.5625$ and linear $0.5$.
+
+5.  **★ Shear amounts and padding.** For a rotation by $30°$ with Theorem 3.10, compute the shear parameters. For an image of size $513 \times 513$, find the largest displacement of the first shear and a padding that avoids any wrap-around.
+
+    *Solution*: $t = \tan 15° = 0.268$ and $s = \sin 30° = 0.5$. Rows at distance 256 from the centre move by $0.268 \times 256 = 68.6$ pixels in the first shear.
+
+    Following the four corners through the three shears, every intermediate image stays within 350 pixels of the centre in both coordinates. Zero-padding to $701 \times 701$ (an odd size) therefore avoids wrap-around.
+
+6.  **★ How many heat iterations?** One wants a Gaussian blur of $\sigma = 3$ pixels with the explicit heat scheme. How many iterations are needed with $\delta t = 0.2$? With $\delta t = 1/4$? Which time step damps all frequencies without sign change, and at what cost?
+
+    *Solution*: $t = \sigma^2 / 2 = 4.5$, so $22.5$ steps are needed; 23 steps give $\sigma = 3.03$. With $\delta t = 1/4$, 18 steps suffice, but the checkerboard is not damped (Theorem 5.6). The condition $g \ge 0$ requires $\delta t \le 1/8$, hence 36 steps.
+
+7.  **★★ Even sizes and the Nyquist coefficient.** Prove item 2 of Proposition 2.6. Show that $T_{1/2} T_{1/2} \neq T_1$ for even $M$, and propose two remedies.
+
+    *Solution*: the Nyquist term of $U(k - \tau)$ is
+    $$
+    \frac1M \hat u_{M/2} \cos(\pi(k - \tau)) = \frac1M \hat u_{M/2} (-1)^k \cos(\pi\tau) .
+    $$
+
+    The integer translation $T_1$ multiplies the Nyquist coefficient by $\cos\pi = -1$, as a circular shift should, whereas $T_{1/2} T_{1/2}$ multiplies it by $\cos^2(\pi/2) = 0$.
+
+    Remedies: work with odd sizes, by cropping or padding one row and one column; or set the Nyquist coefficient to zero once, a negligible low-pass, after which all translations are unitary. This explains the error $0.30$ of Code 2.7.
+
+8.  **★★ Periodic plus smooth in one dimension.** For a signal $u \in \mathbb{R}^M$, write the one-dimensional version of Theorem 2.9. Show that the smooth component is the affine ramp
+    $$
+    s_k = b \Big( k - \frac{M-1}{2} \Big), \qquad b = \frac{u_{M-1} - u_0}{M} ,
+    $$
+    and that the periodic jump of $p$ is that of $u$ divided by $M$.
+
+    *Solution*: the boundary signal is $v_0 = u_{M-1} - u_0$, $v_{M-1} = -v_0$ and zero elsewhere. Inside, $\Delta s = 0$ forces $s$ to be affine, $s_k = a + bk$.
+
+    At $k = 0$, the periodic Laplacian equals $s_{M-1} + s_1 - 2 s_0 = bM$, so $b = v_0 / M$; the equation at $k = M-1$ then holds automatically, and the zero mean fixes $a$. Finally $p_0 - p_{M-1} = (u_0 - u_{M-1}) + b(M-1) = (u_0 - u_{M-1}) / M$.
+
+9.  **★★ Half-pixel gain of the Keys kernel.** For the Keys kernel with parameter $a$, show that $\varphi(1/2) = (4 - a)/8$ and $\varphi(3/2) = a/8$. Deduce the half-pixel response, its value at $\xi = \pi/2$, and explain why it vanishes at $\xi = \pi$ for every symmetric kernel.
+
+    *Solution*: substituting into the two cubic pieces gives the two values, and pairing symmetric taps,
+    $$
+    |H_{1/2}(\xi)| = \Big| \frac{4 - a}{4} \cos\frac{\xi}{2} + \frac{a}{4} \cos\frac{3\xi}{2} \Big| .
+    $$
+    At $\xi = \pi/2$ this is $\frac{\sqrt 2}{2}(1 - a/2)$: 0.707 for $a = 0$, 0.884 for $a = -1/2$, and 1.061 for $a = -1$, which amplifies and therefore sharpens.
+
+    At $\xi = \pi$, the taps $k$ and $1 - k$ have equal weights $\varphi(k - 1/2) = \varphi(1/2 - k)$ and opposite signs $(-1)^k$, so they cancel.
+
+10. **★★ No compact support on both sides.** Let $h \in L^1(\mathbb{R})$ have compact support. Show that if $\hat h$ vanishes on an open interval, then $h = 0$. Deduce that no prefilter with finite support has zero aliasing, $\mathcal{A}(h) = 0$.
+
+    *Solution*: with compact support, $\hat h(\zeta) = \int h(x) e^{-ix\zeta}\, dx$ is defined for every complex $\zeta$ and is holomorphic, by differentiation under the integral. An entire function that vanishes on an interval vanishes everywhere (identity theorem), so $\hat h = 0$ and $h = 0$.
+
+    Zero aliasing means $\hat h = 0$ on the open set $|\xi| > \pi/z$, which would force $h = 0$, contradicting $\int h = 1$.
+
+11. **★★ The isotropic nine-point Laplacian.** Prove Proposition 5.5. Expand the symbols of $L_+$ and $L_\times$ to fourth order and find the unique combination that is isotropic at that order.
+
+    *Solution*: for the five-point Laplacian,
+    $$
+    \hat L_+ = 2\cos\xi_1 + 2\cos\xi_2 - 4 = -|\xi|^2 + \frac{\xi_1^4 + \xi_2^4}{12} + O(|\xi|^6) .
+    $$
+
+    For the diagonal Laplacian, $\hat L_\times = 2\cos\xi_1 \cos\xi_2 - 2$, and expanding the product of cosines,
+    $$
+    \hat L_\times = -|\xi|^2 + \frac{\xi_1^4 + \xi_2^4}{12} + \frac{\xi_1^2 \xi_2^2}{2} + O(|\xi|^6) .
+    $$
+    The combination $\alpha L_+ + (1 - \alpha) L_\times$ has the quartic part
+    $$
+    \frac{\xi_1^4 + \xi_2^4}{12} + \frac{(1-\alpha)\, \xi_1^2 \xi_2^2}{2} .
+    $$
+
+    It is proportional to $|\xi|^4$ exactly when $(1 - \alpha)/2 = 1/6$, that is $\alpha = 2/3$, which gives the stencil and the symbol $-|\xi|^2 + |\xi|^4/12$.
+
+12. **★★ The aperture problem.** Compute the structure matrix $F$ of Theorem 6.3 for an image that depends only on $\langle x, n \rangle$ for a unit vector $n$ (a straight edge), then for a corner made of two straight edges with normals $n_1$ and $n_2$. What can be measured in each case?
+
+    *Solution*: for a straight edge, $\nabla U = U'(\langle x, n \rangle)\, n$, so $F = \big(\sum_k U'^2\big)\, n n^\top$ has rank one. The Fisher information along $n^\perp$ is zero: only the displacement across the edge can be measured.
+
+    For a corner, $F = \alpha_1 n_1 n_1^\top + \alpha_2 n_2 n_2^\top$ is invertible when $n_1$ and $n_2$ are not parallel. Its smallest eigenvalue sets the worst-case precision, which is the quantity examined by the corner detector of Harris and Stephens (1988).
+
+13. **★★ Bias of the parabolic peak fit (Python).** For a peak $f(x) = e^{-(x - \delta)^2 / 2}$ and for $f(x) = \mathrm{sinc}(x - \delta)$, with $\delta \in [-1/2, 1/2]$, compute the estimate of Proposition 6.7 from the samples at $-1, 0, 1$ and plot the bias. Repeat with the parabola fitted to $\log f$ for the Gaussian.
+
+    *Hints and expected result*: the bias is an odd, S-shaped function of $\delta$, zero at $0$ and $\pm 1/2$. Its maximum is $0.048$ pixel for the Gaussian and $0.119$ pixel for the sinc; the logarithmic fit is exact for the Gaussian, up to round-off.
+
+    ```python
+    import numpy as np
+
+    def parabola_vertex(a, b, c):
+        return (a - c) / (2 * (a - 2 * b + c))
+
+    deltas = np.linspace(-0.5, 0.5, 101)
+    for name, f in [("Gaussian peak, s = 1", lambda t: np.exp(-t**2 / 2)),
+                    ("sinc peak", lambda t: np.sinc(t))]:
+        est = np.array([parabola_vertex(f(-1 - d), f(-d), f(1 - d)) for d in deltas])
+        print(f"{name}: max |bias| of the parabola fit = {np.max(np.abs(est - deltas)):.3f} pixel")
+    g = lambda t: np.exp(-t**2 / 2)
+    est_log = np.array([parabola_vertex(*np.log([g(-1 - d), g(-d), g(1 - d)])) for d in deltas])
+    print(f"log-parabola on the Gaussian: max |bias| = {np.max(np.abs(est_log - deltas)):.1e} pixel")
+    ```
+
+14. **★★ The mean total variation of ADSN.** Prove the formula for $\mu$ in Proposition 7.9. Then take the $M \times M$ image $u = A\, \mathbf{1}[x < M/2]$, which has two vertical edges on the periodic domain, and compare $\mathrm{TV}(u)$ with $\mu$.
+
+    *Solution*: the formula follows from $\mathbb{E}|X| = s \sqrt{2/\pi}$ for $X \sim \mathcal{N}(0, s^2)$, summed over pixels and directions.
+
+    For the edge image, $\partial_y t = 0$ and $\partial_x t$ equals $\pm A$ on two columns, so $\|\partial_x t\|^2 = 2 M A^2$ and $\sigma_x = A\sqrt{2/M}$.
+
+    Hence $\mu = 2 A M^{3/2} / \sqrt\pi$, while $\mathrm{TV}(u) = 2 M A$.
+
+    The ratio $\mathrm{TV}(u) / \mu = \sqrt{\pi / M}$ equals $0.22$ for $M = 64$: random phases spread the two edges over the whole image and multiply the total variation by more than four.
+
+15. **★★★ Blind deblurring with the sharpness index (Python).** Build a sharp image of random rectangles ($96 \times 96$), blur it with a Gaussian of $\sigma_0 = 1.5$ and add noise of standard deviation 1. For $\sigma$ from 0 to 2.5, deblur with the regularised inverse filter $\hat g_\sigma / (\hat g_\sigma^2 + 10^{-2})$ and compute the sharpness index of the result (Code 7.10). Which $\sigma$ maximises it? Discuss the shape of the curve.
+
+    *Hints and expected result*: the script below reuses the formulas of Code 7.10. The index starts at about 12 for $\sigma = 0$, dips to about 8 near $\sigma = 0.5$, peaks at about 33 for $\sigma = 1.5$ — the true value — and falls to about 10 at $\sigma = 2.5$. Over-deblurring creates ringing, which lowers the phase coherence as surely as blur does. Extensions: motion-blur kernels, a finer grid, and the comparison with the approach of Leclaire and Moisan (2015).
+
+    ```python
+    import numpy as np
+    from scipy.special import log_ndtr
+
+    def dx(u): return np.roll(u, -1, axis=1) - u
+    def dy(u): return np.roll(u, -1, axis=0) - u
+    def tv(u): return np.abs(dx(u)).sum() + np.abs(dy(u)).sum()
+
+    def sharpness_index(u):
+        MN = u.size
+        g = [dx(u - u.mean()), dy(u - u.mean())]
+        F = [np.fft.fft2(a) for a in g]
+        sd = [np.sqrt(np.sum(a**2) / MN) for a in g]
+        mu = MN * np.sqrt(2 / np.pi) * sum(sd)
+        om = lambda t: t * np.arcsin(t) + np.sqrt(1 - t**2) - 1
+        var = sum(MN * (2 / np.pi) * sd[i] * sd[j]
+                  * om(np.clip(np.fft.ifft2(np.conj(F[i]) * F[j]).real / (MN * sd[i] * sd[j]), -1, 1)).sum()
+                  for i in range(2) for j in range(2))
+        return -log_ndtr(-(mu - tv(u)) / np.sqrt(var)) / np.log(10)
+
+    rng = np.random.default_rng(10)
+    n = 96
+    u = np.zeros((n, n))
+    for _ in range(30):                                  # random rectangles: a sharp scene
+        x0, y0 = rng.integers(0, n - 10, 2); w, h = rng.integers(4, 25, 2)
+        u[y0:y0 + h, x0:x0 + w] = rng.uniform(0, 255)
+    q = 2 * np.pi * np.fft.fftfreq(n)
+    G = lambda s: np.exp(-s**2 * (q[:, None]**2 + q[None, :]**2) / 2)
+    sigma0 = 1.5
+    v = np.fft.ifft2(np.fft.fft2(u) * G(sigma0)).real + rng.normal(0, 1.0, u.shape)
+
+    def wiener(v, s, eps=1e-2):
+        H = G(s)
+        return np.fft.ifft2(np.fft.fft2(v) * H / (H**2 + eps)).real
+
+    grid = np.arange(0.0, 2.6, 0.25)
+    scores = [sharpness_index(wiener(v, s)) for s in grid]
+    for s, sc in zip(grid, scores):
+        print(f"sigma = {s:4.2f}: SI = {sc:8.1f}")
+    print("argmax:", grid[int(np.argmax(scores))], " true blur:", sigma0)
+    ```
+
+16. **★★★ Aliasing inside a strided layer (Python).** A one-dimensional "layer" applies a ReLU, an optional blur, and keeps one sample out of two. For band-limited random inputs, measure how far the output of the input shifted by one sample is from the exact half-sample shift of the original output. Compare no blur, the blur $(1, 2, 1)/4$ and the blur $(1, 4, 6, 4, 1)/16$, and relate the result to [ch. 4](#ch4) and [ch. 8.2](#ch8).
+
+    *Hints and expected result*: with the code below, the relative errors are about $0.14$, $0.05$ and $0.02$. The ReLU creates frequencies beyond the band, which the stride folds back; a prefilter reduces the folding (Theorem 4.5 says it cannot remove it without blur or ringing). This is the mechanism studied by Zhang (2019). Open-ended continuation: place the blur before the ReLU (the error is then about $0.13$, barely better than no blur), and explain why.
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(9)
+    M = 254                                                # output length 127 (odd)
+
+    def shift(u, tau):
+        """Exact Shannon translation of a periodic signal (Nyquist coefficient dropped)."""
+        p = np.fft.fftfreq(len(u), d=1 / len(u))
+        H = np.exp(-2j * np.pi * p * tau / len(u)) * (np.abs(p) < len(u) / 2)
+        return np.fft.ifft(np.fft.fft(u) * H).real
+
+    def layer(x, blur):
+        y = np.maximum(x, 0)                               # ReLU creates new high frequencies
+        if blur is not None:
+            k = np.array(blur, float) / np.sum(blur)
+            y = sum(w * np.roll(y, j - len(k) // 2) for j, w in enumerate(k))
+        return y[::2]                                      # stride 2
+
+    p = np.fft.fftfreq(M, d=1 / M)
+    for name, blur in [("stride only", None), ("blur [1,2,1]", [1, 2, 1]),
+                       ("blur [1,4,6,4,1]", [1, 4, 6, 4, 1])]:
+        e = []
+        for _ in range(200):
+            x = np.fft.ifft(np.fft.fft(rng.normal(size=M)) * (np.abs(p) < M / 8)).real
+            y0 = layer(x, blur)
+            y1 = layer(shift(x, 1.0), blur)                # input moved by 1 sample
+            e.append(np.linalg.norm(y1 - shift(y0, 0.5)) / np.linalg.norm(y0 - y0.mean()))
+        print(f"{name:18s} relative error to an exact half-sample shift: {np.mean(e):.3f}")
+    ```
 
 ## Projects and assessment {#projects}
 
-TODO
+The official assessment is an exam (master-mva.com, “Mode de validation”); the Université Paris-Saclay course detail describes it as “Evaluation Continue non Intégrale”, a continuous assessment that is not the only component of the grade, and no weighting is displayed. The projects below are proposals for the continuous part or for personal training, in the MVA tradition of studying and reimplementing a research paper; the written exam proposal shows what a final exam on these notes could look like.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: the periodic plus smooth decomposition (Moisan, 2011).** How much do border jumps degrade DFT-based processing, and how much does the decomposition remove?
+    -   *Implement*: Theorem 2.9 with two FFTs, its one-dimensional case (Exercise 8), and two alternatives — mirror symmetrisation and apodisation by a Hann window.
+    -   *Data*: synthetic non-periodic images and the sample photographs bundled with scikit-learn (`sklearn.datasets.load_sample_image`).
+    -   *Measure*: the energy on the frequency axes (Code 2.10), the ringing of a Fourier zoom by 4 near the borders, and the error of a translation by $0.5$ pixel followed by its inverse.
+    -   *Success criterion*: the axis energy divided by at least 4, and a Laplacian of $s$ below $10^{-10}$ inside the image.
+    -   *Deliverables and evaluation*: code, a 4–6 page report, a 10-minute talk, graded with the rubric below. Chapters used: [ch. 2](#ch2), 3.
+2.  **[Solo · ≈ 20 h] Sub-pixel registration at the Cramér–Rao bound.** How close to the bound of Theorem 6.3 do standard estimators get, and how does aliasing bias them?
+    -   *Implement*: in 2D, phase correlation with the two-sample formula (Foroosh, Zerubia and Berthod, 2002), upsampled cross-correlation (Guizar-Sicairos, Thurman and Fienup, 2008), and Gauss–Newton with exact Shannon translations.
+    -   *Data*: synthetic images rendered with pixel integration and a Gaussian PSF of width $\sigma \in \{0.3, 0.5, 0.8, 1.0\}$, plus noise; the scikit-learn sample images.
+    -   *Success criterion*: Gauss–Newton within 10 % of the bound for $\sigma \ge 0.8$; a plot of the bias against the true shift for $\sigma \le 0.5$ showing pixel locking.
+    -   *Deliverables and evaluation*: code, report, talk; rubric below. Chapters used: [ch. 1](#ch1), 2, 6.
+3.  **[Solo · ≈ 15 h] Paper study: high-quality rotation by shears (Unser, Thévenaz and Yaroslavsky, 1995).** Which rotation algorithm survives repeated application?
+    -   *Implement*: three-shear rotations with FFT shears and with cubic-spline shears, and direct rotation with bilinear and Keys kernels.
+    -   *Experiment*: the iterated-rotation test of Code 3.11 with $n \in \{6, 12, 36, 72\}$ steps per full turn; RMSE, PSNR and spectra after the turn.
+    -   *Success criterion*: an FFT three-shear error below $10^{-6}$ on band-limited inputs, and a clear ranking of the other methods.
+    -   *Deliverables and evaluation*: code, report, talk; rubric below. Chapters used: [ch. 2](#ch2), 3.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Paper study: random phase textures (Galerne, Gousseau and Morel, 2011).** Which textures does a random phase reproduce, and why do the others fail?
+    -   *Implement*: RPN and ADSN for grey-level and colour images, applied to the periodic component of [ch. 2.5](#ch2). For colour, add the same random phase to the three channels, which keeps the phase differences between channels.
+    -   *Data*: textures cropped from the scikit-learn sample images and synthetic textures (filtered noise, random discs, regular patterns).
+    -   *Evaluate*: exact preservation of the power spectrum, histogram and kurtosis, the sharpness index of [ch. 7.3](#ch7), and a small blind visual comparison.
+    -   *Split*: member 1 implements grey RPN and ADSN with the decomposition; member 2 handles colour and the convergence of spot noise to ADSN as the number of spots grows; member 3 runs the evaluation and documents the failure cases.
+    -   *Deliverables and evaluation*: code, a joint 6-page report, a 15-minute talk; rubric below, with an individual question per member. Chapters used: [ch. 2](#ch2), 7.
+2.  **[Group of 2–3 · ≈ 30 h each] Paper study: the sharpness index and blind deblurring (Blanchet and Moisan, 2012; Leclaire and Moisan, 2015).** Can phase coherence select a deblurring kernel without any reference image?
+    -   *Implement*: SI with the closed-form moments of Proposition 7.9, checked by Monte Carlo; GPC by Monte Carlo for moderate values.
+    -   *Experiments*: SI as a function of blur, noise and over-deblurring; blind selection of the width of a Gaussian blur, then of the length of a horizontal motion blur, by maximising SI over regularised inverse filters (Exercise 15).
+    -   *Success criterion*: the selected Gaussian width within $\pm 0.25$ pixel of the truth on at least 80 % of a set of 20 test images.
+    -   *Split*: theory and verification of the moments; quality experiments; deblurring pipeline.
+    -   *Deliverables and evaluation*: code, joint report, talk; rubric below. Chapters used: [ch. 4](#ch4), 5, 7.
+3.  **[Group of 2–3 · ≈ 30 h each] Paper study: anti-aliased downsampling in a small CNN (Zhang, 2019).** Does a prefilter before each stride make a network more shift-consistent, and at what cost in accuracy?
+    -   *Implement*: a small PyTorch CNN, trained on CPU, with three downsampling variants: strided convolution, max-pooling, and blur-pooling with binomial filters of sizes 3 and 5.
+    -   *Data*: a synthetic data set of $32 \times 32$ shapes (discs, squares, triangles) rendered at random sub-pixel positions with pixel integration ([ch. 1.3](#ch1)), or the scikit-learn digits zoomed to $32 \times 32$ by Fourier zero-padding.
+    -   *Measure*: accuracy, the probability that the predicted class is unchanged under one-pixel shifts, and the feature-level error of Exercise 16.
+    -   *Split*: data generation; model training; equivariance analysis in the light of Theorem 4.5.
+    -   *Deliverables and evaluation*: code, joint report, talk; rubric below. Chapters used: [ch. 1](#ch1), 2, 4, 8.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no electronic device; four exercises on 20 points.
+
+1.  **Question (5 points).** State the Shannon–Whittaker theorem with its hypotheses. Using the Poisson summation formula, explain what the samples of a non-band-limited image represent. Explain why diffraction makes optical images band-limited, why digital cameras nevertheless alias, and give the pitch condition for aliasing-free sampling at f-number $N$ and wavelength $\lambda$. *Expected*: the band $[-\pi, \pi]$ and the sinc series with its convergence; the periodisation formula of Proposition 1.7 and the folding of frequencies; the cut-off $1/(\lambda N)$, the condition $p \le \lambda N / 2$, and the remark that real pitches are larger, with attenuation by the optics and the pixel.
+2.  **Question (5 points).** For the explicit heat scheme with the nine-point Laplacian of Proposition 5.5, compute the symbol, its minimum on $[-\pi, \pi]^2$, the largest time step for $\ell^2$ stability, and the largest one for the maximum principle. How many steps give $\sigma = 2$ at the latter time step?
+
+    *Expected*: the symbol is
+    $$
+    \frac16 \big( -20 + 8\cos\xi_1 + 8\cos\xi_2 + 4\cos\xi_1\cos\xi_2 \big),
+    $$
+    bilinear in the two cosines, with minimum $-16/3$ at $(\pi, \pi)$.
+
+    Stability holds for $\delta t \le 3/8$, and the maximum principle for $\delta t \le 3/10$, since the centre weight $1 - \frac{10}{3}\delta t$ must be non-negative. Reaching $t = 2$ takes 7 steps at $\delta t = 0.3$.
+3.  **Question (5 points).** Prove the three-shear factorisation of a rotation. Show that a shear computed with Fourier translations is unitary on images of odd width, and deduce the inverse of the three-shear rotation. Explain why the half-pixel Fourier translation is not invertible for even sizes. *Expected*: the matrix computation with $ts = 1 - \cos\theta$ (Theorem 3.10); unitarity by Parseval, since each row is multiplied by unimodular factors; the inverse is the rotation by $-\theta$; for even sizes, the Nyquist coefficient is multiplied by $\cos(\pi/2) = 0$ (Proposition 2.6).
+4.  **Question (5 points).** An edge $U(x) = A\, \Phi(x / s)$ is observed with Gaussian noise of standard deviation $\sigma$ after an unknown translation $\tau$. Derive the Cramér–Rao bound for $\tau$. Evaluate it for a contrast of 50, a blur $s = 0.8$ and a noise of standard deviation 1, first for one line and then for 64 lines crossing the edge. Explain why phase correlation alone does not reach the bound and how to reach it.
+
+    *Expected*: the Fisher information is
+    $$
+    \frac{1}{\sigma^2} \sum_k U'(k - \tau)^2 \approx \frac{A^2}{2 s \sqrt\pi\, \sigma^2} ,
+    $$
+    which gives a standard deviation of about $0.034$ pixel for one line and $0.0042$ for 64 lines.
+
+    The normalisation of phase correlation weights noisy frequencies equally. Gauss–Newton least squares with exact translations, started from the phase-correlation estimate, reaches the bound.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Mathematical correctness | 30 % | statements and proofs are right, with their hypotheses (band-limitation, odd sizes, noise model) made explicit |
+| Implementation and reproducibility | 25 % | runnable code with fixed seeds, tested against closed forms (Theorem 2.9, Proposition 7.9, the Cramér–Rao bound) |
+| Experimental protocol and analysis | 25 % | the success criterion is reached or its failure is explained; error bars; failure cases shown, not hidden |
+| Communication | 20 % | a 4–6 page report and a talk with figures in physical or pixel units and one message per slide |
 
 ## References {#refs}
 
-TODO
+**Official references of the course (master-mva.com)**
+
+-   L. Moisan. *Modeling and Image Processing*. Lecture notes of the course, available on the course web page (no date displayed).
+-   L. Moisan. Periodic plus smooth image decomposition. *Journal of Mathematical Imaging and Vision*, 39(2):161–179, 2011.
+
+**Textbooks**
+
+-   J. W. Goodman. *Introduction to Fourier Optics*, 3rd edition. Roberts & Company, 2005.
+-   R. N. Bracewell. *The Fourier Transform and Its Applications*, 3rd edition. McGraw-Hill, 2000.
+-   S. Mallat. *A Wavelet Tour of Signal Processing: The Sparse Way*, 3rd edition. Academic Press, 2009.
+-   R. Hartley and A. Zisserman. *Multiple View Geometry in Computer Vision*, 2nd edition. Cambridge University Press, 2004.
+-   T. Lindeberg. *Scale-Space Theory in Computer Vision*. Kluwer Academic Publishers, 1994.
+-   V. Caselles and P. Monasse. *Geometric Description of Images as Topographic Maps*. Lecture Notes in Mathematics 1984, Springer, 2010.
+
+**Sampling, interpolation and geometric transforms**
+
+-   C. E. Shannon. Communication in the presence of noise. *Proceedings of the IRE*, 37(1):10–21, 1949.
+-   M. Unser. Sampling — 50 years after Shannon. *Proceedings of the IEEE*, 88(4):569–587, 2000.
+-   R. G. Keys. Cubic convolution interpolation for digital image processing. *IEEE Transactions on Acoustics, Speech, and Signal Processing*, 29(6):1153–1160, 1981.
+-   A. Aldroubi, M. Unser and M. Eden. Cardinal spline filters: stability and convergence to the ideal sinc interpolator. *Signal Processing*, 28(2):127–138, 1992.
+-   M. Unser, A. Aldroubi and M. Eden. B-spline signal processing: Part I — Theory; Part II — Efficient design and applications. *IEEE Transactions on Signal Processing*, 41(2):821–848, 1993.
+-   M. Unser. Splines: a perfect fit for signal and image processing. *IEEE Signal Processing Magazine*, 16(6):22–38, 1999.
+-   P. Thévenaz, T. Blu and M. Unser. Interpolation revisited. *IEEE Transactions on Medical Imaging*, 19(7):739–758, 2000.
+-   A. W. Paeth. A fast algorithm for general raster rotation. *Proceedings of Graphics Interface '86*, 77–81, 1986.
+-   M. Unser, P. Thévenaz and L. Yaroslavsky. Convolution-based interpolation for fast, high-quality rotation of images. *IEEE Transactions on Image Processing*, 4(10):1371–1381, 1995.
+
+**Differential operators and iterative filtering**
+
+-   J. J. Koenderink. The structure of images. *Biological Cybernetics*, 50(5):363–370, 1984.
+-   P. Perona and J. Malik. Scale-space and edge detection using anisotropic diffusion. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 12(7):629–639, 1990.
+-   L. Alvarez, F. Guichard, P.-L. Lions and J.-M. Morel. Axioms and fundamental equations of image processing. *Archive for Rational Mechanics and Analysis*, 123(3):199–257, 1993.
+-   L. Moisan. Affine plane curve evolution: a fully consistent scheme. *IEEE Transactions on Image Processing*, 7(3):411–420, 1998.
+
+**Sub-pixel geometry**
+
+-   B. D. Lucas and T. Kanade. An iterative image registration technique with an application to stereo vision. *Proceedings of the International Joint Conference on Artificial Intelligence (IJCAI)*, 674–679, 1981.
+-   J. Canny. A computational approach to edge detection. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 8(6):679–698, 1986.
+-   C. Harris and M. Stephens. A combined corner and edge detector. *Proceedings of the 4th Alvey Vision Conference*, 147–151, 1988.
+-   F. Devernay. A non-maxima suppression method for edge detection with sub-pixel accuracy. INRIA Research Report RR-2724, 1995.
+-   P. Monasse and F. Guichard. Fast computation of a contrast-invariant image representation. *IEEE Transactions on Image Processing*, 9(5):860–872, 2000.
+-   H. Foroosh, J. B. Zerubia and M. Berthod. Extension of phase correlation to subpixel registration. *IEEE Transactions on Image Processing*, 11(3):188–200, 2002.
+-   D. Robinson and P. Milanfar. Fundamental performance limits in image registration. *IEEE Transactions on Image Processing*, 13(9):1185–1199, 2004.
+-   J. Delon and B. Rougé. Small baseline stereovision. *Journal of Mathematical Imaging and Vision*, 28(3):209–223, 2007.
+-   M. Guizar-Sicairos, S. T. Thurman and J. R. Fienup. Efficient subpixel image registration algorithms. *Optics Letters*, 33(2):156–158, 2008.
+
+**Phase, textures and sharpness**
+
+-   A. V. Oppenheim and J. S. Lim. The importance of phase in signals. *Proceedings of the IEEE*, 69(5):529–541, 1981.
+-   J. J. van Wijk. Spot noise texture synthesis for data visualization. *Computer Graphics (Proceedings of SIGGRAPH '91)*, 25(4):309–318, 1991.
+-   P. Kovesi. Image features from phase congruency. *Videre: Journal of Computer Vision Research*, 1(3), 1999.
+-   Z. Wang and E. P. Simoncelli. Local phase coherence and the perception of blur. *Advances in Neural Information Processing Systems 16 (NIPS 2003)*, 2004.
+-   G. Blanchet, L. Moisan and B. Rougé. Measuring the global phase coherence of an image. *Proceedings of the IEEE International Conference on Image Processing (ICIP)*, 2008.
+-   B. Galerne, Y. Gousseau and J.-M. Morel. Random phase textures: theory and synthesis. *IEEE Transactions on Image Processing*, 20(1):257–267, 2011.
+-   G. Blanchet and L. Moisan. An explicit sharpness index related to global phase coherence. *Proceedings of the IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*, 2012.
+-   A. Leclaire and L. Moisan. No-reference image quality assessment and blind deblurring with sharpness metrics exploiting Fourier phase information. *Journal of Mathematical Imaging and Vision*, 52(1):145–172, 2015.
+
+**Research directions ([ch. 8](#ch8))**
+
+-   J. Portilla and E. P. Simoncelli. A parametric texture model based on joint statistics of complex wavelet coefficients. *International Journal of Computer Vision*, 40(1):49–70, 2000.
+-   S. Farsiu, M. D. Robinson, M. Elad and P. Milanfar. Fast and robust multiframe super resolution. *IEEE Transactions on Image Processing*, 13(10):1327–1344, 2004.
+-   L. A. Gatys, A. S. Ecker and M. Bethge. Texture synthesis using convolutional neural networks. *Advances in Neural Information Processing Systems (NeurIPS)*, 2015.
+-   R. Abergel and L. Moisan. The Shannon total variation. *Journal of Mathematical Imaging and Vision*, 59(2):341–370, 2017.
+-   L. Condat. Discrete total variation: new definition and minimization. *SIAM Journal on Imaging Sciences*, 10(3):1258–1290, 2017.
+-   B. Galerne, A. Leclaire and L. Moisan. Texton noise. *Computer Graphics Forum*, 36(8), 2017.
+-   A. Azulay and Y. Weiss. Why do deep convolutional networks generalize so poorly to small image transformations? *Journal of Machine Learning Research*, 20, 2019.
+-   R. Zhang. Making convolutional networks shift-invariant again. *Proceedings of the International Conference on Machine Learning (ICML)*, 2019.
+-   B. Wronski, I. Garcia-Dorado, M. Ernst, D. Kelly, M. Krainin, C.-K. Liang, M. Levoy and P. Milanfar. Handheld multi-frame super-resolution. *ACM Transactions on Graphics (Proceedings of SIGGRAPH)*, 38(4), 2019.
+-   M. Tancik, P. P. Srinivasan, B. Mildenhall, S. Fridovich-Keil, N. Raghavan, U. Singhal, R. Ramamoorthi, J. T. Barron and R. Ng. Fourier features let networks learn high frequency functions in low dimensional domains. *Advances in Neural Information Processing Systems (NeurIPS)*, 2020.
+-   V. Sitzmann, J. N. P. Martel, A. W. Bergman, D. B. Lindell and G. Wetzstein. Implicit neural representations with periodic activation functions. *Advances in Neural Information Processing Systems (NeurIPS)*, 2020.
+-   Y. Chen, S. Liu and X. Wang. Learning continuous image representation with local implicit image function. *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2021.
+-   T. Karras, M. Aittala, S. Laine, E. Härkönen, J. Hellsten, J. Lehtinen and T. Aila. Alias-free generative adversarial networks. *Advances in Neural Information Processing Systems (NeurIPS)*, 2021.

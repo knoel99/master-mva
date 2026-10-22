@@ -1,0 +1,2424 @@
+---
+title: "Deformable Models and Geodesic Methods for Image Analysis"
+subtitle: "M2 MVA · Semester 2 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: calculus of variations, plane curves and discretisation](#ch0)
+-   [1. Active contours: snakes and balloons](#ch1)
+-   [2. Finite differences, finite elements and deformable surfaces](#ch2)
+-   [3. Level sets and geodesic active contours](#ch3)
+-   [4. Active regions and shape priors](#ch4)
+-   [5. Minimal paths and geodesics](#ch5)
+-   [6. The eikonal equation and Fast Marching](#ch6)
+-   [7. Metrics: 2D, 3D, surfaces, anisotropic, space and radius](#ch7)
+-   [8. Geodesic remeshing and applications](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Deformable Models and Geodesic Methods for Image Analysis
+  Official title       Deformable models and geodesic methods for image analysis
+  Instructors          L. COHEN (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 30 h (lectures 21 h, labs 9 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label}[Track Santé]{.badge .track}
+  Language             Not displayed on the official pages (the course description on master-mva.com is written in English)
+  Assessment           Project (master-mva.com, “Mode de validation”). Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment). Weights: not displayed.
+  Prerequisites        “Admission to MVA sufficient” (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who knows multivariate calculus and some Python, and who wants to extract contours, surfaces and thin structures from medical or natural images with methods whose behaviour can be proved.
+
+**Empirical first**: put a closed elastic curve of radius 8 pixels inside a noisy disk of radius 30 and let it minimise its energy. It does not move: the edge is too far away to be felt (Code 1.11). Push it from inside with a small pressure and it stops at a radius of 30.45; push a little harder and it bursts through the edge and leaves the image.
+
+Shortest paths have a similar surprise: on a 4-connected pixel grid, the shortest path between two pixels overestimates the diagonal distance by 41 % (Code 5.11). This course explains both phenomena and builds the methods that cure them.
+
+The course has two halves, as the official organisation announces. The first half treats **deformable models**: curves and surfaces that move to minimise an energy combining regularity and image fit, from parametric snakes and balloons (ch. 1–2) to level sets, geodesic active contours, active regions and shape priors (ch. 3–4).
+
+The second half treats **geodesic methods**: the globally minimal path between two points for a metric built from the image, computed by solving the eikonal equation with the Fast Marching algorithm (ch. 5–6). Metrics on volumes, surfaces, anisotropic and space–radius domains (ch. 7) lead to geodesic remeshing and to the medical applications of the course (ch. 8).
+
+Image models and denoising are developed in [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html) and [Image Denoising](../s1-image-denoising/index.html). Shapes as points of a space are the subject of [Geometry and Shape Spaces](../s2-shape-spaces/index.html). Medical image analysis is also treated in [Medical Image Analysis](../s1-medical-image-analysis/index.html) (semester 1) and [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html) (semester 2).
+
+### What you will be able to do
+
+-   Derive the Euler–Lagrange equation of a curve or surface energy and turn it into a gradient flow.
+-   Implement a snake with a stable semi-implicit scheme, explain its spectrum, and add a balloon force or a distance-based potential to enlarge its capture range.
+-   Compare finite-difference and finite-element discretisations of an active contour, and write the energy of a deformable surface.
+-   Represent an evolving front by a level set, derive the geodesic active contour, and discretise it with upwind schemes that allow topology changes.
+-   Segment images with region-based energies (Chan–Vese, region competition) and add a statistical shape prior.
+-   Define a geodesic distance from an image, prove that it solves the eikonal equation, and extract a minimal path by back-propagation.
+-   Implement Fast Marching, prove its causality and use competing fronts to build geodesic Voronoi diagrams and to link pairs of points.
+-   Design isotropic, anisotropic and space–radius metrics for edges, lines and vessels, in 2D, in 3D and on surfaces.
+-   Sample and remesh a domain or a surface by farthest-point geodesic sampling, and extract centrelines, trees and tubes from medical images.
+-   Read a research paper on deformable models or minimal paths, reimplement it and evaluate it, as the course project asks.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the objective of giving a large overview of the methods and algorithms of deformable models for image segmentation, illustrated by concrete applications. It links to a presentation of the course, which these notes do not reproduce.
+
+The same page lists eleven themes (“Thèmes abordés”) followed by the heading of the instructors list, and says that the course is “about half on deformable models and half on geodesic methods”. The Université Paris-Saclay course detail gives the volume (21 h of lectures, 9 h of labs) and the nature of the assessment, but no programme items. Each official item is matched below.
+
+| Official topic (master-mva.com) | Course section |
+|---|---|
+| Variational methods and partial differential equations | [ch. 0](#ch0): first variation, Euler–Lagrange equation, gradient flows (0.1–0.3), first variation of length (Proposition 0.5); used for snakes (Proposition 1.2), surfaces (Proposition 2.7), geodesic active contours (Theorem 3.6) and Chan–Vese (Theorem 4.4); eikonal equation and viscosity solutions in [ch. 6](#ch6) (6.1–6.4) |
+| Numerical methods, algorithmics, and industrial applications | stability of explicit and implicit schemes (Proposition 0.8), semi-implicit snakes (Theorem 1.5), upwind level-set schemes (3.8), Fast Marching and its complexity (Theorem 6.9); industrial uses of minimal paths in [ch. 8](#ch8) (Note 8.9) |
+| Curve and surface segmentation by elastic deformable models, active contours, deformable surfaces, balloon model | [ch. 1](#ch1): the snake energy and its Euler–Lagrange equation (1.1–1.3), the balloon force (Definition 1.8); [ch. 2](#ch2): deformable surfaces (Definition 2.6, Proposition 2.7) |
+| Finite differences, finite elements, level sets, front competition | finite differences (Proposition 0.8, Definition 1.4); finite elements (Definitions 2.1–2.2, Propositions 2.3–2.4); level sets (Theorem 3.3, 3.5–3.9); front competition between regions (Definition 3.10, Proposition 4.7) and between sources in Fast Marching (Proposition 6.13) |
+| Active region, shape prior | [ch. 4](#ch4): Mumford–Shah and Chan–Vese (4.1–4.5), region competition and geodesic active regions (4.6–4.7), shape priors on signed distance functions (4.9–4.11) |
+| Minimal paths and geodesics | [ch. 5](#ch5): geodesic distance (5.1–5.3), surface of minimal action and back-propagation (5.4–5.6), link with snakes (Proposition 5.8), grid shortest paths and their metrication error (5.9–5.11) |
+| Eikonal equation, front propagation and Fast Marching | [ch. 6](#ch6): viscosity solutions (6.1–6.4), fronts and arrival times (Proposition 6.5), upwind discretisation (6.6–6.7), Fast Marching and its correctness (6.8–6.11), Code 6.12 |
+| Various metrics: 2D, 3D, surface, anisotropic, space+radius | [ch. 7](#ch7): image metrics and vesselness (7.1–7.2), 3D update (Proposition 7.3), surfaces (7.4–7.5), Riemannian metrics (7.6–7.8), space and radius (7.9–7.11) |
+| Geodesic remeshing of domains and surfaces | [ch. 8](#ch8): farthest-point sampling and its guarantee (Theorem 8.2), geodesic Voronoi and Delaunay meshes, adaptive and anisotropic remeshing (8.3–8.5) |
+| Applications: surface segmentation, vessel segmentation, virtual endoscopy, extraction of tubular and tree structure… | [ch. 8](#ch8): trees of minimal paths (Proposition 8.7), virtual endoscopy (8.8 and Code 8.6), surface segmentation by minimal paths (8.8); vessels and tubes in [ch. 7](#ch7) (Code 7.11) |
+| Testing and implementation of algorithms in Matlab | the labs of these notes use Python (NumPy, SciPy): every algorithm of the course has a runnable code block written array-style, so that it translates line by line to Matlab; the three labs are in the [session plan](#sessions) |
+| “Les intervenants” (last item of the list) | the heading of the instructors list, not a topic; the instructor appears in the fiche |
+| Organisation des séances: about half on deformable models and half on geodesic methods; 11 sessions of 3 hours, including 3 with 2 hours of lab | the [session plan](#sessions) gives five sessions to each half; its volume follows the 30 h of the programme table (see the note there) |
+| Mode de validation: project | [Projects and assessment](#projects): solo and group subjects, most of them built on a named research paper |
+
+Beyond the syllabus, this page adds a review chapter ([ch. 0](#ch0)), a research chapter for self-study on curvature-penalised minimal paths, convex relaxations and learned deformable models ([ch. 9](#ch9)), and a written-exam proposal.
+
+### Where this course fits in the programme
+
+Official prerequisite: “Admission to MVA sufficient”. The course page on master-mva.com lists Laurent Cohen (CNRS and Université Paris-Dauphine PSL) as the instructor. The course carries the *Santé* (health) track label.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for gradients, integration by parts and the spectral theorem; [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for the labs; [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for the region models of ch. 4.
+-   **Semester 1 courses that prepare it** — [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html) (gradient flows, convex relaxations), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html) (image models), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (interpolation), [Medical Image Analysis](../s1-medical-image-analysis/index.html) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html).
+-   **Related courses of semester 2** — [Geometry and Shape Spaces](../s2-shape-spaces/index.html) (shape metrics, deformations), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html) (variational models), [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html) (surfaces), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html) and [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html), for which the paper-study project of this course is a rehearsal.
+
+### Course outline
+
+-   **Review: calculus of variations, plane curves and discretisation** — Euler–Lagrange equations, gradient flows, curvature, stability of finite differences, Dijkstra's algorithm.
+-   **Active contours: snakes and balloons** — the snake energy, its semi-implicit evolution, and the forces that enlarge its capture range.
+-   **Finite differences, finite elements and deformable surfaces** — two discretisations compared, and the extension from curves to surfaces in 3D images.
+-   **Level sets and geodesic active contours** — implicit fronts, topology changes, weighted length, upwind schemes and competing fronts.
+-   **Active regions and shape priors** — region-based energies, region competition, and statistical models of shape.
+-   **Minimal paths and geodesics** — globally optimal curves between two points, the surface of minimal action and back-propagation.
+-   **The eikonal equation and Fast Marching** — viscosity solutions, the upwind scheme, the Fast Marching algorithm and front competition.
+-   **Metrics: 2D, 3D, surfaces, anisotropic, space and radius** — how to design the metric for edges, lines, vessels and surfaces.
+-   **Geodesic remeshing and applications** — farthest-point sampling, geodesic meshes, vessel trees, virtual endoscopy and surface segmentation.
+-   **Research directions and open problems** — curvature-penalised paths, global minimisers, heat-based distances and learned deformable models (self-study).
+
+### Session plan {#sessions}
+
+**30 h in class = 10 sessions of 3 h.**
+
+The volume is the Université Paris-Saclay programme table: 21 h of lectures and 9 h of labs. The organisation announced on master-mva.com differs: 11 sessions of 3 hours, three of which include 2 hours of lab, which would make 33 h. The plan below keeps the 30 h of the programme table, with seven lecture sessions and three lab sessions of 3 h; the split into sessions is a proposal.
+
+Level 1 = foundations, 2 = core models and algorithms, 3 = advanced metrics and applications close to research; the level never decreases from one session to the next. Sessions 1–5 cover deformable models, sessions 6–10 geodesic methods.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: first variation, Euler–Lagrange, gradient flows, curvature, stability of finite differences, edge indicator, Dijkstra (0.1–0.11); ch. 1.1–1.6 the snake energy, its Euler–Lagrange equation and the semi-implicit scheme | Ex. 1–2 |
+| 2 | 3 h | 2 | ch. 1.7–1.11 shrinking, balloon force, distance potentials, gradient vector flow; ch. 2 finite elements, dispersion, deformable surfaces (2.1–2.9) | Ex. 3 |
+| 3 | 3 h | 2 | ch. 3 Level sets: geometric evolutions, the level-set equation, geometric and geodesic active contours, upwind schemes, topology changes, competing fronts (3.1–3.11) | Ex. 4, 9 |
+| 4 | 3 h | 2 | ch. 4 Active regions and shape priors: Mumford–Shah, Chan–Vese, region competition, geodesic active regions, PCA of signed distance functions (4.1–4.11) | Ex. 7, 10 |
+| 5 | 3 h | 2 | ch. 4 Lab A, deformable models: snake and balloon, finite elements, geodesic active contour with a topology change, Chan–Vese, a shape prior | lab A: Code 1.11, 2.5, 3.11, 4.8, 4.11; Ex. 11 |
+| 6 | 3 h | 2 | ch. 5 Minimal paths: geodesic distance, minimal action, back-propagation, link with snakes, metrication error (5.1–5.11); ch. 6.1–6.5 eikonal equation, viscosity solutions, fronts | Ex. 6, 8, 12 |
+| 7 | 3 h | 2 | ch. 6.6–6.14 upwind scheme, Fast Marching, correctness, complexity and convergence, front competition and saddle points | Ex. 5, 13 |
+| 8 | 3 h | 2 | ch. 6 Lab B, geodesic methods: Dijkstra against Fast Marching, minimal paths in images, competing fronts | lab B: Code 5.11, 6.12; Ex. 14 |
+| 9 | 3 h | 3 | ch. 7 Metrics: image metrics, vesselness, 3D, surfaces, Riemannian metrics, space and radius (7.1–7.11); ch. 8.1–8.5 farthest-point sampling and geodesic remeshing | Ex. 15, 16 |
+| 10 | 3 h | 3 | ch. 8 Lab C, applications: trees of minimal paths, virtual endoscopy, surface segmentation, vessels with radius | lab C: Code 7.11, 8.6; Ex. 17 |
+
+**Self-study, outside the 30 h** (about 4 h in total): ch. 9 Research directions and open problems — curvature-penalised and Finsler minimal paths, global minimisers, heat-based distances, learned deformable models (≈ 4 h, with Ex. 18–19).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) first even if the material looks familiar: the Euler–Lagrange equation, the first variation of length and the stability condition of finite differences return in every chapter.
+-   Keep the two halves connected: the geodesic active contour of [ch. 3](#ch3) and the minimal path of [ch. 5](#ch5) minimise the same weighted length, one locally by a flow, the other globally by the eikonal equation.
+-   After each session, run the code of the chapter and change one parameter (the pressure, the edge-stopping constant, the metric) to see what breaks.
+-   Do the exercises listed in the session plan before the next session; the ★★★ ones are good starting points for the project.
+-   Python environment: NumPy and SciPy (`scipy.ndimage` for filtering and distance transforms, `scipy.sparse.csgraph` for Dijkstra); every code block runs in a few seconds on a laptop with synthetic images. Readers who prefer Matlab can translate the array code directly.
+-   Start choosing a paper for the project around session 6: the list of [solo subjects](#projects-solo) gives the scale to aim at.
+
+## 0. Review: calculus of variations, plane curves and discretisation {#ch0}
+
+Every model of this course is an energy on curves or surfaces, minimised by a flow that a computer solves on a grid. This review states the tools used throughout: the Euler–Lagrange equation, gradient flows, the geometry of plane curves, the stability of finite differences, and Dijkstra's algorithm.
+
+### Energies and their first variation
+
+We work with closed curves parametrised on $[0, 1]$, so every function below is 1-periodic and integrations by parts have no boundary terms.
+
+::: def
+[Definition 0.1 — First variation]{.tag} Let $J$ be an energy defined on smooth 1-periodic curves $v : [0, 1] \to \mathbb{R}^2$. Its **first variation** at $v$ in the direction $w$ is
+$$
+\delta J(v; w) = \frac{d}{d\varepsilon} J(v + \varepsilon w) \Big|_{\varepsilon = 0}.
+$$
+
+When there is a function $\nabla J(v)$ such that, for every $w$,
+$$
+\delta J(v; w) = \int_0^1 \langle \nabla J(v), w \rangle \, ds ,
+$$
+it is called the **$L^2$ gradient** of $J$ at $v$.
+:::
+
+:::: thm
+[Theorem 0.2 — Euler–Lagrange equation]{.tag} Let $J(v) = \int_0^1 L(v, v', v'') \, ds$ with $L$ smooth. Then $J$ has the $L^2$ gradient
+$$
+\nabla J(v) = L_v - \frac{d}{ds} L_{v'} + \frac{d^2}{ds^2} L_{v''},
+$$
+and every smooth local minimiser of $J$ satisfies the **Euler–Lagrange equation** $\nabla J(v) = 0$.
+
+::: proof
+Differentiate under the integral sign:
+$$
+\delta J(v; w) = \int_0^1 \big( \langle L_v, w \rangle + \langle L_{v'}, w' \rangle + \langle L_{v''}, w'' \rangle \big) \, ds .
+$$
+
+Integrate the second term by parts once and the third twice. The functions are periodic, so the boundary terms cancel, and the integrand becomes $\langle \nabla J(v), w \rangle$.
+
+At a local minimiser, $\varepsilon \mapsto J(v + \varepsilon w)$ has a minimum at $0$, so $\delta J(v; w) = 0$ for every smooth periodic $w$.
+
+Take $w = \psi \, \nabla J(v)$ with a smooth bump $\psi \geq 0$. Then $\int \psi \, \| \nabla J(v) \|^2 = 0$, so $\nabla J(v)$ vanishes wherever $\psi > 0$, hence everywhere (fundamental lemma of the calculus of variations). [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 0.3 — Gradient flows decrease the energy]{.tag} Let $v(s, t)$ solve the **gradient flow**
+$$
+\frac{\partial v}{\partial t} = - \nabla J(v).
+$$
+Then
+$$
+\frac{d}{dt} J(v(\cdot, t)) = - \int_0^1 \| \nabla J(v) \|^2 \, ds \ \leq\ 0 ,
+$$
+with equality only at critical points.
+
+::: proof
+By the chain rule, the derivative of $J$ along the flow is the first variation in the direction $v_t$:
+$$
+\frac{d}{dt} J(v) = \delta J(v; v_t) = \int_0^1 \langle \nabla J(v), v_t \rangle \, ds .
+$$
+Replace $v_t$ by $- \nabla J(v)$. [∎]{.qed}
+:::
+
+A gradient flow stops at a critical point, which in general is only a **local** minimum. This single fact explains the role of initialisation for snakes ([ch. 1](#ch1)) and motivates the global methods of [ch. 5](#ch5).
+::::
+
+### Plane curves
+
+::: def
+[Definition 0.4 — Arclength, tangent, normal, curvature]{.tag} Let $C : [0, 1] \to \mathbb{R}^2$ be a closed curve with $C' \neq 0$, oriented counter-clockwise. Its **arclength** element is $ds = |C'(p)| \, dp$, and its length is $L(C) = \int_0^1 |C'(p)| \, dp$.
+
+The **unit tangent** is $T = C_s$, and the **outward unit normal** $N$ is $T$ turned by $-90°$. The **curvature** $\kappa$ is defined by the Frenet relations
+$$
+T_s = - \kappa N, \qquad N_s = \kappa T .
+$$
+
+With this sign convention, a circle of radius $r$ has $\kappa = 1/r > 0$ and $C_{ss} = - \kappa N$.
+:::
+
+:::: prop
+[Proposition 0.5 — First variation of length]{.tag} Let $C(p, t)$ be a smooth family of closed curves. Then
+$$
+\frac{d}{dt} L(C) = \int_0^{L} \kappa \, \langle C_t, N \rangle \, ds .
+$$
+
+Only the normal component of the velocity changes the length, and the steepest descent of the length is the **curve shortening flow**
+$$
+C_t = - \kappa N .
+$$
+
+::: proof
+Write $L = \int_0^1 |C_p| \, dp$. Then
+$$
+\frac{\partial}{\partial t} |C_p| = \frac{\langle C_{pt}, C_p \rangle}{|C_p|} = \langle (C_t)_p, T \rangle .
+$$
+
+Integrate by parts in $p$ (no boundary term on a closed curve) and change to arclength:
+$$
+\frac{dL}{dt} = - \int_0^1 \langle C_t, T_p \rangle \, dp = - \int_0^L \langle C_t, T_s \rangle \, ds = \int_0^L \kappa \langle C_t, N \rangle \, ds .
+$$
+The last step uses $T_s = - \kappa N$. [∎]{.qed}
+:::
+
+For a circle, $C_t = -\kappa N$ gives $\dot r = -1/r$, so $r(t)^2 = r_0^2 - 2t$: the circle shrinks to a point at time $r_0^2 / 2$.
+::::
+
+### Finite differences and stability
+
+On a grid of step $h$, derivatives become differences. For a periodic sequence $u_i \approx u(ih)$:
+$$
+D^+ u_i = \frac{u_{i+1} - u_i}{h}, \qquad D^- u_i = \frac{u_i - u_{i-1}}{h}, \qquad D^2 u_i = \frac{u_{i+1} - 2 u_i + u_{i-1}}{h^2} .
+$$
+
+::: def
+[Definition 0.6 — Consistency and stability]{.tag} A difference operator is **consistent of order $q$** with a differential operator when, applied to a smooth function, it differs from it by $O(h^q)$.
+
+A time-stepping scheme $u^{m+1} = S u^m$ is **stable** when $\|S^m\|$ stays bounded for all $m$; for a symmetric $S$ this means that every eigenvalue of $S$ lies in $[-1, 1]$.
+:::
+
+:::: prop
+[Proposition 0.7 — Consistency of the second difference]{.tag} For a smooth $u$,
+$$
+D^2 u(s) = u''(s) + \frac{h^2}{12} u''''(s) + O(h^4) .
+$$
+
+::: proof
+Add the Taylor expansions of $u(s + h)$ and $u(s - h)$ at order 5: the odd terms cancel, and dividing by $h^2$ leaves $u'' + \frac{h^2}{12} u'''' + O(h^4)$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 0.8 — Explicit against implicit time steps]{.tag} For the periodic heat equation $u_t = u_{ss}$ on $n$ nodes ($n$ even), the explicit scheme
+$$
+u^{m+1} = (I + \tau D^2) \, u^m
+$$
+is stable if and only if $\tau \leq h^2 / 2$. The implicit scheme
+$$
+(I - \tau D^2) \, u^{m+1} = u^m
+$$
+is stable for every $\tau > 0$.
+
+::: proof
+$D^2$ is symmetric and circulant, so the Fourier vectors $e^{2 i \pi k j / n}$ diagonalise it. Its eigenvalues are
+$$
+\mu_k = - \frac{4}{h^2} \sin^2 \frac{\pi k}{n} \in \Big[ - \frac{4}{h^2}, 0 \Big] ,
+$$
+and the bound $-4/h^2$ is reached at $k = n/2$.
+
+The explicit amplification factors $1 + \tau \mu_k$ lie in $[1 - 4\tau / h^2, 1]$; they stay above $-1$ for every $k$ if and only if $\tau \leq h^2/2$.
+
+The implicit factors $1 / (1 - \tau \mu_k)$ lie in $(0, 1]$ whatever $\tau$. [∎]{.qed}
+:::
+
+The same argument, with the matrix of a snake instead of $D^2$, gives the time step of active contours in [ch. 1](#ch1) (Theorem 1.5).
+::::
+
+::: ex
+[Code 0.9 — The stability limit, observed]{.tag} The code smooths one coordinate of a noisy closed curve with the explicit scheme just below and just above the limit, then with a large implicit step.
+
+```python
+import numpy as np
+
+# Heat equation x_t = x_ss on a closed curve (periodic), n nodes, step h = 1/n
+n = 64
+h = 1.0 / n
+s = np.arange(n) * h
+rng = np.random.default_rng(0)
+x0 = np.cos(2 * np.pi * s) + 0.05 * rng.standard_normal(n)   # noisy circle coordinate
+
+D2 = (np.roll(np.eye(n), 1, 0) - 2 * np.eye(n) + np.roll(np.eye(n), -1, 0)) / h**2
+
+def explicit(x, tau, steps):
+    for _ in range(steps):
+        x = x + tau * D2 @ x
+    return x
+
+def implicit(x, tau, steps):
+    M = np.linalg.inv(np.eye(n) - tau * D2)
+    for _ in range(steps):
+        x = M @ x
+    return x
+
+for r in [0.45, 0.55]:
+    tau = r * h**2
+    print(f"explicit, tau = {r} h^2: max |x| after 400 steps = {np.abs(explicit(x0, tau, 400)).max():.3g}")
+print(f"implicit, tau = 50 h^2: max |x| after 400 steps = {np.abs(implicit(x0, 50 * h**2, 400)).max():.3g}")
+lam = np.linalg.eigvalsh(-D2)
+print(f"largest eigenvalue of -D2: {lam.max():.1f} = 4/h^2 = {4 / h**2:.1f}")
+```
+
+With $\tau = 0.45 h^2$ the curve is smoothed, and its largest coordinate falls to 0.178, the decay $e^{-4\pi^2 t}$ of the first Fourier mode.
+
+With $\tau = 0.55 h^2$ the highest frequency is amplified at each step, and the values reach $4 \times 10^{29}$.
+
+The implicit scheme with a step 100 times larger stays bounded (0.0033).
+:::
+
+### Images, edges and shortest paths
+
+::: def
+[Definition 0.10 — Smoothed gradient and edge indicator]{.tag} Let $I$ be an image and $G_\sigma$ the Gaussian kernel of standard deviation $\sigma$. The smoothed image $I_\sigma = G_\sigma * I$ has a well-defined gradient even when $I$ is noisy.
+
+An **edge indicator** is a decreasing function of the gradient norm, for instance
+$$
+g(x) = \frac{1}{1 + |\nabla I_\sigma(x)|^2 / \lambda^2} \in (0, 1] .
+$$
+
+It is close to 1 in flat regions and small on edges; $\lambda$ sets the contrast that counts as an edge. The snake potential of [ch. 1](#ch1) is $P = - |\nabla I_\sigma|^2$, and the geodesic active contour of [ch. 3](#ch3) uses $g$.
+:::
+
+:::: thm
+[Algorithm 0.11 — Dijkstra's shortest paths]{.tag} Let $G$ be a graph with non-negative edge weights and a source $s$.
+
+1.  Set $d(s) = 0$, $d(u) = +\infty$ for $u \neq s$; every vertex is *unsettled*.
+2.  Repeatedly settle the unsettled vertex $u$ with the smallest $d(u)$, and relax its edges: $d(v) \leftarrow \min(d(v), d(u) + w(u, v))$.
+
+When a vertex is settled, $d(u)$ is its shortest-path distance from $s$. With a binary heap the cost is $O((|V| + |E|) \log |V|)$.
+
+::: proof
+Suppose that $u$ is the first vertex settled with $d(u)$ larger than its true distance, and take a shortest path from $s$ to $u$. Let $y$ be the first unsettled vertex on it, and $x$ its settled predecessor.
+
+When $x$ was settled, $d(x)$ was exact, and the relaxation of the edge from $x$ to $y$ made $d(y)$ exact.
+
+Weights are non-negative, so $d(y) \leq \mathrm{dist}(s, u) < d(u)$. Hence $y$, not $u$, would have been settled first: a contradiction. [∎]{.qed}
+:::
+
+Fast Marching ([ch. 6](#ch6)) is Dijkstra's algorithm with a different update rule, designed so that the computed distance converges to the continuous one.
+::::
+
+::: recap
+Key takeaways — chapter 0
+
+-   The Euler–Lagrange equation $\nabla J = 0$ is obtained by integrating the first variation by parts (Theorem 0.2).
+-   A gradient flow decreases the energy and stops at a critical point, often a local minimum (Proposition 0.3).
+-   Only the normal velocity changes the length of a curve; the steepest descent of length is $C_t = -\kappa N$ (Proposition 0.5).
+-   Explicit heat steps need $\tau \leq h^2/2$; implicit steps are stable for every $\tau$ (Proposition 0.8).
+-   Edges are detected on a smoothed image; Dijkstra's algorithm settles vertices in increasing order of distance.
+:::
+
+## 1. Active contours: snakes and balloons {#ch1}
+
+How can a computer draw the outline of an organ in a noisy image? The active contour answer is to place an elastic curve near the object and let it slide down an energy that is low on edges. This chapter defines that energy, computes its evolution stably, and fixes its main weakness, the small capture range.
+
+### The snake energy
+
+::: def
+[Definition 1.1 — Snake (Kass, Witkin and Terzopoulos, 1988)]{.tag} A **snake** is a closed curve $v : [0, 1] \to \mathbb{R}^2$ with the energy
+$$
+E(v) = \int_0^1 \Big( \frac{\alpha}{2} |v'(s)|^2 + \frac{\beta}{2} |v''(s)|^2 + P(v(s)) \Big) \, ds .
+$$
+
+The first two terms form the **internal energy**: $\alpha > 0$ sets the elasticity (resistance to stretching), $\beta \geq 0$ the rigidity (resistance to bending).
+
+The **potential** $P$ is low on the features to be found. For edges, a standard choice is
+$$
+P(x) = - |\nabla I_\sigma(x)|^2 .
+$$
+:::
+
+:::: prop
+[Proposition 1.2 — Euler–Lagrange equation of the snake]{.tag} With constant $\alpha$ and $\beta$, a smooth local minimiser of $E$ satisfies
+$$
+- \alpha v'' + \beta v'''' + \nabla P(v) = 0 ,
+$$
+and the gradient flow of $E$ is
+$$
+v_t = \alpha v'' - \beta v'''' - \nabla P(v) .
+$$
+
+::: proof
+Apply Theorem 0.2 to the integrand of Definition 1.1. Its partial derivatives are $L_v = \nabla P(v)$, $L_{v'} = \alpha v'$ and $L_{v''} = \beta v''$, so
+$$
+\nabla E(v) = \nabla P(v) - \alpha v'' + \beta v'''' .
+$$
+The flow is $v_t = -\nabla E(v)$ (Proposition 0.3). [∎]{.qed}
+:::
+::::
+
+::: note
+[Note 1.3 — Forces in balance]{.tag} The equation reads as a balance of forces: the internal force $\alpha v'' - \beta v''''$ pulls the curve towards a short and smooth shape, and the external force $F = -\nabla P$ pulls it towards edges.
+
+The energy is not convex, because $P$ is not. The flow therefore reaches the minimum closest to its initial curve, and the external force is felt only within a few $\sigma$ of an edge. Initialisation is the central practical difficulty of snakes.
+:::
+
+### Discretisation and stability
+
+::: def
+[Definition 1.4 — Discrete snake and semi-implicit scheme]{.tag} Sample $n$ nodes $v_i \approx v(i h)$ with $h = 1/n$, and set $a = \alpha / h^2$ and $b = \beta / h^4$.
+
+The internal force becomes $-A v$, where $A$ is the cyclic pentadiagonal matrix
+$$
+(A v)_i = b \, (v_{i+2} - 4 v_{i+1} + 6 v_i - 4 v_{i-1} + v_{i-2}) - a \, (v_{i+1} - 2 v_i + v_{i-1}) .
+$$
+
+The **semi-implicit scheme** treats the internal force implicitly and the external force explicitly:
+$$
+(I + \tau A) \, v^{m+1} = v^m + \tau F(v^m) .
+$$
+
+The matrix $I + \tau A$ does not change during the evolution, so it is factorised once; each step then costs $O(n)$.
+:::
+
+:::: thm
+[Theorem 1.5 — Spectrum of the snake matrix and stability]{.tag} Let $\omega_k = 4 \sin^2(\pi k / n)$ for $k = 0, \dots, n - 1$. The eigenvalues of $A$ are
+$$
+\lambda_k = a \, \omega_k + b \, \omega_k^2 \in [0, \ 4a + 16b] .
+$$
+
+Consequently:
+
+-   the explicit scheme $v^{m+1} = (I - \tau A) v^m + \tau F(v^m)$ is stable only if $\tau \leq 2 / (4a + 16b)$;
+-   in the semi-implicit scheme, the internal step $(I + \tau A)^{-1}$ has eigenvalues in $(0, 1]$ for every $\tau > 0$: it never amplifies a mode.
+
+::: proof
+Let $D$ be the cyclic matrix with rows $(-1, 2, -1)$, so that $h^{-2} D$ is minus the second difference. The fourth difference is $D^2$, hence
+$$
+A = a D + b D^2 .
+$$
+
+$D$ is circulant and symmetric, diagonalised by the Fourier vectors, with eigenvalues $2 - 2 \cos(2 \pi k / n) = \omega_k$ (as in Proposition 0.8).
+
+The same vectors diagonalise $A$, with eigenvalues $a \omega_k + b \omega_k^2$. They lie between $0$ and $4a + 16b$ since $0 \leq \omega_k \leq 4$.
+
+The explicit factors $1 - \tau \lambda_k$ stay in $[-1, 1]$ for all $k$ if and only if $\tau \lambda_{\max} \leq 2$. The semi-implicit factors $1 / (1 + \tau \lambda_k)$ are in $(0, 1]$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.6 — Choosing the time step]{.tag} Take $n = 80$ nodes with $a = 0.05$ and $b = 0.01$.
+
+-   The largest eigenvalue is $4a + 16b = 0.36$, so an explicit scheme needs $\tau < 2 / 0.36 \approx 5.6$.
+-   The smallest nonzero eigenvalue is $\lambda_1 = a \omega_1 + b \omega_1^2$ with $\omega_1 = 4 \sin^2(\pi/80) = 0.00617$, which gives $\lambda_1 = 3.1 \times 10^{-4}$.
+-   $\lambda_0 = 0$: a translation of the whole curve costs no internal energy.
+
+The ratio $\lambda_{\max} / \lambda_1 \approx 1200$ is the stiffness of the problem. With the semi-implicit scheme, the step is limited only by the explicit external force, which should move a node by at most about one pixel per step so that no edge is jumped over.
+:::
+
+### The capture range and the balloon force
+
+:::: prop
+[Proposition 1.7 — Without image force, a snake shrinks]{.tag} Let $P$ be constant and let the initial snake be the circle of radius $r_0$ and centre $c$, parametrised at constant speed. Under the flow of Proposition 1.2, the snake stays a circle of centre $c$ whose radius decays exponentially:
+$$
+r(t) = r_0 \, e^{-(4\pi^2 \alpha + 16 \pi^4 \beta)\, t} .
+$$
+
+::: proof
+Try $v(s, t) = c + r(t)\, (\cos 2\pi s, \sin 2\pi s)$. Then $v'' = -4\pi^2 (v - c)$ and $v'''' = 16 \pi^4 (v - c)$, so the flow becomes
+$$
+v_t = -(4\pi^2 \alpha + 16 \pi^4 \beta)\,(v - c) ,
+$$
+which this ansatz solves with the stated $r(t)$. Uniqueness of the solution of this linear equation concludes. [∎]{.qed}
+:::
+
+Far from edges the image force is negligible, so a snake initialised inside an object shrinks instead of reaching the boundary. Two families of remedies follow: add a force that does not vanish far from edges, or change the potential so that edges are felt from far away.
+::::
+
+::: def
+[Definition 1.8 — Balloon force (Cohen, 1991)]{.tag} The **balloon** model adds a pressure along the outward normal $N$ and normalises the image force:
+$$
+F(v) = k_1 \, N(v) - k \, \frac{\nabla P(v)}{\| \nabla P(v) \|} .
+$$
+
+With $k_1 > 0$ the curve inflates, with $k_1 < 0$ it deflates. The normalised image force has the constant magnitude $k$; choosing $k$ slightly larger than $|k_1|$ lets an edge stop the balloon while weak edges, where the pressure dominates, are passed.
+:::
+
+In a discrete implementation, the normalisation by the local norm makes the noise of flat regions as strong as a real edge. Code 1.11 therefore divides $\nabla P$ by its maximum over the image, so that the image force equals $k$ only on the strongest edges and fades in flat regions.
+
+::: def
+[Definition 1.9 — Distance-based potentials]{.tag} Let $\mathcal{E}$ be a set of edge points, given by an edge detector, and $d(x)$ the distance from $x$ to $\mathcal{E}$, computed for every pixel by a distance transform.
+
+A potential $P = f(d)$ with $f$ increasing makes every point feel the nearest edge: almost everywhere $|\nabla d| = 1$, so the force
+$$
+-\nabla P = - f'(d) \, \nabla d
+$$
+points towards the nearest edge point, whatever the distance. Cohen and Cohen (1993) use potentials built from such a distance map together with the balloon force.
+:::
+
+::: def
+[Definition 1.10 — Gradient vector flow (Xu and Prince, 1998)]{.tag} Let $f = |\nabla I_\sigma|^2$ be an edge map. The **gradient vector flow** is the vector field $w$ that minimises
+$$
+\int \Big( \mu \, |\nabla w|^2 + |\nabla f|^2 \, |w - \nabla f|^2 \Big) \, dx .
+$$
+
+Near edges, the second term keeps $w \approx \nabla f$; elsewhere the first term diffuses $w$ smoothly. The field $w$ replaces $-\nabla P$ as the external force: it extends the capture range and points into concavities that the plain gradient cannot reach.
+:::
+
+::: ex
+[Code 1.11 — A snake with a balloon force]{.tag} The code segments a noisy disk of radius 30 from a circle of radius 8 placed inside it, with three pressures $k_1$.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+
+# Synthetic image: a bright disk of radius 30 on a dark background, with noise
+N, R_true = 128, 30.0
+yy, xx = np.mgrid[0:N, 0:N].astype(float)
+c = np.array([64.0, 64.0])
+rng = np.random.default_rng(1)
+I = (np.hypot(xx - c[0], yy - c[1]) < R_true).astype(float) + 0.1 * rng.standard_normal((N, N))
+
+# Potential P = -|grad(G_sigma * I)|^2 and its gradient
+Is = ndi.gaussian_filter(I, 2.0)
+P = -(ndi.sobel(Is, 1) ** 2 + ndi.sobel(Is, 0) ** 2)
+Py, Px = np.gradient(P)
+
+def sample(F, v):                       # bilinear interpolation at points v = (x, y)
+    return ndi.map_coordinates(F, [v[:, 1], v[:, 0]], order=1)
+
+# Closed snake: n nodes, internal matrix A (pentadiagonal, circulant)
+n, a, b, tau = 80, 0.05, 0.01, 1.0
+row = np.zeros(n); row[[0, 1, 2, -2, -1]] = [2 * a + 6 * b, -a - 4 * b, b, b, -a - 4 * b]
+A = np.array([np.roll(row, k) for k in range(n)])
+M = np.linalg.inv(np.eye(n) + tau * A)  # semi-implicit step, computed once
+
+theta = 2 * np.pi * np.arange(n) / n
+v = c + 8.0 * np.c_[np.cos(theta), np.sin(theta)]   # start inside, radius 8
+
+def normals(v):                          # outward unit normals of a counter-clockwise curve
+    t = np.roll(v, -1, 0) - np.roll(v, 1, 0)
+    nrm = np.c_[t[:, 1], -t[:, 0]]
+    return nrm / np.linalg.norm(nrm, axis=1, keepdims=True)
+
+def run(k1, k, steps=300):
+    v_ = v.copy()
+    for _ in range(steps):
+        g = np.c_[sample(Px, v_), sample(Py, v_)]
+        gn = np.sqrt(Px**2 + Py**2).max()          # global normalisation of the image force
+        F = k1 * normals(v_) - k * g / gn  # balloon force + image force
+        v_ = M @ (v_ + tau * F)
+    return np.linalg.norm(v_ - c, axis=1)
+
+for k1 in [0.0, 0.5, 1.2]:
+    r = run(k1=k1, k=1.0)
+    print(f"k1 = {k1}: radius mean {r.mean():6.2f}, min {r.min():6.2f}, max {r.max():6.2f}  (true {R_true})")
+lam = np.linalg.eigvalsh(A)
+print(f"eigenvalues of A in [{lam.min():.2e}, {lam.max():.3f}], 4a + 16b = {4 * a + 16 * b:.3f}")
+```
+
+Without pressure ($k_1 = 0$) the snake stays near its initial circle, with a mean radius of 7.2: the edge is never felt.
+
+With $k_1 = 0.5$ it inflates and stops on the edge, with radii between 30.15 and 30.64 for a true radius of 30. It halts slightly outside, where the inward image force has fallen to the pressure.
+
+With $k_1 = 1.2$, larger than the image force $k = 1$, nothing stops it and it leaves the image. The computed spectrum of $A$ is $[0, 0.36]$, as Theorem 1.5 predicts.
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   A snake minimises elastic and rigid internal energy plus an image potential; its Euler–Lagrange equation is $-\alpha v'' + \beta v'''' + \nabla P(v) = 0$.
+-   The snake matrix is $A = aD + bD^2$, with spectrum $[0, 4a + 16b]$; the semi-implicit scheme is stable for every time step (Theorem 1.5).
+-   Without image force a snake shrinks exponentially (Proposition 1.7): the capture range is the main weakness.
+-   The balloon force adds a normal pressure $k_1 N$ balanced by a normalised image force $k > |k_1|$.
+-   Distance-based potentials and gradient vector flow make edges felt from far away.
+:::
+
+## 2. Finite differences, finite elements and deformable surfaces {#ch2}
+
+Finite differences sample the snake at its nodes; finite elements represent it as a continuous curve built from local basis functions. This chapter compares the two on the same equation, then extends active contours from curves in 2D images to surfaces in 3D images.
+
+### The weak form and finite elements
+
+Multiply the snake flow of Proposition 1.2 by a test function $w$ and integrate by parts on the closed curve. The equation holds in the **weak form**
+$$
+\int_0^1 \big( \langle v_t, w \rangle + \alpha \langle v', w' \rangle + \beta \langle v'', w'' \rangle \big) \, ds = \int_0^1 \langle F(v), w \rangle \, ds
+$$
+for every periodic test function $w$, where $F = -\nabla P$. It needs one derivative less than the strong form.
+
+::: def
+[Definition 2.1 — Galerkin approximation]{.tag} Choose a finite-dimensional space $V_h$ spanned by basis functions $\varphi_1, \dots, \varphi_n$, write $v = \sum_j V_j \varphi_j$ with coefficient vectors $V_j \in \mathbb{R}^2$, and impose the weak form only for $w \in V_h$.
+
+This gives the linear system of ordinary differential equations
+$$
+M \, \dot V + K \, V = \Phi(V), \qquad M_{ij} = \int \varphi_i \varphi_j , \qquad \Phi_i = \int F(v) \, \varphi_i .
+$$
+
+$M$ is the **mass matrix**; the **stiffness matrix** $K$ collects the terms $\alpha \int \varphi_i' \varphi_j'$ and $\beta \int \varphi_i'' \varphi_j''$.
+:::
+
+::: def
+[Definition 2.2 — Linear (P1) finite elements]{.tag} On the uniform closed grid $s_i = i h$, the **hat function** $\varphi_i$ is the continuous piecewise-linear function equal to 1 at $s_i$ and 0 at the other nodes. The curve $v = \sum_i V_i \varphi_i$ is then the polygon through the points $V_i$.
+
+Hat functions are only $H^1$: their second derivatives are Dirac masses at the nodes. They handle the elasticity term; the rigidity term needs $C^1$ elements, such as cubic Hermite elements, which also carry the tangent at each node.
+:::
+
+:::: prop
+[Proposition 2.3 — The P1 matrices]{.tag} For P1 elements on a closed uniform grid and the elasticity term alone, $M$ and $K$ are cyclic tridiagonal:
+$$
+M = \frac{h}{6} \, \mathrm{tridiag}(1, 4, 1), \qquad K = \frac{\alpha}{h} \, \mathrm{tridiag}(-1, 2, -1) .
+$$
+
+Replacing $M$ by the diagonal matrix $h I$ with the same row sums (**mass lumping**) gives back the finite-difference scheme of [ch. 1](#ch1).
+
+::: proof
+On each element of length $h$ the two hat functions are $1 - x/h$ and $x/h$. Their products integrate to $h/3$ (same function) and $h/6$ (neighbours); each node belongs to two elements, which gives the diagonal $2h/3 = 4h/6$.
+
+Their derivatives are $\mp 1/h$, so the products of derivatives integrate to $\pm 1/h$ per element, hence the stiffness entries $2/h$ and $-1/h$.
+
+After lumping, row $i$ of the system reads
+$$
+h \, \dot V_i = -\frac{\alpha}{h} (2 V_i - V_{i+1} - V_{i-1}) + \Phi_i ,
+$$
+which is the finite-difference flow multiplied by $h$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 2.4 — Dispersion: one bound from above, one from below]{.tag} On a closed curve of length 1, the exact eigenvalues of $-d^2/ds^2$ are $(2 \pi k)^2$. Write $\theta = 2 \pi k h$. The discrete eigenvalues are
+$$
+\lambda^{\mathrm{FD}}_k = \frac{4}{h^2} \sin^2 \frac{\theta}{2}, \qquad \lambda^{\mathrm{FE}}_k = \frac{6}{h^2} \, \frac{1 - \cos \theta}{2 + \cos \theta} ,
+$$
+for the generalised problems $K u = \lambda h I u$ (finite differences) and $K u = \lambda M u$ (finite elements).
+
+Both are second-order accurate, but they bracket the truth:
+$$
+\lambda^{\mathrm{FD}}_k \ \leq\ (2 \pi k)^2 \ \leq\ \lambda^{\mathrm{FE}}_k .
+$$
+
+::: proof
+Both matrices are circulant, so the Fourier vectors are eigenvectors. The symbol of $\mathrm{tridiag}(-1, 2, -1)$ is $2 - 2\cos\theta$, and that of $\mathrm{tridiag}(1, 4, 1)$ is $4 + 2 \cos \theta$; taking ratios gives both formulas.
+
+The lower bound is $|\sin x| \leq |x|$ with $x = \theta / 2$.
+
+The upper bound is the min–max principle: the Galerkin eigenvalues are minima of the Rayleigh quotient over subspaces of the finite-dimensional space $V_h$, which is contained in $H^1$; restricting the space can only raise the minima. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 2.5 — Finite elements against finite differences]{.tag} The code compares the two spectra with the exact one for $n = 32$ nodes.
+
+```python
+import numpy as np
+from scipy.linalg import eigh
+
+# Membrane term -v'' on a closed curve of length 1, n nodes, h = 1/n.
+n = 32
+h = 1.0 / n
+I = np.eye(n)
+S = np.roll(I, 1, 1) + np.roll(I, -1, 1)              # neighbours i-1 and i+1 (periodic)
+K = (2 * I - S) / h                                   # P1 stiffness:  int phi_i' phi_j'
+M = h * (4 * I + S) / 6                               # P1 consistent mass: int phi_i phi_j
+M_lumped = h * I                                      # lumped mass = finite differences
+
+lam_fe = eigh(K, M, eigvals_only=True)
+lam_fd = eigh(K, M_lumped, eigvals_only=True)
+for k in [1, 4, 8]:
+    exact = (2 * np.pi * k) ** 2
+    # each nonzero frequency appears twice (cos and sin); index 2k-1 picks frequency k
+    print(f"k = {k}: exact {exact:8.1f} | FE {lam_fe[2 * k - 1]:8.1f} | FD {lam_fd[2 * k - 1]:8.1f}")
+```
+
+For the lowest mode the three values agree (39.5, 39.6 and 39.4). At $k = 8$, four nodes per wavelength, the exact value is 2527; finite elements give 3072 and finite differences 2048.
+
+The two errors have opposite signs, as Proposition 2.4 says.
+:::
+
+What finite elements bring to active contours is less this accuracy than the representation. The curve is defined between the nodes, and the image force enters through the integrals $\int F(v) \varphi_i$ along each element, so an edge crossing an element is felt even between two nodes.
+
+This allows fewer nodes, and it extends directly to surfaces meshed by triangles. Cohen and Cohen (1993) develop finite-element active contours and balloons for 2D and 3D images, an official reference of the course.
+
+### Deformable surfaces
+
+::: def
+[Definition 2.6 — Deformable surface]{.tag} A **deformable surface** is a map $v : \Omega \to \mathbb{R}^3$, with $\Omega$ a parameter domain in the coordinates $(r, s)$, and the energy
+$$
+E(v) = \int_\Omega \Big( \tfrac12 \big( w_{10} |v_r|^2 + w_{01} |v_s|^2 + 2 w_{11} |v_{rs}|^2 + w_{20} |v_{rr}|^2 + w_{02} |v_{ss}|^2 \big) + P(v) \Big) \, dr \, ds .
+$$
+
+The weights $w_{10}, w_{01}$ give a **membrane** (resistance to stretching), the weights $w_{20}, w_{11}, w_{02}$ a **thin plate** (resistance to bending). The potential $P$ comes from the 3D image, for instance $P = -|\nabla I_\sigma|^2$.
+:::
+
+:::: prop
+[Proposition 2.7 — Euler–Lagrange equation of a deformable surface]{.tag} With constant weights, a smooth local minimiser satisfies
+$$
+- w_{10} v_{rr} - w_{01} v_{ss} + 2 w_{11} v_{rrss} + w_{20} v_{rrrr} + w_{02} v_{ssss} + \nabla P(v) = 0 .
+$$
+
+::: proof
+As in Theorem 0.2, differentiate under the integral and integrate by parts on a closed (periodic) parameter domain.
+
+The term $\frac12 w_{10} |v_r|^2$ gives $w_{10} \langle v_r, w_r \rangle$, hence $-w_{10} v_{rr}$ after one integration by parts.
+
+The term $w_{11} |v_{rs}|^2$ gives $2 w_{11} \langle v_{rs}, w_{rs} \rangle$, hence $2 w_{11} v_{rrss}$ after integrating by parts once in $r$ and once in $s$. The other terms are similar. [∎]{.qed}
+:::
+::::
+
+::: note
+[Note 2.8 — Surfaces in 3D images, in practice]{.tag} A closed surface of the topology of a sphere or a cylinder is parametrised on a rectangle with periodic sides, or meshed by triangles.
+
+The semi-implicit scheme of [ch. 1](#ch1) applies unchanged: the matrix $I + \tau A$ is now sparse, with a few non-zero entries per row, and is factorised once.
+
+The balloon force becomes $k_1 N$ with the surface normal $N = v_r \times v_s / |v_r \times v_s|$. In a volume of $256^3$ voxels the external force is interpolated trilinearly at each node.
+:::
+
+::: note
+[Note 2.9 — The limits of parametric models]{.tag} Three difficulties remain.
+
+-   **Parametrisation**: nodes bunch up where the curve shrinks and spread where it grows, so they must be redistributed periodically.
+-   **Self-intersections**: nothing in the energy prevents a curve from crossing itself.
+-   **Topology**: two balloons that meet do not merge, and one balloon cannot split around two objects without explicit surgery.
+
+The level sets of [ch. 3](#ch3) remove all three by representing the curve implicitly.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   The weak form needs fewer derivatives; Galerkin's method turns it into $M \dot V + K V = \Phi(V)$.
+-   For P1 elements, $M = \frac{h}{6}\mathrm{tridiag}(1, 4, 1)$; lumping the mass gives back finite differences.
+-   Finite elements overestimate the spectrum, finite differences underestimate it (Proposition 2.4).
+-   Finite elements define the curve between nodes and integrate the force along elements.
+-   Deformable surfaces add membrane and thin-plate terms; parametric models struggle with reparametrisation, self-intersections and topology.
+:::
+
+## 3. Level sets and geodesic active contours {#ch3}
+
+A parametric snake cannot split around two objects or merge with another snake. This chapter represents the moving curve as the zero level of a function on the whole image, which handles topology changes for free, and derives the geodesic active contour, the bridge between deformable models and the geodesic methods of the second half.
+
+### Implicit fronts
+
+:::: prop
+[Proposition 3.1 — Only the normal speed matters]{.tag} Let $C(p, t)$ evolve by $C_t = F N + G T$. Then $C$ is a reparametrisation of a family $\tilde C$ that evolves by $\tilde C_t = F N$: the traced curves are the same.
+
+::: proof
+Look for $\tilde C(p, t) = C(\psi(p, t), t)$. Then
+$$
+\tilde C_t = C_p \, \psi_t + C_t = \big( |C_p| \, \psi_t + G \big) T + F N .
+$$
+
+Choose $\psi$ as the solution of the ordinary differential equation $\psi_t = -G / |C_p|$ with $\psi(p, 0) = p$: the tangential term cancels. [∎]{.qed}
+:::
+
+A curve evolution is therefore a **geometric** object described by one scalar, the normal speed $F$. This is what makes an implicit representation possible.
+::::
+
+::: def
+[Definition 3.2 — Level-set representation]{.tag} The curve $C(t)$ is the zero level of a function $\phi(\cdot, t)$ on the image domain, negative inside and positive outside:
+$$
+C(t) = \{ x : \phi(x, t) = 0 \} .
+$$
+
+Where $\nabla \phi \neq 0$, the outward normal and the curvature are
+$$
+N = \frac{\nabla \phi}{|\nabla \phi|}, \qquad \kappa = \mathrm{div} \Big( \frac{\nabla \phi}{|\nabla \phi|} \Big) .
+$$
+
+A convenient choice is the **signed distance** to the curve, which satisfies $|\nabla \phi| = 1$.
+:::
+
+:::: thm
+[Theorem 3.3 — Level-set equation (Osher and Sethian, 1988)]{.tag} If every level set of $\phi$ moves with normal speed $F$, that is $C_t = F N$, then
+$$
+\phi_t + F \, |\nabla \phi| = 0 .
+$$
+
+In coordinates, the curvature reads
+$$
+\kappa = \frac{\phi_{xx} \phi_y^2 - 2 \phi_x \phi_y \phi_{xy} + \phi_{yy} \phi_x^2}{(\phi_x^2 + \phi_y^2)^{3/2}} .
+$$
+
+::: proof
+A point $C(p, t)$ of the moving curve stays on its level, so $\phi(C(p, t), t) = 0$ for all $t$. Differentiate in $t$:
+$$
+\phi_t + \langle \nabla \phi, C_t \rangle = \phi_t + F \, \langle \nabla \phi, N \rangle = \phi_t + F \, |\nabla \phi| = 0 .
+$$
+
+The curvature formula follows by expanding the divergence of $\nabla \phi / |\nabla \phi|$ with the quotient rule. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.4 — A circle under curvature motion]{.tag} Let $\phi(x, t) = |x| - r(t)$. Then $|\nabla \phi| = 1$ and $\kappa = 1/|x|$, which equals $1/r$ on the curve.
+
+The curve shortening flow $C_t = -\kappa N$ has $F = -\kappa$, so the level-set equation is $\phi_t = \kappa |\nabla \phi|$, that is $-\dot r = 1/r$. Hence
+$$
+r(t) = \sqrt{r_0^2 - 2t} ,
+$$
+as in Proposition 0.5. A circle of radius 10 pixels disappears at $t = 50$.
+:::
+
+### From geometric to geodesic active contours
+
+::: def
+[Definition 3.5 — Geometric active contour]{.tag} Caselles, Catté, Coll and Dibos (1993), and Malladi, Sethian and Vemuri (1995), move the front with a speed slowed down by the edge indicator $g$ of Definition 0.10:
+$$
+\phi_t = g(x) \, (\kappa + \nu) \, |\nabla \phi| .
+$$
+
+The constant $\nu$ is a balloon term: with $\nu > 0$ the front shrinks. Since $g$ is small but not zero on an edge, the front only slows down there and eventually leaks through.
+:::
+
+:::: thm
+[Theorem 3.6 — Geodesic active contour (Caselles, Kimmel and Sapiro, 1997)]{.tag} The **weighted length** of a closed curve is
+$$
+L_g(C) = \int_0^{L(C)} g(C(s)) \, ds .
+$$
+
+Its first variation is
+$$
+\frac{d}{dt} L_g(C) = \int_0^{L} \big( g \kappa + \langle \nabla g, N \rangle \big) \, \langle C_t, N \rangle \, ds ,
+$$
+so its gradient flow is $C_t = -(g \kappa + \langle \nabla g, N \rangle) N$. In level-set form:
+
+::: key
+[Key result — the geodesic active contour]{.tag}
+$$
+\phi_t = g \, \kappa \, |\nabla \phi| + \langle \nabla g, \nabla \phi \rangle \quad \big( + \ \nu \, g \, |\nabla \phi| \ \text{with a balloon} \big)
+$$
+:::
+
+::: proof
+Write $L_g = \int_0^1 g(C) |C_p| \, dp$ and differentiate:
+$$
+\frac{d L_g}{dt} = \int_0^1 \Big( \langle \nabla g, C_t \rangle |C_p| + g \, \langle (C_t)_p, T \rangle \Big) \, dp .
+$$
+
+Integrate the second term by parts. It becomes $-\int \langle C_t, (g T)_p \rangle \, dp$.
+
+Expand $(gT)_p = g_p T + g T_p$ with $g_p = \langle \nabla g, T \rangle |C_p|$ and $T_p = -\kappa |C_p| N$. In arclength:
+$$
+\frac{d L_g}{dt} = \int_0^L \Big( \langle \nabla g, C_t \rangle - \langle \nabla g, T \rangle \langle C_t, T \rangle + g \kappa \langle C_t, N \rangle \Big) \, ds .
+$$
+
+Decompose $\langle \nabla g, C_t \rangle$ on the basis $(T, N)$: the tangential parts cancel and the formula follows.
+
+The level-set form is Theorem 3.3 with $F = -(g \kappa + \langle \nabla g, N \rangle)$ and $N = \nabla \phi / |\nabla \phi|$. [∎]{.qed}
+:::
+::::
+
+The new term $\langle \nabla g, \nabla \phi \rangle$ is an advection along $-\nabla g$, towards the bottom of the valley of $g$. It can hold the front on an edge where $g$ is not zero, and pull it back after an overshoot, which the geometric model cannot do.
+
+::: note
+[Note 3.7 — The bridge with snakes and minimal paths]{.tag} Caselles, Kimmel and Sapiro (1997) relate the snake energy without rigidity ($\beta = 0$) to the weighted length by the Maupertuis principle of dynamics.
+
+Minimising $L_g$ is a **geodesic** problem: find the shortest curve for the metric $g(x)\,|dx|$. The flow of Theorem 3.6 finds a local minimum among closed curves; [ch. 5](#ch5) finds the global minimum among open curves with fixed endpoints, for the same kind of weighted length.
+:::
+
+### Numerical schemes
+
+::: def
+[Definition 3.8 — Upwind scheme (Osher and Sethian, 1988)]{.tag} For $\phi_t + F |\nabla \phi| = 0$, the differences must be taken from the side the information comes from. Write $D^{\pm x}$, $D^{\pm y}$ for the one-sided differences of [ch. 0](#ch0) and set
+$$
+\nabla^+ = \Big( \max(D^{-x}, 0)^2 + \min(D^{+x}, 0)^2 + \max(D^{-y}, 0)^2 + \min(D^{+y}, 0)^2 \Big)^{1/2} ,
+$$
+and $\nabla^-$ with max and min exchanged. The update is
+$$
+\phi^{m+1} = \phi^m - \Delta t \, \big( \max(F, 0) \, \nabla^+ + \min(F, 0) \, \nabla^- \big) .
+$$
+
+It is stable under the condition $\Delta t \max |F| \leq h$. The curvature term is parabolic and is discretised with central differences, under a condition of the form $\Delta t \leq c \, h^2$.
+:::
+
+Two devices keep the cost and the accuracy under control. **Re-initialisation** periodically replaces $\phi$ by the signed distance to its zero level, which keeps $|\nabla \phi| \approx 1$; computing a distance is an eikonal problem, solved by the methods of [ch. 6](#ch6). The **narrow band** method of Adalsteinsson and Sethian (1995) updates $\phi$ only near the front.
+
+:::: prop
+[Proposition 3.9 — Topology changes come for free]{.tag} Let $\phi_1$ and $\phi_2$ be the signed distances to two disjoint disks. The function $\phi = \min(\phi_1, \phi_2)$ is continuous, and its zero level is the union of the two circles.
+
+A continuous deformation of $\phi$ can therefore join two fronts into one, or split one front into two, without any change of data structure.
+
+::: proof
+$\min(\phi_1, \phi_2) < 0$ exactly on the union of the two open disks, and the minimum of two continuous functions is continuous. A path such as $\phi_\lambda = \min(\phi_1, \phi_2) - \lambda$ moves from two fronts ($\lambda = 0$) to one front around both disks for $\lambda$ larger than half their gap. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 3.10 — Competing fronts]{.tag} To segment several objects at once, each object $i$ gets its own level-set function $\phi_i$ and region $\{\phi_i < 0\}$, and the evolution adds a coupling term that penalises overlaps and empty space (Zhao, Chan, Merriman and Osher, 1996).
+
+The fronts then **compete** for the pixels on their common boundary. Vese and Chan (2002) represent up to $2^m$ regions with only $m$ level-set functions. Competition between regions returns in [ch. 4](#ch4) (Proposition 4.7), and competition between fronts started from several sources in [ch. 6](#ch6) (Proposition 6.13).
+:::
+
+::: ex
+[Code 3.11 — A geodesic active contour that splits]{.tag} One circle around two noisy disks shrinks under the geodesic active contour with a balloon term; it must split to fit both.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+
+N = 128
+yy, xx = np.mgrid[0:N, 0:N].astype(float)
+truth = (np.hypot(xx - 40, yy - 64) < 15) | (np.hypot(xx - 88, yy - 64) < 15)
+rng = np.random.default_rng(2)
+I = truth + 0.1 * rng.standard_normal((N, N))
+
+Is = ndi.gaussian_filter(I, 1.5)
+grad2 = ndi.sobel(Is, 0) ** 2 + ndi.sobel(Is, 1) ** 2
+g = 1.0 / (1.0 + grad2 / 0.3)                        # edge-stopping function, about 1 in flat areas
+gy, gx = np.gradient(g)
+
+def sdf(inside):                                     # signed distance, negative inside
+    return ndi.distance_transform_edt(~inside) - ndi.distance_transform_edt(inside)
+
+phi = sdf(np.hypot(xx - 64, yy - 64) < 55)           # one curve around both objects
+nu, dt = 1.0, 0.2
+for it in range(800):
+    dxm = phi - np.roll(phi, 1, 1); dxp = np.roll(phi, -1, 1) - phi
+    dym = phi - np.roll(phi, 1, 0); dyp = np.roll(phi, -1, 0) - phi
+    # upwind |grad phi| for the shrinking speed (front moves inward: F = -nu g < 0)
+    grad_minus = np.sqrt(np.minimum(dxm, 0)**2 + np.maximum(dxp, 0)**2
+                         + np.minimum(dym, 0)**2 + np.maximum(dyp, 0)**2)
+    # curvature term kappa |grad phi| with central differences
+    py, px = np.gradient(phi)
+    pyy, pyx = np.gradient(py); pxy, pxx = np.gradient(px)
+    curv = (pxx * py**2 - 2 * px * py * pxy + pyy * px**2) / (px**2 + py**2 + 1e-8)
+    # advection by grad g, upwinded
+    adv = (np.maximum(gx, 0) * dxp + np.minimum(gx, 0) * dxm
+           + np.maximum(gy, 0) * dyp + np.minimum(gy, 0) * dym)
+    phi = phi + dt * (g * curv + nu * g * grad_minus + adv)
+    if it % 20 == 19:
+        phi = sdf(phi < 0)                           # re-initialisation
+seg = phi < 0
+labels, ncomp = ndi.label(seg)
+iou = (seg & truth).sum() / (seg | truth).sum()
+print(f"components: {ncomp}, IoU with the two disks: {iou:.3f}")
+```
+
+The front splits into 2 components, and the segmentation reaches an intersection over union of 0.992 with the two disks.
+
+With the constant 0.3 replaced by 1.0 in $g$, the edges no longer hold the balloon: the front crosses them and vanishes. The balance between $\nu$ and the contrast of the edges is the same as for the balloon of [ch. 1](#ch1).
+:::
+
+::: recap
+Key takeaways — chapter 3
+
+-   Only the normal speed changes a curve; a front moving with speed $F$ is the zero level of a solution of $\phi_t + F |\nabla\phi| = 0$.
+-   The geodesic active contour is the gradient flow of the weighted length $\int g \, ds$; its advection term $\langle \nabla g, \nabla \phi \rangle$ holds the front on edges.
+-   Upwind differences, re-initialisation and narrow bands make level sets stable and affordable.
+-   Topology changes need no special treatment; several fronts can compete for the pixels between them.
+:::
+
+## 4. Active regions and shape priors {#ch4}
+
+When an object differs from its background by its mean intensity or its texture, but not by a sharp edge, edge-based contours fail. This chapter moves the information from the boundary to the regions it encloses, then adds prior knowledge of the expected shape.
+
+### Region-based energies
+
+::: def
+[Definition 4.1 — Mumford–Shah functional (Mumford and Shah, 1989)]{.tag} Given an image $I$ on a domain $\Omega$, find a piecewise smooth approximation $u$ and a set of discontinuities $K$ that minimise
+$$
+E(u, K) = \int_{\Omega \setminus K} (u - I)^2 \, dx + \mu \int_{\Omega \setminus K} |\nabla u|^2 \, dx + \nu \, \mathrm{length}(K) .
+$$
+
+When $\mu \to \infty$, $u$ must be constant on each connected component of $\Omega \setminus K$: this is the **piecewise-constant** Mumford–Shah model, a minimal partition problem.
+:::
+
+::: def
+[Definition 4.2 — Chan–Vese energy (Chan and Vese, 2001)]{.tag} For a closed curve $C$ with inside $R$ and outside $\Omega \setminus R$, and two constants $c_1, c_2$:
+$$
+E(c_1, c_2, C) = \mu \, L(C) + \lambda_1 \int_{R} (I - c_1)^2 \, dx + \lambda_2 \int_{\Omega \setminus R} (I - c_2)^2 \, dx .
+$$
+
+It is the piecewise-constant Mumford–Shah model with two phases, $u = c_1$ inside and $u = c_2$ outside.
+:::
+
+:::: prop
+[Proposition 4.3 — The optimal constants are the region means]{.tag} For a fixed curve, $E$ is minimised by
+$$
+c_1 = \frac{1}{|R|} \int_R I \, dx, \qquad c_2 = \frac{1}{|\Omega \setminus R|} \int_{\Omega \setminus R} I \, dx .
+$$
+
+::: proof
+$E$ is a convex quadratic function of $c_1$ alone. Its derivative is $-2 \lambda_1 \int_R (I - c_1) \, dx$, which vanishes at the mean. The same holds for $c_2$. [∎]{.qed}
+:::
+::::
+
+To evolve the curve, write the energy with the level-set function $\phi$, negative inside, a smoothed Heaviside function $H_\varepsilon$ and its derivative $\delta_\varepsilon$:
+$$
+H_\varepsilon(z) = \frac12 \Big( 1 + \frac{2}{\pi} \arctan \frac{z}{\varepsilon} \Big), \qquad \delta_\varepsilon(z) = \frac{\varepsilon}{\pi (\varepsilon^2 + z^2)} .
+$$
+The inside is $H_\varepsilon(-\phi) \approx 1$, and the length is $\int \delta_\varepsilon(\phi) |\nabla \phi| \, dx$.
+
+:::: thm
+[Theorem 4.4 — The Chan–Vese flow]{.tag} The $L^2$ gradient flow of the smoothed Chan–Vese energy, with $c_1, c_2$ fixed, is
+$$
+\phi_t = \delta_\varepsilon(\phi) \Big( \mu \kappa + \lambda_1 (I - c_1)^2 - \lambda_2 (I - c_2)^2 \Big) .
+$$
+
+::: proof
+Differentiate each term in the direction $\psi$.
+
+The region terms give $-\lambda_1 (I - c_1)^2 \delta_\varepsilon(\phi) \psi$ and $+\lambda_2 (I - c_2)^2 \delta_\varepsilon(\phi) \psi$, since the derivative of $H_\varepsilon(-\phi)$ is $-\delta_\varepsilon(\phi)$.
+
+For the length term, the derivative is
+$$
+\int \Big( \delta_\varepsilon'(\phi) \, \psi \, |\nabla \phi| + \delta_\varepsilon(\phi) \, \frac{\langle \nabla \phi, \nabla \psi \rangle}{|\nabla \phi|} \Big) dx .
+$$
+
+Integrate the second term by parts, using
+$$
+\mathrm{div} \Big( \delta_\varepsilon(\phi) \frac{\nabla \phi}{|\nabla \phi|} \Big) = \delta_\varepsilon'(\phi) \, |\nabla \phi| + \delta_\varepsilon(\phi) \, \kappa .
+$$
+The $\delta_\varepsilon'$ terms cancel, and $-\mu \, \delta_\varepsilon(\phi) \, \kappa \, \psi$ remains.
+
+The flow is minus the gradient. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 4.5 — Why a length term is needed]{.tag} Ignore the length term. A pixel then joins the inside exactly when $(I - c_1)^2 < (I - c_2)^2$, that is when $I$ is closer to $c_1$: this is a threshold at $(c_1 + c_2)/2$.
+
+Take $c_1 = 0.7$, $c_2 = 0.3$ and Gaussian noise of standard deviation $0.35$. A pixel is misclassified when the noise exceeds $0.2$ in the wrong direction, with probability
+$$
+1 - \Phi(0.2 / 0.35) = 1 - \Phi(0.571) \approx 0.28 .
+$$
+
+More than a quarter of the background pixels join the object. The length term removes these isolated decisions: in Code 4.8 the intersection over union rises from 0.31 for the threshold to 0.94.
+:::
+
+### Region competition and active regions
+
+::: def
+[Definition 4.6 — Region competition and geodesic active regions]{.tag} Let each region $R_i$ of a partition carry a probability model $p_i$ of the intensities, or of texture features. **Region competition** (Zhu and Yuille, 1996) minimises
+$$
+E = \sum_i \Big( \frac{\mu}{2} \, L(\partial R_i) - \int_{R_i} \log p_i(I(x)) \, dx \Big) .
+$$
+
+Each boundary is shared by two regions, hence the factor $\frac12$. The **geodesic active regions** of Paragios and Deriche (2002) add to such region terms a boundary term $\int g \, ds$, as in Theorem 3.6.
+:::
+
+:::: prop
+[Proposition 4.7 — How two regions compete]{.tag} Consider two regions, $R_1$ inside the curve and $R_2$ outside. The gradient flow of the energy of Definition 4.6 moves each boundary point along the outward normal $N$ of $R_1$ with speed
+$$
+v = \log p_1(I) - \log p_2(I) - \mu \kappa .
+$$
+
+The boundary advances into $R_2$ where the model of $R_1$ explains the pixel better, and retreats where it explains it worse. With Gaussian models of equal variance, this is the Chan–Vese flow.
+
+::: proof
+For a region $R(t)$ with boundary $C(t)$ and a fixed function $f$,
+$$
+\frac{d}{dt} \int_{R(t)} f \, dx = \int_{C} f \, \langle C_t, N \rangle \, ds ,
+$$
+because the boundary sweeps the area $\langle C_t, N \rangle \, ds \, dt$.
+
+Apply it to $-\log p_1$ on $R_1$ and to $-\log p_2$ on $R_2$, whose outward normal is $-N$. Add the variation of length (Proposition 0.5):
+$$
+\frac{dE}{dt} = \int_C \big( -\log p_1 + \log p_2 + \mu \kappa \big) \langle C_t, N \rangle \, ds .
+$$
+Steepest descent takes $C_t$ equal to minus the bracket times $N$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 4.8 — Chan–Vese on a weak-contrast image]{.tag} Two objects of intensity 0.7 on a background of 0.3, with noise of standard deviation 0.35, are segmented from one central circle.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+
+N = 128
+yy, xx = np.mgrid[0:N, 0:N].astype(float)
+truth = ((np.abs(xx - 45) < 18) & (np.abs(yy - 60) < 25)) | (np.hypot(xx - 90, yy - 75) < 20)
+rng = np.random.default_rng(3)
+I = 0.3 + 0.4 * truth + 0.35 * rng.standard_normal((N, N))   # contrast 0.4, noise 0.35
+
+def curvature(phi):
+    py, px = np.gradient(phi)
+    norm = np.sqrt(px**2 + py**2) + 1e-8
+    return np.gradient(px / norm, axis=1) + np.gradient(py / norm, axis=0)
+
+eps, mu, lam1, lam2, dt = 1.0, 0.5, 1.0, 1.0, 0.5
+phi = np.hypot(xx - 64, yy - 64) - 30.0             # negative inside a central circle
+for it in range(1000):
+    inside = phi < 0
+    c1, c2 = I[inside].mean(), I[~inside].mean()     # optimal constants (Proposition 4.3)
+    delta = eps / (np.pi * (eps**2 + phi**2))        # smoothed Dirac
+    force = mu * curvature(phi) + lam1 * (I - c1)**2 - lam2 * (I - c2)**2
+    phi = phi + dt * delta * force / (np.abs(delta * force).max() + 1e-12)
+    if it % 50 == 49:
+        phi = ndi.distance_transform_edt(phi >= 0) - ndi.distance_transform_edt(phi < 0)
+
+seg = phi < 0
+iou = lambda s: (s & truth).sum() / (s | truth).sum()
+print(f"c1 = {c1:.3f}, c2 = {c2:.3f} (true 0.7 and 0.3)")
+print(f"Chan-Vese IoU: {iou(seg):.3f} | pixelwise threshold at 0.5: {iou(I > 0.5):.3f}")
+sizes = np.bincount(ndi.label(seg)[0].ravel())[1:]
+print(f"components: {sizes.size}, of which {np.sum(sizes > 50)} larger than 50 pixels")
+```
+
+The estimated constants are $c_1 = 0.720$ and $c_2 = 0.298$. Chan–Vese reaches an intersection over union of 0.935, against 0.313 for the pixelwise threshold of Example 4.5.
+
+The curve started as one circle overlapping both objects. It ends as two large components, one per object, plus 56 specks of one to four pixels created far from the initial curve. The region force acts wherever $\delta_\varepsilon(\phi)$ is not negligible, not only near the curve: this lets new components appear, noise included.
+:::
+
+### Shape priors
+
+When part of the object is occluded or invisible, as an organ next to a structure of the same intensity, image terms alone cannot recover it. A **shape prior** adds an energy that is low for the shapes seen in a training set.
+
+::: def
+[Definition 4.9 — A linear model of signed distance functions (Leventon, Grimson and Faugeras, 2000)]{.tag} Let $\phi_1, \dots, \phi_K$ be the signed distance functions of $K$ aligned training shapes, sampled on a grid and seen as vectors. Let $\bar \phi$ be their mean, and $u_1, u_2, \dots$ the principal directions of the centred vectors, with variances $\sigma_1^2 \geq \sigma_2^2 \geq \dots$, given by the SVD.
+
+The **shape model** with $q$ modes is the family
+$$
+\phi_w = \bar \phi + \sum_{j=1}^q w_j u_j, \qquad w \sim \mathcal{N}\big(0, \mathrm{diag}(\sigma_1^2, \dots, \sigma_q^2)\big) .
+$$
+A shape is represented by the zero level of $\phi_w$, negative inside.
+:::
+
+:::: prop
+[Proposition 4.10 — Projection and shrinkage onto the shape model]{.tag} Let $\phi$ be an observed level-set function, modelled as $\phi_w$ plus white noise of variance $s^2$. The maximum a posteriori coefficients are
+$$
+w_j = \frac{\sigma_j^2}{\sigma_j^2 + s^2} \, \langle \phi - \bar \phi, u_j \rangle .
+$$
+
+Without the prior ($s \to 0$), this is the orthogonal projection onto the affine space of the model.
+
+::: proof
+Minus the log-posterior is, up to a constant,
+$$
+\frac{1}{2 s^2} \Big\| \phi - \bar \phi - \sum_j w_j u_j \Big\|^2 + \frac12 \sum_j \frac{w_j^2}{\sigma_j^2} .
+$$
+The $u_j$ are orthonormal, so the problem separates into one quadratic in each $w_j$, whose minimiser is the formula. [∎]{.qed}
+:::
+
+In segmentation, the shape term is added to an image energy, and the pose (translation, rotation, scale) of the model is estimated with $w$. Tsai and coauthors (2003) build such a model for medical images, and Cremers, Rousson and Deriche (2007) review the statistical approaches. A linear combination of signed distances is not a signed distance: only the zero level is used.
+::::
+
+::: ex
+[Code 4.11 — A shape prior completes an occluded ellipse]{.tag} The model is learnt on 40 ellipses with random semi-axes; a test ellipse with a bite taken out of it is projected on two modes.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+
+N = 96
+yy, xx = np.mgrid[0:N, 0:N].astype(float)
+def sdf(inside):                                       # signed distance, negative inside
+    return ndi.distance_transform_edt(~inside) - ndi.distance_transform_edt(inside)
+def ellipse(a, b):
+    return ((xx - 48) / a) ** 2 + ((yy - 48) / b) ** 2 < 1
+
+# Training set: 40 aligned ellipses with random semi-axes
+rng = np.random.default_rng(6)
+axes = rng.uniform(15, 35, size=(40, 2))
+Phi = np.stack([sdf(ellipse(a, b)).ravel() for a, b in axes])
+mean = Phi.mean(0)
+U, s, Vt = np.linalg.svd(Phi - mean, full_matrices=False)
+print("variance explained by the first 3 modes:", np.round(s[:3]**2 / (s**2).sum(), 3))
+
+# A test shape with an occlusion: an ellipse with a bite taken out of it
+true = ellipse(30, 20)
+seen = true & ~(np.hypot(xx - 70, yy - 48) < 12)
+w = Vt[:2] @ (sdf(seen).ravel() - mean)               # coordinates in the 2-mode shape space
+proj = (mean + w @ Vt[:2]).reshape(N, N) < 0
+iou = lambda s: (s & true).sum() / (s | true).sum()
+print(f"IoU with the true ellipse: occluded {iou(seen):.3f}, projected on 2 modes {iou(proj):.3f}")
+```
+
+Two modes explain 99 % of the variance (0.734 and 0.255), matching the two free semi-axes. The projection raises the intersection over union with the true ellipse from 0.807 to 0.867.
+
+The gain is limited because the occluded pixels still pull the projection; Exercise 11 ignores them and reaches 0.95.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Region energies (Mumford–Shah, Chan–Vese) segment objects without sharp edges; the optimal constants are the region means.
+-   The Chan–Vese flow moves the level set where $\delta_\varepsilon(\phi)$ is not negligible, with a force made of the curvature and the two data terms (Theorem 4.4).
+-   In region competition, a boundary moves with speed $\log p_1 - \log p_2 - \mu\kappa$: it invades the region whose model explains the pixel worse.
+-   A shape prior is a statistical model of signed distance functions; its MAP coefficients are shrunk projections.
+:::
+
+## 5. Minimal paths and geodesics {#ch5}
+
+A snake finds the local minimum nearest to its initialisation. For an open curve with two given endpoints, such as a vessel between two points clicked by a radiologist, one can do much better: find the **global** minimum of a weighted length. This chapter, after Cohen and Kimmel (1997), defines the problem and shows how the solution is read off a single function, the surface of minimal action.
+
+### Geodesic distance
+
+::: def
+[Definition 5.1 — Weighted length and geodesic distance]{.tag} Let $\Omega$ be the closure of a bounded connected open set of $\mathbb{R}^d$, and $P : \Omega \to [\varepsilon, +\infty)$ a continuous **metric** (also called potential or cost), with $\varepsilon > 0$. The **weighted length** of a Lipschitz curve $C : [0, 1] \to \Omega$ is
+$$
+L_P(C) = \int_0^1 P(C(p)) \, |C'(p)| \, dp .
+$$
+
+The **geodesic distance** $d_P(x, y)$ is the infimum of $L_P(C)$ over the curves from $x$ to $y$. A curve that attains it is a **minimal path**, or **geodesic**.
+:::
+
+:::: prop
+[Proposition 5.2 — The geodesic distance is a distance]{.tag} $d_P$ is symmetric, satisfies the triangle inequality, and
+$$
+d_P(x, y) \geq \varepsilon \, |x - y| .
+$$
+
+On a convex domain, moreover, $d_P(x, y) \leq \max P \cdot |x - y|$.
+
+::: proof
+Reversing a curve does not change its weighted length, so $d_P$ is symmetric.
+
+Concatenating a curve from $x$ to $y$ and one from $y$ to $z$ gives a curve from $x$ to $z$, which yields the triangle inequality.
+
+Every curve from $x$ to $y$ has Euclidean length at least $|x - y|$, and its weighted length is at least $\varepsilon$ times that. On a convex domain, the segment is admissible and has weighted length at most $\max P \cdot |x - y|$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 5.3 — Existence of minimal paths]{.tag} Under the assumptions of Definition 5.1, any two points of $\Omega$ are joined by a minimal path.
+
+::: proof
+*Sketch.* Take a minimising sequence of curves, each parametrised at constant speed. Their Euclidean lengths are bounded by $L_P / \varepsilon$, so the sequence is uniformly Lipschitz; by Arzelà–Ascoli, a subsequence converges uniformly to a curve $C^\star$.
+
+For a continuous weight $P$, the weighted length is lower semicontinuous under uniform convergence, a classical property of length functionals. Hence $L_P(C^\star)$ is at most the infimum: $C^\star$ is minimal. [∎]{.qed}
+:::
+::::
+
+### The surface of minimal action
+
+::: def
+[Definition 5.4 — Surface of minimal action (Cohen and Kimmel, 1997)]{.tag} For a source point $p_0$, the **minimal action** is
+$$
+U(x) = d_P(p_0, x) .
+$$
+
+Its graph is a surface over the image, a cone with its apex at $p_0$ when $P$ is constant. Its level sets $\{U = t\}$ are the points at geodesic distance $t$ from $p_0$.
+:::
+
+:::: thm
+[Theorem 5.5 — The minimal action solves the eikonal equation]{.tag} $U$ is Lipschitz and, at every interior point where it is differentiable,
+
+::: key
+[Key result — the eikonal equation]{.tag}
+$$
+|\nabla U(x)| = P(x), \qquad U(p_0) = 0 .
+$$
+:::
+
+::: proof
+*Lipschitz.* By the triangle inequality, $|U(x) - U(y)| \leq d_P(x, y)$, which is at most $\max P \cdot |x - y|$ for $y$ close to $x$.
+
+*Upper bound.* For a unit vector $e$ and small $t > 0$, the segment from $x$ to $x + te$ gives
+$$
+U(x + te) \leq U(x) + t \max_{[x, x + te]} P .
+$$
+Dividing by $t$ and letting $t \to 0$: $\langle \nabla U(x), e \rangle \leq P(x)$ for every $e$, hence $|\nabla U(x)| \leq P(x)$.
+
+*Lower bound.* Let $\gamma$ be a minimal path from $p_0$ to $x$, parametrised by arclength, with $\gamma(L) = x$. Every sub-path of a minimal path is minimal, so
+$$
+U(\gamma(s)) = U(x) - \int_s^L P(\gamma(\sigma)) \, d\sigma .
+$$
+Differentiating at $s = L$ gives $\langle \nabla U(x), \gamma'(L) \rangle = P(x)$ with $|\gamma'(L)| = 1$, so $|\nabla U(x)| \geq P(x)$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 5.6 — Back-propagation]{.tag} The minimal path from $p_0$ to $p_1$ is obtained by gradient descent on $U$ from $p_1$:
+$$
+\frac{dC}{ds} = - \frac{\nabla U(C(s))}{|\nabla U(C(s))|}, \qquad C(0) = p_1 .
+$$
+
+$U$ has no local minimum other than $p_0$, so the descent cannot be trapped: it reaches $p_0$ after a length at most $U(p_1) / \varepsilon$.
+
+::: proof
+In the lower bound above, $\langle \nabla U, \gamma' \rangle = P = |\nabla U|$ with $|\gamma'| = 1$: this is the equality case of the Cauchy–Schwarz inequality, so $\gamma' = \nabla U / |\nabla U|$. Followed backwards from $p_1$, the path descends along $-\nabla U$.
+
+From any $x \neq p_0$, $U$ strictly decreases along the minimal path towards $p_0$, so $x$ is not a local minimum.
+
+Along the descent, $U$ decreases at rate $P \geq \varepsilon$ per unit length, and it cannot go below $0$. [∎]{.qed}
+:::
+
+This is the decisive difference with snakes: the energy landscape of a snake has many local minima, while the minimal action has exactly one, at the source.
+::::
+
+::: ex
+[Example 5.7 — A constant metric]{.tag} Let $P = 2$ on the plane and $p_0 = (0, 0)$. Then $U(x) = 2 |x|$, a cone, and $|\nabla U| = 2$ everywhere except at the apex, where $U$ is not differentiable.
+
+For $p_1 = (3, 4)$, $U(p_1) = 10$. The descent direction $-\nabla U / |\nabla U| = -x / |x|$ points to the origin, so the minimal path is the segment, as it should be.
+:::
+
+:::: prop
+[Proposition 5.8 — Minimal paths minimise a snake energy (Cohen and Kimmel, 1997)]{.tag} Consider the snake energy without rigidity
+$$
+E(C) = \int_0^L \big( w \, |C'(s)|^2 + P(C(s)) \big) \, ds
+$$
+over curves from $p_0$ to $p_1$ parametrised by arclength, with free length $L$. Then $E(C) = L_{\tilde P}(C)$ with
+$$
+\tilde P = w + P ,
+$$
+and the minimal path for $\tilde P$ is a global minimiser of $E$.
+
+::: proof
+With $|C'| = 1$, the integrand is $w + P(C(s))$, and its integral over $[0, L]$ is the weighted length for $\tilde P$. Every curve can be parametrised by arclength, so minimising $E$ is the geodesic problem of Definition 5.1. [∎]{.qed}
+:::
+
+The constant $w > 0$ plays the role of the elasticity: it penalises length, so the path does not wander through regions of low potential. It also guarantees $\tilde P \geq w > 0$.
+::::
+
+### Shortest paths on a pixel grid
+
+::: def
+[Definition 5.9 — Discrete minimal paths]{.tag} Build a graph whose vertices are the pixels, with edges between neighbours (4, 8 or 16 neighbours). An edge from $u$ to $v$ has the weight
+$$
+w(u, v) = |u - v| \, \frac{P(u) + P(v)}{2} .
+$$
+Dijkstra's algorithm (Algorithm 0.11) computes the graph distance from the source, and the predecessors give the discrete minimal path.
+:::
+
+:::: prop
+[Proposition 5.10 — Metrication error]{.tag} For a constant metric, the graph distance between distant pixels approximates the Euclidean one with a maximal relative error
+$$
+\frac{1}{\cos(\alpha / 2)} - 1 ,
+$$
+where $\alpha$ is the largest angle between two consecutive directions of the stencil. It does not decrease when the grid is refined.
+
+For 4 neighbours ($\alpha = 90°$) the error is 41.4 %, for 8 neighbours ($45°$) 8.2 %, for 16 neighbours ($26.6°$) 2.7 %.
+
+::: proof
+*Sketch.* For distant points, the graph distance is a norm whose unit ball is the convex hull of the unit stencil directions $\hat u_i$: a displacement $x = \sum c_i \hat u_i$ with $c_i \geq 0$ costs $\sum c_i$.
+
+For $x$ in the cone between two consecutive directions $\hat u$ and $\hat v$, the cheapest decomposition uses only these two: $x = a \hat u + b \hat v$, with cost $a + b$ and
+$$
+|x|^2 = a^2 + b^2 + 2 a b \cos \alpha .
+$$
+
+The ratio $(a + b) / |x|$ is largest on the bisector $a = b$, where it equals $2 / \sqrt{2 + 2 \cos\alpha} = 1 / \cos(\alpha/2)$. The ratio depends only on the directions, not on $h$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 5.11 — Metrication error and a minimal path in a noisy image]{.tag} Part (a) measures the error of Proposition 5.10. Part (b) extracts a dark sinusoidal line from a noisy image between its two endpoints, with $P = 0.05 + I$.
+
+```python
+import numpy as np
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import dijkstra
+
+def grid_graph(P, offsets):
+    """Graph on the pixels; edge u-v weighs |u - v| * (P(u) + P(v)) / 2."""
+    H, W = P.shape
+    idx = np.arange(H * W).reshape(H, W)
+    rows, cols, w = [], [], []
+    for dy, dx in offsets:
+        a = idx[max(0, -dy):H - max(0, dy), max(0, -dx):W - max(0, dx)]
+        b = idx[max(0, dy):H - max(0, -dy) or None, max(0, dx):W - max(0, -dx) or None]
+        pa, pb = P.ravel()[a.ravel()], P.ravel()[b.ravel()]
+        rows += [a.ravel()]; cols += [b.ravel()]; w += [np.hypot(dx, dy) * (pa + pb) / 2]
+    r, c, w = map(np.concatenate, (rows, cols, w))
+    return coo_matrix((w, (r, c)), shape=(H * W, H * W)).tocsr()
+
+N4 = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+N8 = N4 + [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+N16 = N8 + [(1, 2), (2, 1), (-1, 2), (-2, 1), (1, -2), (2, -1), (-1, -2), (-2, -1)]
+
+# (a) metrication error for the constant metric P = 1
+n = 101
+yy, xx = np.mgrid[0:n, 0:n]
+euclid = np.hypot(xx - 50, yy - 50).ravel()
+mask = euclid > 20
+for name, off in [("4-neighbours", N4), ("8-neighbours", N8), ("16-neighbours", N16)]:
+    d = dijkstra(grid_graph(np.ones((n, n)), off), indices=50 * n + 50)
+    print(f"{name:14s}: max relative error {np.max(d[mask] / euclid[mask] - 1):.4f}")
+
+# (b) a minimal path along a dark curve in a noisy image
+H, W = 96, 128
+yy, xx = np.mgrid[0:H, 0:W].astype(float)
+curve = 48 + 25 * np.sin(2 * np.pi * xx[0] / W)
+rng = np.random.default_rng(4)
+I = np.clip(1.0 - (np.abs(yy - curve) < 1.5) + 0.3 * rng.standard_normal((H, W)), 0, None)
+P = 0.05 + I                                        # cheap on the dark curve
+G = grid_graph(P, N8)
+src, dst = int(round(curve[0])) * W, int(round(curve[-1])) * W + W - 1
+U, pred = dijkstra(G, indices=src, return_predecessors=True)
+path, k = [], dst
+while k != src:
+    path.append(k); k = pred[k]
+py, px = np.divmod(np.array(path), W)
+print(f"path: {len(path)} pixels, mean |y - curve(x)| = {np.mean(np.abs(py - curve[px])):.2f} px")
+print(f"action U(end) = {U[dst]:.1f}")
+```
+
+The measured errors are 0.4142, 0.0824 and 0.0275, the values of Proposition 5.10.
+
+In part (b) the path follows the line with a mean vertical deviation of 0.70 pixel. Its action is 16.1, while the straight segment between the endpoints, through noisy background of mean intensity about 1, costs about 133.
+:::
+
+::: recap
+Key takeaways — chapter 5
+
+-   The geodesic distance $d_P$ is the infimum of $\int P \, ds$; minimal paths exist when $P \geq \varepsilon > 0$ is continuous.
+-   The minimal action $U = d_P(p_0, \cdot)$ solves the eikonal equation $|\nabla U| = P$ (Theorem 5.5).
+-   The minimal path is found by gradient descent on $U$ from the end point; $U$ has no spurious local minimum (Theorem 5.6).
+-   A snake without rigidity, parametrised by arclength, is a weighted length for $\tilde P = w + P$ (Proposition 5.8).
+-   Graph shortest paths carry a metrication error $1/\cos(\alpha/2) - 1$ that refining the grid does not remove.
+:::
+
+## 6. The eikonal equation and Fast Marching {#ch6}
+
+[Chapter 5](#ch5) reduced minimal paths to one function, the minimal action $U$, which solves $|\nabla U| = P$. This chapter makes that statement precise, since $U$ is not differentiable everywhere, and computes $U$ on a grid in one pass with the Fast Marching algorithm.
+
+### Viscosity solutions
+
+::: ex
+[Example 6.1 — Too many almost-everywhere solutions]{.tag} On $(-1, 1)$, look for $u$ with $|u'| = 1$ and $u(\pm 1) = 0$. The distance to the boundary $u(x) = 1 - |x|$ works except at $0$.
+
+So do $|x| - 1$ and infinitely many zigzag functions with slopes $\pm 1$. Asking the equation to hold almost everywhere does not single out the distance; a finer notion of solution is needed.
+:::
+
+::: def
+[Definition 6.2 — Viscosity solution (Crandall and Lions, 1983)]{.tag} Consider the equation $|\nabla u| = P(x)$.
+
+A continuous $u$ is a **viscosity subsolution** if, for every $C^1$ function $\varphi$ such that $u - \varphi$ has a local maximum at $x_0$,
+$$
+|\nabla \varphi(x_0)| \leq P(x_0) .
+$$
+
+It is a **supersolution** if, whenever $u - \varphi$ has a local minimum at $x_0$, the reverse inequality $|\nabla \varphi(x_0)| \geq P(x_0)$ holds. A **viscosity solution** is both.
+:::
+
+::: thm
+[Theorem 6.3 — The distance is the viscosity solution]{.tag} Let $S$ be a closed set of sources and $P$ continuous with $P \geq \varepsilon > 0$. The geodesic distance $U = d_P(S, \cdot)$ is the unique viscosity solution of
+$$
+|\nabla U| = P \ \text{ outside } S, \qquad U = 0 \ \text{ on } S ,
+$$
+with the boundary behaviour that corresponds to paths staying in $\Omega$. This is a result of optimal control theory; see Lions (1982) and Bardi and Capuzzo-Dolcetta (1997).
+:::
+
+::: ex
+[Example 6.4 — Checking the definition at a kink]{.tag} Take $u = 1 - |x|$ at $x_0 = 0$.
+
+-   No $C^1$ function touches a concave kink from below, so the supersolution test is empty.
+-   The $C^1$ functions touching it from above have slopes $\varphi'(0) \in [-1, 1]$, and they satisfy $|\varphi'(0)| \leq 1$: $u$ is a subsolution.
+
+Now take $u = |x| - 1$. The function $\varphi = -1$ touches it from below at $0$, but $|\varphi'(0)| = 0 < 1$: the supersolution test fails. Kinks of a viscosity solution of this equation may only point upwards, like the ridge of a distance function.
+:::
+
+:::: prop
+[Proposition 6.5 — Fronts and arrival times]{.tag} A front leaves $S$ at time 0 and moves outwards with normal speed $F(x) > 0$. Its **arrival time** $T(x)$, the time at which it reaches $x$, solves the eikonal equation
+$$
+|\nabla T| = \frac{1}{F}, \qquad T = 0 \ \text{ on } S .
+$$
+
+The level sets of the minimal action are thus the positions of a front moving at speed $1/P$: fast where $P$ is small.
+
+::: proof
+The front at time $t$ is $\{T = t\}$, and the reached region $\{T < t\}$ is the inside of the zero level of $\phi(x, t) = T(x) - t$.
+
+By Theorem 3.3, $\phi_t + F |\nabla \phi| = 0$, that is $-1 + F |\nabla T| = 0$. [∎]{.qed}
+:::
+::::
+
+### The upwind scheme and Fast Marching
+
+::: def
+[Definition 6.6 — Upwind discretisation (Rouy and Tourin, 1992)]{.tag} On a grid of step $h$, let $u$ be the unknown value at a node and
+$$
+a = \min(U_{\mathrm{west}}, U_{\mathrm{east}}), \qquad b = \min(U_{\mathrm{south}}, U_{\mathrm{north}})
+$$
+the smallest neighbour values along each axis. The discrete eikonal equation at the node is
+$$
+\max(u - a, 0)^2 + \max(u - b, 0)^2 = h^2 P^2 .
+$$
+
+Only neighbours with smaller values enter: information flows from small to large values of $U$, as the front moves.
+:::
+
+:::: prop
+[Proposition 6.7 — The local update is causal and monotone]{.tag} With $f = h P > 0$, the equation of Definition 6.6 has a unique solution:
+$$
+u = \begin{cases} \min(a, b) + f & \text{if } |a - b| \geq f, \\[4pt] \dfrac{a + b + \sqrt{2 f^2 - (a - b)^2}}{2} & \text{otherwise.} \end{cases}
+$$
+
+It is **causal**, $u > \min(a, b)$, and $u \geq \max(a, b)$ whenever both neighbours are used. It is **monotone**: $u$ is non-decreasing in $a$ and in $b$.
+
+::: proof
+The left-hand side is continuous in $u$, zero for $u \leq \min(a, b)$, and strictly increasing beyond: there is exactly one root, larger than $\min(a, b)$.
+
+Say $a \leq b$. If the root is at most $b$, only the first term is active and $u = a + f$, which is consistent exactly when $a + f \leq b$.
+
+Otherwise both terms are active, and $2u^2 - 2u(a + b) + a^2 + b^2 - f^2 = 0$; its larger root is the formula. It exceeds $b$ because $\sqrt{2f^2 - (a - b)^2} \geq b - a$ when $f \geq |a - b|$.
+
+Monotonicity follows from the implicit function theorem: in the second case,
+$$
+\frac{\partial u}{\partial a} = \frac{u - a}{2u - a - b} \geq 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+:::: thm
+[Algorithm 6.8 — Fast Marching (Sethian, 1996; Tsitsiklis, 1995)]{.tag} Every node is *Alive* (value final), *Trial* (tentative value, stored in a heap) or *Far* (value $+\infty$).
+
+1.  Sources are Alive with value 0; their neighbours become Trial, with values from Proposition 6.7.
+2.  Repeatedly move the Trial node $x$ with the smallest value to Alive. For each neighbour of $x$ that is not Alive, recompute its value from its Alive neighbours with Proposition 6.7, and make it Trial.
+3.  Stop when no Trial node remains, or when a target node becomes Alive.
+::::
+
+:::: thm
+[Theorem 6.9 — Correctness and complexity]{.tag} Fast Marching makes nodes Alive in non-decreasing order of value, and every Alive value is final: it solves the discrete equation of Definition 6.6. On a grid of $N$ nodes the cost is $O(N \log N)$.
+
+::: proof
+*Sketch*, as for Dijkstra (Algorithm 0.11). Suppose by induction that the Alive values so far are final and that $x$, extracted with value $u$, has the smallest Trial value.
+
+Every node that becomes Alive later has a value at least $u$, by causality (Proposition 6.7). Such a node $v$, entering the update of $x$, contributes $\max(u - v, 0)^2 = 0$ at the current root, so the root does not change: $u$ is final.
+
+Each node is extracted once, each extraction updates at most four neighbours in $O(1)$, and each heap operation costs $O(\log N)$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 6.10 — One update by hand]{.tag} Take $h = 1$, $P = 1$ and a source at the origin. The nodes $(1, 0)$ and $(0, 1)$ get the value 1. At the node $(1, 1)$, $a = b = 1$, so the two-sided formula gives
+$$
+u = \frac{2 + \sqrt{2}}{2} \approx 1.707 .
+$$
+
+The exact distance is $\sqrt 2 \approx 1.414$; a 4-neighbour Dijkstra gives 2. Fast Marching is wrong too next to the source, where the cone is singular. Unlike Dijkstra, its error vanishes when $h \to 0$.
+
+With $a = 1$ and $b = 1.2$ the update is $(2.2 + \sqrt{1.96})/2 = 1.8$.
+
+With $a = 1$ and $b = 2.5$, the gap exceeds $f = 1$ and the one-sided update gives $u = 2$.
+:::
+
+::: thm
+[Theorem 6.11 — Convergence (Barles and Souganidis, 1991)]{.tag} The upwind scheme of Definition 6.6 is monotone (Proposition 6.7), stable and consistent with the eikonal equation. By the theorem of Barles and Souganidis (1991) on such schemes, its solution converges uniformly to the viscosity solution of Theorem 6.3 as $h \to 0$.
+:::
+
+In practice the error behaves like $h$ away from singularities. Near a point source, where $U$ is a cone, it decreases a little more slowly, as the next code shows.
+
+::: ex
+[Code 6.12 — Fast Marching from scratch, and competing fronts]{.tag} Part (a) measures the error against the Euclidean distance. Part (b) propagates from two sources at once and records which source reaches each node first.
+
+```python
+import heapq
+import numpy as np
+
+def fast_marching(P, sources, h=1.0):
+    """First-order Fast Marching for |grad U| = P on a grid of step h.
+    Returns the action U and, for each point, the index of the source that reached it first."""
+    H, W = P.shape
+    U = np.full((H, W), np.inf)
+    label = np.full((H, W), -1)
+    alive = np.zeros((H, W), bool)
+    heap = []
+    for k, (i, j) in enumerate(sources):
+        U[i, j], label[i, j] = 0.0, k
+        heapq.heappush(heap, (0.0, i, j))
+    while heap:
+        u, i, j = heapq.heappop(heap)
+        if alive[i, j]:
+            continue
+        alive[i, j] = True                                   # the smallest Trial value is final
+        for a, b in ((i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)):
+            if not (0 <= a < H and 0 <= b < W) or alive[a, b]:
+                continue
+            # smallest Alive neighbour along each axis (inf if none)
+            ux = min(U[a, c] if 0 <= c < W and alive[a, c] else np.inf for c in (b - 1, b + 1))
+            uy = min(U[c, b] if 0 <= c < H and alive[c, b] else np.inf for c in (a - 1, a + 1))
+            f = h * P[a, b]
+            if abs(ux - uy) >= f:                            # one-sided update
+                new = min(ux, uy) + f
+            else:                                            # two-sided (quadratic) update
+                new = 0.5 * (ux + uy + np.sqrt(2 * f * f - (ux - uy) ** 2))
+            if new < U[a, b]:
+                U[a, b], label[a, b] = new, label[i, j]
+                heapq.heappush(heap, (new, a, b))
+    return U, label
+
+# (a) first-order convergence for the Euclidean distance on [-1, 1]^2
+for n in [51, 101, 201]:
+    h = 2.0 / (n - 1)
+    x = np.linspace(-1, 1, n)
+    X, Y = np.meshgrid(x, x)
+    U, _ = fast_marching(np.ones((n, n)), [(n // 2, n // 2)], h)
+    print(f"n = {n:3d}, h = {h:.3f}: max error {np.max(np.abs(U - np.hypot(X, Y))):.4f}")
+
+# (b) front competition between two sources in a non-constant metric
+n = 121
+x = np.linspace(-1, 1, n)
+X, Y = np.meshgrid(x, x)
+P = 1.0 + 2.0 * np.exp(-((X - 0.1) ** 2 + Y ** 2) / 0.05)   # a slow bump between the sources
+p, q = (60, 20), (60, 100)
+U, lab = fast_marching(P, [p, q], h=x[1] - x[0])
+Up, _ = fast_marching(P, [p], h=x[1] - x[0])
+border = (lab != np.roll(lab, 1, 1)) | (lab != np.roll(lab, 1, 0))
+border[:, 0] = border[0, :] = False
+print(f"d(p, q) = {Up[q]:.3f};  2 x min of U on the meeting line = {2 * U[border].min():.3f}")
+```
+
+In part (a) the maximal error falls from 0.0437 to 0.0263 to 0.0155 when $h$ is halved twice: a ratio of about 1.7 instead of 2, the effect of the point source.
+
+In part (b) the geodesic distance between the sources is 1.681, and twice the smallest action on the meeting line is 1.657. The two agree up to one grid step, as the next proposition predicts.
+:::
+
+### Front competition and saddle points
+
+:::: prop
+[Proposition 6.13 — Where two fronts meet]{.tag} Propagate from two sources $p$ and $q$ at once, so that $U = \min(d_P(p, \cdot), d_P(q, \cdot))$. The fronts meet on the **geodesic Voronoi boundary** $\{d_P(p, \cdot) = d_P(q, \cdot)\}$, and
+$$
+\min_{\text{meeting set}} U = \frac{d_P(p, q)}{2} .
+$$
+
+The minimum is attained at the midpoint $m$ of every minimal path from $p$ to $q$.
+
+Back-propagating from $m$ towards each source gives that minimal path: $m$ is a **saddle point** of $U$.
+
+::: proof
+For $x$ on the meeting set, the triangle inequality gives
+$$
+d_P(p, q) \leq d_P(p, x) + d_P(x, q) = 2 U(x) .
+$$
+
+At the midpoint $m$ of a minimal path, the two halves are minimal paths of length $d_P(p, q)/2$ each, so $m$ is on the meeting set and attains the bound. [∎]{.qed}
+:::
+
+Two practical consequences follow. To link $p$ and $q$, one can propagate from both and stop at the first meeting point, a strategy used in 3D by Deschamps and Cohen (2001). For a constant metric this explores two balls of radius $d/2$ instead of one of radius $d$: half the area in 2D, a quarter of the volume in 3D.
+
+With many sources, the first meeting points between neighbouring fronts tell which pairs of points should be linked. This is the basis of the multiple contour finding of Cohen (2001).
+::::
+
+::: note
+[Note 6.14 — Other eikonal solvers]{.tag} The **fast sweeping** method (Zhao, 2005) solves the same discrete equations by Gauss–Seidel iterations in alternating sweep orders, in $O(N)$ operations for a fixed number of sweeps; it suits smooth metrics and parallel hardware.
+
+Graph methods (Dijkstra) remain useful for their simplicity, with the metrication error of Proposition 5.10. A third approach, through the heat equation, is described in [ch. 9](#ch9).
+:::
+
+::: recap
+Key takeaways — chapter 6
+
+-   The eikonal equation has many almost-everywhere solutions; the geodesic distance is its unique viscosity solution (Theorem 6.3).
+-   The arrival time of a front of speed $F$ solves $|\nabla T| = 1/F$.
+-   The upwind update is causal and monotone (Proposition 6.7), which makes the one-pass Fast Marching algorithm correct, in $O(N \log N)$.
+-   Fast Marching converges to the continuous distance; Dijkstra on a fixed stencil does not.
+-   Fronts from two sources meet first at the midpoint of the minimal path: a saddle point of the action.
+:::
+
+## 7. Metrics: 2D, 3D, surfaces, anisotropic, space and radius {#ch7}
+
+Fast Marching computes geodesics for any metric; what makes a minimal path follow a vessel rather than cut across the background is the metric. This chapter shows how to design it from the image, how to handle volumes and surfaces, and how two extensions, anisotropy and an extra radius dimension, capture the orientation and the width of tubular structures.
+
+### Isotropic metrics from images
+
+::: def
+[Definition 7.1 — Isotropic image metrics]{.tag} The metric is $P(x) = \varepsilon + f(x)$, where $f \geq 0$ is small on the structure sought:
+
+-   for edges, $f = g$, the edge indicator of Definition 0.10;
+-   for a dark line on a bright background, $f$ is the normalised intensity, as in Code 5.11;
+-   for a structure of known intensity $c$, such as a vessel filled with contrast agent, $f = |I - c|$.
+
+The constant $\varepsilon > 0$ bounds the metric from below. A large $\varepsilon$ favours short paths; a small one lets the path follow the structure even when it winds.
+:::
+
+::: def
+[Definition 7.2 — Vesselness (Frangi, Niessen, Vincken and Viergever, 1998)]{.tag} Let $\lambda_1, \lambda_2$ be the eigenvalues of the scale-normalised Hessian $\sigma^2 \nabla^2 I_\sigma$ in 2D, ordered by $|\lambda_1| \leq |\lambda_2|$. For a bright line, $\lambda_2$ is large and negative across it, and $\lambda_1$ is small along it.
+
+With $R_B = \lambda_1 / \lambda_2$ and $S = \sqrt{\lambda_1^2 + \lambda_2^2}$, the **vesselness** is $0$ if $\lambda_2 > 0$, and otherwise
+$$
+V_\sigma = \exp\Big( - \frac{R_B^2}{2 \beta^2} \Big) \Big( 1 - \exp\Big( - \frac{S^2}{2 c^2} \Big) \Big) .
+$$
+
+The response is maximised over a range of scales $\sigma$, and a metric such as $P = 1 / (\varepsilon + V)$ makes vessels cheap.
+:::
+
+### Volumes and surfaces
+
+:::: prop
+[Proposition 7.3 — The update in 3D]{.tag} In a volume, let $a \leq b \leq c$ be the smallest neighbour values along the three axes. The discrete equation
+$$
+\max(u - a, 0)^2 + \max(u - b, 0)^2 + \max(u - c, 0)^2 = h^2 P^2
+$$
+has a unique solution, causal and monotone. It is found by trying one active term ($u = a + hP$, valid if $u \leq b$), then two, then three, and keeping the first consistent root.
+
+::: proof
+As in Proposition 6.7: the left-hand side is zero up to $a$, then continuous and strictly increasing, so it has one root; on each interval between consecutive values among $a, b, c$, a fixed set of terms is active, and the root is that of the corresponding quadratic. [∎]{.qed}
+:::
+
+A $512^3$ volume has $1.3 \times 10^8$ voxels, so stopping the propagation as soon as the target is reached, or when the fronts from both ends meet (Proposition 6.13), matters in practice.
+::::
+
+::: def
+[Definition 7.4 — Geodesics on a parametrised surface]{.tag} Let a surface be parametrised by $X : D \to \mathbb{R}^3$, with $D$ a planar domain. A curve on the surface is $X(c(p))$ with $c$ in $D$, and its weighted length is
+$$
+\int P(c) \, \sqrt{c'^\top G(c) \, c'} \, dp, \qquad G = DX^\top DX ,
+$$
+where $G$ is the **first fundamental form**. Geodesics on the surface are geodesics of the metric $P^2 G$ on the flat domain $D$: an **anisotropic** metric, the subject of the next section.
+:::
+
+::: note
+[Note 7.5 — Fast Marching on triangulated surfaces]{.tag} Kimmel and Sethian (1998) extend Fast Marching to triangle meshes. A vertex is updated from the two other vertices of each adjacent triangle, by assuming that the front crosses the triangle as a plane wave.
+
+The update is causal when the triangle has no obtuse angle; at an obtuse vertex, the triangle is split by unfolding neighbouring triangles into the plane, which restores an acute configuration.
+:::
+
+### Anisotropic metrics
+
+::: def
+[Definition 7.6 — Riemannian metric]{.tag} A **Riemannian metric** is a field $M(x)$ of symmetric positive-definite matrices. The length of a curve is
+$$
+L_M(C) = \int_0^1 \sqrt{C'(p)^\top M(C(p)) \, C'(p)} \, dp ,
+$$
+and the isotropic case is $M = P^2 I$. The **anisotropy ratio** at $x$ is $\sqrt{\lambda_{\max}(M) / \lambda_{\min}(M)}$.
+
+For a vessel of unit direction $e(x)$, with $e^\perp$ the orthogonal unit vector, the choice
+$$
+M = c_\parallel^2 \, e e^\top + c_\perp^2 \, e^\perp e^{\perp\top}, \qquad c_\parallel < c_\perp ,
+$$
+makes moving along the vessel cheaper than crossing it.
+:::
+
+:::: prop
+[Proposition 7.7 — Anisotropic eikonal equation]{.tag} The geodesic distance $U$ for the metric $M$ solves, where it is differentiable,
+$$
+\sqrt{ \nabla U^\top M^{-1} \nabla U } = 1 ,
+$$
+and minimal paths are obtained by descending along $-M^{-1} \nabla U$, not along $-\nabla U$.
+
+::: proof
+Write $\|e\|_M = \sqrt{e^\top M e}$. The upper-bound argument of Theorem 5.5 gives $\langle \nabla U, e \rangle \leq \|e\|_M$ for every $e$; the lower bound along a minimal path gives equality for its unit tangent.
+
+For the inner product $\langle u, v \rangle_M = u^\top M v$, Cauchy–Schwarz gives
+$$
+\langle \nabla U, e \rangle = \langle M^{-1} \nabla U, e \rangle_M \leq \|M^{-1} \nabla U\|_M \, \|e\|_M ,
+$$
+with equality when $e$ is proportional to $M^{-1} \nabla U$. The supremum over $\|e\|_M = 1$ is therefore
+$$
+\|M^{-1} \nabla U\|_M = \sqrt{\nabla U^\top M^{-1} \nabla U} ,
+$$
+which equals 1. [∎]{.qed}
+:::
+::::
+
+::: note
+[Note 7.8 — When Fast Marching breaks]{.tag} The four-neighbour update assumes that the information reaching a node comes from inside the quadrant of its two upwind neighbours. With a strong anisotropy oblique to the grid, the characteristic direction $-M^{-1}\nabla U$ leaves that quadrant: the scheme is no longer causal, and the result is wrong.
+
+Two remedies exist. Ordered Upwind Methods (Sethian and Vladimirsky, 2003) search for the upwind information in a wider neighbourhood. Mirebeau (2014) builds, at each node, a small stencil adapted to $M(x)$ by lattice basis reduction, which keeps the scheme causal. Exercise 15 measures how fixed stencils degrade with anisotropy.
+:::
+
+### Space and radius
+
+::: def
+[Definition 7.9 — Minimal paths in space and radius (Li and Yezzi, 2007)]{.tag} Add the radius as an extra coordinate: paths live in $\Omega \times [r_{\min}, r_{\max}]$, and a path $s \mapsto (x(s), r(s))$ describes a **tube**, the envelope of the disks (in 2D) or balls (in 3D) of centre $x(s)$ and radius $r(s)$.
+
+The metric $P(x, r)$ is low where a tube of radius $r$ is centred at $x$. One minimal path then gives the centreline and the radius at once. Benmansour and Cohen (2011) combine this lifting with an anisotropic metric oriented along the vessel.
+:::
+
+::: def
+[Definition 7.10 — Oriented flux on circles]{.tag} Law and Chung (2008) measure tubular structures by the **optimally oriented flux**: the flux of the image gradient through a sphere of radius $r$, projected on a direction. A 2D version is the matrix
+$$
+Q(x, r) = \frac{1}{2\pi} \int_0^{2\pi} \nabla I_\sigma(x + r n_\theta) \, n_\theta^\top \, d\theta, \qquad n_\theta = (\cos\theta, \sin\theta) .
+$$
+
+For a bright tube, the gradient on its walls points inwards. The smallest eigenvalue of the symmetric part of $Q$ is therefore most negative when the circle lies on the walls, that is when $r$ matches the radius, and its eigenvector gives the direction across the tube.
+:::
+
+::: ex
+[Code 7.11 — Centreline and radius of a widening tube]{.tag} A tube whose radius grows from 2 to 6 pixels is extracted by one minimal path in the $(r, y, x)$ volume, with the metric $P = e^{-8 R / \max R} + 0.01$ built from the flux response $R = \max(-\lambda_{\min}(Q), 0)$.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import dijkstra
+
+# A tube whose radius grows from 2 to 6 pixels along a sine-shaped centreline
+H, W = 100, 128
+yy, xx = np.mgrid[0:H, 0:W].astype(float)
+xs = np.arange(10, 118)
+cy = 50 + 15 * np.sin(2 * np.pi * xs / 120)
+rad = 2 + 4 * (xs - 10) / 107
+dist = np.full((H, W), np.inf)
+for x0, y0, r0 in zip(xs, cy, rad):                     # union of disks along the centreline
+    dist = np.minimum(dist, np.hypot(xx - x0, yy - y0) - r0)
+rng = np.random.default_rng(5)
+I = (dist < 0) + 0.25 * rng.standard_normal((H, W))
+
+# Oriented flux on circles (2D version of Law and Chung, 2008):
+# Q(x, r) = mean over the circle of radius r of grad(I_s)(x + r n) n^T, symmetrised.
+# For a bright tube its smallest eigenvalue is most negative when r matches the radius.
+Is = ndi.gaussian_filter(I, 1.0)
+gy, gx = np.gradient(Is)
+radii = np.arange(1.0, 8.01, 0.5)
+ang = np.linspace(0, 2 * np.pi, 48, endpoint=False)
+resp = []
+for r in radii:
+    Q = np.zeros((2, 2, H, W))
+    for t in ang:
+        n = np.array([np.cos(t), np.sin(t)])
+        pts = [yy + r * n[1], xx + r * n[0]]
+        g = [ndi.map_coordinates(gx, pts, order=1, mode="nearest"),
+             ndi.map_coordinates(gy, pts, order=1, mode="nearest")]
+        for i in range(2):
+            for j in range(2):
+                Q[i, j] += g[i] * n[j] / len(ang)
+    a, b, c = Q[0, 0], (Q[0, 1] + Q[1, 0]) / 2, Q[1, 1]
+    lam_min = (a + c) / 2 - np.sqrt(((a - c) / 2) ** 2 + b ** 2)
+    resp.append(np.maximum(-lam_min, 0))
+resp = np.stack(resp)                                            # shape (R, H, W)
+P = np.exp(-8 * resp / resp.max()) + 0.01                       # metric on (r, y, x)
+
+# Graph on (r, y, x): 8 spatial neighbours at fixed r, and r -> r +- 1
+R = len(radii)
+idx = np.arange(R * H * W).reshape(R, H, W)
+rows, cols, wts = [], [], []
+for dr, dy, dx in [(0, 0, 1), (0, 1, 0), (0, 1, 1), (0, 1, -1), (1, 0, 0)]:
+    a = idx[:R - dr, max(0, -dy):H - dy, max(0, -dx):W - max(0, dx)]
+    b = idx[dr:, dy:, max(0, dx):W - max(0, -dx) or None][:, :a.shape[1], :a.shape[2]]
+    length = np.sqrt(dx**2 + dy**2 + (1.0 * dr)**2)              # a radius step of 0.5 costs like 1 pixel
+    w = length * (P.ravel()[a.ravel()] + P.ravel()[b.ravel()]) / 2
+    rows += [a.ravel(), b.ravel()]; cols += [b.ravel(), a.ravel()]; wts += [w, w]
+G = coo_matrix((np.concatenate(wts), (np.concatenate(rows), np.concatenate(cols))),
+               shape=(R * H * W,) * 2).tocsr()
+
+start = idx[:, int(round(cy[0])), xs[0]]                         # all radii at the first end
+U, pred, _ = dijkstra(G, indices=start, min_only=True, return_predecessors=True)
+end = idx[:, int(round(cy[-1])), xs[-1]]
+k = end[np.argmin(U[end])]
+path = []
+while k >= 0:
+    path.append(k); k = pred[k]
+pr, py, px = np.unravel_index(np.array(path), (R, H, W))
+sel = (px >= xs[0]) & (px <= xs[-1])
+err_c = np.abs(py[sel] - cy[px[sel] - xs[0]])
+err_r = np.abs(radii[pr[sel]] - rad[px[sel] - xs[0]])
+print(f"centreline error: mean {err_c.mean():.2f} px | radius error: mean {err_r.mean():.2f} px")
+for x0 in [20, 60, 100]:
+    j = np.flatnonzero(px == x0)[0]
+    print(f"x = {x0:3d}: true radius {rad[x0 - 10]:.2f}, estimated {radii[pr[j]]:.1f}")
+```
+
+The centreline is found with a mean error of 0.25 pixel. The radius is estimated with a mean error of 0.45 pixel, mostly by excess: 3.0, 4.5 and 6.0 for true radii 2.37, 3.87 and 5.36.
+
+The excess of about half a pixel is the discretisation of the tube, whose binary mask extends half a pixel beyond the continuous radius. Dijkstra on a graph is used here for brevity; Fast Marching on the lifted grid would remove the metrication error of Proposition 5.10.
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   An isotropic metric $\varepsilon + f$ is designed from edges, intensities or a vesselness filter; $\varepsilon$ trades length against fidelity.
+-   Fast Marching extends to 3D with the same causal update, and to surfaces through the first fundamental form or triangle meshes.
+-   For a Riemannian metric $M$, the distance solves $\sqrt{\nabla U^\top M^{-1} \nabla U} = 1$, and paths descend along $-M^{-1}\nabla U$.
+-   Strong anisotropy breaks the causality of simple stencils; adaptive stencils and ordered upwind methods restore it.
+-   Adding the radius as a coordinate turns one minimal path into a centreline with its width.
+:::
+
+## 8. Geodesic remeshing and applications {#ch8}
+
+Geodesic distances do more than link two points. Computed from many sources, they place samples evenly on a domain or a surface and build meshes adapted to a metric; computed from one root to many leaves, they extract trees. This chapter covers geodesic remeshing and the medical applications announced by the course.
+
+### Farthest-point sampling and geodesic meshes
+
+::: def
+[Definition 8.1 — Farthest-point sampling]{.tag} Start from a point $x_1$. Given $S_k = \{x_1, \dots, x_k\}$, add the point farthest from it for the geodesic distance:
+$$
+x_{k+1} = \arg\max_{x \in \Omega} d_P(x, S_k) .
+$$
+
+The **covering radius** of $S_k$ is $r_k = \max_x d_P(x, S_k)$. Each step is one Fast Marching run from $S_k$, or an update of the previous one from the new source.
+:::
+
+:::: thm
+[Theorem 8.2 — Farthest-point sampling is a 2-approximation (Gonzalez, 1985)]{.tag} Let $r_k^\star$ be the smallest covering radius achievable with $k$ points. Then
+$$
+r_k \leq 2 \, r_k^\star ,
+$$
+and the points $x_1, \dots, x_{k+1}$ are pairwise at distance at least $r_k$.
+
+::: proof
+The radii are non-increasing, and $x_{j+1}$ is at distance $r_j \geq r_k$ from all earlier points, for $j \leq k$. Hence the $k + 1$ points are pairwise at least $r_k$ apart.
+
+Cover $\Omega$ by $k$ geodesic balls of radius $r_k^\star$. Two of the $k + 1$ points lie in the same ball, so their distance is at most $2 r_k^\star$. It is also at least $r_k$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 8.3 — Covering radius and density]{.tag} For the constant metric $P = 1$ on a planar domain of area $A$, every set of $k$ points has a covering radius at least $\sqrt{A / (\pi k)}$. By Theorem 8.2, farthest-point sampling therefore satisfies
+$$
+\sqrt{\frac{A}{\pi k}} \leq r_k \leq 2 \, r_k^\star .
+$$
+
+::: proof
+A geodesic ball of radius $r$ lies inside the Euclidean ball of the same radius, of area $\pi r^2$, since geodesic distances are at least Euclidean ones. Covering an area $A$ with $k$ such balls requires $k \pi r^2 \geq A$. [∎]{.qed}
+:::
+
+For a general metric, the spacing of the samples is inversely proportional to $P$: a metric twice as large halves the spacing.
+::::
+
+::: def
+[Definition 8.4 — Geodesic Voronoi diagram and Delaunay triangulation]{.tag} The **geodesic Voronoi cell** of $x_i$ is the set of points closer to $x_i$ than to any other sample:
+$$
+V_i = \{ x : d_P(x, x_i) \leq d_P(x, x_j) \ \text{for all } j \} .
+$$
+
+It is computed by one Fast Marching run from all the samples, recording the source that reaches each point first (Code 6.12). The **geodesic Delaunay triangulation** joins $x_i$ and $x_j$ when $V_i$ and $V_j$ share a boundary, and forms a triangle at each point where three cells meet.
+:::
+
+::: note
+[Note 8.5 — Adaptive and anisotropic remeshing]{.tag} Peyré and Cohen (2006) remesh planar domains and surfaces by alternating farthest-point sampling and geodesic Delaunay triangulation, with a metric that encodes where detail is needed.
+
+-   A metric large near image edges or on highly curved regions of a surface concentrates the vertices there.
+-   An anisotropic metric (Definition 7.6) produces triangles stretched along the direction where the metric is small, aligned with edges or with a principal direction of curvature.
+
+The survey of Peyré, Péchaud, Keriven and Cohen (2010), an official reference of the course, develops these methods for computer vision and graphics.
+:::
+
+::: ex
+[Code 8.6 — Geodesic sampling in a room, and a centred path in a tube]{.tag} Part (a) samples a square room with a wall by farthest-point sampling, with geodesic distances that go around the wall. Part (b) compares two minimal paths through a curved tube, with $P = 1$ and with a metric that is low far from the walls.
+
+```python
+import numpy as np
+from scipy import ndimage as ndi
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import dijkstra
+
+def graph(P, mask):
+    """16-neighbour graph on the pixels of mask, edge weight |u - v| (P(u) + P(v)) / 2."""
+    H, W = P.shape
+    idx = np.arange(H * W).reshape(H, W)
+    offs = [(0, 1), (1, 0), (1, 1), (1, -1), (1, 2), (2, 1), (1, -2), (2, -1)]
+    r, c, w = [], [], []
+    for dy, dx in offs:
+        a = idx[:H - dy, max(0, -dx):W - max(0, dx)].ravel()
+        b = a + dy * W + dx
+        ok = mask.ravel()[a] & mask.ravel()[b]           # walls are >= 3 pixels thick: no jump
+        a, b = a[ok], b[ok]
+        wt = np.hypot(dx, dy) * (P.ravel()[a] + P.ravel()[b]) / 2
+        r += [a, b]; c += [b, a]; w += [wt, wt]
+    return coo_matrix((np.concatenate(w), (np.concatenate(r), np.concatenate(c))),
+                      shape=(H * W, H * W)).tocsr()
+
+# (a) farthest point sampling with the geodesic distance, in a room with a wall
+H = W = 101
+mask = np.ones((H, W), bool)
+mask[:80, 49:52] = False                                 # a wall, open above row 80
+G = graph(np.ones((H, W)), mask)
+samples = [0]                                            # start at the corner (0, 0)
+for k in range(1, 33):
+    d = dijkstra(G, indices=samples, min_only=True)
+    d[~mask.ravel()] = -1
+    if k in (1, 2, 4, 8, 16, 32):
+        print(f"k = {k:2d} samples: covering radius {d.max():6.2f},  radius x sqrt(k) = {d.max() * np.sqrt(k):6.1f}")
+    samples.append(int(np.argmax(d)))
+
+# (b) a centred path in a curved tube, as for virtual endoscopy
+yy, xx = np.mgrid[0:H, 0:W]
+tube = np.abs(np.hypot(xx - 50, yy - 100) - 60) < 8      # an arc of ring of width 16
+d_wall = ndi.distance_transform_edt(tube)                # distance to the wall
+ends = [np.flatnonzero((tube & (xx == x)).ravel()) for x in (2, 98)]
+src_, dst = ends[0][len(ends[0]) // 2], ends[1][len(ends[1]) // 2]
+for name, P in [("P = 1", np.ones((H, W))), ("P = 1/(d + 1)^2", 1.0 / (d_wall + 1.0) ** 2)]:
+    U, pred = dijkstra(graph(P, tube), indices=src_, return_predecessors=True)
+    k, path = dst, []
+    while k != src_:
+        path.append(k); k = pred[k]
+    print(f"{name:16s}: smallest distance to the wall along the path = {d_wall.ravel()[path].min():.1f} px")
+```
+
+In part (a) the second sample is the opposite corner behind the wall, at geodesic distance 191 although the Euclidean distance is 100. The covering radius then falls to 111.8, 63.0, 39.4, 23.6 and 18.4 for 2 to 32 samples.
+
+The product $r_k \sqrt{k}$ settles around 100, above the lower bound $\sqrt{A/\pi} \approx 56$ of Proposition 8.3 with $A \approx 9960$ free pixels.
+
+In part (b) the path with $P = 1$ cuts the inner corner of the bend and touches the wall (distance 1 pixel). With $P = 1/(d + 1)^2$ it stays at least 7.1 pixels from the wall in a tube of half-width 8: a centreline.
+:::
+
+### Trees, tubes, endoscopy and surfaces
+
+:::: prop
+[Proposition 8.7 — Minimal paths from one root form a tree]{.tag} Let $p_0$ be a source and $q_1, \dots, q_m$ end points, and assume that minimal paths to $p_0$ are unique. Then the union of the minimal paths from the $q_i$ to $p_0$ is a tree: two of them that meet at a point coincide from there to $p_0$.
+
+::: proof
+Suppose the paths from $q_i$ and $q_j$ meet at a point $x$. The part of each from $x$ to the root is a minimal path from $x$ to the root, since a sub-path of a minimal path is minimal.
+
+By uniqueness the two parts are equal, so the union has no cycle. [∎]{.qed}
+:::
+
+Back-propagating from all the leaves of a vascular tree, once $U$ has been computed from the root, gives its branches. Benmansour and Cohen (2009) go further and extract a structure from a single initial point, by placing new keypoints during the propagation and growing minimal paths between them.
+::::
+
+::: note
+[Note 8.8 — Virtual endoscopy and surface segmentation]{.tag} In **virtual endoscopy**, a camera flies through a 3D image of a colon or a vessel along a centred path. Deschamps and Cohen (2001) obtain such paths with a metric built from the distance to the wall, as in part (b) of Code 8.6, and with a propagation stopped as soon as the end point is reached.
+
+For **surface segmentation**, minimal paths in a 3D image can sweep a surface. Ardon and Cohen (2006) build a surface between two given curves as a family of minimal paths joining them.
+
+Vessels combine all the tools: a vesselness or flux metric (Definitions 7.2, 7.10), the radius dimension (Definition 7.9), anisotropy along the vessel, and trees of paths (Proposition 8.7). Benmansour and Cohen (2011), an official reference of the course, segment tubular structures in this way.
+:::
+
+::: note
+[Note 8.9 — Beyond medicine]{.tag} The same methods extract roads in aerial images and cracks in pavement or materials, where the structure is thin, long and noisy and only some points are known.
+
+Kaul, Yezzi and Tsai (2012) detect curves with unknown endpoints and arbitrary topology with minimal paths, the typical setting of crack detection. In industrial settings, the guarantees of the geodesic approach matter: global optimality between given points, and a computation time that is predictable from the image size.
+:::
+
+::: recap
+Key takeaways — chapter 8
+
+-   Farthest-point sampling with geodesic distances is a 2-approximation of the best covering (Theorem 8.2), with spacing inversely proportional to the metric.
+-   Geodesic Voronoi diagrams come from competing fronts; their dual is a geodesic Delaunay mesh, adaptive or anisotropic through the metric.
+-   Minimal paths from one root to many leaves form a tree, which extracts vascular trees.
+-   Centred paths for virtual endoscopy use a metric that grows near the walls; families of minimal paths can sweep surfaces.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study. It points to four active directions that start from the methods of the course, with the papers where they are developed, and lists questions that remain open.
+
+### Curvature-penalised and Finsler minimal paths
+
+A minimal path for an isotropic metric has no notion of direction: at a crossing of two vessels it may turn sharply onto the wrong branch, and between two structures it may take a shortcut through a corner. Penalising curvature fixes both, but the energy
+$$
+\int_C \big( 1 + \beta \, \kappa(s)^2 \big) \, P(C(s)) \, ds
+$$
+depends on the second derivative of the curve and is not a geodesic length in the image plane.
+
+The way out is **orientation lifting**: a curve $s \mapsto (x(s), \theta(s))$ in the space of positions and orientations, constrained to move along its own direction. Curvature becomes the speed of $\theta$, and the energy becomes a length for a metric on the lifted space, sub-Riemannian or Finsler.
+
+Bekkers, Duits, Mashtakov and Sanguinetti (2015) compute data-driven sub-Riemannian geodesics in this space with a PDE approach. Chen, Mirebeau and Cohen (2017) obtain global minimisers of a Finsler elastica model. Mirebeau (2018) designs Fast Marching schemes for several curvature-penalised models, among which the Reeds–Shepp car and the Euler–Mumford elastica.
+
+Open problems: the lifted space has three dimensions in 2D and five in 3D, so memory and time are the bottleneck for volumes; and the choice of the curvature weight remains empirical.
+
+### Global minimisers for regions and surfaces
+
+Chapter 4 minimised region energies by gradient flows, which find local minima. For two phases with fixed constants, a convex relaxation finds the global minimum.
+
+:::: prop
+[Proposition 9.1 — Thresholding a convex relaxation (Chan, Esedoglu and Nikolova, 2006)]{.tag} Let $r(x) = \lambda_1 (I - c_1)^2 - \lambda_2 (I - c_2)^2$, and let $u^\star$ minimise the convex functional
+$$
+F(u) = \mu \int |\nabla u| \, dx + \int r \, u \, dx \qquad \text{over } 0 \leq u \leq 1 .
+$$
+Then for almost every $t \in (0, 1)$, the region $\{u^\star > t\}$ is a global minimiser of the Chan–Vese energy with constants $c_1, c_2$.
+
+::: proof
+*Sketch.* By the coarea formula, $\int |\nabla u| = \int_0^1 \mathrm{Per}(\{u > t\}) \, dt$, and the layer-cake formula gives $\int r u = \int_0^1 \int_{\{u > t\}} r \, dt$. Hence $F(u)$ is the average over $t$ of the Chan–Vese energy of $\{u > t\}$, up to a constant.
+
+The binary minimisers are admissible for $F$. If a positive measure of levels $t$ gave a region worse than the best one, the average would exceed the minimum of $F$. [∎]{.qed}
+:::
+::::
+
+Similar ideas lead to globally optimal minimal surfaces: discrete ones by graph cuts (Boykov and Kolmogorov, 2003), continuous ones by maximal flows (Appleton and Talbot, 2006). Pock, Cremers, Bischof and Chambolle (2009) extend convex relaxation to the full Mumford–Shah functional by lifting to a higher-dimensional space. Open problem: convex formulations with shape priors that remain tight.
+
+### Distances from heat
+
+Varadhan (1967) proved that the heat kernel encodes the distance: for the heat kernel $k_t$ of a Riemannian manifold,
+$$
+d(x, y) = \lim_{t \to 0} \sqrt{ -4 t \log k_t(x, y) } .
+$$
+
+Crane, Weischedel and Wardetzky (2013) turn this into the **heat method**: solve the heat equation for a short time, normalise the gradient of the solution into a unit field $X$, then solve the Poisson equation $\Delta \phi = \mathrm{div} X$. Both steps are sparse linear systems whose factorisations can be reused for every new source, which makes the method fast on large meshes. Its accuracy near the cut locus and for strongly anisotropic metrics is still studied.
+
+### Deformable models and deep learning
+
+Learning has entered deformable models in three ways.
+
+-   **Learned energies.** Marcos and coauthors (2018) predict the terms of a snake energy with a convolutional network and train the whole pipeline end to end.
+-   **Learned contour evolution.** Peng and coauthors (2020) deform an initial polygon with a network that applies circular convolutions to its vertices, for real-time instance segmentation.
+-   **Geometric losses.** Kervadec and coauthors (2019) train segmentation networks with a boundary loss computed from the distance map to the ground-truth boundary. Shit and coauthors (2021) propose clDice, a loss computed on skeletons that rewards the connectivity of tubular structures.
+
+Open problems: a network does not guarantee that a vessel tree is connected or that an organ is simply connected, while minimal paths and level sets give such guarantees by construction. Learning the metric and keeping the geodesic extraction is one way to have both.
+
+### Questions to explore
+
+-   Crossings and bifurcations: how to extract a vascular tree where branches cross without merging, with orientation lifting or anisotropic metrics.
+-   Uncertainty: how confident is an extracted path, and how sensitive is it to the endpoints and the metric?
+-   Evaluation: overlap scores ignore topology; which measures reward correct connectivity and centrelines?
+-   Large volumes: partial propagation, multi-resolution and parallel solvers for the eikonal equation in $10^9$ voxels.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Lifting to positions and orientations turns curvature penalties into Finsler or sub-Riemannian lengths, computable by adapted Fast Marching.
+-   For two phases with fixed constants, thresholding a convex relaxation gives a global minimiser of the Chan–Vese energy.
+-   The heat method computes distances with two sparse linear solves.
+-   Learned energies, learned contour evolution and geometric losses connect deformable models with deep networks; topological guarantees remain open.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. Exercises 6, 11, 14, 15, 17, 18 and 19 are computational.
+
+1.  **★ A snake shrinks exponentially.** A closed snake with $\alpha = 0.1$, $\beta = 0$ and a constant potential starts as the circle of radius 20, parametrised at constant speed on $[0, 1]$. Compute its radius at $t = 1$ and the time at which the radius is halved. Compare with the curve shortening flow of the same circle.
+
+    *Solution*: by Proposition 1.7, $r(t) = 20 \, e^{-4\pi^2 \cdot 0.1 \, t}$, so $r(1) = 20 \, e^{-3.948} \approx 0.39$. The radius is halved at $t = \ln 2 / 3.948 \approx 0.176$, whatever the initial radius.
+
+    Under curve shortening, $r^2 = 400 - 2t$: the circle vanishes at $t = 200$ and halves at $t = 150$. The parametric snake shrinks at a rate independent of the size; the geometric flow shrinks small circles faster than large ones.
+
+2.  **★ Choosing the time step.** For a snake of $n = 100$ nodes with $a = 0.1$ and $b = 0.05$, give the largest stable explicit time step, the smallest nonzero eigenvalue of $A$, and the time step allowed by the semi-implicit scheme.
+
+    *Solution*: $\lambda_{\max} = 4a + 16b = 1.2$, so the explicit scheme needs $\tau \leq 2/1.2 \approx 1.67$ (Theorem 1.5).
+
+    With $\omega_1 = 4 \sin^2(\pi/100) = 0.003947$, the smallest nonzero eigenvalue is
+    $$
+    \lambda_1 = a \omega_1 + b \omega_1^2 \approx 3.95 \times 10^{-4} .
+    $$
+    The semi-implicit scheme is stable for every $\tau$; its step is limited only by the external force, which should move a node by at most about one pixel.
+
+3.  **★ Finite elements with four nodes.** For a closed curve of length 1 with $n = 4$ P1 elements ($h = 1/4$), write $M$ and $K$ (elasticity only, $\alpha = 1$) and compute the generalised eigenvalues of the lowest nonzero mode for finite elements and for finite differences.
+
+    *Solution*: $M = \frac{1}{24}\,\mathrm{tridiag}(1, 4, 1)$ and $K = 4\,\mathrm{tridiag}(-1, 2, -1)$, cyclic. For $k = 1$, $\theta = \pi/2$ (Proposition 2.4):
+    $$
+    \lambda^{\mathrm{FD}} = 64 \sin^2 \frac{\pi}{4} = 32, \qquad \lambda^{\mathrm{FE}} = 96 \cdot \frac{1 - 0}{2 + 0} = 48 .
+    $$
+    The exact value $4\pi^2 \approx 39.5$ lies between them, as Proposition 2.4 says.
+
+4.  **★ A circle under the geometric active contour.** With $g = 1$ and a balloon $\nu = 0.1$, the geometric active contour is $\phi_t = (\kappa + \nu) |\nabla \phi|$. Start from the circle of radius 10. When does it disappear?
+
+    *Solution*: with $\phi = |x| - r(t)$ (Example 3.4), $-\dot r = 1/r + \nu$. Separating variables,
+    $$
+    T = \int_0^{10} \frac{r \, dr}{1 + \nu r} = \frac{1}{\nu} \Big( 10 - \frac{\ln(1 + 10\nu)}{\nu} \Big) = 10 \, (10 - 10 \ln 2) \approx 30.7 ,
+    $$
+    instead of $50$ without the balloon.
+
+5.  **★ Fast Marching updates by hand.** With $h = P = 1$, compute the update of Proposition 6.7 for $(a, b) = (0, 0)$, $(2, 2.5)$ and $(1, 3)$. Then extend the reasoning to 3D, where the equation is $\sum_{i=1}^3 \max(u - a_i, 0)^2 = 1$, with three axis neighbours $a_i = 0$.
+
+    *Solution*: $(0 + \sqrt 2)/2 \approx 0.707$; $(4.5 + \sqrt{2 - 0.25})/2 \approx 2.911$; and since $|1 - 3| \geq 1$, the one-sided value $2$.
+
+    In 3D with all $a_i = 0$: one active term would give $u = 1$, larger than the other neighbours, which are then active too; two terms give $1/\sqrt 2$, same objection. All three are active, $3u^2 = 1$ and $u = 1/\sqrt 3 \approx 0.577$ (Proposition 7.3 states the general rule).
+
+6.  **★ A 32-neighbour stencil.** Add the moves $(\pm 1, \pm 3)$, $(\pm 3, \pm 1)$, $(\pm 2, \pm 3)$, $(\pm 3, \pm 2)$ to the 16-neighbour stencil of Code 5.11. Predict the maximal relative error with Proposition 5.10, then measure it on a $201 \times 201$ grid, for points at distance more than 40 from the source.
+
+    *Hints and expected result*: in the first octant the directions have angles $0°$, $18.4°$, $26.6°$, $33.7°$ and $45°$. The largest gap is $\arctan(1/3) = 18.4°$, so the error is
+    $$
+    \frac{1}{\cos(9.2°)} - 1 \approx 0.0131 .
+    $$
+    The measurement gives 0.0131, against 0.0275 for 16 neighbours.
+
+7.  **★ Chan–Vese by hand.** A 1D signal is $I = (0.1, 0.2, 0.9, 0.6, 0.8, 0.3)$, with pixels 3 to 5 inside. Compute $c_1$, $c_2$ and the two data terms ($\lambda_1 = \lambda_2 = 1$). Should pixel 4 or pixel 6 change side?
+
+    *Solution*: $c_1 = 0.767$ and $c_2 = 0.2$ (Proposition 4.3). The data terms are $0.0467$ inside and $0.02$ outside.
+
+    A pixel prefers the inside when $I$ is closer to $c_1$ than to $c_2$, that is above $(c_1 + c_2)/2 = 0.483$. Pixel 4 ($0.6$) stays inside and pixel 6 ($0.3$) stays outside: the partition is stable without a length term.
+
+8.  **★ Refraction of a minimal path.** Let $P = 1$ for $y > 0$ and $P = 2$ for $y < 0$. Find the minimal path from $(0, 1)$ to $(3, -1)$ and its weighted length, and compare with the straight segment.
+
+    *Solution*: the path is straight in each half-plane and crosses the axis at a point $(x, 0)$ that minimises
+    $$
+    f(x) = \sqrt{x^2 + 1} + 2 \sqrt{(3 - x)^2 + 1} .
+    $$
+    Setting $f'(x) = 0$ gives Snell's law $\sin\theta_1 = 2 \sin\theta_2$, with angles to the normal. Numerically $x \approx 2.477$ and $f \approx 4.928$, against $5.408$ for the segment. The path saves time by staying longer in the fast medium, as light does: the eikonal equation is the equation of geometrical optics.
+
+9.  **★★ Stationary circles of a geodesic active contour.** Let $g(x) = 1 + (|x| - 10)^2$, an edge indicator whose valley is the circle of radius 10. Find the circles centred at the origin that are stationary for the geodesic active contour without balloon, and say which are stable.
+
+    *Solution*: for a circle of radius $r$, $\kappa = 1/r$ and $\langle \nabla g, N \rangle = g'(r)$, so the normal speed is $-(g/r + g')$, which vanishes when $(r g(r))' = 0$. This is the condition that $L_g = 2\pi r g(r)$ is stationary, as Theorem 3.6 predicts.
+
+    It reads $3r^2 - 40 r + 101 = 0$, with roots $r \approx 9.95$, a minimum of $L_g$ (stable), and $r \approx 3.38$, a maximum (unstable). The stable contour sits slightly inside the valley: the length term pulls it inwards.
+
+10. **★★ Region competition separates textures with equal means.** Model region 1 by $\mathcal{N}(m_1, \sigma_1^2)$ and region 2 by $\mathcal{N}(m_2, \sigma_2^2)$. Write the speed of Proposition 4.7. With $m_1 = m_2 = 0$, $\sigma_1 = 1$ and $\sigma_2 = 2$, and a flat boundary, which pixels push the boundary into region 2?
+
+    *Solution*: up to the curvature term,
+    $$
+    v = \log \frac{\sigma_2}{\sigma_1} - \frac{(I - m_1)^2}{2 \sigma_1^2} + \frac{(I - m_2)^2}{2 \sigma_2^2} .
+    $$
+    Here $v = \ln 2 - \frac{3}{8} I^2$, positive when $|I| < 1.36$. Small values are better explained by the narrow model, large ones by the wide model. Chan–Vese, which compares only means, cannot separate these two regions.
+
+11. **★★ A robust projection on the shape model.** In Code 4.11, the occluded pixels pull the projection. Estimate the coefficients by least squares on the pixels farther than 20 pixels from the centre of the bite only, including a free constant. Then vary the number of modes in the plain projection from 1 to 5.
+
+    *Hints and expected result*: with the mask, the intersection over union with the true ellipse rises to 0.950, against 0.867 for the plain projection.
+
+    The plain projection gives 0.735, 0.867, 0.855 and 0.828 with 1, 2, 3 and 5 modes. Beyond the two modes that the training set really has, the extra modes start fitting the occlusion: a shape prior must be both robust and low-dimensional.
+
+12. **★★ Viscosity solutions at a ridge.** Let $p \neq q$ and $U(x) = \min(|x - p|, |x - q|)$, the distance to two points. Show that $U$ is a viscosity solution of $|\nabla U| = 1$ away from the two points, including on the bisector.
+
+    Then show that $V(x) = \max(|x - p|, |x - q|)$ satisfies the equation almost everywhere but is not a viscosity solution.
+
+    *Solution*: off the bisector both functions are smooth with unit gradient. On the bisector, a $C^1$ function touching $U$ from above has its gradient in the segment between the two unit gradients, whose norm is at most 1: $U$ is a subsolution. No $C^1$ function touches the concave kink from below, so the supersolution test is empty.
+
+    For $V$, the kink is convex. The function touching it from below with the average of the two unit gradients has a gradient of norm less than 1, so the supersolution test fails (compare Example 6.4).
+
+13. **★★ Propagating from both ends.** For a constant metric in 2D, compare the number of grid points made Alive when Fast Marching propagates from $p$ until $q$ is reached, at distance $d = 100$ pixels, and when it propagates from both points until the fronts meet. Redo the count in 3D, and explain why stopping when $q$ becomes Alive is exact.
+
+    *Solution*: about $\pi d^2 \approx 31\,400$ points against $2 \pi (d/2)^2 \approx 15\,700$: half. In 3D, $\frac43 \pi d^3 \approx 4.2 \times 10^6$ against $1.05 \times 10^6$: a quarter (Proposition 6.13).
+
+    When $q$ becomes Alive its value is final (Theorem 6.9), and back-propagation only needs the values below $U(q)$, which are all Alive.
+
+14. **★★ Fast Marching converges, Dijkstra does not.** Compute the Euclidean distance to the centre of $[-1, 1]^2$ with the Fast Marching of Code 6.12 and with the 8-neighbour Dijkstra of Code 5.11, for $n = 51, 101, 201$, and report the maximal errors.
+
+    *Hints and expected result*: Fast Marching gives 0.0437, 0.0263 and 0.0155; Dijkstra gives 0.0897, 0.0898 and 0.0898.
+
+    The Dijkstra error does not decrease: it is the relative error $0.082$ of Proposition 5.10 times the largest distance in the worst direction, about $1.08$. Fast Marching is worse near the source and better everywhere else as soon as $h$ is small.
+
+15. **★★ Anisotropy and fixed stencils.** Take the constant metric $M = R \, \mathrm{diag}(1, \mu^2) \, R^\top$, with $R$ the rotation of $30°$. Compute graph distances with 8 and 16 neighbours, each edge $e$ costing $\sqrt{e^\top M e}$.
+
+    Compare with the exact distance $\sqrt{x^\top M x}$ for $\mu = 1, 2, 5, 10$, and justify the exact formula.
+
+    *Hints and expected result*: for a constant metric, straight segments are minimal paths (the metric is a norm, and the triangle inequality of the norm shows that no broken line is shorter), so the exact distance is the norm of $x$.
+
+    On an $81 \times 81$ grid, for points farther than 20 from the source, the maximal relative errors are 0.082, 0.280, 1.135, 2.827 with 8 neighbours, and 0.027, 0.072, 0.221, 0.564 with 16 neighbours. Fixed stencils fail as the anisotropy grows (Note 7.8).
+
+16. **★★ The factor 2 is attained.** On the segment $[0, 1]$ with $P = 1$, run farthest-point sampling from $x_1 = 0$ for $k = 1$ to 4 points, and compare the covering radii with the optimal ones.
+
+    *Solution*: the samples are 0, 1, 0.5, then 0.25 (or 0.75), with covering radii 1, 0.5, 0.25 and 0.25. The optimal radii are $1/(2k)$: 0.5, 0.25, 0.167 and 0.125.
+
+    The ratios are 2, 2, 1.5 and 2: the bound of Theorem 8.2 is attained, because the sampling starts at an end of the segment.
+
+17. **★★★ Extracting a vascular tree.** Build a synthetic Y-shaped vessel (a trunk that splits into two branches of different radii), with noise. Compute the minimal action from the root with a vesselness or flux metric, then back-propagate from the two leaves.
+
+    *Hints and expected result*: the two paths must merge at the bifurcation and share the trunk exactly (Proposition 8.7); measure the length of the common part and the distance of the merging point to the true bifurcation.
+
+    Then add the radius dimension of Code 7.11 and check that the radius drops at the bifurcation. Report how the result depends on $\varepsilon$ and on the noise level. This is a natural start for a project on tubular trees.
+
+18. **★★★ A path that goes straight through a crossing.** Draw two lines crossing at $60°$, with noise. Compare the isotropic minimal path between the two ends of one line with a path computed on a graph over $(x, y, \theta)$ with 16 orientations, where a move goes along the current orientation and a change of orientation costs $\beta$.
+
+    *Hints and expected result*: the isotropic path may switch lines at the crossing when the other line is cheaper. The lifted path keeps its orientation through the crossing when $\beta$ is large enough. Find the smallest such $\beta$, and relate the construction to the curvature-penalised models of [ch. 9](#ch9).
+
+19. **★★★ A global Chan–Vese minimiser.** Implement the convex relaxation of Proposition 9.1 on the image of Code 4.8, with $c_1 = 0.7$ and $c_2 = 0.3$ fixed. Use a primal–dual algorithm such as that of Chambolle and Pock (2011).
+
+    *Hints and expected result*: threshold $u^\star$ at $t = 0.3, 0.5, 0.7$. The three regions should be almost identical, since $u^\star$ is nearly binary, and their energy should not exceed that of the level-set result. Discuss where the level-set flow stopped in a local minimum, and what the relaxation cannot do (estimate $c_1, c_2$ jointly, include a shape prior).
+
+## Projects and assessment {#projects}
+
+The official assessment, per master-mva.com, is a project; the Université Paris-Saclay course detail classifies it as “Evaluation Continue non Intégrale” (partial continuous assessment), and no weights are displayed. The subjects below are sized for that project. Most of them study and reimplement a named research paper, in the MVA tradition, and every one has a measurable success criterion. The written exam and the rubric are proposals that show what a test of the course could look like; none of these proposals is official material.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Balloons and finite elements: a paper study.** Study Cohen (1991) and Cohen and Cohen (1993), an official reference.
+    -   *Implement*: the balloon model with finite differences and with P1 finite elements, and two potentials, the gradient potential and a distance-map potential.
+    -   *Data*: synthetic images of disks, ellipses and a U-shaped object with a deep concavity, with Gaussian noise.
+    -   *Success criterion*: a mean distance below 1 pixel to the true boundary; a plot of the error against the number of nodes for both discretisations; capture-range maps for both potentials.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 1, 2.
+
+2.  **[Solo · ≈ 20 h] Minimal paths with Fast Marching: a paper study.** Reproduce the approach of Cohen and Kimmel (1997).
+    -   *Implement*: Fast Marching in 2D (Code 6.12 as a start), back-propagation by sub-pixel gradient descent with a second-order integrator, and partial propagation stopped at the target.
+    -   *Data*: synthetic curves with gaps and noise, and contours to close between two clicked points.
+    -   *Success criterion*: a centreline error below 1 pixel on synthetic curves; a comparison with Dijkstra on 4, 8 and 16 neighbours that shows the metrication error of Proposition 5.10.
+    -   *Deliverables*: code, report, talk. Chapters 5, 6.
+
+3.  **[Solo · ≈ 20 h] Geodesic remeshing of an image domain: a paper study.** Study Peyré and Cohen (2006).
+    -   *Implement*: farthest-point sampling with Fast Marching, the geodesic Voronoi diagram by front competition, and the dual Delaunay triangulation, for a metric built from the image gradient.
+    -   *Data*: a grey-level photograph from the scikit-learn sample images, or synthetic images with sharp edges.
+    -   *Success criterion*: the error of the piecewise-linear interpolation of the image on the mesh against the number of vertices, compared with a uniform mesh with the same number of vertices.
+    -   *Deliverables*: code, report, talk. Chapters 6, 8.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Vessels in space and radius: a paper study.** Reproduce the idea of Li and Yezzi (2007) and the anisotropic metric of Benmansour and Cohen (2011), an official reference.
+    -   *Data*: synthetic 2D and 3D vessel trees with known centrelines and radii, then the public DRIVE retinal images (Staal and coauthors, 2004).
+    -   *Work split*: one member builds the multi-scale metrics (vesselness, oriented flux); one writes Fast Marching on the lifted grid, isotropic then anisotropic; one handles tree extraction from several leaves and the evaluation.
+    -   *Success criterion*: on synthetic data, centreline error below 1 pixel and radius error below 0.5 pixel; on DRIVE, extracted centrelines overlaid on the manual annotations.
+    -   *Deliverables*: code, a 6-page report, a 15-minute talk. Chapters 6, 7, 8.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Region segmentation: local flows against global minimisers.** Compare the level-set Chan–Vese flow (Chan and Vese, 2001) with the convex relaxation of Chan, Esedoglu and Nikolova (2006).
+    -   *Data*: synthetic images with weak edges, textures of equal means (Exercise 10) and occlusions, then grey-level images of the Berkeley segmentation data set (Martin and coauthors, 2001).
+    -   *Work split*: one member writes the level-set flows (geodesic active contour, Chan–Vese); one the primal–dual solver for the relaxation; one region competition with Gaussian models and a PCA shape prior.
+    -   *Success criterion*: a table of final energies and intersections over union, showing where the flows stop in a local minimum.
+    -   *Deliverables*: code, report, talk. Chapters 3, 4, 9.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Virtual endoscopy path planning in 3D: a paper study.** Study Deschamps and Cohen (2001).
+    -   *Data*: synthetic 3D tubular phantoms (a curved tube with folds and a varying radius), generated by the group, about $200^3$ voxels.
+    -   *Work split*: one member writes 3D Fast Marching with partial and two-sided propagation; one designs the centring metric from the distance to the wall; one evaluates the paths and renders a fly-through as a sequence of slices.
+    -   *Success criterion*: a path whose distance to the wall stays above 80 % of the local radius, and a measured speed-up of two-sided propagation close to the factor 4 of Exercise 13.
+    -   *Deliverables*: code, report, talk. Chapters 6, 7, 8.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 3 hours, one handwritten A4 sheet allowed, no electronic device; four exercises, independent of each other.
+
+1.  **Course question (5 points).** State and prove the level-set equation for a front moving with normal speed $F$. Then state the first variation of the weighted length $\int g \, ds$ and deduce the level-set form of the geodesic active contour.
+
+    *Expected*: Theorem 3.3 with the differentiation of $\phi(C(p, t), t) = 0$; the first variation of Theorem 3.6; then $F = -(g\kappa + \langle \nabla g, N \rangle)$ substituted with $N = \nabla\phi / |\nabla\phi|$. Full marks need the role of the advection term explained.
+
+2.  **Computation (5 points).** Run Fast Marching by hand on a $3 \times 3$ grid with $h = 1$, $P = 1$ and the source at the corner $(0, 0)$. Give the order in which the nodes become Alive and the final values, and compare with the Euclidean distances and with a 4-neighbour Dijkstra.
+
+    *Expected*: the two nodes adjacent to the source get 1, and the diagonal node $(1, 1)$ gets 1.707. The two other corners on the axes get 2.
+
+    Then the nodes $(1, 2)$ and $(2, 1)$ get 2.545, and the far corner gets 3.252.
+
+    The exact values are 1.414, 2.236 and 2.828; Dijkstra gives 2, 3 and 4. Full marks need the one-sided and two-sided cases of Proposition 6.7 identified correctly.
+
+3.  **Short proof (5 points).** Let $U$ be the action from two sources $p$ and $q$. Prove that the minimum of $U$ on the set where the two fronts meet is $d_P(p, q)/2$, attained at the midpoint of a minimal path. Explain how this speeds up the extraction of a minimal path between the two sources.
+
+    *Expected*: the triangle inequality for the lower bound and the midpoint for the equality (Proposition 6.13); propagation from both ends stopped at the first meeting point, with half the area in 2D and a quarter of the volume in 3D for a constant metric.
+
+4.  **Problem (5 points).** A closed snake has $n = 50$ nodes, $a = 0.2$ and $b = 0.1$. (a) Give the spectrum of its matrix and the largest stable explicit step. (b) Without image force, how does a circle evolve under the continuous flow? (c) Write the balloon force and explain the choice $k > k_1$.
+
+    *Expected*: (a) eigenvalues $a\omega_k + b\omega_k^2$ in $[0, 2.4]$, so $\tau \leq 0.83$ (Theorem 1.5). (b) Exponential shrinking at the rate $4\pi^2\alpha + 16\pi^4\beta$ (Proposition 1.7). (c) Definition 1.8: a normal pressure balanced on edges by a normalised image force slightly stronger than the pressure.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 30 % | Correct derivations (Euler–Lagrange equations, schemes, update formulas), assumptions stated, proofs or precise references for every claim used |
+| Implementation | 25 % | Algorithms written from the equations, tested on cases with a known answer (circles, constant metrics), seeds fixed, code that runs end to end |
+| Experimental method | 20 % | Synthetic data with ground truth, errors measured in pixels, parameters ($\varepsilon$, pressure, edge constant) varied systematically, comparisons with a baseline |
+| Analysis | 15 % | Results explained with the course (local minima, capture range, metrication, causality), failures shown and discussed |
+| Communication | 10 % | A clear report within the page limit, readable figures of contours and paths, a talk that fits its time slot |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   L. D. Cohen and I. Cohen. Finite element methods for active contour models and balloons for 2D and 3D images. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 15(11), November 1993.
+-   L. D. Cohen. Minimal paths and fast marching methods for image analysis. In *Mathematical Models in Computer Vision: The Handbook*, Springer, 2005 (as listed on the course page; the handbook is edited by N. Paragios, Y. Chen and O. Faugeras).
+-   G. Peyré, M. Péchaud, R. Keriven and L. D. Cohen. Geodesic methods in computer vision and graphics. *Foundations and Trends in Computer Graphics and Vision*, 5(3–4):197–397, 2010.
+-   F. Benmansour and L. D. Cohen. Tubular structure segmentation based on minimal path method and anisotropic enhancement. *International Journal of Computer Vision*, 92(2):192–210, 2011.
+
+### Textbooks
+
+-   G. Aubert and P. Kornprobst. *Mathematical Problems in Image Processing: Partial Differential Equations and the Calculus of Variations*. Springer, 2nd edition, 2006.
+-   M. Bardi and I. Capuzzo-Dolcetta. *Optimal Control and Viscosity Solutions of Hamilton–Jacobi–Bellman Equations*. Birkhäuser, 1997.
+-   P.-L. Lions. *Generalized Solutions of Hamilton–Jacobi Equations*. Pitman, 1982.
+-   S. Osher and R. Fedkiw. *Level Set Methods and Dynamic Implicit Surfaces*. Springer, 2003.
+-   J. A. Sethian. *Level Set Methods and Fast Marching Methods*. Cambridge University Press, 2nd edition, 1999.
+
+### Deformable models, level sets and regions (ch. 1–4)
+
+-   D. Adalsteinsson and J. A. Sethian. A fast level set method for propagating interfaces. *Journal of Computational Physics*, 118(2):269–277, 1995.
+-   V. Caselles, F. Catté, T. Coll and F. Dibos. A geometric model for active contours in image processing. *Numerische Mathematik*, 66(1):1–31, 1993.
+-   V. Caselles, R. Kimmel and G. Sapiro. Geodesic active contours. *International Journal of Computer Vision*, 22(1):61–79, 1997.
+-   T. F. Chan and L. A. Vese. Active contours without edges. *IEEE Transactions on Image Processing*, 10(2):266–277, 2001.
+-   L. D. Cohen. On active contour models and balloons. *CVGIP: Image Understanding*, 53(2):211–218, 1991.
+-   D. Cremers, M. Rousson and R. Deriche. A review of statistical approaches to level set segmentation: integrating color, texture, motion and shape. *International Journal of Computer Vision*, 72(2):195–215, 2007.
+-   M. Kass, A. Witkin and D. Terzopoulos. Snakes: active contour models. *International Journal of Computer Vision*, 1(4):321–331, 1988.
+-   M. E. Leventon, W. E. L. Grimson and O. Faugeras. Statistical shape influence in geodesic active contours. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2000.
+-   R. Malladi, J. A. Sethian and B. C. Vemuri. Shape modeling with front propagation: a level set approach. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 17(2):158–175, 1995.
+-   D. Mumford and J. Shah. Optimal approximations by piecewise smooth functions and associated variational problems. *Communications on Pure and Applied Mathematics*, 42(5):577–685, 1989.
+-   S. Osher and J. A. Sethian. Fronts propagating with curvature-dependent speed: algorithms based on Hamilton–Jacobi formulations. *Journal of Computational Physics*, 79(1):12–49, 1988.
+-   N. Paragios and R. Deriche. Geodesic active regions and level set methods for supervised texture segmentation. *International Journal of Computer Vision*, 46(3):223–247, 2002.
+-   A. Tsai, A. Yezzi, W. Wells, C. Tempany, D. Tucker, A. Fan, W. E. Grimson and A. Willsky. A shape-based approach to the segmentation of medical imagery using level sets. *IEEE Transactions on Medical Imaging*, 22(2):137–154, 2003.
+-   L. A. Vese and T. F. Chan. A multiphase level set framework for image segmentation using the Mumford and Shah model. *International Journal of Computer Vision*, 50(3):271–293, 2002.
+-   C. Xu and J. L. Prince. Snakes, shapes, and gradient vector flow. *IEEE Transactions on Image Processing*, 7(3):359–369, 1998.
+-   H.-K. Zhao, T. Chan, B. Merriman and S. Osher. A variational level set approach to multiphase motion. *Journal of Computational Physics*, 127(1):179–195, 1996.
+-   S. C. Zhu and A. Yuille. Region competition: unifying snakes, region growing, and Bayes/MDL for multiband image segmentation. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 18(9):884–900, 1996.
+
+### Minimal paths, Fast Marching and metrics (ch. 5–7)
+
+-   G. Barles and P. E. Souganidis. Convergence of approximation schemes for fully nonlinear second order equations. *Asymptotic Analysis*, 4(3):271–283, 1991.
+-   L. D. Cohen. Multiple contour finding and perceptual grouping using minimal paths. *Journal of Mathematical Imaging and Vision*, 14(3):225–236, 2001.
+-   L. D. Cohen and R. Kimmel. Global minimum for active contour models: a minimal path approach. *International Journal of Computer Vision*, 24(1):57–78, 1997.
+-   M. G. Crandall and P.-L. Lions. Viscosity solutions of Hamilton–Jacobi equations. *Transactions of the American Mathematical Society*, 277(1):1–42, 1983.
+-   T. Deschamps and L. D. Cohen. Fast extraction of minimal paths in 3D images and applications to virtual endoscopy. *Medical Image Analysis*, 5(4):281–299, 2001.
+-   A. F. Frangi, W. J. Niessen, K. L. Vincken and M. A. Viergever. Multiscale vessel enhancement filtering. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, Lecture Notes in Computer Science 1496, Springer, 1998.
+-   R. Kimmel and J. A. Sethian. Computing geodesic paths on manifolds. *Proceedings of the National Academy of Sciences*, 95(15):8431–8435, 1998.
+-   M. W. K. Law and A. C. S. Chung. Three dimensional curvilinear structure detection using optimally oriented flux. *European Conference on Computer Vision (ECCV)*, Lecture Notes in Computer Science 5305, Springer, 2008.
+-   H. Li and A. Yezzi. Vessels as 4-D curves: global minimal 4-D paths to extract 3-D tubular surfaces and centerlines. *IEEE Transactions on Medical Imaging*, 26(9):1213–1223, 2007.
+-   J.-M. Mirebeau. Anisotropic fast-marching on Cartesian grids using lattice basis reduction. *SIAM Journal on Numerical Analysis*, 52(4):1573–1599, 2014.
+-   E. Rouy and A. Tourin. A viscosity solutions approach to shape-from-shading. *SIAM Journal on Numerical Analysis*, 29(3):867–884, 1992.
+-   J. A. Sethian. A fast marching level set method for monotonically advancing fronts. *Proceedings of the National Academy of Sciences*, 93(4):1591–1595, 1996.
+-   J. A. Sethian and A. Vladimirsky. Ordered upwind methods for static Hamilton–Jacobi equations: theory and algorithms. *SIAM Journal on Numerical Analysis*, 41(1):325–363, 2003.
+-   J. N. Tsitsiklis. Efficient algorithms for globally optimal trajectories. *IEEE Transactions on Automatic Control*, 40(9):1528–1538, 1995.
+-   H. Zhao. A fast sweeping method for eikonal equations. *Mathematics of Computation*, 74(250):603–627, 2005.
+
+### Remeshing and applications (ch. 8)
+
+-   R. Ardon and L. D. Cohen. Fast constrained surface extraction by minimal paths. *International Journal of Computer Vision*, 69(1):127–136, 2006.
+-   F. Benmansour and L. D. Cohen. Fast object segmentation by growing minimal paths from a single point on 2D or 3D images. *Journal of Mathematical Imaging and Vision*, 33(2):209–221, 2009.
+-   T. F. Gonzalez. Clustering to minimize the maximum intercluster distance. *Theoretical Computer Science*, 38:293–306, 1985.
+-   V. Kaul, A. Yezzi and Y. Tsai. Detecting curves with unknown endpoints and arbitrary topology using minimal paths. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 34(10):1952–1965, 2012.
+-   G. Peyré and L. D. Cohen. Geodesic remeshing using front propagation. *International Journal of Computer Vision*, 69(1):145–156, 2006.
+
+### Research directions (ch. 9)
+
+-   B. Appleton and H. Talbot. Globally minimal surfaces by continuous maximal flows. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 28(1):106–118, 2006.
+-   E. J. Bekkers, R. Duits, A. Mashtakov and G. R. Sanguinetti. A PDE approach to data-driven sub-Riemannian geodesics in SE(2). *SIAM Journal on Imaging Sciences*, 8(4):2740–2770, 2015.
+-   Y. Boykov and V. Kolmogorov. Computing geodesics and minimal surfaces via graph cuts. *IEEE International Conference on Computer Vision (ICCV)*, 2003.
+-   A. Chambolle and T. Pock. A first-order primal-dual algorithm for convex problems with applications to imaging. *Journal of Mathematical Imaging and Vision*, 40(1):120–145, 2011.
+-   T. F. Chan, S. Esedoglu and M. Nikolova. Algorithms for finding global minimizers of image segmentation and denoising models. *SIAM Journal on Applied Mathematics*, 66(5):1632–1648, 2006.
+-   D. Chen, J.-M. Mirebeau and L. D. Cohen. Global minimum for a Finsler elastica minimal path approach. *International Journal of Computer Vision*, 122(3):458–483, 2017.
+-   K. Crane, C. Weischedel and M. Wardetzky. Geodesics in heat: a new approach to computing distance based on heat flow. *ACM Transactions on Graphics*, 32(5), 2013.
+-   H. Kervadec, J. Bouchtiba, C. Desrosiers, É. Granger, J. Dolz and I. Ben Ayed. Boundary loss for highly unbalanced segmentation. *Medical Imaging with Deep Learning (MIDL)*, 2019.
+-   D. Marcos, D. Tuia, B. Kellenberger, L. Zhang, M. Bai, R. Liao and R. Urtasun. Learning deep structured active contours end-to-end. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2018.
+-   J.-M. Mirebeau. Fast-marching methods for curvature penalized shortest paths. *Journal of Mathematical Imaging and Vision*, 60(6):784–815, 2018.
+-   S. Peng, W. Jiang, H. Pi, X. Li, H. Bao and X. Zhou. Deep snake for real-time instance segmentation. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2020.
+-   T. Pock, D. Cremers, H. Bischof and A. Chambolle. An algorithm for minimizing the Mumford–Shah functional. *IEEE International Conference on Computer Vision (ICCV)*, 2009.
+-   S. Shit, J. C. Paetzold, A. Sekuboyina, I. Ezhov, A. Unger, A. Zhylka, J. P. W. Pluim, U. Bauer and B. H. Menze. clDice — a novel topology-preserving loss function for tubular structure segmentation. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2021.
+-   S. R. S. Varadhan. On the behavior of the fundamental solution of the heat equation with variable coefficients. *Communications on Pure and Applied Mathematics*, 20(2):431–455, 1967.
+
+### Data sets for the projects
+
+-   D. Martin, C. Fowlkes, D. Tal and J. Malik. A database of human segmented natural images and its application to evaluating segmentation algorithms and measuring ecological statistics. *IEEE International Conference on Computer Vision (ICCV)*, 2001.
+-   J. Staal, M. D. Abràmoff, M. Niemeijer, M. A. Viergever and B. van Ginneken. Ridge-based vessel segmentation in color images of the retina. *IEEE Transactions on Medical Imaging*, 23(4):501–509, 2004.

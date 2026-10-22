@@ -1,0 +1,2516 @@
+---
+title: "Mathematical Models for Digital Photography"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: Fourier analysis, noise statistics and convexity](#ch0)
+-   [1. Image acquisition: optics, sampling and noise](#ch1)
+-   [2. Contrast and colour: radiometry, colorimetry and perception](#ch2)
+-   [3. Colour transfer by optimal transport](#ch3)
+-   [4. Restoration by explicit regularisation](#ch4)
+-   [5. Deep denoisers and plug-and-play methods](#ch5)
+-   [6. Computational photography I: developing RAW images](#ch6)
+-   [7. Computational photography II: HDR imaging and inpainting](#ch7)
+-   [8. Generative models: image and texture synthesis](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Mathematical Models for Digital Photography
+  Official title       Modèles mathématiques pour la photographie numérique
+  Instructors          Y. GOUSSEAU ; A. LECLAIRE (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 27 h (lectures 21 h, labs 6 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Image processing
+  Language             French (Université Paris-Saclay course detail, “Langue d'enseignement”, with no distance teaching); the master-mva.com course description is also written in French
+  Assessment           Project: a report, the submission of computer code (in a programming language of the student's choice) and an individual oral defence (master-mva.com, “Mode de validation”, repeated in the Université Paris-Saclay course detail, which classes it as “Evaluation Continue non Intégrale”, a continuous assessment that is not the only component of the grade); no weighting displayed
+  Prerequisites        Basics of probability, statistics and Fourier analysis (an L3 course is enough) and basics of signal processing (master-mva.com and Université Paris-Saclay, “Prérequis”)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics, computer science or physics who wants to understand what happens between the photons that reach a sensor and the JPEG file, and how modern restoration and generation methods act on photographs.
+
+**Empirical first**: in a RAW image of a uniformly lit grey card, the noise variance is not constant but grows linearly with the brightness; Code 1.13 recovers the slope and the offset of that line from a simulated sensor to within a few per cent. And demosaicking a photograph by bilinear interpolation costs 6.6 dB of PSNR compared with a method that knows where the Bayer mosaic hides the colour in the Fourier plane (Code 6.4).
+
+A digital photograph is the end product of a long chain: optics, sampling by a sensor covered with a colour filter mosaic, photon counting, quantisation, then a processing pipeline that demosaicks, balances, corrects and compresses. This course models each link of the chain with probability, Fourier analysis and colorimetry, and then turns to the hard, ill-posed problems of the end of the chain.
+
+These problems are deblurring, inpainting, high dynamic range and image generation. They are solved with explicit regularisation, optimal transport, deep denoisers used as priors (plug-and-play methods) and deep generative models.
+
+The course shares tools with [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (sampling), [Image Denoising](../s1-image-denoising/index.html), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) and [Convex Optimization](../s1-convex-optimization/index.html). It prepares the semester-2 courses [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html) and [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html).
+
+### What you will be able to do
+
+-   Model the acquisition chain of a camera: optics and diffraction, pixel integration, sampling and aliasing, the Bayer colour filter array, quantisation.
+-   Derive the Poisson–Gaussian noise model, estimate its noise curve from data and stabilise its variance.
+-   Compute with radiometric and colorimetric quantities: exposure, vignetting, tristimulus values, CIE XYZ, sRGB, CIELAB, and explain gamma encoding by Weber's law.
+-   Transfer the contrast or the colours of one image to another with one-dimensional, Gaussian, entropic and sliced optimal transport.
+-   Formulate deblurring, denoising, demosaicking and inpainting as inverse problems and solve them with Wiener filters, wavelet thresholding, total variation and proximal algorithms.
+-   Train a small CNN denoiser and plug it into a splitting algorithm to deblur an image, and state when such schemes converge.
+-   Develop a RAW image: black level, white balance, demosaicking, colour correction matrix, tone curve.
+-   Merge bracketed exposures into an HDR radiance map with statistically optimal weights, then tone-map it.
+-   Synthesise Gaussian textures and sample a score-based diffusion model, and use generative models as priors for restoration.
+-   Read a research paper of the field and reproduce its main experiment.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents a broad panel of mathematical models at the heart of efficient algorithms for the problems of digital photography. These models draw on probability, Fourier analysis, optimal transport, optimisation and deep learning.
+
+A first part models the acquisition chain of digital images (sensors, sampling, quantisation, colour dynamics, noise models) and the low-level algorithms applied at the end of that chain (denoising, demosaicking, colour correction). A second part introduces recent methods for hard, ill-posed problems of image generation and restoration, such as deblurring or inpainting, regularised by deep denoising networks (plug-and-play methods) or by deep generative models. The description presents the course as a good introduction to the generative-model courses of semester 2.
+
+The Université Paris-Saclay programme lists the course under the title “Introduction à l'imagerie numérique” (introduction to digital imaging). Its two learning objectives are to make students familiar with digital images, and to confront, in a thematic approach, mathematical tools studied elsewhere in the master: wavelets, partial differential equations, variational approaches and stochastic approaches. The table matches every official item with the section of these notes that teaches it.
+
+| Official topic | Course section |
+|---|---|
+| Thèmes abordés: image acquisition | [ch. 1](#ch1): optics and diffraction (1.1), pixel integration and aliasing (1.2), sensor and colour filter array (1.3), noise (1.4), quantisation (1.5) |
+| Thèmes abordés: radiometry and colorimetry of images, visual perception | [ch. 2](#ch2): radiometry and exposure (2.1), Weber's law and gamma encoding (2.3), colorimetry (2.4), colour constancy (2.5), CIELAB (2.6) |
+| Thèmes abordés: image restoration, inverse problems | [ch. 4](#ch4) (degradation models, Wiener filter, wavelets, total variation, proximal algorithms) and [ch. 5](#ch5) (deep denoisers, plug-and-play) |
+| Thèmes abordés: deep generative models | [ch. 8.3–8.5](#ch8): VAEs, GANs, score-based diffusion models, generative priors |
+| Thèmes abordés: computational photography (RAW development, HDR imaging, inpainting) | [ch. 6](#ch6) (RAW development) and [ch. 7](#ch7) (HDR imaging 7.1–7.4, inpainting 7.5) |
+| Thèmes abordés: “Plus de détails” | not covered: a link to the course presentation, not a topic |
+| Thèmes abordés: “Les intervenants” | not covered: a link to the instructors' pages (Yann Gousseau and Arthur Leclaire, Telecom Paris), not a topic |
+| Session: acquisition of digital images (optics, sampling, noise models) | [ch. 1](#ch1), sessions 1–2 |
+| Session: modelling contrast and colour | [ch. 2](#ch2): contrast changes and histograms (2.2), colour (2.4–2.6), session 3 |
+| Session: colour transfer by optimal transport | [ch. 3](#ch3), session 4 |
+| Session: image restoration by explicit regularisation | [ch. 4](#ch4), session 5 |
+| Session: deep denoisers and plug-and-play methods | [ch. 5](#ch5), session 6 |
+| Session: generative models, image and texture synthesis | [ch. 8](#ch8): Gaussian and non-Gaussian textures (8.1–8.2), deep generative models (8.3–8.5), session 9 |
+| Sessions: computational photography (RAW development, inpainting, HDR imaging), two sessions | [ch. 6](#ch6) and [ch. 7](#ch7), sessions 7 and 8 |
+| Objective: acquisition chain (sensors, sampling, quantisation, colour dynamics, noise models) | ch. 1.3–1.6 and ch. 2.1–2.3 |
+| Objective: low-level algorithms (denoising, demosaicking, colour correction) | denoising ch. 4.3, 5; demosaicking ch. 6.2; colour correction ch. 2.5, 6.3 |
+| Objective: ill-posed problems such as deblurring and inpainting | deblurring ch. 4.1–4.5 and 5.3; inpainting ch. 7.5 and 8.5 |
+| Objective: regularisation by deep denoisers (plug-and-play) or deep generative models | ch. 5.3–5.4 and ch. 8.5 |
+| Objective: an introduction to the generative-model courses of semester 2 | [ch. 8](#ch8), with links to the semester-2 courses |
+| Programme (Université Paris-Saclay): image formation and acquisition (sensors, sampling, quantisation, dynamic range, noise) | ch. 1; dynamic range in ch. 1.5 and 7.1 |
+| Programme: structure of images, radiometry | ch. 2.1; exposure and camera response in ch. 7.2 |
+| Programme: structure of images, colour | ch. 2.4–2.6, ch. 3, ch. 6.3 |
+| Programme: structure of images, geometry | level sets and contrast invariance (ch. 2.2), total variation and the coarea formula (ch. 4.4), edges in demosaicking (ch. 6.2) |
+| Programme: structure of images, texture | ch. 8.1–8.2 |
+| Programme: structure of images, acquisition artefacts | aliasing and moiré (ch. 1.2), noise (ch. 1.4), vignetting (ch. 2.1), demosaicking artefacts (ch. 6.2), halos (ch. 7.4) |
+| Programme: the classical tools of image enhancement and analysis | histogram equalisation (ch. 2.2), Wiener filter and thresholding (ch. 4.2–4.3), non-local means (ch. 5.2), tone mapping (ch. 7.4) |
+| Programme: illustrations from consumer photography, medical imaging and aerial imaging | consumer photography throughout ch. 6–7; photon-limited medical imaging (note in ch. 1.4); deconvolution in microscopy and Earth observation (note in ch. 4.1); aliasing in Earth observation (ch. 1.2) |
+| Learning objective: familiarity with digital images | every chapter works on real photographs (the scikit-learn sample images) and on simulated RAW data |
+| Learning objective: wavelets, PDEs, variational and stochastic approaches | wavelets ch. 4.3; PDEs ch. 4.4 (total variation flow) and ch. 7.5 (Laplace equation); variational ch. 4, 7.5; stochastic ch. 1.4, 5.1, 8 |
+| Organisation: 7 lecture sessions and 2 lab sessions of 3 h | session plan below (21 h of lectures, 6 h of labs) |
+| Organisation: individual meetings to follow the projects | [Projects and assessment](#projects): milestones of each subject |
+| Assessment: project with report, code and individual defence | [Projects and assessment](#projects) |
+
+Beyond the official syllabus, these notes add proofs of the convergence of forward–backward splitting and of averaged plug-and-play iterations, the statistically optimal merging of exposures, and a self-study chapter on research directions ([ch. 9](#ch9)).
+
+### Where this course fits in the programme
+
+The official prerequisites are the basics of probability, statistics and Fourier analysis at L3 level, and the basics of signal processing.
+
+-   **Preparation** — the refreshers [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Poisson and Gaussian laws, Bayesian estimation), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (Fourier analysis, convexity, gradient descent) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (FFTs and the small networks of the labs). [Ch. 0](#ch0) reviews what is used.
+-   **Related courses of the same semester** — [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (sampling and interpolation), [Image Denoising: the Human–Machine Competition](../s1-image-denoising/index.html), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html), [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (diffusion models), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html) and [Deep Learning](../s1-deep-learning/index.html).
+-   **Courses that build on it (semester 2)** — [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Diffusion and Multiscale Models in Artificial Intelligence](../s2-diffusion-multiscale/index.html) and [Remote Sensing Data](../s2-remote-sensing/index.html).
+
+### Course outline
+
+-   **Review: Fourier analysis, noise statistics and convexity** — the DFT and convolution, Poisson and Gaussian noise, MAP and MMSE estimators, the descent lemma.
+-   **Image acquisition: optics, sampling and noise** — lens and diffraction, pixel integration and aliasing, the Bayer mosaic, the Poisson–Gaussian model, quantisation and dynamic range, noise curves and variance stabilisation.
+-   **Contrast and colour** — radiometry and exposure, contrast changes and histograms, Weber's law and gamma, trichromacy and CIE XYZ, white balance, CIELAB.
+-   **Colour transfer by optimal transport** — histogram specification as 1D transport, Gaussian maps, entropic transport and Sinkhorn, sliced transport, artefacts.
+-   **Restoration by explicit regularisation** — ill-posedness, Wiener and Tikhonov filters, wavelet sparsity, total variation, forward–backward and primal–dual algorithms.
+-   **Deep denoisers and plug-and-play methods** — Tweedie's formula, non-local and deep denoisers, plug-and-play splitting, regularisation by denoising, convergence.
+-   **Computational photography I: developing RAW images** — the pipeline, demosaicking and the Bayer spectrum, colour correction matrices, tone curves and noise through the pipeline.
+-   **Computational photography II: HDR imaging and inpainting** — bracketing, camera response, optimal merging, tone mapping, and inpainting from the Laplace equation to patches.
+-   **Generative models: image and texture synthesis** — random phase textures, VAEs and GANs, score-based diffusion models, generative priors for restoration.
+-   **Research directions and open problems** — self-study: learned camera pipelines, realistic noise, convergent plug-and-play, diffusion posterior sampling, evaluation.
+
+### Session plan {#sessions}
+
+**27 h in class = 9 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (lectures 21 h, labs 6 h), whose course detail announces seven 3-hour lectures and two 3-hour labs; master-mva.com announces eight 3-hour sessions on seven themes.
+
+The split below is a proposal. It keeps the seven announced themes, with acquisition over sessions 1–2 and computational photography over sessions 7–8, and the official 21 h + 6 h: the four even sessions end with a 1 h 30 lab. The session on generative models moves to the end, after computational photography, because it uses the denoisers of [ch. 5](#ch5) and is the most advanced topic.
+
+Level 1 = foundations, 2 = core models and algorithms, 3 = advanced and research-level material; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: DFT, noise statistics, convexity; ch. 1.1–1.3 Optics and diffraction, sampling and aliasing, sensor and colour filter array | Ex. 1 |
+| 2 | 3 h | 1 | ch. 1.4–1.6 Poisson–Gaussian noise, quantisation and dynamic range, noise curves and variance stabilisation | Ex. 2, 3; Lab 1 (1 h 30): Code 1.13, a simulated sensor |
+| 3 | 3 h | 1 | ch. 2 Radiometry, contrast changes and histograms, Weber's law and gamma, colorimetry, white balance, CIELAB | Ex. 4, 5 |
+| 4 | 3 h | 2 | ch. 3 Colour transfer: 1D transport, Gaussian maps, entropic transport, sliced transport | Ex. 6, 10; Lab 2 (1 h 30): Codes 3.7 and 3.9 |
+| 5 | 3 h | 2 | ch. 4 Ill-posedness, Wiener and Tikhonov, wavelet thresholding, total variation, proximal algorithms | Ex. 7, 11 |
+| 6 | 3 h | 2 | ch. 5 Tweedie's formula, deep denoisers, plug-and-play splitting, regularisation by denoising | Ex. 12, 13; Lab 3 (1 h 30): Code 5.8, a CNN denoiser in a deblurring loop |
+| 7 | 3 h | 2 | ch. 6 RAW pipeline, demosaicking, colour correction, tone curves | Ex. 8, 14 |
+| 8 | 3 h | 2 | ch. 7 Bracketing, camera response, optimal merging, tone mapping, inpainting | Ex. 9, 15; Lab 4 (1 h 30): Codes 7.5 and 7.8 |
+| 9 | 3 h | 3 | ch. 8 Gaussian textures, VAEs and GANs, diffusion models, generative priors for restoration | Ex. 16, 17 |
+
+**Self-study, outside the 27 h** (about 4 h in total): ch. 9 Research directions and open problems (≈ 4 h, with Ex. 18).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before the first session: the DFT conventions and the MAP/MMSE distinction are used in every later chapter.
+-   Run every code block and change one parameter at a time; the numbers quoted in the text come from these blocks. They need Python 3 with NumPy, SciPy, scikit-learn (for its two bundled sample photographs, `china.jpg` and `flower.jpg`) and, for [ch. 5](#ch5), PyTorch on CPU.
+-   Follow one thread through the course: the Poisson–Gaussian noise of [ch. 1](#ch1) reappears in the denoisers of [ch. 5](#ch5), in the RAW pipeline of [ch. 6](#ch6) and in the HDR merge of [ch. 7](#ch7).
+-   Do the exercises listed for each session before the next one; the ★★ proofs are typical oral-defence questions.
+-   Choose the project early (see [Projects and assessment](#projects)): the official assessment is a project, and most subjects need the labs of sessions 2 to 8.
+
+## 0. Review: Fourier analysis, noise statistics and convexity {#ch0}
+
+Three tools return in every chapter: the discrete Fourier transform, which diagonalises blurs; the Poisson and Gaussian laws of sensor noise; and convex optimisation. This review fixes notation and proves the facts used later.
+
+### 0.1 Discrete images and the DFT
+
+::: def
+[Definition 0.1 — Discrete Fourier transform]{.tag} An image of size $M \times N$ is a function $u$ on the grid $\Omega = \{0, \dots, M-1\} \times \{0, \dots, N-1\}$, extended periodically. Its DFT is
+$$
+\hat u(p, q) = \sum_{(k, l) \in \Omega} u(k, l)\, e^{-2 i \pi (pk/M + ql/N)} .
+$$
+
+The inversion and Parseval formulas read
+$$
+u(k,l) = \frac{1}{MN} \sum_{(p,q) \in \Omega} \hat u(p,q)\, e^{2 i \pi (pk/M + ql/N)}, \qquad \sum_{\Omega} |u|^2 = \frac{1}{MN} \sum_{\Omega} |\hat u|^2 .
+$$
+
+This is the convention of `numpy.fft`. The index $p$ stands for the signed frequency $p/M$ cycles per pixel, folded into $[-1/2, 1/2)$; the frequency $1/2$ cycle per pixel is the Nyquist frequency.
+:::
+
+:::: prop
+[Proposition 0.2 — Convolution theorem]{.tag} The circular convolution of two images is
+$$
+(h \circledast u)(k) = \sum_{j \in \Omega} h(k - j)\, u(j), \qquad \text{and it satisfies} \qquad \widehat{h \circledast u} = \hat h\, \hat u .
+$$
+
+A circular convolution is therefore diagonal in the Fourier basis, with eigenvalues $\hat h(p, q)$.
+
+::: proof
+Substitute $k = j + m$ in the DFT of $h \circledast u$, with indices taken modulo the grid. The exponential splits as a product of a factor in $j$ and a factor in $m$, so the double sum factorises into $\hat u\, \hat h$. [∎]{.qed}
+:::
+::::
+
+The periodic extension of a photograph jumps at the borders; the experiments of [ch. 4](#ch4) and [ch. 5](#ch5) simulate periodic blurs to sidestep this.
+
+### 0.2 Noise distributions and Bayesian estimation
+
+::: def
+[Definition 0.3 — Gaussian and Poisson laws]{.tag}
+
+-   The Gaussian law $\mathcal N(m, \sigma^2)$ has density $(2\pi\sigma^2)^{-1/2} e^{-(x - m)^2 / (2\sigma^2)}$.
+-   The Poisson law $\mathcal P(\lambda)$, $\lambda > 0$, gives each integer $k \ge 0$ the probability
+    $$
+    \mathbb P(K = k) = e^{-\lambda} \frac{\lambda^k}{k!} .
+    $$
+-   Its mean and its variance are both equal to $\lambda$. A sum of independent Poisson variables is Poisson, with the sum of the parameters.
+-   As $\lambda \to \infty$, the variable $(K - \lambda)/\sqrt\lambda$ converges in law to $\mathcal N(0, 1)$.
+:::
+
+In the Bayesian view of imaging, the unknown image $x$ has a prior density $p(x)$ and the observation $y$ a likelihood $p(y \mid x)$. Bayes' rule gives the posterior, proportional to $p(y \mid x)\, p(x)$.
+
+:::: prop
+[Proposition 0.4 — MMSE and MAP estimators]{.tag}
+
+1.  Among all measurable estimators $\hat x(y)$, the mean squared error $\mathbb E \|\hat x(y) - x\|^2$ is minimised by the posterior mean, the MMSE estimator
+    $$
+    \hat x_{\mathrm{MMSE}}(y) = \mathbb E[x \mid y] .
+    $$
+2.  The maximum a posteriori (MAP) estimator maximises $p(x \mid y)$. For $y = Ax + n$ with $n \sim \mathcal N(0, \sigma^2 I)$, it is
+    $$
+    \hat x_{\mathrm{MAP}}(y) \in \arg\min_x \; \frac{1}{2\sigma^2} \|Ax - y\|^2 - \log p(x) .
+    $$
+
+::: proof
+Fix $y$ and any estimate $\hat x(y)$. Expanding the square around the posterior mean gives
+$$
+\mathbb E\big[\|\hat x(y) - x\|^2 \mid y\big] = \|\hat x(y) - \mathbb E[x \mid y]\|^2 + \mathbb E\big[\|x - \mathbb E[x \mid y]\|^2 \mid y\big] .
+$$
+
+The cross term vanishes because $x - \mathbb E[x \mid y]$ has zero conditional mean. The second term does not depend on the estimator, and the first one is zero exactly for the posterior mean; taking expectations over $y$ proves item 1.
+
+Item 2 is Bayes' rule followed by $-\log$: the evidence $p(y)$ does not depend on $x$, and the Gaussian likelihood contributes the quadratic term. [∎]{.qed}
+:::
+::::
+
+The two estimators differ. With a Laplace prior, proportional to $e^{-|x|}$, the MAP estimate is a soft thresholding of $y$ (Proposition 4.6), whereas the MMSE estimate is smooth in $y$.
+
+**Code 0.5 — The convolution theorem, and MAP versus MMSE.**
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+# 1. circular convolution theorem on a random 8 x 8 image and kernel
+u, h = rng.normal(size=(8, 8)), rng.normal(size=(8, 8))
+direct = np.array([[sum(u[j1, j2] * h[(k1 - j1) % 8, (k2 - j2) % 8]
+                        for j1 in range(8) for j2 in range(8)) for k2 in range(8)] for k1 in range(8)])
+via_fft = np.real(np.fft.ifft2(np.fft.fft2(u) * np.fft.fft2(h)))
+print("convolution theorem:", np.allclose(direct, via_fft))
+
+# 2. MAP versus MMSE for a Laplace prior p(x) ~ exp(-|x|) and Gaussian noise of std 1
+sigma = 1.0
+x = rng.laplace(size=200000)
+y = x + sigma * rng.normal(size=x.size)
+map_est = np.sign(y) * np.maximum(np.abs(y) - sigma**2, 0)      # soft thresholding
+grid = np.linspace(-15, 15, 3001)
+post = np.exp(-np.abs(grid)[None] - (y[:2000, None] - grid[None]) ** 2 / (2 * sigma**2))
+mmse_est = (post * grid).sum(1) / post.sum(1)                     # posterior mean, by quadrature
+print(f"MSE of MAP: {np.mean((map_est[:2000] - x[:2000]) ** 2):.3f},"
+      f"  MSE of MMSE: {np.mean((mmse_est - x[:2000]) ** 2):.3f},  MSE of y: {sigma**2:.3f}")
+print(f"fraction of exact zeros: MAP {np.mean(map_est == 0):.2f}, MMSE {np.mean(mmse_est == 0):.2f}")
+```
+
+The MAP estimate is exactly zero for 48 % of the samples, yet its error (0.690) exceeds that of the MMSE estimate (0.603), which is never zero. Since Laplace samples are never zero either, sparsity is a property of the MAP estimator, not of the prior (Gribonval, 2011).
+
+### 0.3 Convexity and gradient descent
+
+::: def
+[Definition 0.6 — Convexity and smoothness]{.tag} A function $f : \mathbb R^n \to \mathbb R$ is convex if, for all points $x, z$ and all $t \in [0, 1]$,
+$$
+f(tx + (1-t)z) \le t f(x) + (1-t) f(z) .
+$$
+
+It is $L$-smooth if it is differentiable and its gradient is $L$-Lipschitz.
+
+The data term $f(x) = \frac12 \|Ax - y\|^2$ is convex and $L$-smooth with $L = \|A\|^2$, the largest eigenvalue of $A^\top A$. For a circular convolution, $L = \max |\hat h|^2$.
+:::
+
+:::: prop
+[Proposition 0.7 — Descent lemma]{.tag} If $f$ is $L$-smooth, then for all $x, z$:
+$$
+f(z) \le f(x) + \langle \nabla f(x), z - x \rangle + \frac L2 \|z - x\|^2 .
+$$
+
+The gradient step $x^+ = x - \frac1L \nabla f(x)$ therefore decreases $f$:
+$$
+f(x^+) \le f(x) - \frac{1}{2L} \|\nabla f(x)\|^2 .
+$$
+
+::: proof
+Write $f(z) - f(x)$ as the integral over $t \in [0, 1]$ of $\langle \nabla f(x + t(z - x)), z - x \rangle$, and subtract $\langle \nabla f(x), z - x\rangle$.
+
+By Cauchy–Schwarz and the Lipschitz property, the remaining integrand is at most $L t \|z - x\|^2$, and $\int_0^1 t\, dt = \frac12$. The second inequality is the first one at $z = x^+$. [∎]{.qed}
+:::
+::::
+
+Gradient descent is thus monotone. [Ch. 4.5](#ch4) adds a non-smooth term, such as a total variation, and proves a convergence rate.
+
+::: recap
+[Key takeaways — chapter 0]{.tag}
+
+-   A circular convolution is diagonal in the DFT basis, so deblurring becomes a pointwise operation in frequency.
+-   Poisson noise has a variance equal to its mean; Gaussian noise is its limit for large counts.
+-   The posterior mean minimises the squared error; the MAP estimator is a penalised least-squares solution; the two differ.
+-   With step $1/L$, gradient descent decreases an $L$-smooth function at every step.
+:::
+
+## 1. Image acquisition: optics, sampling and noise {#ch1}
+
+A camera turns a radiance field into an array of integers. This chapter follows the light through the lens, the pixel and the electronics, and ends with the noise model used in the rest of the course.
+
+### 1.1 Optics: thin lens, aperture and diffraction
+
+::: def
+[Definition 1.1 — Thin lens, f-number, exposure]{.tag} A thin lens of focal length $f$ images a point at distance $z_o$ in front of it at distance $z_i$ behind it, with
+$$
+\frac{1}{z_o} + \frac{1}{z_i} = \frac{1}{f} .
+$$
+
+With an aperture of diameter $D$, the f-number is $N = f / D$. For a distant scene the irradiance on the sensor scales as $1/N^2$ ([ch. 2.1](#ch2)), so the collected light, the exposure, is proportional to $t / N^2$ for an exposure time $t$.
+:::
+
+Closing the aperture increases the depth of field, but it reduces the light and increases diffraction.
+
+:::: thm
+[Theorem 1.2 — Diffraction-limited optics]{.tag} Consider a perfect lens with a circular aperture, focused at infinity, in incoherent light of wavelength $\lambda$. With frequencies in cycles per unit length, its optical transfer function is the normalised autocorrelation of the aperture disc, which vanishes beyond the cut-off frequency
+$$
+\nu_c = \frac{1}{\lambda N} .
+$$
+
+The point-spread function is the Airy pattern, whose first dark ring has radius
+$$
+r_1 = 1.22\, \lambda N .
+$$
+
+::: proof
+This is a sketch of the derivation in Goodman (2005). In the Fraunhofer approximation, the coherent impulse response is the Fourier transform of the pupil, with frequencies scaled by $1/(\lambda f)$.
+
+In incoherent light intensities add, so the PSF is its squared modulus, and the transfer function is the autocorrelation of the scaled pupil. Two discs of diameter $D/(\lambda f) = 1/(\lambda N)$ overlap only if their centres are closer than $1/(\lambda N)$.
+
+The transform of a disc involves the Bessel function $J_1$, whose first zero, $3.8317 = 1.22\, \pi$, gives $r_1$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.3 — A diffraction budget]{.tag} Take green light, $\lambda = 0.55$ µm.
+
+-   At f/2.8, the cut-off is $1 / (0.55 \times 10^{-3}\ \text{mm} \times 2.8) = 649$ cycles/mm and $r_1 = 1.88$ µm.
+-   At f/8, the cut-off falls to 227 cycles/mm and $r_1 = 5.4$ µm.
+-   A smartphone pixel of pitch $p = 1.4$ µm has a Nyquist frequency $1/(2p) = 357$ cycles/mm: at f/2.8, frequencies up to 649 cycles/mm pass the optics and alias.
+
+Aliasing-free sampling would need $p \le \lambda N / 2$, that is 0.77 µm at f/2.8.
+:::
+
+### 1.2 Pixel integration, sampling and aliasing
+
+::: def
+[Definition 1.4 — Acquisition model]{.tag} Let $u$ be the irradiance in the focal plane and $p$ the pixel pitch. The noise-free value recorded at pixel $k \in \mathbb Z^2$ is
+$$
+u_d(k) = (h_{\mathrm{pix}} * h_{\mathrm{opt}} * u)(kp) .
+$$
+
+Here $h_{\mathrm{opt}}$ is the optical PSF and $h_{\mathrm{pix}}$ the normalised indicator of the light-sensitive square of side $a \le p$ ($a^2/p^2$ is the fill factor). The modulus of the product of their transfer functions is the modulation transfer function (MTF).
+:::
+
+:::: prop
+[Proposition 1.5 — Sampling periodises the spectrum]{.tag} Let $v = h_{\mathrm{pix}} * h_{\mathrm{opt}} * u$ be integrable, with an integrable Fourier transform
+$$
+\hat v(\nu) = \int v(x)\, e^{-2 i \pi \langle x, \nu \rangle}\, dx .
+$$
+
+Then, for every frequency $\nu \in \mathbb R^2$ in cycles per unit length,
+$$
+\sum_{k \in \mathbb Z^2} v(kp)\, e^{-2 i \pi p \langle k, \nu \rangle} = \frac{1}{p^2} \sum_{m \in \mathbb Z^2} \hat v\Big(\nu + \frac{m}{p}\Big) .
+$$
+
+If $\hat v$ vanishes outside the square $[-\frac{1}{2p}, \frac{1}{2p}]^2$, the samples determine $v$ (Shannon–Whittaker). Otherwise a frequency $\nu$ is recorded as $\nu - m / p$, folded into the square: this is aliasing.
+
+::: proof
+Apply the Poisson summation formula $\sum_k g(k) = \sum_m \hat g(m)$, proved in ch. 0.2 of [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html), to $g(x) = v(px)\, e^{-2 i \pi p \langle x, \nu \rangle}$; a change of variables gives $\hat g(m) = p^{-2}\, \hat v(\nu + m/p)$.
+
+Under band-limitation only $m = 0$ contributes on the square, so the samples give $\hat v$ there, hence $v$. [∎]{.qed}
+:::
+::::
+
+Aliasing turns fine periodic patterns, such as fabrics, into false stripes called moiré. Pixel integration only attenuates high frequencies: with a fill factor of 1, its transfer function is $2/\pi \approx 0.64$ along each axis at the Nyquist frequency.
+
+Some cameras add a birefringent optical low-pass filter, at the cost of sharpness. Earth-observation satellites face the same trade-off between aliasing and blur, specified by the MTF at the Nyquist frequency; the accepted blur is then partly undone by restoration ([ch. 4](#ch4)).
+
+### 1.3 The sensor and the colour filter array
+
+Each photosite converts photons into electrons with probability $\eta$, the quantum efficiency, up to its full-well capacity; the charge is then amplified, with a gain set by the ISO setting, and digitised.
+
+::: def
+[Definition 1.6 — Bayer colour filter array]{.tag} A single-sensor colour camera covers each photosite with one of three colour filters. The Bayer pattern repeats the $2 \times 2$ block
+$$
+\begin{pmatrix} R & G \\ G & B \end{pmatrix} .
+$$
+
+At pixel $(k_1, k_2)$, red is sampled where both coordinates are even, blue where both are odd, and green on the quincunx where $k_1 + k_2$ is odd. Green covers half of the pixels, red and blue a quarter each.
+:::
+
+Red and blue are sampled with pitch $2p$, at half the Nyquist frequency of the grid. Demosaicking ([ch. 6.2](#ch6)) reconstructs the three channels, and fails where strong high frequencies turn into false colours.
+
+### 1.4 Noise sources and the Poisson–Gaussian model
+
+Even for a steady source, the number of photons captured during the exposure is random. The main sources of noise are:
+
+-   **photon (shot) noise**: the photo-electron count is Poisson, each photon of a Poisson stream being converted independently;
+-   **dark current**: thermal electrons, also Poisson, growing with time and temperature;
+-   **read noise**: from the readout electronics, approximately Gaussian and signal-independent;
+-   **fixed-pattern noise**: pixel-to-pixel variations of gain and offset, removed by calibration.
+
+::: def
+[Definition 1.7 — Poisson–Gaussian model]{.tag} The RAW value of a pixel is
+$$
+z = o + g K + \varepsilon, \qquad K \sim \mathcal P(\lambda), \qquad \varepsilon \sim \mathcal N(0, \sigma_r^2),
+$$
+with $K$ and $\varepsilon$ independent, and pixels independent of each other.
+
+Here $o$ is the black level, $g > 0$ the gain in digital numbers (DN) per electron, $\lambda$ the expected number of electrons and $\sigma_r$ the read noise in DN.
+:::
+
+:::: thm
+[Theorem 1.8 — The noise curve is affine]{.tag} Under Definition 1.7, let $m = \mathbb E[z] - o$ be the mean signal above the black level. Then
+$$
+\operatorname{Var}(z) = g\, m + \sigma_r^2 .
+$$
+
+The signal-to-noise ratio is
+$$
+\mathrm{SNR} = \frac{m}{\sqrt{g m + \sigma_r^2}} = \frac{\lambda}{\sqrt{\lambda + \sigma_r^2 / g^2}} ,
+$$
+which grows like $\sqrt\lambda$ when photon noise dominates and like $\lambda$ in the dark regime.
+
+::: proof
+The mean is $\mathbb E[z] = o + g\lambda$, so $m = g \lambda$. By independence,
+$$
+\operatorname{Var}(z) = g^2 \operatorname{Var}(K) + \sigma_r^2 = g^2 \lambda + \sigma_r^2 = g m + \sigma_r^2 .
+$$
+
+Dividing $m = g\lambda$ by the standard deviation, then numerator and denominator by $g$, gives the SNR. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the noise curve of a RAW image]{.tag}
+$$
+\operatorname{Var}(z) = g\, \big(\mathbb E[z] - o\big) + \sigma_r^2
+$$
+:::
+
+The slope of the noise curve is the gain, its intercept the read-noise variance: RAW noise is signal-dependent.
+
+::: note
+[Photon-limited imaging]{.tag} In medical and scientific imaging the photon budget is often small by design: low-dose X-ray imaging limits the dose to the patient, fluorescence microscopy the light on the sample. Counts can drop to a few photons per pixel, where the Poisson part dominates and the Gaussian approximation fails.
+:::
+
+### 1.5 Quantisation and dynamic range
+
+:::: prop
+[Proposition 1.9 — Quantisation noise]{.tag} A uniform quantiser of step $\Delta$ maps $z$ to $\Delta \operatorname{round}(z / \Delta)$. If the error $e$ is uniform on $[-\Delta/2, \Delta/2]$, then
+$$
+\mathbb E[e] = 0, \qquad \operatorname{Var}(e) = \frac{\Delta^2}{12} .
+$$
+
+Uniformity is a good approximation when the noise before quantisation has a standard deviation of about $\Delta$ or more.
+
+::: proof
+The variance of the uniform law is
+$$
+\frac{1}{\Delta} \int_{-\Delta/2}^{\Delta/2} e^2\, de = \frac{\Delta^2}{12} .
+$$
+
+When the density of $z$ is smooth at the scale of $\Delta$, the fractional part of $z / \Delta$ is nearly uniform (Widrow and Kollár, 2008). [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 1.10 — Dynamic range]{.tag} The dynamic range is the ratio of the full-well capacity $C_{\mathrm{fw}}$ to the read noise $\sigma_r / g$, both in electrons:
+$$
+\mathrm{DR} = \frac{g\, C_{\mathrm{fw}}}{\sigma_r} .
+$$
+
+It is quoted in stops, $\log_2 \mathrm{DR}$, or in decibels, $20 \log_{10} \mathrm{DR}$.
+:::
+
+::: ex
+[Example 1.11 — A smartphone-like sensor]{.tag} Take a full well of 6000 electrons and a read noise of 2 electrons.
+
+-   The dynamic range is 3000, that is 11.6 stops or 69.5 dB.
+-   At 100 electrons, in a dark area, $\mathrm{SNR} = 100 / \sqrt{104} = 9.8$; at full well, $\mathrm{SNR} = \sqrt{6000} = 77.5$.
+-   A 12-bit converter over the full well has a step of $6000 / 4096 = 1.46$ electrons; quantisation adds $1.46 / \sqrt{12} = 0.42$ electron, and the noise floor moves from 2 to only 2.04 electrons. A 10-bit converter would add 1.69.
+
+A scene with a sunlit window and deep shadows can exceed $10^5 : 1$, about 17 stops: the problem of [ch. 7](#ch7).
+:::
+
+### 1.6 Noise curves and variance stabilisation
+
+Theorem 1.8 gives a calibration method: photograph flat patches of several brightnesses and fit a line to their variances against their means. In a single natural image, the regression runs on detected homogeneous regions (Foi, Trimeche, Katkovnik and Egiazarian, 2008).
+
+Most denoisers assume Gaussian noise of constant variance; a variance-stabilising transform reduces the Poisson–Gaussian case to that one.
+
+:::: prop
+[Proposition 1.12 — Variance-stabilising transform]{.tag} Let $s = z - o$ have mean $m$ and variance $a m + c$, with $a, c > 0$. To first order in the fluctuations of $s$ (the delta method), the function
+$$
+f(s) = \frac{2}{a} \sqrt{a s + c}
+$$
+satisfies
+$$
+\operatorname{Var} f(s) \approx f'(m)^2 \operatorname{Var}(s) = 1 .
+$$
+
+The generalised Anscombe transform adds $\frac38 a^2$ under the root, which reduces the bias at small counts; for $a = 1$ and $c = 0$ it is Anscombe's $2 \sqrt{s + 3/8}$.
+
+::: proof
+A first-order Taylor expansion gives $f(s) \approx f(m) + f'(m)(s - m)$, hence the variance $f'(m)^2 (am + c)$, equal to 1 since $f'(m) = (am + c)^{-1/2}$. The $\frac38$ term comes from a second-order expansion for Poisson variables (Anscombe, 1948). [∎]{.qed}
+:::
+::::
+
+After stabilisation any Gaussian denoiser applies; the result is mapped back with the exact unbiased inverse of Mäkitalo and Foi (2011), which matters at low counts.
+
+**Code 1.13 — A simulated sensor, its noise curve and its stabilisation.**
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+g, sigma_r, o = 0.25, 2.0, 64.0            # gain (DN per electron), read noise (DN), black level (DN)
+levels = np.geomspace(20, 12000, 12)       # expected electrons in 12 flat patches
+patches = [o + g * rng.poisson(lam, size=(64, 64)) + rng.normal(0, sigma_r, (64, 64))
+           for lam in levels]
+
+# 1. noise curve Var(z) = a m + c with m = E z - o, weighted least squares on the patches
+m = np.array([p.mean() - o for p in patches])
+v = np.array([p.var(ddof=1) for p in patches])
+a, c = np.polyfit(m, v, 1, w=1 / v)        # weights: the sd of a sample variance is proportional to v
+print(f"fitted a = {a:.4f} (true {g}),  c = {c:.2f} (true {sigma_r**2})")
+
+# 2. generalized Anscombe transform: unit variance at every level
+def gat(z):
+    return 2 / a * np.sqrt(np.maximum(a * (z - o) + 3 / 8 * a**2 + c, 0))
+print("std after the transform:", np.round([gat(p).std() for p in patches], 3))
+print("SNR (mean / std) per patch:", np.round(m / np.sqrt(v), 1))
+```
+
+The weighted fit gives $a = 0.247$ (true 0.25) and $c = 4.16$ (true 4). After the transform, the twelve standard deviations lie between 0.98 and 1.02, while the SNR grows from 2.1 to 111. An unweighted fit, dominated by the bright patches, would give $c = 5.07$.
+
+::: recap
+[Key takeaways — chapter 1]{.tag}
+
+-   Diffraction makes the optical image band-limited, with cut-off $1/(\lambda N)$; small pixels at wide apertures still alias.
+-   Sampling periodises the spectrum; the Bayer mosaic samples red and blue at half the resolution of the grid.
+-   RAW values follow the Poisson–Gaussian model; their variance is an affine function of their mean.
+-   Quantisation adds $\Delta^2/12$; the dynamic range is the full well divided by the read noise.
+-   The generalised Anscombe transform makes the noise approximately Gaussian with unit variance.
+:::
+
+## 2. Contrast and colour: radiometry, colorimetry and perception {#ch2}
+
+A RAW value counts electrons; a viewer perceives lightness and colour. This chapter links the two through radiometry, contrast changes, the laws of vision and colour spaces.
+
+### 2.1 Radiometry and exposure
+
+::: def
+[Definition 2.1 — Radiance and irradiance]{.tag} The radiance $L$ of a surface in a direction is the power it emits per unit projected area and per unit solid angle (W·m⁻²·sr⁻¹). The irradiance $E$ is the power received per unit area (W·m⁻²).
+:::
+
+:::: prop
+[Proposition 2.2 — Image irradiance equation]{.tag} For a lens of f-number $N$ focused at infinity, a scene patch of radiance $L$ seen at angle $\alpha$ from the optical axis produces on the sensor the irradiance
+$$
+E = L\, \frac{\pi}{4}\, \frac{1}{N^2}\, \cos^4 \alpha .
+$$
+
+::: proof
+A lossless lens conserves radiance. Seen from the image point, at distance $f / \cos\alpha$, the aperture disc of area $\pi D^2 / 4$, tilted by $\alpha$, subtends the solid angle
+$$
+\Omega = \frac{\pi D^2}{4} \cos\alpha \Big( \frac{\cos\alpha}{f} \Big)^2 .
+$$
+
+The light arrives at angle $\alpha$ on the sensor, which adds a factor $\cos\alpha$. Hence $E = L\, \Omega \cos\alpha$, which is the formula since $D / f = 1/N$. [∎]{.qed}
+:::
+::::
+
+The $\cos^4$ factor is natural vignetting: at $\alpha = 30°$ the irradiance drops to $0.5625$ times its central value, a loss of 0.83 stop.
+
+The exposure is $H = E\, t$. RAW values are affine in $H$ until saturation, whereas a JPEG stores $f(H)$ for an unknown increasing response $f$ ([ch. 7.2](#ch7)).
+
+### 2.2 Contrast changes, histograms and level sets
+
+::: def
+[Definition 2.3 — Contrast change and topographic map]{.tag} A contrast change is a map $u \mapsto \varphi \circ u$, with $\varphi : \mathbb R \to \mathbb R$ increasing. The upper level sets of an image $u$ are
+$$
+\mathcal X_\lambda u = \{ x : u(x) \ge \lambda \}, \qquad \lambda \in \mathbb R ,
+$$
+and their boundaries, the level lines, form the topographic map of $u$.
+:::
+
+If $\varphi$ is strictly increasing, then for every level $\lambda$
+$$
+\mathcal X_{\varphi(\lambda)}(\varphi \circ u) = \mathcal X_\lambda u .
+$$
+
+A contrast change relabels the level sets without changing the family. Since exposure and the camera response act through unknown increasing functions, mathematical morphology (Matheron, Serra) and Caselles, Coll and Morel (1999) treat the topographic map as the geometric content of an image.
+
+:::: prop
+[Proposition 2.4 — Histogram equalisation and specification]{.tag} Let $U$ be a real random variable with continuous cumulative distribution function $F$, and let $G$ be any cumulative distribution function, with generalised inverse $G^{-1}(t) = \inf\{ x : G(x) \ge t \}$. Then:
+
+1.  $F(U)$ is uniform on $[0, 1]$ (equalisation);
+2.  $G^{-1}(F(U))$ has distribution function $G$ (specification).
+
+::: proof
+For $t \in (0, 1)$, let $x_t = \sup\{x : F(x) \le t\}$. By continuity $F(x_t) = t$, and $F(U) \le t$ exactly when $U \le x_t$, up to a null event; hence $\mathbb P(F(U) \le t) = t$.
+
+For item 2, $G^{-1}(v) \le x$ if and only if $v \le G(x)$, so $\mathbb P(G^{-1}(V) \le x) = G(x)$ for $V = F(U)$ uniform. [∎]{.qed}
+:::
+::::
+
+On a digital image, $F$ is an empirical distribution function with jumps. Sorting the pixels and assigning the sorted target values realises the specification exactly for images of equal size; [ch. 3.2](#ch3) shows that this assignment is the cheapest.
+
+**Code 2.5 — Histogram equalisation and specification.**
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+grey = lambda im: im.astype(float) @ np.array([0.2126, 0.7152, 0.0722])
+u = grey(load_sample_image("china.jpg"))      # source, 427 x 640
+v = grey(load_sample_image("flower.jpg"))     # target, same size
+
+# histogram equalisation: apply the empirical cdf of u, rescaled to [0, 255]
+F = np.searchsorted(np.sort(u.ravel()), u.ravel(), side="right") / u.size
+eq = 255 * F.reshape(u.shape)
+counts, _ = np.histogram(eq, bins=8, range=(0, 255))
+print("equalised, pixels per eighth of the range (%):", np.round(100 * counts / u.size, 1))
+
+# histogram specification = 1D optimal transport: the k-th smallest pixel of u
+# receives the k-th smallest value of v (same number of pixels here)
+order = np.argsort(u.ravel(), kind="stable")
+spec = np.empty(u.size)
+spec[order] = np.sort(v.ravel())
+spec = spec.reshape(u.shape)
+print("same histogram as the target:", np.array_equal(np.sort(spec.ravel()), np.sort(v.ravel())))
+print("mean |u - v-sorted| per pixel (cost of the monotone map): %.2f grey levels"
+      % np.abs(spec - u).mean())
+rng = np.random.default_rng(0)
+perm = spec.ravel()[rng.permutation(u.size)]  # another map with the same output histogram
+print("same cost for a random rearrangement: %.2f grey levels" % np.abs(perm - u.ravel()).mean())
+```
+
+The equalised image has one eighth of its pixels in each eighth of the range, and the specified image has the exact target histogram. The monotone assignment moves grey levels by 76.9 on average, a random one with the same output by 102.3.
+
+### 2.3 Visual perception: Weber's law and gamma encoding
+
+Vision responds to ratios more than to differences. Over a wide range, the smallest detectable increment $\Delta I$ of a patch of luminance $I$ satisfies Weber's law
+$$
+\frac{\Delta I}{I} \approx k ,
+$$
+with $k$ of the order of 1 to 2 %, so that sensation grows roughly like $\log I$ (Fechner). At low luminance $k$ increases, and the CIE lightness of [ch. 2.6](#ch2) uses a cube root instead.
+
+::: ex
+[Example 2.6 — Why images are gamma-encoded]{.tag} With $k = 2$ %, a decade of luminance contains $\ln 10 / \ln 1.02 = 116$ just-noticeable steps. Count the 8-bit code values per decade, for luminances in $[0, 1]$:
+
+-   linear encoding, $x = I$: 23 codes in $[0.01, 0.1]$, 230 codes in $[0.1, 1]$;
+-   gamma encoding, $x = I^{1/2.2}$: 58 codes in $[0.01, 0.1]$, 165 codes in $[0.1, 1]$.
+
+Linear 8-bit coding wastes codes on highlights and bands the shadows, where one step is a 10 % jump at $I = 0.01$; a gamma curve spreads codes more evenly in perceived steps.
+:::
+
+Perception also depends on context: a grey looks lighter on a dark surround, and object colours look stable under changing illuminants ([ch. 2.5](#ch2)). Tone mapping ([ch. 7.4](#ch7)) exploits this sensitivity to local rather than absolute contrast.
+
+### 2.4 Colorimetry: trichromacy, CIE XYZ and sRGB
+
+::: def
+[Definition 2.7 — Tristimulus values and metamers]{.tag} A light of spectral power distribution $C(\lambda)$ is described, for an observer with sensitivities $s_1, s_2, s_3$, by its tristimulus values
+$$
+x_i = \int C(\lambda)\, s_i(\lambda)\, d\lambda, \qquad i = 1, 2, 3 .
+$$
+
+Two lights with the same tristimulus values but different spectra are metamers: they look identical to that observer.
+:::
+
+With three types of cones, colour vision projects the infinite-dimensional space of spectra onto $\mathbb R^3$. The CIE 1931 standard observer fixes colour-matching functions $\bar x, \bar y, \bar z$ ($\bar y$ is the luminous efficiency), which define $X, Y, Z$; the chromaticity $(X, Y) / (X + Y + Z)$ discards intensity.
+
+:::: prop
+[Proposition 2.8 — Changes of colour space are linear]{.tag} Let $s$ and $s'$ be two triples of sensitivities, each $s'_j$ being a linear combination of $s_1, s_2, s_3$. Then there is a $3 \times 3$ matrix $M$ such that every spectrum satisfies
+$$
+x'(C) = M\, x(C) .
+$$
+
+For a camera, being a linear combination of the colour-matching functions is the Luther condition: the camera then sees exactly the metamers of the standard observer.
+
+::: proof
+If $s'_j = \sum_i M_{ji} s_i$, integrate against $C$; linearity of the integral gives $x'_j = \sum_i M_{ji} x_i$. [∎]{.qed}
+:::
+::::
+
+No real camera satisfies it exactly, so colour correction ([ch. 6.3](#ch6)) is a least-squares approximation. The sRGB space of displays and JPEG files is defined by its primaries and white point (D65), that is by the matrix
+$$
+\begin{pmatrix} X \\ Y \\ Z \end{pmatrix} = \begin{pmatrix} 0.4124 & 0.3576 & 0.1805 \\ 0.2126 & 0.7152 & 0.0722 \\ 0.0193 & 0.1192 & 0.9505 \end{pmatrix} \begin{pmatrix} R \\ G \\ B \end{pmatrix} .
+$$
+
+Its gamut, the colours with $R, G, B \in [0, 1]$, is a triangle in the chromaticity diagram. Values are stored with a transfer curve close to a gamma of $1/2.2$:
+$$
+C' = 12.92\, C \ \text{ if } C \le 0.0031308, \qquad C' = 1.055\, C^{1/2.4} - 0.055 \ \text{ otherwise}.
+$$
+
+### 2.5 White balance and colour constancy
+
+A white sheet gives very different RAW values under daylight and under a tungsten lamp, yet looks white in both cases. White balance gives the camera this colour constancy.
+
+:::: prop
+[Proposition 2.9 — Diagonal model and grey world]{.tag} Assume the von Kries model: under an illuminant with channel gains $e = (e_R, e_G, e_B)$, the camera records
+$$
+c_k(x) = e_k\, \rho_k(x), \qquad k \in \{R, G, B\} ,
+$$
+where $\rho$ is the image under a neutral illuminant. Assume the grey-world hypothesis: the spatial means $\bar\rho_k$ of the three channels are equal, to $\bar\rho$. Then the gains $\gamma_k = 1 / \bar c_k$ give
+$$
+\gamma_k\, c_k(x) = \frac{\rho_k(x)}{\bar\rho} ,
+$$
+which removes the illuminant up to a global factor.
+
+::: proof
+The spatial mean of $c_k$ is $\bar c_k = e_k \bar\rho_k = e_k \bar\rho$. Hence $\gamma_k c_k(x) = e_k \rho_k(x) / (e_k \bar\rho)$. [∎]{.qed}
+:::
+::::
+
+The white-patch method assumes instead that the brightest pixels are white, and the Retinex theory of Land and McCann (1971) compares each pixel to its surroundings. Each method fails with its hypothesis, for instance on a picture dominated by blue sky.
+
+### 2.6 Perceptually uniform colour spaces
+
+::: def
+[Definition 2.10 — CIELAB]{.tag} Let $(X_n, Y_n, Z_n)$ be the white point and
+$$
+f(t) = t^{1/3} \ \text{ if } t > (6/29)^3, \qquad f(t) = \frac{t}{3 (6/29)^2} + \frac{4}{29} \ \text{ otherwise}.
+$$
+
+The CIELAB coordinates are
+$$
+L^* = 116\, f(Y/Y_n) - 16, \quad a^* = 500\, \big(f(X/X_n) - f(Y/Y_n)\big), \quad b^* = 200\, \big(f(Y/Y_n) - f(Z/Z_n)\big),
+$$
+and the colour difference $\Delta E^*_{ab}$ is the Euclidean distance between two triples $(L^*, a^*, b^*)$.
+:::
+
+A grey reflecting 18 % of the light has $L^* = 116 \times 0.18^{1/3} - 16 = 49.5$: it looks half as light as white, hence the 18 % grey cards used to set exposure. A $\Delta E^*_{ab}$ of about 2.3 is often quoted as one just-noticeable difference.
+
+**Code 2.11 — Grey-world white balance, measured in CIELAB.**
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+def srgb_to_linear(c):                        # inverse of the sRGB transfer curve, c in [0, 1]
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+M = np.array([[0.4124, 0.3576, 0.1805],       # linear sRGB (D65) -> CIE XYZ
+              [0.2126, 0.7152, 0.0722],
+              [0.0193, 0.1192, 0.9505]])
+
+def lab(rgb_lin):                             # CIELAB with the D65 white of sRGB
+    xyz = rgb_lin @ M.T / M.sum(axis=1)       # divide by the white point (Xn, Yn, Zn)
+    f = np.where(xyz > (6 / 29) ** 3, np.cbrt(xyz), xyz / (3 * (6 / 29) ** 2) + 4 / 29)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]),
+                     200 * (f[..., 1] - f[..., 2])], axis=-1)
+
+u = srgb_to_linear(load_sample_image("china.jpg") / 255.0)
+cast = u * np.array([1.25, 1.0, 0.65])        # a warm illuminant, von Kries (diagonal) model
+gains = cast.mean(axis=(0, 1)).mean() / cast.mean(axis=(0, 1))   # grey-world gains
+balanced = cast * gains
+for name, img in [("cast", cast), ("grey-world", balanced)]:
+    dE = np.linalg.norm(lab(np.clip(img, 0, 1)) - lab(u), axis=-1)
+    print(f"{name:10s}: mean Delta E*ab = {dE.mean():5.2f}, median = {np.median(dE):5.2f}")
+print("gains / green gain:", np.round(gains / gains[1], 3), "  exact inverse cast:", np.round(1 / np.array([1.25, 1, 0.65]), 3))
+```
+
+A warm cast (gains 1.25, 1, 0.65) gives a median $\Delta E^*_{ab}$ of 16.3; grey-world brings it down to 2.3. The estimated gain ratios (0.84, 1, 1.47) differ from the exact inverse of the cast (0.80, 1, 1.54) because the photograph is not grey on average.
+
+::: recap
+[Key takeaways — chapter 2]{.tag}
+
+-   The irradiance on the sensor is $L\, \pi / (4 N^2)\, \cos^4 \alpha$; the $\cos^4$ term is natural vignetting.
+-   Contrast changes preserve the family of level sets, the geometric content of an image; histogram equalisation and specification are contrast changes.
+-   Weber's law explains gamma encoding: it spreads code values evenly in perceived steps.
+-   Colour is a linear projection of the spectrum onto $\mathbb R^3$; changes of colour space are $3 \times 3$ matrices when the Luther condition holds.
+-   White balance is a diagonal correction; CIELAB measures colour differences approximately as perceived.
+:::
+
+## 3. Colour transfer by optimal transport {#ch3}
+
+Colour transfer gives a photograph the colour atmosphere of another one. It asks for a map that moves the colour distribution of the source onto that of the target while changing colours as little as possible: an optimal transport problem.
+
+### 3.1 The transport problem
+
+::: def
+[Definition 3.1 — Monge and Kantorovich problems, Wasserstein distance]{.tag} Let $\mu, \nu$ be probability measures on $\mathbb R^d$ with finite second moments.
+
+A map $T$ pushes $\mu$ to $\nu$, written $T_\# \mu = \nu$, if every Borel set $B$ satisfies $\mu(T^{-1}(B)) = \nu(B)$.
+
+Monge's problem is
+$$
+\min_{T_\# \mu = \nu} \int \|x - T(x)\|^2\, d\mu(x) .
+$$
+
+Kantorovich's relaxation minimises $\int \|x - y\|^2\, d\pi(x, y)$ over couplings $\pi$ with marginals $\mu$ and $\nu$. Its minimal value is $W_2(\mu, \nu)^2$, the squared Wasserstein distance.
+:::
+
+Here $\mu$ and $\nu$ are the colour distributions of the source and target images.
+
+### 3.2 One dimension: histogram specification is optimal transport
+
+:::: thm
+[Theorem 3.2 — Monotone matching is optimal]{.tag} Let $x_1 \le \dots \le x_n$ and $y_1 \le \dots \le y_n$ be real numbers, and let $c$ be a convex function. Among all permutations $\sigma$, the cost $\sum_i c(x_i - y_{\sigma(i)})$ is minimal for the identity, that is for the matching in sorted order.
+
+::: proof
+Suppose $\sigma$ has an inversion: $i < j$ with $y_a > y_b$, where $a = \sigma(i)$ and $b = \sigma(j)$. Compare the two pairings through the four differences
+$$
+s_1 = x_i - y_a, \qquad s_2 = x_i - y_b, \qquad s_3 = x_j - y_a, \qquad s_4 = x_j - y_b .
+$$
+
+Then $s_2$ and $s_3$ lie in $[s_1, s_4]$ and $s_2 + s_3 = s_1 + s_4$. So there is $t \in [0, 1]$ with
+$$
+s_2 = t s_1 + (1 - t) s_4, \qquad s_3 = (1-t) s_1 + t s_4 .
+$$
+
+Convexity gives $c(s_2) + c(s_3) \le c(s_1) + c(s_4)$: swapping $a$ and $b$ does not increase the cost.
+
+Each swap removes at least one inversion, so finitely many swaps reach the sorted matching without increasing the cost. [∎]{.qed}
+:::
+::::
+
+With uniform weights, every coupling between two sets of $n$ points is a mixture of permutations (Birkhoff–von Neumann), so the sorted matching also solves the relaxed problem. Histogram specification (Code 2.5) is therefore optimal transport between grey-level distributions, for every convex cost.
+
+::: key
+[Key result — optimal transport on the line]{.tag}
+$$
+T = G^{-1} \circ F
+$$
+:::
+
+### 3.3 Gaussian transport and affine colour transfer
+
+::: thm
+[Theorem 3.3 — Brenier (1991)]{.tag} If $\mu$ has a density and $\mu, \nu$ have finite second moments, Monge's problem has a unique solution, of the form $T = \nabla\varphi$ with $\varphi$ convex.
+
+Conversely, if $\varphi$ is convex and $(\nabla \varphi)_\# \mu = \nu$, then $\nabla\varphi$ is optimal. A proof is in Villani (2003), ch. 2.
+:::
+
+:::: prop
+[Proposition 3.4 — Transport between Gaussians]{.tag} Let $\mu = \mathcal N(m_1, \Sigma_1)$ and $\nu = \mathcal N(m_2, \Sigma_2)$ with $\Sigma_1$ positive definite, and set
+$$
+S = \big( \Sigma_1^{1/2} \Sigma_2 \Sigma_1^{1/2} \big)^{1/2}, \qquad A = \Sigma_1^{-1/2}\, S\, \Sigma_1^{-1/2} .
+$$
+
+The optimal map is affine, $T(x) = m_2 + A (x - m_1)$, and
+$$
+W_2(\mu, \nu)^2 = \|m_1 - m_2\|^2 + \operatorname{tr}\big( \Sigma_1 + \Sigma_2 - 2 S \big) .
+$$
+
+::: proof
+The matrix $A$ is symmetric positive semi-definite, so $T$ is the gradient of the convex function
+$$
+\varphi(x) = \langle m_2, x \rangle + \tfrac12 (x - m_1)^\top A (x - m_1) .
+$$
+
+$T(X)$ is Gaussian with mean $m_2$ and covariance
+$$
+A \Sigma_1 A = \Sigma_1^{-1/2} S^2\, \Sigma_1^{-1/2} = \Sigma_2 .
+$$
+
+So $T$ pushes $\mu$ to $\nu$, and Theorem 3.3 makes it optimal. Its cost is
+$$
+\|m_1 - m_2\|^2 + \operatorname{tr}\big((I - A) \Sigma_1 (I - A)\big),
+$$
+which expands to the formula because $\operatorname{tr}(A \Sigma_1) = \operatorname{tr}(S)$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.5 — Grey levels]{.tag} In one dimension, the map from $\mathcal N(100, 20^2)$ to $\mathcal N(140, 40^2)$ is $T(x) = 140 + 2 (x - 100)$, and
+$$
+W_2 = \sqrt{40^2 + 20^2} = 44.7 .
+$$
+
+Reinhard, Ashikhmin, Gooch and Shirley (2001) match the mean and standard deviation of each channel in a decorrelated colour space: the Gaussian map with diagonal covariances. Proposition 3.4 handles correlated channels.
+:::
+
+### 3.4 Discrete and entropic transport
+
+Two images give two point clouds, or two palettes after clustering. Between discrete measures $\sum_i a_i \delta_{x_i}$ and $\sum_j b_j \delta_{y_j}$, Kantorovich's problem becomes a linear programme.
+
+Its unknowns are the matrices $P$ with non-negative entries, row sums $a$ and column sums $b$, a set written $U(a, b)$, and it minimises $\langle P, C \rangle$ with $C_{ij} = \|x_i - y_j\|^2$.
+
+::: def
+[Definition 3.6 — Entropic transport and Sinkhorn's algorithm]{.tag} For $\varepsilon > 0$, entropic transport solves
+$$
+\min_{P \in U(a, b)} \; \langle P, C \rangle + \varepsilon \sum_{ij} P_{ij} \big( \log P_{ij} - 1 \big) .
+$$
+
+Setting the derivative of the Lagrangian to zero, with multipliers $f_i$ and $g_j$ for the marginal constraints, gives
+$$
+P_{ij} = u_i\, K_{ij}\, v_j, \qquad K_{ij} = e^{-C_{ij}/\varepsilon}, \quad u_i = e^{f_i / \varepsilon}, \quad v_j = e^{g_j / \varepsilon} .
+$$
+
+Sinkhorn's algorithm alternately fits the two marginals, $u \leftarrow a / (K v)$ and $v \leftarrow b / (K^\top u)$, with entrywise divisions.
+:::
+
+Each iteration costs two matrix–vector products, and convergence is linear (Franklin and Lorenz, 1989); Cuturi (2013) popularised the method. As $\varepsilon \to 0$ the solution tends to an optimal plan, but $K$ underflows, so the iterations run on the potentials $f, g$ with log-sum-exp operations.
+
+**Code 3.7 — Sinkhorn between two colour palettes.**
+
+```python
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+from scipy.special import logsumexp
+from sklearn.cluster import KMeans
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+pal = lambda name: KMeans(16, n_init=1, random_state=0).fit(
+    rng.permutation(load_sample_image(name).reshape(-1, 3) / 255.0)[:5000]).cluster_centers_
+x, y = pal("china.jpg"), pal("flower.jpg")       # two 16-colour palettes, uniform weights
+C = ((x[:, None, :] - y[None, :, :]) ** 2).sum(-1)  # squared Euclidean cost
+loga = logb = np.full(16, -np.log(16))
+
+r, c = linear_sum_assignment(C)                   # exact OT: an optimal permutation
+print(f"exact OT cost (assignment): {C[r, c].mean():.5f}")
+for eps in [1e-1, 1e-2, 1e-3]:
+    f, g = np.zeros(16), np.zeros(16)             # dual potentials, log-domain Sinkhorn
+    for _ in range(3000):
+        f = eps * (loga - logsumexp((g[None, :] - C) / eps, axis=1))
+        g = eps * (logb - logsumexp((f[:, None] - C) / eps, axis=0))
+    P = np.exp((f[:, None] + g[None, :] - C) / eps)
+    print(f"eps = {eps:g}: transport cost {np.sum(P * C):.5f}, "
+          f"row-marginal error {np.abs(P.sum(1) - 1 / 16).max():.1e}")
+```
+
+The exact cost between the two palettes is 0.2525; entropic transport costs 0.3027 at $\varepsilon = 0.1$ and 0.2564 at $\varepsilon = 0.01$. At $\varepsilon = 0.001$, 3000 iterations leave a marginal error of $1.3 \times 10^{-4}$: Sinkhorn slows down as $\varepsilon$ decreases.
+
+### 3.5 Sliced transport for colour distributions
+
+Exact transport between $n$ colours costs about $n^3$ operations, out of reach for millions of pixels, whereas one-dimensional transport only needs sorting.
+
+::: def
+[Definition 3.8 — Sliced Wasserstein distance and iterative transfer]{.tag} For measures on $\mathbb R^d$ and $\theta$ on the unit sphere, let $P_\theta(x) = \langle x, \theta \rangle$. The sliced Wasserstein distance is
+$$
+SW_2(\mu, \nu)^2 = \int_{S^{d-1}} W_2\big( (P_\theta)_\# \mu, (P_\theta)_\# \nu \big)^2\, d\theta ,
+$$
+with $d\theta$ the uniform probability on the sphere.
+
+The iterative transfer moves the source cloud: draw a random orthonormal basis; along each basis direction, sort the projections of both clouds and move every source point along that direction to its matched target value (Theorem 3.2); repeat.
+:::
+
+Pitié, Kokaram and Dahyot (2007) proposed this algorithm for colour grading; Rabin, Peyré, Delon and Bernot (2011) relate it to the sliced distance and use it for colour transfer and texture mixing. It matches the full distribution, not only its first two moments.
+
+**Code 3.9 — Gaussian and sliced colour transfer between the two sample photographs.**
+
+```python
+import numpy as np
+from scipy.linalg import sqrtm
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+n = 20000                                     # random subsample of the pixels, for speed
+X = rng.permutation(load_sample_image("china.jpg").reshape(-1, 3) / 255.0)[:n]   # source
+Y = rng.permutation(load_sample_image("flower.jpg").reshape(-1, 3) / 255.0)[:n]  # target
+
+def sliced_w2(P, Q, n_dir=100):               # sliced Wasserstein-2 distance, equal sizes
+    D = rng.normal(size=(n_dir, 3)); D /= np.linalg.norm(D, axis=1, keepdims=True)
+    return np.sqrt(np.mean([np.mean((np.sort(P @ d) - np.sort(Q @ d)) ** 2) for d in D]))
+
+# 1. Gaussian (affine) transport map  T(x) = m_Y + A (x - m_X)
+mX, mY = X.mean(0), Y.mean(0)
+SX, SY = np.cov(X.T), np.cov(Y.T)
+SXh = np.real(sqrtm(SX)); SXih = np.linalg.inv(SXh)
+A = SXih @ np.real(sqrtm(SXh @ SY @ SXh)) @ SXih
+G = mY + (X - mX) @ A.T
+print("covariance matched:", np.allclose(np.cov(G.T), SY, atol=1e-8))
+
+# 2. sliced transport (iterated 1D matchings in random orthonormal bases)
+Z = X.copy()
+for it in range(30):
+    R, _ = np.linalg.qr(rng.normal(size=(3, 3)))
+    for d in R.T:
+        pz, py = Z @ d, Y @ d
+        idx = np.argsort(pz)
+        Z[idx] += np.outer(np.sort(py) - pz[idx], d)          # move along d to the matched value
+for name, P in [("source", X), ("Gaussian map", G), ("sliced transport", Z)]:
+    print(f"{name:17s} SW2 to target = {sliced_w2(P, Y):.4f},  "
+          f"mean displacement = {np.linalg.norm(P - X, axis=1).mean():.3f}")
+```
+
+The sliced distance from source to target colours is 0.386. The Gaussian map reduces it to 0.149, thirty sliced iterations to 0.0022. Both maps move colours by about 0.6 on average (RGB in $[0, 1]$): the extra accuracy costs almost no extra displacement.
+
+### 3.6 Regularity and artefacts
+
+A transport map acts pixel by pixel and ignores neighbourhoods. Where it stretches the colour space it amplifies noise and compression artefacts; where it separates close colours, smooth gradients break into false contours.
+
+One remedy filters the displacement field, guided by the source image (Rabin, Delon and Gousseau, 2010); another regularises the transport plan and relaxes mass conservation (Ferradans, Papadakis, Peyré and Aujol, 2014).
+
+::: recap
+[Key takeaways — chapter 3]{.tag}
+
+-   Colour transfer is a transport problem between the colour distributions of two images.
+-   In one dimension the optimal map is monotone, and histogram specification is optimal transport.
+-   Between Gaussians the optimal map is affine, given by Proposition 3.4.
+-   Entropic transport is solved by Sinkhorn's scalings; small $\varepsilon$ needs the log domain and many iterations.
+-   Sliced transport matches full colour distributions at the cost of sorts; pixelwise maps can create artefacts that call for regularisation.
+:::
+
+## 4. Restoration by explicit regularisation {#ch4}
+
+Blur, missing pixels and noise destroy information that the data alone cannot restore. This chapter shows why restoration is ill-posed and regularises it with explicit priors, Gaussian, sparse and geometric, computed by proximal algorithms.
+
+### 4.1 Degradation models and ill-posedness
+
+::: def
+[Definition 4.1 — Linear degradation model]{.tag} The observation is
+$$
+y = A u + n, \qquad n \sim \mathcal N(0, \sigma^2 I),
+$$
+with $A$ a known linear operator, after stabilisation of the noise ([ch. 1.6](#ch1)). Typical operators are a blur, a pixel mask (inpainting), the colour filter array (demosaicking) or a blur with subsampling (super-resolution).
+:::
+
+:::: prop
+[Proposition 4.2 — The inverse filter amplifies noise]{.tag} Let $A$ be a circular convolution whose transfer function $\hat h$ never vanishes on the $M \times N$ grid. The inverse filter $u_{\mathrm{inv}} = A^{-1} y$ has mean squared error
+$$
+\mathbb E \|u_{\mathrm{inv}} - u\|^2 = \sigma^2 \sum_{(p, q)} \frac{1}{|\hat h(p, q)|^2} .
+$$
+
+::: proof
+The error is $A^{-1} n$, whose DFT is $\hat n / \hat h$. Each $\hat n(p, q)$ has variance $MN \sigma^2$, and Parseval's identity divides the sum of the squared DFT coefficients by $MN$. [∎]{.qed}
+:::
+::::
+
+A Gaussian blur of standard deviation 1.5 pixel has transfer function $e^{-2 \pi^2 (1.5)^2 |\nu|^2}$, equal to $2.3 \times 10^{-10}$ at the frequency $(\frac12, \frac12)$, where the inverse filter multiplies the noise by $4 \times 10^9$. The problem is ill-posed in the sense of Hadamard.
+
+::: note
+[Beyond photography]{.tag} The same model governs deconvolution in fluorescence microscopy, where Poisson noise leads to the Richardson–Lucy iterations (Richardson, 1972; Lucy, 1974), and the restoration of Earth-observation images, which compensates the MTF of the instrument ([ch. 1.2](#ch1)).
+:::
+
+### 4.2 Bayesian formulation: Tikhonov and Wiener
+
+::: def
+[Definition 4.3 — Variational restoration]{.tag} Given a regulariser $R$ and a weight $\lambda > 0$, variational restoration computes
+$$
+u^\star \in \arg\min_u \; \frac12 \|A u - y\|^2 + \lambda R(u) .
+$$
+
+By Proposition 0.4 this is the MAP estimator for the prior proportional to $e^{-\lambda R(u) / \sigma^2}$.
+:::
+
+:::: thm
+[Theorem 4.4 — Wiener filter]{.tag} Let $u$ be a stationary Gaussian image with zero mean, whose circulant covariance has eigenvalues $P(p, q) > 0$ (the power spectrum), and let $A$ be a circular convolution. Then the MMSE and MAP estimators coincide, and they are the Fourier multiplier
+$$
+\widehat{u^\star}(p, q) = \frac{\overline{\hat h(p, q)}\; P(p, q)}{|\hat h(p, q)|^2\, P(p, q) + \sigma^2}\; \hat y(p, q) .
+$$
+
+::: proof
+The DFT diagonalises the covariance of $u$, the operator $A$ and the noise simultaneously, so the problem splits into independent scalar problems, one per frequency (up to Hermitian symmetry).
+
+At each frequency one observes $h u + n$, where $u$ and $n$ are centred complex Gaussians with variances proportional to $P$ and $\sigma^2$.
+
+The posterior is then Gaussian; its mean, which is also its mode, is $\bar h P y / (|h|^2 P + \sigma^2)$ by linear regression. [∎]{.qed}
+:::
+::::
+
+The Wiener filter inverts the blur where the signal dominates and shrinks where the noise dominates. Natural images have power spectra decaying roughly like $1/|\nu|^2$ (Field, 1987), which motivates the Tikhonov regulariser $\frac12 \|\nabla u\|^2$: its solution is the multiplier $\bar{\hat h} / (|\hat h|^2 + \lambda\, \ell)$, with $\ell$ the symbol of $-\Delta$.
+
+### 4.3 Sparsity in wavelet bases
+
+Gaussian priors give linear estimators, which blur edges. Natural images are better described as sparse: in a wavelet basis, a few large coefficients carry edges and textures.
+
+::: def
+[Definition 4.5 — Orthonormal Haar transform]{.tag} One level of the 2D Haar transform maps each $2 \times 2$ block $(a, b; c, d)$ to four coefficients: the average $(a + b + c + d)/2$ and the three details
+$$
+\tfrac12 (a - b + c - d), \qquad \tfrac12 (a + b - c - d), \qquad \tfrac12 (a - b - c + d) .
+$$
+
+Iterating on the averages gives an orthonormal multiscale transform $W$.
+:::
+
+:::: prop
+[Proposition 4.6 — Soft thresholding]{.tag} For $\tau > 0$, the minimiser of $\frac12 (x - y)^2 + \tau |x|$ over $x \in \mathbb R$ is the soft thresholding
+$$
+S_\tau(y) = \operatorname{sign}(y) \max(|y| - \tau, 0) .
+$$
+
+For an orthonormal transform $W$, the minimiser of $\frac12 \|u - y\|^2 + \tau \|W u\|_1$ is $W^\top S_\tau(W y)$, with $S_\tau$ applied to each coefficient.
+
+::: proof
+The scalar function is strictly convex, and $x$ minimises it if and only if $y - x \in \tau\, \partial|x|$.
+
+-   If $x > 0$, this reads $x = y - \tau$, which requires $y > \tau$.
+-   If $x < 0$, it reads $x = y + \tau$, which requires $y < -\tau$.
+-   If $x = 0$, it reads $|y| \le \tau$.
+
+For the second claim, $\|u - y\| = \|Wu - Wy\|$, so the problem separates over the coefficients of $Wu$. [∎]{.qed}
+:::
+::::
+
+Thresholding is thus MAP estimation for a Laplace prior on the coefficients. The universal threshold $\sigma \sqrt{2 \log n}$ (Donoho and Johnstone, 1994) kills, with high probability, all $n$ coefficients of pure noise. The noise level is estimated from the finest diagonal band $d$ by
+$$
+\hat \sigma = \frac{\operatorname{median} |d|}{0.6745} ,
+$$
+since $0.6745$ is the median of $|Z|$ for $Z \sim \mathcal N(0, 1)$.
+
+**Code 4.7 — Haar thresholding and noise estimation.**
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+def haar(x):                                  # one level of the orthonormal 2D Haar transform
+    a, b, c, d = x[0::2, 0::2], x[1::2, 0::2], x[0::2, 1::2], x[1::2, 1::2]
+    return (a + b + c + d) / 2, np.stack([(a - b + c - d) / 2, (a + b - c - d) / 2, (a - b - c + d) / 2])
+
+def ihaar(s, w):
+    x = np.empty((2 * s.shape[0], 2 * s.shape[1]))
+    h, v, dg = w
+    x[0::2, 0::2] = (s + h + v + dg) / 2; x[1::2, 0::2] = (s - h + v - dg) / 2
+    x[0::2, 1::2] = (s + h - v - dg) / 2; x[1::2, 1::2] = (s - h - v + dg) / 2
+    return x
+
+def denoise(y, thr, levels=4, mode="soft"):
+    details, s = [], y
+    for _ in range(levels):
+        s, w = haar(s); details.append(w)
+    shrink = (lambda w: np.sign(w) * np.maximum(np.abs(w) - thr, 0)) if mode == "soft" \
+        else (lambda w: w * (np.abs(w) > thr))
+    for w in reversed(details):
+        s = ihaar(s, shrink(w))
+    return s
+
+rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg")[:256, 192:448] @ np.array([0.2126, 0.7152, 0.0722]) / 255
+y = u + 0.05 * rng.normal(size=u.shape)
+psnr = lambda x: 10 * np.log10(1 / np.mean((x - u) ** 2))
+sigma_hat = np.median(np.abs(haar(y)[1][2])) / 0.6745       # MAD on the finest diagonal band
+print(f"noisy: {psnr(y):.2f} dB, estimated sigma = {sigma_hat:.4f} (true 0.05)")
+for mode, thr in [("soft", sigma_hat * np.sqrt(2 * np.log(u.size))), ("soft", 1.5 * sigma_hat),
+                  ("hard", 3 * sigma_hat)]:
+    print(f"{mode} threshold {thr / sigma_hat:.2f} sigma: PSNR = {psnr(denoise(y, thr, mode=mode)):.2f} dB")
+```
+
+The estimate $\hat\sigma = 0.058$ exceeds the true 0.05 because image details also populate the diagonal band. From 26.03 dB, the universal threshold (4.71 $\hat\sigma$) removes too much texture (22.70 dB); soft thresholding at 1.5 $\hat\sigma$ reaches 28.11 dB, hard thresholding at 3 $\hat\sigma$ 27.68 dB.
+
+### 4.4 Total variation
+
+::: def
+[Definition 4.8 — Total variation and the ROF model]{.tag} With forward differences $\nabla u(x) \in \mathbb R^2$ (periodic boundary), the discrete isotropic total variation is
+$$
+\mathrm{TV}(u) = \sum_x \|\nabla u(x)\|_2 .
+$$
+
+The Rudin–Osher–Fatemi (ROF) model (1992) denoises by minimising $\frac12 \|u - y\|^2 + \lambda \mathrm{TV}(u)$; TV deblurring replaces $u$ by $h \circledast u$ in the data term.
+:::
+
+:::: prop
+[Proposition 4.9 — Coarea formula]{.tag} For a function $u$ of bounded variation on $\mathbb R^2$,
+$$
+\int |\nabla u|\, dx = \int_{-\infty}^{+\infty} \operatorname{Per}\big(\{ u > \lambda \}\big)\, d\lambda ,
+$$
+where $\operatorname{Per}$ is the perimeter in the sense of De Giorgi.
+
+::: proof
+We sketch the one-dimensional case for a piecewise monotone $u$, where the perimeter of $\{u > \lambda\}$ counts the crossings of level $\lambda$. On each monotone piece, the change of variables $\lambda = u(x)$ turns $\int |u'|$ into the length of the range, each level being crossed once; sum over the pieces. Ambrosio, Fusco and Pallara (2000) treat the general case. [∎]{.qed}
+:::
+::::
+
+TV penalises the length of level lines weighted by contrast, not the steepness of transitions: a sharp edge costs no more than a ramp of the same height. TV therefore restores edges, and turns smooth gradients into flat steps (staircasing). Where the gradient does not vanish, the gradient flow of TV is the PDE
+$$
+\partial_t u = \operatorname{div}\Big( \frac{\nabla u}{|\nabla u|} \Big),
+$$
+whose right-hand side is the curvature of the level lines, acting on the topographic map of [ch. 2.2](#ch2).
+
+### 4.5 Proximal splitting algorithms
+
+::: def
+[Definition 4.10 — Proximal operator]{.tag} For a convex, lower semicontinuous, proper function $g$ and $\tau > 0$,
+$$
+\operatorname{prox}_{\tau g}(x) = \arg\min_z \; g(z) + \frac{1}{2\tau} \|z - x\|^2 .
+$$
+
+Examples: soft thresholding for $\tau \|\cdot\|_1$ (Proposition 4.6), a division in Fourier for a quadratic term with a circular blur, the projection for the indicator of a convex set.
+:::
+
+:::: thm
+[Theorem 4.11 — Forward–backward splitting]{.tag} Let $F = f + g$ with $f$ convex and $L$-smooth, $g$ convex, lower semicontinuous and proper, and let $x^\star$ minimise $F$. The iterations
+$$
+x_{k+1} = \operatorname{prox}_{g / L}\Big( x_k - \frac1L \nabla f(x_k) \Big)
+$$
+satisfy, for every $k \ge 1$,
+$$
+F(x_k) - F(x^\star) \le \frac{L \|x_0 - x^\star\|^2}{2k} .
+$$
+
+::: proof
+Let $x^+$ be the iterate computed from $x$, and $z$ any point. Three inequalities hold:
+
+1.  the descent lemma (Proposition 0.7):
+    $$
+    f(x^+) \le f(x) + \langle \nabla f(x), x^+ - x \rangle + \frac L2 \|x^+ - x\|^2 ;
+    $$
+2.  convexity of $f$: $f(x) \le f(z) + \langle \nabla f(x), x - z \rangle$;
+3.  the optimality of the prox, $L(x - x^+) - \nabla f(x) \in \partial g(x^+)$, which gives
+    $$
+    g(x^+) \le g(z) + \langle L(x - x^+) - \nabla f(x),\, x^+ - z \rangle .
+    $$
+
+Adding them, the gradient terms cancel and
+$$
+F(x^+) \le F(z) + L \langle x - x^+, x^+ - z \rangle + \frac L2 \|x^+ - x\|^2 = F(z) + \frac L2 \big( \|x - z\|^2 - \|x^+ - z\|^2 \big) .
+$$
+
+With $z = x_j$ the sequence $F(x_j)$ decreases. With $z = x^\star$, summing from $j = 0$ to $k - 1$ telescopes:
+$$
+k\, \big(F(x_k) - F(x^\star)\big) \le \sum_{j=1}^{k} \big(F(x_j) - F(x^\star)\big) \le \frac L2 \|x_0 - x^\star\|^2 .
+$$
+
+Dividing by $k$ gives the rate. [∎]{.qed}
+:::
+::::
+
+FISTA adds an extrapolation step and reaches $O(1/k^2)$ (Beck and Teboulle, 2009). TV composed with a blur, however, has no explicit prox.
+
+::: def
+[Definition 4.12 — Primal–dual algorithm and splitting]{.tag} For $\min_x G(x) + F(Kx)$ with $K$ linear, the algorithm of Chambolle and Pock (2011) iterates
+$$
+p \leftarrow \operatorname{prox}_{\sigma F^*}(p + \sigma K \bar x), \quad x' \leftarrow \operatorname{prox}_{\tau G}(x - \tau K^\top p), \quad \bar x \leftarrow 2 x' - x, \quad x \leftarrow x' ,
+$$
+and converges when $\tau \sigma \|K\|^2 < 1$. For TV deblurring, $K = \nabla$ with $\|\nabla\|^2 \le 8$, the prox of $F^*$ projects onto balls of radius $\lambda$, and the prox of $G$ divides in Fourier.
+
+Half-quadratic splitting instead introduces an auxiliary variable $z$ and alternates on
+$$
+\frac12 \|A x - y\|^2 + \frac{\beta}{2} \|x - z\|^2 + \lambda R(z) .
+$$
+The $z$-step is $\operatorname{prox}_{(\lambda / \beta) R}(x)$, a MAP denoising at noise level $\sqrt{\lambda / \beta}$: [ch. 5](#ch5) replaces it by a learned denoiser.
+:::
+
+**Code 4.13 — Deblurring: inverse filter, Tikhonov and total variation.**
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg")[60:188, 260:388] @ np.array([0.2126, 0.7152, 0.0722]) / 255
+n1, n2 = u.shape
+f1, f2 = np.meshgrid(np.fft.fftfreq(n1), np.fft.fftfreq(n2), indexing="ij")
+H = np.exp(-2 * (np.pi * 1.5) ** 2 * (f1**2 + f2**2))        # Gaussian blur, sigma = 1.5 px
+blur = lambda x, F=H: np.real(np.fft.ifft2(F * np.fft.fft2(x)))
+y = blur(u) + 0.01 * rng.normal(size=u.shape)              # noise sigma = 0.01 (2.55 grey levels)
+psnr = lambda x: 10 * np.log10(1 / np.mean((x - u) ** 2))
+
+Y = np.fft.fft2(y)
+inv = np.real(np.fft.ifft2(Y / H))                         # naive inverse filter
+L = 4 * np.sin(np.pi * f1) ** 2 + 4 * np.sin(np.pi * f2) ** 2   # symbol of minus the Laplacian
+tik = np.real(np.fft.ifft2(H * Y / (H**2 + 4e-3 * L)))         # Tikhonov on the gradient
+
+# TV deblurring  min 1/2 |h*x - y|^2 + lam TV(x)  by the Chambolle-Pock primal-dual algorithm
+grad = lambda x: np.stack([np.roll(x, -1, 0) - x, np.roll(x, -1, 1) - x])
+div = lambda p: (p[0] - np.roll(p[0], 1, 0)) + (p[1] - np.roll(p[1], 1, 1))   # div = -grad^T
+lam, tau, sig = 0.002, 0.25, 0.49                           # tau * sig * ||grad||^2 < 1
+x, xb, p = y.copy(), y.copy(), np.zeros((2, n1, n2))
+for _ in range(300):
+    p = p + sig * grad(xb)
+    p /= np.maximum(1, np.sqrt((p**2).sum(0)) / lam)        # projection on {|p| <= lam}
+    v = x + tau * div(p)
+    x_new = np.real(np.fft.ifft2((np.fft.fft2(v) + tau * H * Y) / (1 + tau * H**2)))
+    xb, x = 2 * x_new - x, x_new
+for name, z in [("observed", y), ("inverse filter", inv), ("Tikhonov", tik), ("TV", x)]:
+    print(f"{name:15s} PSNR = {psnr(z):6.2f} dB")
+print(f"smallest |H| on the grid: {H.min():.1e}")
+```
+
+From 22.90 dB, the inverse filter explodes ($-119.5$ dB), as Proposition 4.2 predicts; Tikhonov reaches 24.26 dB and TV 24.83 dB, with sharper edges. The weights were tuned on this image; in practice they come from the noise level.
+
+::: recap
+[Key takeaways — chapter 4]{.tag}
+
+-   Restoration problems are linear inverse problems; deconvolution is ill-posed because the transfer function nearly vanishes.
+-   Variational restoration is MAP estimation; for Gaussian priors it is the Wiener filter, linear and diagonal in Fourier.
+-   Soft thresholding in an orthonormal wavelet basis is the MAP estimator for a Laplace prior on the coefficients.
+-   Total variation penalises the length of level lines weighted by contrast: it keeps edges and creates staircasing.
+-   Forward–backward converges at rate $O(1/k)$; primal–dual and half-quadratic splitting handle TV with blur and prepare plug-and-play.
+:::
+
+## 5. Deep denoisers and plug-and-play methods {#ch5}
+
+A denoiser learned from data captures far richer statistics than hand-crafted priors. This chapter shows that a good denoiser encodes the prior, and plugs it into the splitting algorithms of [ch. 4.5](#ch4).
+
+### 5.1 The MMSE denoiser and Tweedie's formula
+
+:::: prop
+[Proposition 5.1 — Tweedie's formula]{.tag} Let $x$ have any distribution $p$ on $\mathbb R^n$, and $y = x + \sigma \varepsilon$ with $\varepsilon \sim \mathcal N(0, I)$ independent.
+
+The density of $y$ is $p_\sigma = p * \varphi_\sigma$, with $\varphi_\sigma$ the Gaussian density, and the MMSE denoiser is
+$$
+\mathbb E[x \mid y] = y + \sigma^2\, \nabla \log p_\sigma(y) .
+$$
+
+::: proof
+Write $p_\sigma(y) = \int p(dx)\, \varphi_\sigma(y - x)$. The Gaussian density satisfies
+$$
+\nabla_y \varphi_\sigma(y - x) = -\sigma^{-2} (y - x)\, \varphi_\sigma(y - x),
+$$
+and differentiating under the integral is allowed thanks to the Gaussian tails. Hence
+$$
+\sigma^2 \nabla p_\sigma(y) = \int (x - y)\, \varphi_\sigma(y - x)\, p(dx) = p_\sigma(y)\, \big( \mathbb E[x \mid y] - y \big) .
+$$
+
+Dividing by $p_\sigma(y) > 0$ gives the formula. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — a denoiser is a score]{.tag}
+$$
+D_\sigma(y) - y = \sigma^2\, \nabla \log p_\sigma(y)
+$$
+:::
+
+Learning the MMSE denoiser is thus learning the score of the smoothed prior, the basis of the diffusion models of [ch. 8.4](#ch8). Moreover $D_\sigma$ is the gradient of $\frac12 \|y\|^2 + \sigma^2 \log p_\sigma(y)$, so its Jacobian is symmetric.
+
+### 5.2 From patches to deep denoisers
+
+::: def
+[Definition 5.2 — Non-local means]{.tag} For a noisy image $y$, let $P_x y$ be the patch centred at pixel $x$. Non-local means (Buades, Coll and Morel, 2005) average the pixels whose surrounding patches look alike:
+$$
+D(y)(x) = \frac{\sum_z w(x, z)\, y(z)}{\sum_z w(x, z)}, \qquad w(x, z) = \exp\Big( -\frac{\|P_x y - P_z y\|^2}{h^2} \Big),
+$$
+with $z$ ranging over a search window and $h$ proportional to the noise level.
+:::
+
+The key idea is self-similarity. BM3D (Dabov, Foi, Katkovnik and Egiazarian, 2007) filters groups of similar patches in a 3D transform domain, and NL-Bayes (Lebrun, Buades and Morel, 2013) applies a Wiener filter (Theorem 4.4) to each group; [Image Denoising](../s1-image-denoising/index.html) studies them in depth.
+
+::: prop
+[Proposition 5.3 — Training with the squared loss targets the MMSE denoiser]{.tag} Over all measurable functions $D$, the risk $\mathbb E \|D(x + \sigma \varepsilon) - x\|^2$ is minimised by $D(y) = \mathbb E[x \mid y]$. This is Proposition 0.4 applied to the denoising problem. A network trained with this loss on enough clean images therefore approximates the MMSE denoiser, within the limits of its architecture and its training set.
+:::
+
+DnCNN (Zhang, Zuo, Chen, Meng and Zhang, 2017) predicts the noise rather than the image (residual learning). FFDNet (Zhang, Zuo and Zhang, 2018) adds a map of the noise level as an input channel, so that one network serves all levels; DRUNet (Zhang et al., 2022) does the same with a U-Net. Camera noise, however, is Poisson–Gaussian and becomes correlated through the pipeline ([ch. 6.4](#ch6)): either stabilise it first ([ch. 1.6](#ch1)) or train on RAW data.
+
+### 5.3 Plug-and-play splitting
+
+::: def
+[Definition 5.4 — Plug-and-play half-quadratic splitting]{.tag} Let $D_\mu$ be a denoiser for Gaussian noise of standard deviation $\mu$, and $\mu_k$ a decreasing sequence. PnP-HQS iterates
+$$
+x_{k+1} = \arg\min_x \frac{1}{2\sigma^2} \|A x - y\|^2 + \frac{1}{2\mu_k^2} \|x - z_k\|^2, \qquad z_{k+1} = D_{\mu_k}(x_{k+1}) .
+$$
+
+The plug-and-play forward–backward variant iterates $x_{k+1} = D(x_k - \tau \nabla f(x_k))$, with $f$ the data term.
+:::
+
+The $z$-step of half-quadratic splitting (Definition 4.12) is read as a denoising, done by the best available denoiser. Venkatakrishnan, Bouman and Wohlberg (2013) introduced the idea with ADMM; Zhang, Zuo, Gu and Zhang (2017) used CNN denoisers with decreasing $\mu_k$. The prior becomes implicit.
+
+### 5.4 Regularisation by denoising and convergence
+
+::: def
+[Definition 5.5 — Regularisation by denoising (RED)]{.tag} Romano, Elad and Milanfar (2017) define the explicit regulariser
+$$
+\rho(x) = \frac12 \langle x,\, x - D(x) \rangle
+$$
+and minimise $f(x) + \lambda \rho(x)$ by gradient methods, using $\nabla \rho(x) = x - D(x)$.
+:::
+
+:::: prop
+[Proposition 5.6 — When the RED gradient is correct]{.tag} If $D$ is differentiable with Jacobian $J_D$, then
+$$
+\nabla \rho(x) = x - \frac12 D(x) - \frac12 J_D(x)^\top x .
+$$
+
+It equals $x - D(x)$ when $D$ is locally homogeneous ($J_D(x)\, x = D(x)$) with a symmetric Jacobian; in particular when $D(x) = W x$ for a symmetric matrix $W$.
+
+::: proof
+The product rule gives $\nabla \langle x, D(x) \rangle = D(x) + J_D(x)^\top x$, and $\nabla \frac12 \|x\|^2 = x$. Under the two conditions, $J_D(x)^\top x = J_D(x)\, x = D(x)$. [∎]{.qed}
+:::
+::::
+
+Reehorst and Schniter (2019) showed that common denoisers have non-symmetric Jacobians, so RED in general does not minimise $\rho$. The MMSE denoiser does have a symmetric Jacobian (ch. 5.1), but it is not homogeneous.
+
+:::: thm
+[Theorem 5.7 — Convergence of averaged plug-and-play]{.tag} Let $f$ be convex and $L$-smooth, and $\tau \in (0, 2/L)$.
+
+Let $D$ be averaged, that is $D = (1 - \alpha) I + \alpha N$ with $\alpha \in (0, 1)$ and $N$ nonexpansive.
+
+If the operator $T = D \circ (I - \tau \nabla f)$ has a fixed point, the iterates $x_{k+1} = T(x_k)$ converge to a fixed point of $T$.
+
+::: proof
+This is a sketch; Bauschke and Combettes (2017) give the details. By the Baillon–Haddad theorem, $\nabla f$ is $1/L$-cocoercive, so $I - \tau \nabla f$ is averaged for $\tau < 2/L$.
+
+A composition of two averaged operators is averaged. The Krasnosel'skii–Mann theorem then states that the iterates of an averaged operator with a fixed point converge to a fixed point. [∎]{.qed}
+:::
+::::
+
+Trained networks are not averaged in general. Ryu, Liu, Wang, Chen, Wang and Yin (2019) constrain the Lipschitz constant of the denoiser's residual. Hurault, Leclaire and Papadakis (2022) parametrise the denoiser as a gradient step $D = I - \nabla g_\theta$, which turns PnP into a proximal-gradient method on an explicit, nonconvex functional, with convergence to critical points.
+
+**Code 5.8 — A small CNN denoiser plugged into half-quadratic splitting.**
+
+```python
+import numpy as np, torch, torch.nn as nn
+from sklearn.datasets import load_sample_image
+
+torch.manual_seed(0); rng = np.random.default_rng(0)
+grey = lambda name: load_sample_image(name) @ np.array([0.2126, 0.7152, 0.0722]) / 255
+train, u = grey("flower.jpg"), grey("china.jpg")[60:188, 260:388]   # train / test images
+
+# 1. a tiny residual CNN denoiser with a noise-level map as second input (as in FFDNet)
+net = nn.Sequential(nn.Conv2d(2, 16, 3, padding=1), nn.ReLU(),
+                    nn.Conv2d(16, 16, 3, padding=1), nn.ReLU(),
+                    nn.Conv2d(16, 16, 3, padding=1), nn.ReLU(),
+                    nn.Conv2d(16, 1, 3, padding=1))        # predicts the noise (residual learning)
+opt = torch.optim.Adam(net.parameters(), lr=3e-3)
+for step in range(500):
+    i, j = rng.integers(0, 427 - 32, 16), rng.integers(0, 640 - 32, 16)
+    x = torch.tensor(np.stack([train[a:a + 32, b:b + 32] for a, b in zip(i, j)]),
+                     dtype=torch.float32)[:, None]
+    s = torch.empty(16, 1, 1, 1).uniform_(0.005, 0.12)
+    y = x + s * torch.randn_like(x)
+    loss = ((y - net(torch.cat([y, s.expand_as(y)], 1)) - x) ** 2).mean()   # MSE -> MMSE denoiser
+    opt.zero_grad(); loss.backward(); opt.step()
+
+def D(z, s):                                   # the denoiser D_s as a NumPy function
+    t = torch.tensor(z, dtype=torch.float32)[None, None]
+    with torch.no_grad():
+        return (t - net(torch.cat([t, torch.full_like(t, s)], 1)))[0, 0].numpy()
+
+psnr = lambda x: 10 * np.log10(1 / np.mean((x - u) ** 2))
+for s in [0.01, 0.05]:
+    yn = u + s * rng.normal(size=u.shape)
+    print(f"denoiser alone, sigma {s}: {psnr(yn):.2f} dB -> {psnr(D(yn, s)):.2f} dB")
+
+# 2. the deblurring problem of Code 4.13: Gaussian blur of 1.5 px, noise 0.01
+f1, f2 = np.meshgrid(np.fft.fftfreq(128), np.fft.fftfreq(128), indexing="ij")
+H = np.exp(-2 * (np.pi * 1.5) ** 2 * (f1**2 + f2**2))
+y = np.real(np.fft.ifft2(H * np.fft.fft2(u))) + 0.01 * rng.normal(size=u.shape)
+
+# 3. PnP half-quadratic splitting: data step in closed form, prior step = denoiser
+Y, z = np.fft.fft2(y), y.copy()
+for mu in np.geomspace(0.1, 0.01, 10):                     # decreasing denoising strength
+    w = (0.01 / mu) ** 2
+    x = np.real(np.fft.ifft2((H * Y + w * np.fft.fft2(z)) / (H**2 + w)))
+    z = D(x, mu)
+print(f"PnP-HQS deblurring: observed {psnr(y):.2f} dB -> {psnr(z):.2f} dB")
+```
+
+After 500 training steps on the flower image, the network raises a test image from 25.93 to 29.57 dB at noise level 0.05. At level 0.01 it degrades the image (40.05 to 35.83 dB): a network this small over-smooths at low noise. Plugged into ten HQS iterations, it deblurs the test crop of Code 4.13 (a new noise draw) from 22.89 to 24.91 dB, better than Tikhonov (24.26 dB) and TV (24.83 dB). A larger network, such as DRUNet, gains several more dB.
+
+::: recap
+[Key takeaways — chapter 5]{.tag}
+
+-   Tweedie's formula: the MMSE denoiser equals the identity plus $\sigma^2$ times the score of the noisy distribution.
+-   Training with the squared loss approximates the MMSE denoiser; residual learning and noise-level maps make one network serve all levels.
+-   Plug-and-play replaces the proximal step of a splitting algorithm by a denoiser: the prior becomes implicit.
+-   RED gives an explicit regulariser, whose gradient formula needs homogeneity and a symmetric Jacobian.
+-   Convergence is guaranteed for averaged denoisers, or for denoisers built as gradient steps.
+:::
+
+## 6. Computational photography I: developing RAW images {#ch6}
+
+A RAW file stores the mosaic of linear, noisy sensor values; developing it produces a viewable colour image. This chapter assembles the pipeline from the models of [ch. 1](#ch1) and [ch. 2](#ch2) and studies demosaicking and colour correction.
+
+### 6.1 The RAW pipeline
+
+::: def
+[Definition 6.1 — A minimal development pipeline]{.tag}
+
+1.  Subtract the black level $o$ and normalise by the white level $w$: $x = (z - o) / (w - o)$, clipped to $[0, 1]$.
+2.  Correct the lens: divide by a calibrated vignetting map ([ch. 2.1](#ch2)).
+3.  White-balance: multiply each colour site of the mosaic by its gain ([ch. 2.5](#ch2)).
+4.  Demosaick (ch. 6.2).
+5.  Map camera RGB to linear sRGB with a $3 \times 3$ colour correction matrix (ch. 6.3).
+6.  Apply a tone curve and the sRGB encoding, then quantise to 8 bits (ch. 6.4).
+
+Denoising and sharpening are inserted at some stage, and JPEG compression ends the chain.
+:::
+
+Steps 1 to 3 are pixelwise and affine, so the noise keeps the Poisson–Gaussian form of [ch. 1.4](#ch1). Demosaicking correlates it spatially, colour correction across channels, and the tone curve reshapes its dependence on the signal: the order of the steps matters.
+
+### 6.2 Demosaicking
+
+::: def
+[Definition 6.2 — Mosaic operator and bilinear demosaicking]{.tag} With the Bayer indicators $M_R, M_G, M_B$ of Definition 1.6, a colour image $(R, G, B)$ produces the mosaic
+$$
+m = M_R R + M_G G + M_B B .
+$$
+
+Bilinear demosaicking convolves each masked channel with a fixed kernel, $k_G$ for green and $k_{RB}$ for red and blue:
+$$
+k_G = \frac14 \begin{pmatrix} 0 & 1 & 0 \\ 1 & 4 & 1 \\ 0 & 1 & 0 \end{pmatrix}, \qquad k_{RB} = \frac14 \begin{pmatrix} 1 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 1 \end{pmatrix} .
+$$
+:::
+
+:::: prop
+[Proposition 6.3 — Spectrum of the Bayer mosaic]{.tag} Let $s_1(x) = (-1)^{x_1}$ and $s_2(x) = (-1)^{x_2}$. The mosaic of an RGGB pattern is
+$$
+m = L + C_1\, s_1 s_2 + C_2\, (s_1 + s_2),
+$$
+with the luminance and the two chrominances
+$$
+L = \frac{R + 2G + B}{4}, \qquad C_1 = \frac{R - 2G + B}{4}, \qquad C_2 = \frac{R - B}{4} .
+$$
+
+In the Fourier plane, $L$ stays at baseband, $C_1$ is moved to the corner $(\frac12, \frac12)$ and $C_2$ to $(\frac12, 0)$ and $(0, \frac12)$, in cycles per pixel. Conversely,
+$$
+R = L + C_1 + 2 C_2, \qquad G = L - C_1, \qquad B = L + C_1 - 2 C_2 .
+$$
+
+::: proof
+Red sits where both coordinates are even, blue where both are odd, green elsewhere, so
+$$
+M_R = \frac{(1 + s_1)(1 + s_2)}{4}, \qquad M_B = \frac{(1 - s_1)(1 - s_2)}{4}, \qquad M_G = \frac{1 - s_1 s_2}{2} .
+$$
+
+Expanding $M_R R + M_G G + M_B B$ and collecting the terms in $1$, $s_1 s_2$ and $s_1 + s_2$ gives the formula. Multiplying by $s_1$ shifts the spectrum by half a cycle along the first axis, hence the positions of the chrominances. The inverse formulas are checked by substitution. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the Bayer mosaic in frequency]{.tag}
+$$
+m = L + C_1\, (-1)^{x_1 + x_2} + C_2\, \big( (-1)^{x_1} + (-1)^{x_2} \big)
+$$
+:::
+
+When colours vary slowly, the chrominances are band-limited and can be separated from the luminance: demodulate by $s_1 s_2$, $s_1$ or $s_2$, low-pass, and subtract (Alleysson, Süsstrunk and Hérault, 2005). Where the luminance itself has energy near the chrominance positions, as on fine stripes, it is read as colour: this produces false colours and moiré.
+
+Practical methods interpolate colour differences rather than colours, and interpolate green along the direction of smallest gradient with a Laplacian correction (Hamilton and Adams, 1997), which avoids zipper artefacts across edges. Gunturk et al. (2005) survey them; Gharbi, Chaurasia, Paris and Durand (2016) train a network for joint demosaicking and denoising.
+
+**Code 6.4 — Three demosaicking methods on a photograph.**
+
+```python
+import numpy as np
+from scipy.ndimage import convolve
+from sklearn.datasets import load_sample_image
+
+u = load_sample_image("china.jpg")[:256, 192:448] / 255.0          # ground-truth RGB, 256 x 256
+x1, x2 = np.indices(u.shape[:2])
+masks = np.stack([(x1 % 2 == 0) & (x2 % 2 == 0),                      # R at (even, even)
+                  (x1 + x2) % 2 == 1,                                 # G on the quincunx
+                  (x1 % 2 == 1) & (x2 % 2 == 1)], axis=-1).astype(float)   # B at (odd, odd)
+m = (u * masks).sum(-1)                                               # the RGGB Bayer mosaic
+psnr = lambda v: 10 * np.log10(1 / np.mean((v[4:-4, 4:-4] - u[4:-4, 4:-4]) ** 2))
+
+# 1. bilinear demosaicking: one convolution per channel
+k_g = np.array([[0, 1, 0], [1, 4, 1], [0, 1, 0]]) / 4
+k_rb = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]]) / 4
+bil = np.stack([convolve(m * masks[..., c], k, mode="mirror")
+                for c, k in zip(range(3), [k_rb, k_g, k_rb])], axis=-1)
+
+# 2. colour-difference interpolation: bilinear G, then interpolate R-G and B-G (smoother)
+G = bil[..., 1]
+cd = np.stack([G + convolve((m - G) * masks[..., 0], k_rb, mode="mirror"), G,
+               G + convolve((m - G) * masks[..., 2], k_rb, mode="mirror")], axis=-1)
+
+# 3. frequency selection: m = L + C1 s1 s2 + C2 (s1 + s2), chrominances demodulated and low-passed
+f = np.fft.fftfreq(256)
+F1, F2 = np.meshgrid(f, f, indexing="ij")
+lowpass = lambda z: np.real(np.fft.ifft2(np.exp(-(F1**2 + F2**2) / (2 * 0.08**2)) * np.fft.fft2(z)))
+s1, s2 = (-1.0) ** x1, (-1.0) ** x2
+C1 = lowpass(m * s1 * s2)                                  # (R - 2G + B) / 4
+C2 = (lowpass(m * s1) + lowpass(m * s2)) / 2               # (R - B) / 4, two copies averaged
+L = m - C1 * s1 * s2 - C2 * (s1 + s2)                      # full-band luminance (R + 2G + B) / 4
+freq = np.stack([L + C1 + 2 * C2, L - C1, L + C1 - 2 * C2], axis=-1)
+for name, v in [("bilinear", bil), ("colour difference", cd), ("frequency selection", freq)]:
+    print(f"{name:20s} PSNR = {psnr(np.clip(v, 0, 1)):.2f} dB")
+```
+
+On a $256 \times 256$ crop of `china.jpg`, bilinear interpolation gives 24.04 dB, colour differences 26.22 dB and frequency selection 30.63 dB: the gain comes from the correlation between channels.
+
+### 6.3 Colour correction
+
+:::: prop
+[Proposition 6.5 — Least-squares colour correction]{.tag} A chart of $n$ patches gives white-balanced camera values $c_i$ and target values $x_i$ (XYZ or linear sRGB), stacked as the columns of two $3 \times n$ matrices $C$ and $X$.
+
+If $C$ has rank 3, the matrix minimising $\sum_i \|M c_i - x_i\|^2$ is
+$$
+M = X C^\top (C C^\top)^{-1} .
+$$
+
+::: proof
+The objective $\|M C - X\|_F^2$ is a convex quadratic function of $M$, with gradient $2 (M C - X) C^\top$. Setting it to zero gives the normal equations $M C C^\top = X C^\top$, and $C C^\top$ is invertible because $C$ has rank 3. [∎]{.qed}
+:::
+::::
+
+Under the Luther condition (Proposition 2.8) the residual would vanish for every surface. Otherwise the error depends on the scene spectra, and a white-preserving constraint $M \mathbf 1 = \mathbf 1$ is often added.
+
+**Code 6.6 — A colour correction matrix for a toy camera.**
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+lam = np.arange(400, 701, 5.0)                                   # wavelengths (nm)
+bump = lambda c, w: np.exp(-0.5 * ((lam - c) / w) ** 2)
+obs = np.stack([bump(600, 40) + 0.35 * bump(445, 20), bump(555, 45), bump(450, 25)])  # toy observer
+cam = np.stack([bump(610, 35), bump(535, 40), bump(465, 30)])    # toy camera, not a linear mix of obs
+
+def reflectances(n):                       # smooth random reflectance spectra in [0, 1]
+    r = sum(rng.uniform(0, 1, (n, 1)) * bump(rng.uniform(400, 700, (n, 1)), 60) for _ in range(3))
+    return np.clip(r / 2, 0, 1)
+
+R_train, R_test = reflectances(24), reflectances(1000)   # a 24-patch chart, then test surfaces
+c_tr, x_tr = R_train @ cam.T, R_train @ obs.T            # camera RGB and target values (flat light)
+Mcc = np.linalg.lstsq(c_tr, x_tr, rcond=None)[0].T       # 3x3 least-squares colour correction
+c_te, x_te = R_test @ cam.T, R_test @ obs.T
+err = np.linalg.norm(c_te @ Mcc.T - x_te, axis=1) / np.linalg.norm(x_te, axis=1)
+print("colour correction matrix:\n", np.round(Mcc, 3))
+print(f"relative error on test surfaces: median {np.median(err):.3f}, 95th percentile {np.quantile(err, 0.95):.3f}")
+print("noise std amplification per output channel (row norms):", np.round(np.linalg.norm(Mcc, axis=1), 3))
+```
+
+Fitted on 24 random reflectances, the matrix reproduces the toy observer on 1000 new surfaces with a median relative error of 1.4 % and a 95th percentile of 7.7 %.
+
+The matrix also transforms the noise: independent noise of standard deviation $s$ per camera channel becomes $s \|M_{i \cdot}\|$ in output channel $i$. The toy matrix is mild (row norms 0.95 to 1.04). An illustrative matrix with strongly negative off-diagonal entries, as overlapping filters require,
+$$
+M = \begin{pmatrix} 1.8 & -0.6 & -0.2 \\ -0.3 & 1.6 & -0.3 \\ 0 & -0.5 & 1.5 \end{pmatrix},
+$$
+preserves white (rows sum to 1) but multiplies the noise by 1.91, 1.66 and 1.58, and correlates it across channels.
+
+### 6.4 Tone curves, encoding and noise through the pipeline
+
+:::: prop
+[Proposition 6.7 — Noise through the pipeline]{.tag}
+
+1.  If the noise of a linear RGB pixel has covariance $\Sigma$, after a colour matrix $M$ it has covariance $M \Sigma M^\top$.
+2.  After a pointwise increasing tone curve $\varphi$, the standard deviation of a value near $x$ is multiplied by $\varphi'(x)$, to first order.
+
+::: proof
+Item 1 is the covariance of a linear map of a random vector. Item 2 is the delta method used in Proposition 1.12. [∎]{.qed}
+:::
+::::
+
+Above its linear segment, the sRGB curve has slope $\varphi'(x) = 0.44\, x^{-0.583}$: 6.45 at $x = 0.01$ and 0.66 at $x = 0.5$. The encoding amplifies shadow noise ten times more than highlight noise.
+
+The noise of a JPEG image is thus correlated in space and across channels, signal-dependent in a new way, and altered by compression. Denoising therefore works best on RAW data, or with a noise model propagated through the pipeline ([ch. 9](#ch9)).
+
+::: recap
+[Key takeaways — chapter 6]{.tag}
+
+-   Developing a RAW image chains black-level removal, vignetting and white balance, demosaicking, a colour matrix and a tone curve.
+-   The Bayer mosaic is luminance at baseband plus two chrominances modulated to the corners of the spectrum; demosaicking separates them.
+-   The colour correction matrix is a least-squares fit, exact only under the Luther condition.
+-   Colour matrices and tone curves amplify, correlate and reshape the noise: denoise early or model the noise along the pipeline.
+:::
+
+## 7. Computational photography II: HDR imaging and inpainting {#ch7}
+
+High dynamic range (HDR) imaging captures scenes whose contrast exceeds that of the sensor by merging exposures with the noise model of [ch. 1](#ch1). Inpainting fills holes with the regularisers of [ch. 4](#ch4) or with patches.
+
+### 7.1 Dynamic range and exposure bracketing
+
+A scene can reach $10^5 : 1$, while the sensor of Example 1.11 covers $3000 : 1$. A short exposure loses the shadows in the noise, a long one saturates the highlights; bracketing takes $K$ exposures with times $t_1 < \dots < t_K$.
+
+::: def
+[Definition 7.1 — Exposure series]{.tag} For a pixel of irradiance $E$, in electrons per unit time, a RAW exposure series with the black level removed is
+$$
+z_j = g K_j + \varepsilon_j, \qquad K_j \sim \mathcal P(E t_j), \qquad \varepsilon_j \sim \mathcal N(0, \sigma_r^2),
+$$
+independent over $j = 1, \dots, K$, with every value above the saturation level $z_{\mathrm{sat}}$ clipped to it. The per-exposure estimate of $E$ is $\hat E_j = z_j / (g t_j)$.
+:::
+
+### 7.2 Camera response and irradiance estimation
+
+JPEG images store $Z_{ij} = f(E_i t_j)$ at pixel $i$ in exposure $j$, for an unknown increasing response $f$. Debevec and Malik (1997) write $h = \ln f^{-1}$, so that
+$$
+h(Z_{ij}) = \ln E_i + \ln t_j ,
+$$
+and solve for the 256 values of $h$ and the unknowns $\ln E_i$ by least squares, with a penalty on the second differences of $h$ for smoothness.
+
+::: prop
+[Proposition 7.2 — Identifiability of the response]{.tag} The least-squares problem of Debevec and Malik is invariant under $h \mapsto h + c$, $\ln E_i \mapsto \ln E_i + c$ for every constant $c$: the irradiance is recovered only up to a global factor. One equation such as $h(128) = 0$ removes the ambiguity. The proof is a substitution: both sides of every equation change by $c$, and second differences ignore constants.
+:::
+
+For RAW images this step is unnecessary: $f$ is affine until saturation.
+
+### 7.3 Optimal merging of exposures
+
+:::: thm
+[Theorem 7.3 — Inverse-variance merging]{.tag} In Definition 7.1, let $s = \sigma_r / g$ be the read noise in electrons. For an unsaturated exposure, $\hat E_j$ is unbiased with variance
+$$
+v_j = \frac{E t_j + s^2}{t_j^2} .
+$$
+
+Among the unbiased combinations $\sum_j w_j \hat E_j$ with $\sum_j w_j = 1$, the variance is minimal for $w_j \propto 1 / v_j$, and the minimum is
+$$
+\Big( \sum_j \frac{1}{v_j} \Big)^{-1} .
+$$
+
+::: proof
+$\mathbb E z_j = g E t_j$ and $\operatorname{Var} z_j = g^2 E t_j + \sigma_r^2$ (Theorem 1.8); divide by $g t_j$ and by its square. The estimates are independent, so the combination has variance $\sum_j w_j^2 v_j$.
+
+By the Cauchy–Schwarz inequality,
+$$
+1 = \Big( \sum_j w_j \sqrt{v_j} \cdot \frac{1}{\sqrt{v_j}} \Big)^2 \le \Big( \sum_j w_j^2 v_j \Big) \Big( \sum_j \frac{1}{v_j} \Big),
+$$
+with equality when $w_j \sqrt{v_j}$ is proportional to $1 / \sqrt{v_j}$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — merging exposures]{.tag}
+$$
+\hat E = \frac{\sum_j \hat E_j / v_j}{\sum_j 1 / v_j}, \qquad v_j = \frac{E t_j + s^2}{t_j^2}
+$$
+:::
+
+The optimal weights depend on the unknown $E$, so one plugs in a first estimate, such as the sum $\sum_j z_j / (g \sum_j t_j)$ over unsaturated exposures (optimal without read noise, when $w_j \propto t_j$). Aguerrebere, Delon, Gousseau and Musé (2014) compare HDR estimators with Cramér–Rao bounds for this model.
+
+::: ex
+[Example 7.4 — Merging four exposures]{.tag} Take $E = 0.5$ electron/ms, $s = 3$ electrons and $t = 1, 4, 16, 64$ ms. The variances $v_j$ are 9.5, 0.69, 0.066 and 0.0100.
+
+-   Inverse-variance merging: variance 0.0086, a relative standard deviation of 18.5 %.
+-   Sum estimator: variance $(0.5 \times 85 + 4 \times 9) / 85^2 = 0.0109$, that is 20.8 %.
+-   Plain average of the four $\hat E_j$: variance $\frac{1}{16} \sum_j v_j = 0.64$, that is 160 %.
+:::
+
+**Code 7.5 — Merging a bracketed series and tone-mapping it.**
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+E = 10 ** rng.uniform(-1, 3, 200000)          # irradiance, photo-electrons per ms, 4 decades
+t = np.array([1.0, 4.0, 16.0, 64.0])          # bracketed exposure times (ms)
+full, sr = 4000.0, 3.0                        # full-well capacity and read noise (electrons)
+z = rng.poisson(E[:, None] * t) + sr * rng.normal(size=(E.size, 4))
+ok = z < full                                 # saturated samples are discarded
+
+def merge(w):                                 # weighted mean of the per-exposure estimates z / t
+    w = np.where(ok, w, 0)
+    return (w * z / t).sum(1) / w.sum(1)
+
+naive = merge(np.ones_like(z))                                # plain average of z_j / t_j
+sum_est = (np.where(ok, z, 0)).sum(1) / (np.where(ok, t, 0)).sum(1)   # weights w_j ~ t_j
+E0 = np.maximum(sum_est, 1e-3)
+ivw = merge(t**2 / (E0[:, None] * t + sr**2))                 # inverse-variance weights
+best = 1 / np.where(ok, t**2 / (E[:, None] * t + sr**2), 0).sum(1)  # oracle weights (true E)
+for lo, hi in [(0.1, 1), (1, 10), (10, 100), (100, 1000)]:
+    s = (E >= lo) & (E < hi)
+    rel = lambda est: np.sqrt(np.mean(((est[s] - E[s]) / E[s]) ** 2))
+    print(f"E in [{lo:5g},{hi:5g}): rel. RMSE naive {rel(naive):.4f}  sum {rel(sum_est):.4f}"
+          f"  inverse-variance {rel(ivw):.4f}  oracle {np.sqrt(np.mean(best[s] / E[s]**2)):.4f}")
+
+# global tone mapping (Reinhard et al., 2002): scale to key 0.18, then L / (1 + L)
+Ew = np.maximum(ivw, 1e-3)                    # clip the few negative estimates
+Lw = 0.18 * Ew / np.exp(np.mean(np.log(Ew)))
+Ld = Lw / (1 + Lw)
+print(f"scene dynamic range {E.max() / E.min():.0f}:1 -> display values in [{Ld.min():.1e}, {Ld.max():.3f}]")
+```
+
+The plain average is useless in the shadows (relative error 364 % below 1 electron/ms). Inverse-variance weights with a plug-in estimate reach the oracle in every decade; the sum estimator does so except in the darkest one (39 % against 31 %).
+
+### 7.4 Tone mapping and exposure fusion
+
+The radiance map spans $10^4 : 1$ here, a display about $100 : 1$: tone mapping compresses it.
+
+-   **Global operators** apply one curve: Reinhard, Stark, Shirley and Ferwerda (2002) scale the luminance to a key of 0.18 relative to its geometric mean, then map $L \mapsto L / (1 + L)$.
+-   **Local operators** compress only a base layer, smoothed by a bilateral filter, and keep the detail layer (Durand and Dorsey, 2002); smoothing across edges would produce halos.
+-   **Exposure fusion** (Mertens, Kautz and Van Reeth, 2007) blends the bracketed images in a Laplacian pyramid, favouring well-exposed, contrasted pixels, without a radiance map.
+-   **Burst photography** (Hasinoff et al., 2016) aligns and merges many short exposures, so that nothing saturates, then tone-maps locally.
+
+### 7.5 Inpainting
+
+::: def
+[Definition 7.6 — Inpainting]{.tag} An image $u$ is known outside a hole $H$ of the grid. Inpainting reconstructs $u$ on $H$; in the model of Definition 4.1, $A$ is the restriction to the known pixels and the noise is absent.
+:::
+
+:::: prop
+[Proposition 7.7 — Harmonic inpainting]{.tag} Assume that every connected component of $H$ has a 4-neighbour outside $H$. The Dirichlet energy $\sum (u(x) - u(x'))^2$, summed over pairs of 4-neighbours, has a unique minimiser among the images equal to the data outside $H$. It is characterised by the mean-value property
+$$
+u(x) = \frac{1}{|\mathcal N(x)|} \sum_{x' \in \mathcal N(x)} u(x'), \qquad x \in H,
+$$
+and its values on $H$ lie between the minimum and the maximum of the known values.
+
+::: proof
+The energy is a convex quadratic function of the values on $H$. It is strictly convex: a direction in which it is flat must be constant on each component of $H$ and vanish on its known neighbours, hence vanish. The gradient condition is the mean-value property.
+
+If the maximum over $H$ exceeds all known values and is reached at $x$, the mean-value property forces the neighbours of $x$ to reach it too. Propagating along the component leads to a known neighbour, a contradiction; the minimum is similar. [∎]{.qed}
+:::
+::::
+
+Harmonic inpainting solves the discrete Laplace equation: it cannot continue an edge or a texture. TV inpainting (Chan and Shen, 2002) continues edges with straight level lines; Bertalmio, Sapiro, Caselles and Ballester (2000) transport level lines into the hole with a PDE.
+
+Large holes require texture. Exemplar-based methods copy patches, structures first (Criminisi, Pérez and Toyama, 2004). Variational patch methods alternate a nearest-neighbour search, accelerated by PatchMatch (Barnes, Shechtman, Finkelstein and Goldman, 2009), and patch averaging (Wexler, Shechtman and Irani, 2007), also for video (Newson, Almansa, Fradet, Gousseau and Pérez, 2014). Learned priors ([ch. 5](#ch5), [ch. 8.5](#ch8)) are the recent answers.
+
+**Code 7.8 — Harmonic inpainting of random missing pixels and of a hole.**
+
+```python
+import numpy as np
+import scipy.sparse as sp
+from scipy.sparse.linalg import spsolve
+from sklearn.datasets import load_sample_image
+
+u = load_sample_image("china.jpg")[60:188, 260:388] @ np.array([0.2126, 0.7152, 0.0722]) / 255
+n = u.shape[0]
+rng = np.random.default_rng(0)
+
+def harmonic_inpaint(y, miss):
+    """Solve the discrete Laplace equation on the missing pixels, known pixels as boundary data."""
+    idx = -np.ones(y.shape, int); idx[miss] = np.arange(miss.sum())
+    rows, cols, vals, rhs = [], [], [], np.zeros(miss.sum())
+    for (i, j), k in zip(np.argwhere(miss), idx[miss]):
+        nb = [(a, b) for a, b in [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
+              if 0 <= a < n and 0 <= b < n]
+        rows.append(k); cols.append(k); vals.append(len(nb))
+        for a, b in nb:
+            if miss[a, b]:
+                rows.append(k); cols.append(idx[a, b]); vals.append(-1.0)
+            else:
+                rhs[k] += y[a, b]
+    A = sp.csr_matrix((vals, (rows, cols)), shape=(miss.sum(), miss.sum()))
+    out = y.copy(); out[miss] = spsolve(A, rhs)
+    return out
+
+random_mask = rng.random(u.shape) < 0.5                     # half of the pixels lost at random
+hole = np.zeros(u.shape, bool); hole[48:80, 48:80] = True   # one 32 x 32 hole
+for name, miss in [("50 % random pixels", random_mask), ("32 x 32 hole", hole)]:
+    rec = harmonic_inpaint(np.where(miss, 0, u), miss)
+    err = lambda v: 10 * np.log10(1 / np.mean((v[miss] - u[miss]) ** 2))
+    print(f"{name:19s}: PSNR on the missing pixels, mean fill {err(np.full(u.shape, u[~miss].mean())):.2f} dB,"
+          f" harmonic {err(rec):.2f} dB")
+```
+
+With half of the pixels missing at random, harmonic inpainting reaches 23.67 dB on them, against 12.03 dB for a constant fill; in a $32 \times 32$ hole only 18.04 dB, a blurred interpolation of the border.
+
+::: recap
+[Key takeaways — chapter 7]{.tag}
+
+-   Bracketing covers scenes beyond the sensor's dynamic range; JPEG inputs require the camera response, identifiable up to a factor.
+-   Merging exposures with inverse-variance weights is optimal among unbiased linear estimators, and needs the Poisson–Gaussian model.
+-   Tone mapping compresses the radiance map globally or locally; local operators must avoid halos.
+-   Harmonic inpainting solves the Laplace equation and obeys a maximum principle; edges need TV, textures need patches or learned priors.
+:::
+
+## 8. Generative models: image and texture synthesis {#ch8}
+
+Restoration needs a prior; generation samples from it. This chapter goes from stationary Gaussian textures to deep generative models, then back to restoration. It opens the semester-2 courses [Generative Models for Images](../s2-generative-models-images/index.html) and [Diffusion and Multiscale Models in Artificial Intelligence](../s2-diffusion-multiscale/index.html).
+
+### 8.1 Stationary Gaussian textures
+
+::: def
+[Definition 8.1 — Random phase textures]{.tag} Let $u$ be an exemplar on a grid of $M$ pixels, with mean $\bar u$ and centred version $c = u - \bar u$. Let $W$ be a white Gaussian noise with independent $\mathcal N(0, 1)$ entries.
+
+-   The asymptotic discrete spot noise (ADSN) is $v = \bar u + M^{-1/2}\, c \circledast W$.
+-   The random phase noise (RPN) keeps the modulus of $\hat c$ and replaces its phase by the phase of $\hat W$.
+:::
+
+:::: prop
+[Proposition 8.2 — ADSN reproduces second-order statistics]{.tag} ADSN is a stationary Gaussian field with mean $\bar u$ and covariance equal to the circular empirical autocorrelation of the exemplar:
+$$
+\operatorname{Cov}\big(v(x), v(x + \tau)\big) = \Gamma(\tau) = \frac1M \sum_y c(y)\, c(y + \tau) .
+$$
+
+Equivalently, $\mathbb E |\hat v - \hat{\bar v}|^2 = |\hat c|^2$ at every non-zero frequency; RPN has this power spectrum exactly, sample by sample.
+
+::: proof
+A linear image of a Gaussian vector is Gaussian, and $\mathbb E W = 0$ gives the mean. Since $\mathbb E[W(y) W(y')] = \mathbf 1[y = y']$,
+$$
+\operatorname{Cov}\big(v(x), v(x + \tau)\big) = \frac1M \sum_{y} c(x - y)\, c(x + \tau - y) = \Gamma(\tau),
+$$
+after the change of variables $y \mapsto x - y$. The covariance depends only on $\tau$, so the field is stationary. [∎]{.qed}
+:::
+::::
+
+Galerne, Gousseau and Morel (2011) show that these models reproduce micro-textures, such as sand or granite, but fail on structured textures: the phase carries the geometry of edges, which a random phase destroys.
+
+**Code 8.3 — Random phase textures from a photograph.**
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("flower.jpg")[150:278, 250:378] @ np.array([0.2126, 0.7152, 0.0722]) / 255
+M = u.size
+m, c = u.mean(), u - u.mean()
+C_hat = np.fft.fft2(c)
+
+def adsn():           # asymptotic discrete spot noise: mean + c (*) W / sqrt(M), W white Gaussian
+    return m + np.real(np.fft.ifft2(C_hat * np.fft.fft2(rng.normal(size=u.shape)))) / np.sqrt(M)
+
+def rpn():            # random phase noise: keep |C_hat|, draw the phase of a white noise
+    phase = np.angle(np.fft.fft2(rng.normal(size=u.shape)))
+    return m + np.real(np.fft.ifft2(np.abs(C_hat) * np.exp(1j * phase)))
+
+P = np.abs(C_hat) ** 2                                       # power spectrum of the exemplar
+P_rpn = np.abs(np.fft.fft2(rpn() - m)) ** 2
+P_adsn = np.mean([np.abs(np.fft.fft2(adsn() - m)) ** 2 for _ in range(200)], axis=0)
+rel = lambda Q: np.abs(Q - P).sum() / P.sum()
+print(f"RPN, one sample: relative spectrum error {rel(P_rpn):.1e}")
+print(f"ADSN, mean of 200 samples: relative spectrum error {rel(P_adsn):.3f}")
+print(f"ADSN sample: mean {adsn().mean():.4f} vs exemplar {m:.4f}; std {adsn().std():.4f} vs {u.std():.4f}")
+```
+
+The RPN sample has exactly the power spectrum of the exemplar (relative error $3.7 \times 10^{-16}$); ADSN has it on average (4.4 % over 200 samples). Each ADSN sample has the exact mean of the exemplar but a random standard deviation (0.171 against 0.186).
+
+### 8.2 Beyond Gaussian textures
+
+Structured textures need more than second-order statistics. Efros and Leung (1999) copy pixels whose neighbourhoods match, Portilla and Simoncelli (2000) impose joint wavelet statistics, and Gatys, Ecker and Bethge (2015) match Gram matrices of CNN features. Houdard, Leclaire, Papadakis and Rabin (2023) train a generator by minimising a transport distance between feature distributions.
+
+### 8.3 Deep generative models: VAEs and GANs
+
+::: def
+[Definition 8.4 — Latent generative model]{.tag} A generator $G_\theta : \mathbb R^k \to \mathbb R^n$ maps a latent variable $z \sim \mathcal N(0, I_k)$ to an image. The model distribution is the push-forward $(G_\theta)_\# \mathcal N(0, I_k)$, possibly convolved with a decoder noise $p_\theta(x \mid z)$. Training fits it to the data distribution $p$.
+:::
+
+:::: prop
+[Proposition 8.5 — Evidence lower bound (VAE)]{.tag} For any conditional density $q_\phi(z \mid x)$, the model of Definition 8.4 satisfies
+$$
+\log p_\theta(x) \ge \mathbb E_{q_\phi(z \mid x)} \big[ \log p_\theta(x \mid z) \big] - \mathrm{KL}\big( q_\phi(z \mid x) \,\|\, \mathcal N(0, I) \big),
+$$
+with equality if and only if $q_\phi(z \mid x)$ is the posterior $p_\theta(z \mid x)$.
+
+::: proof
+Bayes' rule gives, for every $z$,
+$$
+\log p_\theta(x) = \log p_\theta(x \mid z) + \log p(z) - \log p_\theta(z \mid x) .
+$$
+
+Take the expectation in $z \sim q_\phi(\cdot \mid x)$, and add and subtract $\log q_\phi(z \mid x)$. The gap between the two sides is the divergence from $q_\phi(\cdot \mid x)$ to the posterior, which is non-negative. [∎]{.qed}
+:::
+::::
+
+The variational auto-encoder (Kingma and Welling, 2014) maximises this bound jointly in the encoder $q_\phi$ and the decoder $p_\theta$.
+
+:::: prop
+[Proposition 8.6 — The GAN objective]{.tag} Generative adversarial networks (Goodfellow et al., 2014) solve
+$$
+\min_G \max_D \; \mathbb E_{x \sim p} \log D(x) + \mathbb E_{z} \log\big(1 - D(G(z))\big) .
+$$
+
+If the generated distribution has density $q$, the optimal discriminator is $D^\star = p / (p + q)$, and the value of the inner problem is $2\, \mathrm{JS}(p \,\|\, q) - \log 4$, with $\mathrm{JS}$ the Jensen–Shannon divergence.
+
+::: proof
+The inner objective is $\int \big( p \log D + q \log(1 - D) \big)$. For $a, b > 0$, the function $t \mapsto a \log t + b \log(1 - t)$ is maximal at $t = a / (a + b)$, hence $D^\star$. Substituting, the value is
+$$
+\mathrm{KL}\Big(p \,\Big\|\, \frac{p + q}{2}\Big) + \mathrm{KL}\Big(q \,\Big\|\, \frac{p + q}{2}\Big) - \log 4 ,
+$$
+
+which is $2\, \mathrm{JS}(p \,\|\, q) - \log 4$ by definition of the Jensen–Shannon divergence. [∎]{.qed}
+:::
+::::
+
+On disjoint supports the Jensen–Shannon divergence is constant and gives no gradient. Wasserstein GANs (Arjovsky, Chintala and Bottou, 2017) use instead the dual form of the transport distance of [ch. 3](#ch3):
+$$
+W_1(p, q) = \sup_{\mathrm{Lip}(f) \le 1} \mathbb E_p f - \mathbb E_q f .
+$$
+
+### 8.4 Score-based diffusion models
+
+::: def
+[Definition 8.7 — Noising process and score]{.tag} Noise the data at levels $\sigma_1 > \sigma_2 > \dots > \sigma_L$:
+$$
+x_\sigma = x_0 + \sigma \varepsilon, \qquad x_0 \sim p, \quad \varepsilon \sim \mathcal N(0, I) .
+$$
+
+The score at level $\sigma$ is $\nabla \log p_\sigma$, with $p_\sigma = p * \varphi_\sigma$. DDPM (Ho, Jain and Abbeel, 2020) uses instead the variance-preserving process
+$$
+x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1 - \bar\alpha_t}\, \varepsilon .
+$$
+:::
+
+:::: prop
+[Proposition 8.8 — Denoising score matching]{.tag} Over all measurable functions $s$, the risk
+$$
+\mathbb E\, \Big\| s(x_0 + \sigma \varepsilon) + \frac{\varepsilon}{\sigma} \Big\|^2
+$$
+is minimised by the score $s^\star = \nabla \log p_\sigma$.
+
+::: proof
+By Proposition 0.4, the minimiser is the conditional expectation of $-\varepsilon / \sigma$ given $y = x_0 + \sigma\varepsilon$. Since $\varepsilon = (y - x_0)/\sigma$, it equals
+$$
+\frac{\mathbb E[x_0 \mid y] - y}{\sigma^2} = \nabla \log p_\sigma(y),
+$$
+by Tweedie's formula (Proposition 5.1). [∎]{.qed}
+:::
+::::
+
+A denoiser trained at all levels thus gives all the scores (Vincent, 2011). Annealed Langevin dynamics (Song and Ermon, 2019) samples by running, from the largest level to the smallest,
+$$
+x \leftarrow x + \eta\, \nabla \log p_\sigma(x) + \sqrt{2 \eta}\, \xi, \qquad \xi \sim \mathcal N(0, I) .
+$$
+
+For a small step, this chain samples $p_\sigma$ approximately. Song et al. (2021) use instead the time reversal (Anderson, 1982) of a noising stochastic differential equation.
+
+**Code 8.9 — Annealed Langevin sampling with an exact score, and Tweedie's formula.**
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+mu = np.array([[-2.0, 0.0], [2.0, 0.0], [0.0, 3.0]])   # a 2D Gaussian mixture as the "data"
+pi, s = np.array([0.5, 0.3, 0.2]), 0.3                   # weights, component std
+
+def score(x, sig):          # exact score of p_sig = p * N(0, sig^2 I): Gaussians widen to s^2 + sig^2
+    v = s**2 + sig**2
+    d2 = ((x[:, None, :] - mu[None]) ** 2).sum(-1)
+    logw = np.log(pi) - d2 / (2 * v)
+    r = np.exp(logw - logw.max(1, keepdims=True)); r /= r.sum(1, keepdims=True)  # responsibilities
+    return (r[:, :, None] * (mu[None] - x[:, None, :])).sum(1) / v
+
+# annealed Langevin dynamics (Song and Ermon, 2019): noise levels from 5 down to 0.01
+x = 5 * rng.normal(size=(5000, 2))
+for sig in np.geomspace(5, 0.01, 20):
+    step = 0.1 * sig**2
+    for _ in range(50):
+        x = x + step * score(x, sig) + np.sqrt(2 * step) * rng.normal(size=x.shape)
+lab = np.argmin(((x[:, None, :] - mu[None]) ** 2).sum(-1), axis=1)
+print("component frequencies:", np.round(np.bincount(lab, minlength=3) / len(x), 3), " target:", pi)
+print("std within component 0:", np.round(x[lab == 0].std(0), 3), " target:", s)
+
+# Tweedie: E[x0 | y] = y + sig^2 * score(y, sig), checked by self-normalised Monte Carlo at sig = 1
+sig, y0 = 1.0, np.array([[0.5, 1.0]])
+k = rng.choice(3, 200000, p=pi)
+x0 = mu[k] + s * rng.normal(size=(len(k), 2))          # samples of the prior
+w = np.exp(-((x0 - y0) ** 2).sum(1) / (2 * sig**2))    # likelihood of y0 given each sample
+print("Tweedie:", np.round(y0 + sig**2 * score(y0, sig), 3)[0],
+      "  Monte Carlo posterior mean:", np.round((w[:, None] * x0).sum(0) / w.sum(), 3))
+```
+
+For a mixture of three Gaussians, whose noisy scores are explicit, twenty levels of 50 steps recover the weights (0.499, 0.293, 0.208 for 0.5, 0.3, 0.2) and the component spread (0.31 for 0.3). Tweedie's formula gives the posterior mean (0.839, 0.770), Monte Carlo (0.841, 0.765).
+
+### 8.5 Generative priors for restoration
+
+For $y = A x + n$, Bayes' rule gives the posterior score as a sum:
+$$
+\nabla \log p(x \mid y) = \nabla \log p(x) + \nabla \log p(y \mid x) .
+$$
+
+The first term is learned. At noise level $\sigma$, however, the likelihood $p(y \mid x_\sigma)$ is intractable.
+
+-   Diffusion posterior sampling (Chung, Kim, McCann, Klasky and Ye, 2023) evaluates the likelihood at the Tweedie estimate $D_\sigma(x_\sigma)$ and differentiates through the denoiser.
+-   RePaint (Lugmayr et al., 2022) inpaints by replacing, at every step, the known pixels by a noised version of the observation.
+-   PnP-ULA (Laumont, De Bortoli, Almansa, Delon, Durmus and Pereyra, 2022) runs a Langevin chain on the posterior with a denoiser as prior score, with convergence guarantees.
+
+Posterior sampling yields several plausible restorations and a measure of uncertainty. No estimator, however, is both optimal for the squared error and distributed like natural images (Blau and Michaeli, 2018); hallucinated details are harmless in a holiday photograph and dangerous in a medical image.
+
+::: recap
+[Key takeaways — chapter 8]{.tag}
+
+-   ADSN and random phase noise are Gaussian textures with the autocorrelation of an exemplar; they synthesise micro-textures, not structures.
+-   A VAE maximises an evidence lower bound; a GAN minimises a Jensen–Shannon divergence, replaced by $W_1$ in WGANs.
+-   Denoising score matching learns the score of the noisy data, by Tweedie's formula; Langevin dynamics or a reverse SDE then sample.
+-   Generative priors solve inverse problems by posterior sampling, at the price of approximations and possible hallucinations.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study. It points to active questions at the frontier of the course and to papers that open them; it is a reading guide, not a survey.
+
+### 9.1 Learned and RAW-domain pipelines
+
+Chen, Chen, Xu and Koltun (2018) train a network to map short-exposure RAW images taken in near darkness directly to a processed image, replacing the whole pipeline of [ch. 6](#ch6). Wronski et al. (2019) show that the natural hand tremor during a burst samples the scene at sub-pixel offsets, so that merging the frames can replace demosaicking and increase resolution. Open questions concern the generalisation of learned pipelines across sensors, and their interpretability compared with the explicit models of this course.
+
+### 9.2 Realistic noise models
+
+The Poisson–Gaussian model ignores row noise, fixed patterns, defective pixels and the dependence of the noise on temperature and gain. Abdelhamed, Lin and Brown (2018) built a data set of smartphone images with ground truth, and Abdelhamed, Brubaker and Brown (2019) learn the noise distribution with normalising flows. Producing synthetic training noise that matches a given sensor remains a practical bottleneck of RAW denoising.
+
+### 9.3 Learning without clean images
+
+Lehtinen et al. (2018) show that a denoiser can be trained from pairs of independent noisy images of the same scene, because the squared loss only needs an unbiased target. Krull, Buchholz and Jug (2019) train from single noisy images by masking the centre of the receptive field. These ideas matter wherever clean data do not exist, as in microscopy and medical imaging.
+
+### 9.4 Convergent plug-and-play methods
+
+Theorem 5.7 needs averaged denoisers, which constrains the network and costs accuracy. Hurault, Leclaire and Papadakis (2022) obtain convergence with gradient-step and proximal denoisers that remain expressive, and Pesquet, Repetti, Terris and Wiaux (2021) learn firmly nonexpansive denoisers. Characterising the implicit prior of a trained denoiser, and the minimised functional when there is one, is largely open.
+
+### 9.5 Diffusion models as priors
+
+Posterior sampling with diffusion models relies on approximations of the noisy likelihood (ch. 8.5) whose errors are hard to control. Kadkhodaie and Simoncelli (2021) sample from the prior implicit in a denoiser by a stochastic coarse-to-fine ascent. Open problems are guarantees on the sampled distribution at a reasonable cost, calibrated uncertainty, and the detection of hallucinated content.
+
+### 9.6 Measuring quality
+
+PSNR rewards blur, while perceptual metrics such as LPIPS (Zhang, Isola, Efros, Shechtman and Wang, 2018) reward plausible texture. The perception–distortion trade-off (Blau and Michaeli, 2018) shows that no single number captures both. Evaluating restorations that are samples rather than estimates, with respect to the true scene, is an open methodological question.
+
+### 9.7 Open problems
+
+-   A noise model for every pixel of a modern stacked sensor, estimated from the images themselves.
+-   HDR merging and denoising of handheld bursts with moving objects, with statistical guarantees comparable to Theorem 7.3.
+-   Colour transfer that is optimal for a transport cost and spatially regular, at the resolution of modern photographs.
+-   Plug-and-play methods with denoisers that are both state-of-the-art and provably convergent.
+-   Texture models that capture structure, are fast to sample, and come with a statistical interpretation like that of Proposition 8.2.
+
+## Exercises {#ex}
+
+1.  **★ Diffraction, pitch and aliasing.** A camera has pixels of pitch $p = 4$ µm with a fill factor of 1 and a Bayer filter; the lens is at f/4 and $\lambda = 0.55$ µm. Compute the optical cut-off, the Nyquist frequency of the full grid and of the red channel, and the f-numbers above which each of them is free of aliasing. What is the pixel MTF at the Nyquist frequency of the grid?
+
+    *Solution*: by Theorem 1.2, $\nu_c = 1/(0.55 \times 10^{-3} \times 4) = 455$ cycles/mm. The grid samples at 250 per mm, so its Nyquist frequency is 125 cycles/mm; red is sampled with pitch 8 µm, hence 62.5 cycles/mm.
+
+    No aliasing requires $\nu_c$ below the Nyquist frequency, that is $N \ge 2p / \lambda = 14.5$ for the grid and $N \ge 29.1$ for red. The pixel MTF at 125 cycles/mm is $\operatorname{sinc}(1/2) = 2/\pi = 0.64$ per axis.
+
+2.  **★ A photon budget.** A sensor has gain $g = 0.5$ DN per electron, read noise $\sigma_r = 1.5$ DN and a full well of 20 000 electrons. Compute its dynamic range in stops and dB, the SNR at 50 and at 5000 electrons, the number of bits the converter needs, and the noise floor including quantisation.
+
+    *Solution*: the read noise is $1.5 / 0.5 = 3$ electrons, so $\mathrm{DR} = 6667$, that is 12.7 stops or 76.5 dB. By Theorem 1.8, $\mathrm{SNR} = 50 / \sqrt{59} = 6.5$ and $5000 / \sqrt{5009} = 70.6$.
+
+    The full well gives 10 000 DN, so 14 bits are needed. A step of 1 DN is 2 electrons and adds $2 / \sqrt{12} = 0.58$ electron (Proposition 1.9): the floor becomes $\sqrt{9 + 0.33} = 3.05$ electrons.
+
+3.  **★ Stabilising Poisson–Gaussian noise.** For the sensor of Code 1.13 ($a = 0.25$, $c = 4$), write the generalised Anscombe transform. Then use the plain Anscombe transform $2\sqrt{s + 3/8}$, which ignores the gain, and compute the first-order standard deviation it gives at $m = 10$ and $m = 1000$ DN.
+
+    *Solution*: $f(s) = 8 \sqrt{0.25\, s + 4.0234}$. For the plain transform, the delta method gives a standard deviation of $\sqrt{(am + c)/(m + 3/8)}$: 0.79 at $m = 10$ and 0.50 at $m = 1000$.
+
+    The noise is not stabilised, and its level tends to $\sqrt a$ at high counts: a denoiser tuned for unit variance would under-smooth the highlights.
+
+4.  **★ Equalising and specifying a small histogram.** An image takes the grey levels 0, 1, 2, 3 in proportions 0.4, 0.3, 0.2, 0.1. Equalise it to $[0, 255]$ with $g = 255 F$. Then specify it to the proportions 0.1, 0.2, 0.3, 0.4 with $G^{-1} \circ F$, and compare the result with the target. How does random tie-breaking help?
+
+    *Solution*: $F = (0.4, 0.7, 0.9, 1)$ gives the levels 102, 178.5, 229.5 and 255, not uniform: with atoms, Proposition 2.4 does not apply. With $G = (0.1, 0.3, 0.6, 1)$, level 0 goes to 2 and the others to 3, so the output has proportions 0.4 and 0.6 on levels 2 and 3.
+
+    Breaking ties at random and assigning the sorted target values by rank, as in Code 2.5, gives the exact target histogram, at the price of splitting a uniform region.
+
+5.  **★ Code values, lightness and grey cards.** How many codes does 10-bit linear coding give to the decade $[0.01, 0.1]$? Compute $L^*$ for $Y = 0.01$, $0.05$ and $0.5$. Under an illuminant, a grey card reads $(0.32, 0.20, 0.10)$ in camera RGB: give the white-balance gains normalised to green.
+
+    *Solution*: $1023 \times 0.09 = 92$ codes, still fewer than the 116 Weber steps of Example 2.6.
+
+    The lightness values are $L^* = 9.0$, $26.7$ and $76.1$; all three values of $Y$ exceed $(6/29)^3 = 0.0089$, so the cube root applies.
+
+    The gains are $(0.625, 1, 2)$, which map the card to the neutral grey $(0.2, 0.2, 0.2)$.
+
+6.  **★ Gaussian colour transfer in two dimensions.** Let $\mu = \mathcal N(0, I_2)$ and $\nu = \mathcal N(m, \Sigma)$ with $m = (1, 0)$ and $\Sigma = \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}$. Compute the optimal map and $W_2(\mu, \nu)$. Compare with the channel-wise map $x \mapsto m + \sqrt 2\, x$.
+
+    *Solution*: $\Sigma$ has eigenvalues 3 and 1 with eigenvectors $(1, \pm 1)/\sqrt 2$, so
+    $$
+    A = \Sigma^{1/2} = \frac12 \begin{pmatrix} \sqrt3 + 1 & \sqrt3 - 1 \\ \sqrt3 - 1 & \sqrt3 + 1 \end{pmatrix} = \begin{pmatrix} 1.366 & 0.366 \\ 0.366 & 1.366 \end{pmatrix} .
+    $$
+
+    Proposition 3.4 gives $W_2^2 = 1 + (2 + 4 - 2 \times 2.732) = 1.536$, so $W_2 = 1.24$.
+
+    The channel-wise map costs only $1 + 2(\sqrt 2 - 1)^2 = 1.34$, but it produces $\mathcal N(m, 2 I)$, which lacks the correlation of $\nu$: it is cheaper because it does not solve the problem.
+
+7.  **★ Wiener gains.** At three frequencies, a blur has $\hat h = 1$, $0.5$ and $0.01$, and the signal-to-noise ratio $P / \sigma^2$ is 100. Compute the Wiener gain of Theorem 4.4 at each frequency, the overall transfer $\hat h \times$ gain, and compare with the inverse filter.
+
+    *Solution*: the gain is $\hat h \cdot 100 / (100 \hat h^2 + 1)$: 0.990, 1.923 and 0.990. The overall transfer is 0.990, 0.962 and 0.0099.
+
+    The inverse filter would apply gains 1, 2 and 100. Where the blur kills the signal, the Wiener filter gives up instead of amplifying the noise a hundred times.
+
+8.  **★ The Bayer spectrum of uniform and striped patches.** Compute $L$, $C_1$, $C_2$ for a uniform patch of colour $(0.8, 0.4, 0.2)$ and for a grey patch. Then consider the grey stripes $0.5 + 0.1\, (-1)^{x_1}$: what does a frequency-selection demosaicking (Code 6.4) see?
+
+    *Solution*: for $(0.8, 0.4, 0.2)$, Proposition 6.3 gives $L = 0.45$, $C_1 = 0.05$ and $C_2 = 0.15$.
+
+    The mosaic spectrum has peaks of these heights at the origin, at the corner $(\frac12, \frac12)$, and at the two points $(\frac12, 0)$ and $(0, \frac12)$. A grey patch has $C_1 = C_2 = 0$.
+
+    The stripes put energy $0.1$ at $(\frac12, 0)$ only, where Proposition 6.3 expects $C_2$. Averaging the two copies estimates $C_2 = 0.05$, hence a false colour $R - B = 4 C_2 = 0.2$ on a grey pattern.
+
+9.  **★ Merging three exposures.** A pixel has $E = 2$ electrons/ms, the read noise is $s = 5$ electrons, the exposures are 1, 8 and 64 ms, and the full well is 4000 electrons. Compute the variances $v_j$ of Theorem 7.3, the relative standard deviation of the optimal merge, of the longest exposure alone and of the sum estimator. Redo the merge for $E = 100$ electrons/ms.
+
+    *Solution*: $v_j = 27$, $0.641$ and $0.0374$. The optimal merge has variance 0.0353, a relative standard deviation of 9.4 %; the longest exposure alone gives 9.7 % and the sum estimator 10.2 %.
+
+    At $E = 100$, the 64 ms exposure saturates (6400 electrons). The two others have $v = 125$ and $12.9$, and the merge reaches $\sqrt{11.7} / 100 = 3.4$ %.
+
+10. **★★ Quantile transport.** Let $F$, continuous, and $G$ be the distribution functions of two laws $\mu$ and $\nu$ on the real line. Show that $T = G^{-1} \circ F$ is non-decreasing, pushes the first law to the second, and has the quadratic cost
+    $$
+    \int_0^1 \big| F^{-1}(t) - G^{-1}(t) \big|^2\, dt .
+    $$
+    Compute $W_2$ between the uniform law on $[0, 1]$ and the exponential law of parameter 1, admitting that $T$ is optimal (the continuous limit of Theorem 3.2).
+
+    *Solution*: monotonicity is clear, and the push-forward is Proposition 2.4. With $t = F(x)$ uniform, $x = F^{-1}(t)$ almost surely, which gives the cost.
+
+    Here $F^{-1}(t) = t$ and $G^{-1}(t) = -\ln(1 - t)$. With $\int_0^1 t \ln(1-t)\, dt = -\frac34$ and $\int_0^1 \ln^2(1-t)\, dt = 2$:
+    $$
+    W_2^2 = \frac13 - \frac32 + 2 = \frac56, \qquad W_2 = 0.913 .
+    $$
+
+11. **★★ Proximal operators.** Compute the prox of $\frac\tau2 \|x\|^2$ and of the indicator of the box $[0, 1]^n$. Show that every prox of a convex function is firmly nonexpansive:
+    $$
+    \langle \operatorname{prox}(x) - \operatorname{prox}(y),\, x - y \rangle \ge \|\operatorname{prox}(x) - \operatorname{prox}(y)\|^2 ,
+    $$
+    and deduce that soft thresholding is 1-Lipschitz.
+
+    *Solution*: the first prox is $x / (1 + \tau)$, the second clips each coordinate to $[0, 1]$. Write $p = \operatorname{prox}_{\tau g}(x)$, so that $(x - p)/\tau \in \partial g(p)$, and similarly $q$ for $y$.
+
+    Monotonicity of the subdifferential gives $\langle (x - p) - (y - q),\, p - q \rangle \ge 0$, which is the inequality. Cauchy–Schwarz then gives $\|p - q\| \le \|x - y\|$, and soft thresholding is the prox of $\tau |\cdot|$ (Proposition 4.6).
+
+12. **★★ Gaussian priors: Tweedie, MMSE and Wiener.** Let $x \sim \mathcal N(0, \Sigma)$ and $y = x + \sigma \varepsilon$. Compute $\nabla \log p_\sigma$ and the MMSE denoiser with Tweedie's formula. Show that it is the Wiener filter of Theorem 4.4 with $\hat h = 1$ when $\Sigma$ is circulant, that it equals the MAP denoiser, and that it satisfies the assumptions of Proposition 5.6 and Theorem 5.7.
+
+    *Solution*: $p_\sigma = \mathcal N(0, \Sigma + \sigma^2 I)$, so the score is $-(\Sigma + \sigma^2 I)^{-1} y$ and
+    $$
+    D(y) = y - \sigma^2 (\Sigma + \sigma^2 I)^{-1} y = \Sigma (\Sigma + \sigma^2 I)^{-1} y .
+    $$
+
+    In the Fourier basis this is the multiplier $P / (P + \sigma^2)$. The posterior is Gaussian, so its mean is its mode. $D$ is linear and symmetric, so the RED gradient is exact; its eigenvalues lie in $[0, 1)$, so $2D - I$ is nonexpansive and $D$ is averaged with $\alpha = \frac12$.
+
+13. **★★ The RED gradient, numerically.** Check Proposition 5.6 by finite differences, for a symmetric linear denoiser (a Gaussian filter) and for a non-symmetric one (a one-sided moving average).
+
+    *Hints and expected result*: the script below compares the finite-difference gradient of $\rho$ with $x - D(x)$. The error is at the level of rounding ($6 \times 10^{-10}$) for the Gaussian filter, and of order one ($0.27$) for the one-sided filter, whose matrix is not symmetric.
+
+    ```python
+    import numpy as np
+    from scipy.ndimage import gaussian_filter, uniform_filter1d
+
+    rng = np.random.default_rng(0)
+    x = rng.random((32, 32))
+    rho = lambda D, z: 0.5 * np.sum(z * (z - D(z)))
+
+    def check(D, name):
+        g_red = x - D(x)                                  # the RED formula
+        g_fd = np.zeros_like(x)                           # central finite differences
+        for idx in np.ndindex(x.shape):
+            e = np.zeros_like(x); e[idx] = 1e-5
+            g_fd[idx] = (rho(D, x + e) - rho(D, x - e)) / 2e-5
+        print(f"{name}: max |finite differences - (x - D(x))| = {np.abs(g_fd - g_red).max():.1e}")
+
+    check(lambda z: gaussian_filter(z, 1.0, mode="wrap"), "symmetric Gaussian filter")
+    check(lambda z: uniform_filter1d(z, 3, axis=0, mode="wrap", origin=1), "one-sided (non-symmetric) filter")
+    ```
+
+14. **★★ Edge-directed demosaicking.** Implement the Hamilton–Adams interpolation of green: at a red or blue site, compute horizontal and vertical gradients that include the second derivative of the mosaic, and interpolate along the direction of the smaller one with a Laplacian correction. Then interpolate the colour differences as in Code 6.4.
+
+    *Hints and expected result*: the green channel improves from 26.55 dB (bilinear) to 30.62 dB, and the full image reaches 29.52 dB, between the colour-difference method (26.22 dB) and frequency selection (30.63 dB).
+
+    ```python
+    import numpy as np
+    from scipy.ndimage import convolve
+    from sklearn.datasets import load_sample_image
+
+    u = load_sample_image("china.jpg")[:256, 192:448] / 255.0
+    x1, x2 = np.indices(u.shape[:2])
+    masks = np.stack([(x1 % 2 == 0) & (x2 % 2 == 0), (x1 + x2) % 2 == 1,
+                      (x1 % 2 == 1) & (x2 % 2 == 1)], axis=-1).astype(float)
+    m = (u * masks).sum(-1)
+    psnr = lambda v: 10 * np.log10(1 / np.mean((v[4:-4, 4:-4] - u[4:-4, 4:-4]) ** 2))
+    k_rb = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]]) / 4
+
+    # edge-directed green (Hamilton-Adams): interpolate along the direction of the smaller gradient
+    p = np.pad(m, 2, mode="reflect")
+    c = p[2:-2, 2:-2]
+    gh = (p[2:-2, 1:-3] + p[2:-2, 3:-1]) / 2 + (2 * c - p[2:-2, :-4] - p[2:-2, 4:]) / 4
+    gv = (p[1:-3, 2:-2] + p[3:-1, 2:-2]) / 2 + (2 * c - p[:-4, 2:-2] - p[4:, 2:-2]) / 4
+    dh = np.abs(p[2:-2, 1:-3] - p[2:-2, 3:-1]) + np.abs(2 * c - p[2:-2, :-4] - p[2:-2, 4:])
+    dv = np.abs(p[1:-3, 2:-2] - p[3:-1, 2:-2]) + np.abs(2 * c - p[:-4, 2:-2] - p[4:, 2:-2])
+    g_est = np.where(dh < dv, gh, np.where(dv < dh, gv, (gh + gv) / 2))
+    G = np.where(masks[..., 1] > 0, m, g_est)
+    out = np.stack([G + convolve((m - G) * masks[..., 0], k_rb, mode="mirror"), G,
+                    G + convolve((m - G) * masks[..., 2], k_rb, mode="mirror")], axis=-1)
+    print(f"edge-directed green + colour differences: PSNR = {psnr(np.clip(out, 0, 1)):.2f} dB")
+    print(f"green channel alone: PSNR = {10 * np.log10(1 / np.mean((G - u[..., 1])[4:-4, 4:-4] ** 2)):.2f} dB")
+    ```
+
+15. **★★ Harmonic versus TV inpainting of an edge.** A 1D signal is known to be 0 at $k \le 0$ and 1 at $k \ge 11$, and the hole is $k = 1, \dots, 10$; the truth is a step between $k = 5$ and $k = 6$. Compute the harmonic inpainting and its squared error. Show that every non-decreasing filling minimises the 1D total variation, so that TV can keep the step.
+
+    *Solution*: by Proposition 7.7, the 1D mean-value property makes $u$ affine on the hole, $u(k) = k / 11$. Its squared error is $2 \sum_{j=1}^{5} (j / 11)^2 = 110 / 121 = 0.91$.
+
+    For TV, $\sum_k |u(k+1) - u(k)| \ge |u(11) - u(0)| = 1$, with equality exactly for monotone fillings. The step is one of them, but so is the ramp: TV does not choose, and extra information (a prior on edges, or the neighbouring rows in 2D) must decide.
+
+16. **★★ When the Jensen–Shannon divergence saturates.** Let $p = \delta_0$ and $q_\theta = \delta_\theta$ on the real line. Compute the divergences KL and JS from $p$ to $q_\theta$, and the distance $W_1$, as functions of $\theta$. Which one can train the parameter by gradient descent?
+
+    *Solution*: for $\theta \ne 0$, $\mathrm{KL} = +\infty$ and $\mathrm{JS} = \log 2$, constant; both vanish at $\theta = 0$. Their gradient in $\theta$ is zero or undefined almost everywhere.
+
+    $W_1 = |\theta|$, whose gradient points towards the data: this is the argument for Wasserstein GANs (Proposition 8.6 and the remark after it).
+
+17. **★★★ Posterior sampling with an approximate likelihood.** For the mixture of Code 8.9, observe $y = x_1 + \eta\, \xi$ with $\eta = 0.1$. Compute the exact posterior, a Gaussian mixture, and sample it by annealed Langevin with its exact smoothed score. Compare with the common approximation that adds to the prior score at level $\sigma$ the inflated likelihood score $(y - x_1)/(\eta^2 + \sigma^2)$, for $y = 1$ and $y = 1.5$.
+
+    *Hints and expected result*: conditioning each component on $x_1$ changes its weight and its first coordinate. For $y = 1$, the upper mode has posterior mass 0.40 and both samplers find it (0.414 and 0.395).
+
+    For $y = 1.5$, its mass is below $10^{-4}$: the exact sampler puts no sample there, but the approximation puts 23.7 % of its samples there. The approximation hallucinates a whole mode, a small model of the risk discussed in [ch. 8.5](#ch8).
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(1)
+    mu = np.array([[-2.0, 0.0], [2.0, 0.0], [0.0, 3.0]]); pi = np.array([0.5, 0.3, 0.2]); s = 0.3
+    eta = 0.1                                       # observation y = x_1 + N(0, eta^2)
+
+    def gmm_score(x, means, var, w, sig):           # score of a GMM with diagonal variances, smoothed by sig
+        V = var[None, None, :] + sig**2
+        lw = np.log(w)[None] - (((x[:, None, :] - means[None]) ** 2) / (2 * V)).sum(-1) \
+            - 0.5 * np.log(V).sum(-1)
+        r = np.exp(lw - lw.max(1, keepdims=True)); r /= r.sum(1, keepdims=True)
+        return (r[:, :, None] * (means[None] - x[:, None, :]) / V).sum(1)
+
+    def langevin(score):                            # annealed Langevin, as in Code 8.9
+        x = 5 * rng.normal(size=(4000, 2))
+        for sig in np.geomspace(5, 0.01, 20):
+            step = 0.1 * sig**2
+            for _ in range(50):
+                x = x + step * score(x, sig) + np.sqrt(2 * step) * rng.normal(size=x.shape)
+        return x
+
+    for y in [1.0, 1.5]:
+        v1 = 1 / (1 / s**2 + 1 / eta**2)                       # exact posterior: another GMM
+        pmu = np.stack([v1 * (mu[:, 0] / s**2 + y / eta**2), mu[:, 1]], 1)
+        lw = np.log(pi) - (y - mu[:, 0]) ** 2 / (2 * (s**2 + eta**2))
+        wpost = np.exp(lw - lw.max()); wpost /= wpost.sum()
+        exact = langevin(lambda x, sig: gmm_score(x, pmu, np.array([v1, s**2]), wpost, sig))
+        approx = langevin(lambda x, sig: gmm_score(x, mu, np.array([s**2, s**2]), pi, sig)
+                          + np.stack([(y - x[:, 0]) / (eta**2 + sig**2), 0 * x[:, 1]], 1))
+        print(f"y = {y}: posterior mass of the upper mode {wpost[2]:.3f}; sampled fraction "
+              f"{np.mean(exact[:, 1] > 1.5):.3f} (exact score), {np.mean(approx[:, 1] > 1.5):.3f} (approximation)")
+    ```
+
+18. **★★★ Noise-aware merging of a handheld burst (open).** Design an HDR and denoising method for a burst of RAW frames taken by hand, with moving objects. Start from Theorem 7.3; add a registration step and robust weights that discard pixels inconsistent with the reference; state what remains optimal.
+
+    *Hints and expected result*: registration errors and motion break the independence and identical-scene assumptions of Theorem 7.3. One approach tests, pixel by pixel, whether a frame is compatible with the reference under the Poisson–Gaussian model and merges only compatible samples; Hasinoff et al. (2016) and Aguerrebere, Delon, Gousseau and Musé (2014) are starting points. A good answer quantifies the loss of variance due to discarded samples on synthetic bursts.
+
+## Projects and assessment {#projects}
+
+The official assessment is a project: a report, the submission of computer code in a language of the student's choice, and an individual oral defence (master-mva.com, “Mode de validation”). The Université Paris-Saclay course detail classes it as “Evaluation Continue non Intégrale” and announces individual meetings to follow the projects; no weighting is displayed. The subjects below are sized for that format, with milestones that suit the individual meetings; group subjects keep an individual defence. The written exam is only a self-assessment proposal, since no written exam is announced.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: noise estimation from a single RAW image (Foi, Trimeche, Katkovnik and Egiazarian, 2008).** How accurately can the affine noise curve of Theorem 1.8 be estimated from one image?
+    -   *Implement*: detection of homogeneous blocks, local means and robust variances (median absolute deviation of a wavelet band), and a robust weighted regression; compare with the flat-field calibration of Code 1.13.
+    -   *Data*: RAW images simulated from the scikit-learn photographs (inverse sRGB curve, mosaic, Poisson–Gaussian noise with known $a$ and $c$).
+    -   *Milestones*: simulator (week 1), estimator (week 2), study over five noise levels (week 3).
+    -   *Success criterion*: relative errors below 10 % on $a$ and $c$ at every level.
+    -   *Deliverables and evaluation*: code, a 4–6 page report, a 10-minute individual defence; rubric below. Chapters used: [ch. 1](#ch1), 4.
+2.  **[Solo · ≈ 20 h] Paper study: sliced transport for colour transfer (Rabin, Peyré, Delon and Bernot, 2011) and its regularisation (Rabin, Delon and Gousseau, 2010).** Can a colour transfer match the target distribution without amplifying noise?
+    -   *Implement*: Gaussian and sliced transfer (Codes 3.9 and 3.7), then a regularised version that filters the displacement field with an edge-preserving filter guided by the source.
+    -   *Measure*: the sliced distance to the target, and the amplification of noise on a flat noisy region of the source.
+    -   *Success criterion*: a sliced distance within 10 % of the unregularised transfer, with the noise amplification halved.
+    -   *Deliverables and evaluation*: code, report, individual defence; rubric below. Chapters used: [ch. 2](#ch2), 3.
+3.  **[Solo · ≈ 25 h] Paper study: convergent plug-and-play with a gradient-step denoiser (Hurault, Leclaire and Papadakis, 2022).** Does a provably convergent PnP scheme lose accuracy?
+    -   *Implement*: a denoiser $D = I - \nabla g_\theta$ with $g_\theta(x) = \frac12 \|x - N_\theta(x)\|^2$ and a small CNN $N_\theta$ trained on CPU; the PnP proximal-gradient iterations for deblurring; the problem of Code 4.13.
+    -   *Measure*: the explicit objective along the iterations, the distance between successive iterates, and the PSNR, compared with PnP-HQS (Code 5.8).
+    -   *Success criterion*: a monotone objective and a PSNR within 0.5 dB of PnP-HQS.
+    -   *Deliverables and evaluation*: code, report, individual defence; rubric below. Chapters used: [ch. 4](#ch4), 5.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] A complete RAW development pipeline.** Where in the pipeline should one denoise, and which demosaicking is worth its cost?
+    -   *Data*: RAW images simulated from the scikit-learn photographs: inverse sRGB curve, inverse colour matrix, Bayer mosaic, Poisson–Gaussian noise at three ISO levels.
+    -   *Implement*: black level, white balance (grey world and white patch), demosaicking (bilinear, Exercise 14, Code 6.4), denoising before and after demosaicking (stabilisation plus wavelet thresholding, or a small CNN), colour matrix, tone curve.
+    -   *Split*: member 1 simulation, noise and denoising; member 2 demosaicking (with Alleysson, Süsstrunk and Hérault, 2005); member 3 colour, tone and evaluation.
+    -   *Success criterion*: a median $\Delta E^*_{ab}$ below 3 at the lowest noise level, and a measured answer to the question of where to denoise.
+    -   *Deliverables and evaluation*: code, a joint 6-page report, a 15-minute talk with an individual defence per member; rubric below. Chapters used: [ch. 1](#ch1), 2, 6.
+2.  **[Group of 2–3 · ≈ 30 h each] Paper study: HDR estimators and their performance bounds (Aguerrebere, Delon, Gousseau and Musé, 2014).** How close do classical HDR merges come to the best achievable variance?
+    -   *Implement*: bracketed RAW series with saturation (Definition 7.1); plain average, hat-shaped weights (Debevec and Malik, 1997), sum estimator, iterated inverse-variance weights (Theorem 7.3, Granados et al., 2010); the Cramér–Rao bound computed numerically; global and local tone mapping.
+    -   *Split*: simulation and bounds; estimators; tone mapping and the visual study.
+    -   *Success criterion*: reproduce the ranking of the estimators, with the best one within 5 % of the bound over three decades of irradiance.
+    -   *Deliverables and evaluation*: code, joint report, talk and individual defences; rubric below. Chapters used: [ch. 1](#ch1), 7.
+3.  **[Group of 2–3 · ≈ 30 h each] Paper study: exemplar-based inpainting (Criminisi, Pérez and Toyama, 2004) against variational and plug-and-play inpainting.** Which method wins on which kind of hole?
+    -   *Implement*: harmonic and TV inpainting (Code 7.8, ch. 4.5), the exemplar-based method with its filling order, and PnP-HQS inpainting with the denoiser of Code 5.8.
+    -   *Data*: the scikit-learn photographs with three kinds of masks: 50–80 % random pixels, thin scratches, $32 \times 32$ holes.
+    -   *Split*: one member per family of methods; joint evaluation.
+    -   *Success criterion*: a table of PSNR per mask type, with PnP at least 2 dB above harmonic inpainting on random masks, and an honest visual analysis of large holes.
+    -   *Deliverables and evaluation*: code, joint report, talk and individual defences; rubric below. Chapters used: [ch. 4](#ch4), 5, 7.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no electronic device; four exercises on 20 points. This is a self-assessment proposal: the official assessment is the project.
+
+1.  **Question (5 points).** State the Poisson–Gaussian model of a RAW pixel and prove that its variance is an affine function of its mean. Explain how to estimate the two coefficients, and why a variance-stabilising transform is applied before a Gaussian denoiser; give the transform and justify it to first order.
+
+    *Expected*: Definition 1.7 and the proof of Theorem 1.8; a regression on flat patches; Gaussian denoisers assume a constant variance; $f(s) = \frac2a \sqrt{as + c}$ (plus $\frac38 a^2$) and the delta method of Proposition 1.12.
+2.  **Question (5 points).** Prove the decomposition of Proposition 6.3 for the RGGB mosaic. For a uniform patch of colour $(0.6, 0.5, 0.2)$, give the heights and positions of the peaks of the mosaic spectrum. Explain why grey stripes of frequency $(\frac12, 0)$ produce false colours.
+
+    *Expected*: the indicator formulas for the three masks and the expansion. The peaks are $L = 0.45$ at the origin, $C_1 = -0.05$ at the corner $(\frac12, \frac12)$, and $C_2 = 0.1$ at the two half-frequencies on the axes.
+
+    The stripes sit where $C_2$ is expected, so they are read as a colour with $R - B \ne 0$.
+3.  **Question (5 points).** Prove that the monotone matching of two sorted sets of $n$ real numbers minimises $\sum_i c(x_i - y_{\sigma(i)})$ for convex $c$. Deduce that histogram specification is an optimal transport map, and state the optimal map between two Gaussians on $\mathbb R^3$.
+
+    *Expected*: the exchange argument of Theorem 3.2 with the convexity inequality; Birkhoff–von Neumann for the relaxed problem; the affine map of Proposition 3.4,
+    $$
+    T(x) = m_2 + \Sigma_1^{-1/2} \big(\Sigma_1^{1/2} \Sigma_2 \Sigma_1^{1/2}\big)^{1/2} \Sigma_1^{-1/2} (x - m_1) .
+    $$
+4.  **Question (5 points).** Prove that inverse-variance weights minimise the variance of an unbiased combination of independent estimates. Apply it to $E = 1$ electron/ms, read noise 4 electrons and exposures of 1, 10 and 100 ms; compare with the sum estimator.
+
+    *Expected*: the Cauchy–Schwarz argument of Theorem 7.3. The variances are 17, 0.26 and 0.0116, so the merge has variance 0.0111, a relative standard deviation of 10.5 %. The sum estimator has variance $(111 + 3 \times 16) / 111^2 = 0.0129$, that is 11.4 %.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Mathematical correctness | 30 % | models and statements are right, with their hypotheses (noise model, band-limitation, convexity, averagedness) made explicit |
+| Implementation and reproducibility | 25 % | runnable code with fixed seeds, checked against closed forms (Theorem 1.8, Proposition 3.4, Theorem 7.3) and simple baselines |
+| Experimental protocol and analysis | 25 % | the success criterion is reached or its failure explained; noise levels and data stated; failure cases shown |
+| Report and individual defence | 20 % | a 4–6 page report with figures in physical units, and an oral defence where each student explains every part of the work |
+
+## References {#refs}
+
+**Official references of the course**
+
+-   The official pages (master-mva.com and the Université Paris-Saclay course detail) list no references for 2026–2027. The works below are standard sources chosen for these notes.
+
+**Textbooks and surveys**
+
+-   J. W. Goodman. *Introduction to Fourier Optics*, 3rd edition. Roberts & Company, 2005.
+-   B. K. P. Horn. *Robot Vision*. MIT Press, 1986.
+-   G. Wyszecki and W. S. Stiles. *Color Science: Concepts and Methods, Quantitative Data and Formulae*, 2nd edition. Wiley, 1982.
+-   S. Mallat. *A Wavelet Tour of Signal Processing: The Sparse Way*, 3rd edition. Academic Press, 2009.
+-   R. Szeliski. *Computer Vision: Algorithms and Applications*, 2nd edition. Springer, 2022.
+-   E. Reinhard, W. Heidrich, P. Debevec, S. Pattanaik, G. Ward and K. Myszkowski. *High Dynamic Range Imaging: Acquisition, Display, and Image-Based Lighting*, 2nd edition. Morgan Kaufmann, 2010.
+-   C. Villani. *Topics in Optimal Transportation*. Graduate Studies in Mathematics 58, American Mathematical Society, 2003.
+-   G. Peyré and M. Cuturi. Computational optimal transport. *Foundations and Trends in Machine Learning*, 11(5–6):355–607, 2019.
+-   H. H. Bauschke and P. L. Combettes. *Convex Analysis and Monotone Operator Theory in Hilbert Spaces*, 2nd edition. Springer, 2017.
+-   A. Chambolle and T. Pock. An introduction to continuous optimization for imaging. *Acta Numerica*, 25:161–319, 2016.
+-   L. Ambrosio, N. Fusco and D. Pallara. *Functions of Bounded Variation and Free Discontinuity Problems*. Oxford University Press, 2000.
+-   B. Widrow and I. Kollár. *Quantization Noise: Roundoff Error in Digital Computation, Signal Processing, Control, and Communications*. Cambridge University Press, 2008.
+-   G. Matheron. *Random Sets and Integral Geometry*. Wiley, 1975.
+-   J. Serra. *Image Analysis and Mathematical Morphology*. Academic Press, 1982.
+
+**Acquisition, noise and colour ([ch. 1](#ch1)–[ch. 2](#ch2))**
+
+-   F. J. Anscombe. The transformation of Poisson, binomial and negative-binomial data. *Biometrika*, 35(3–4):246–254, 1948.
+-   E. H. Land and J. J. McCann. Lightness and retinex theory. *Journal of the Optical Society of America*, 61(1):1–11, 1971.
+-   D. J. Field. Relations between the statistics of natural images and the response properties of cortical cells. *Journal of the Optical Society of America A*, 4(12):2379–2394, 1987.
+-   V. Caselles, B. Coll and J.-M. Morel. Topographic maps and local contrast changes in natural images. *International Journal of Computer Vision*, 33(1):5–27, 1999.
+-   A. Foi, M. Trimeche, V. Katkovnik and K. Egiazarian. Practical Poissonian-Gaussian noise modeling and fitting for single-image raw-data. *IEEE Transactions on Image Processing*, 17(10):1737–1754, 2008.
+-   M. Mäkitalo and A. Foi. Optimal inversion of the Anscombe transformation in low-count Poisson image denoising. *IEEE Transactions on Image Processing*, 20(1):99–109, 2011.
+-   M. Mäkitalo and A. Foi. Optimal inversion of the generalized Anscombe transformation for Poisson-Gaussian noise. *IEEE Transactions on Image Processing*, 22(1):91–103, 2013.
+-   R. Gribonval. Should penalized least squares regression be interpreted as maximum a posteriori estimation? *IEEE Transactions on Signal Processing*, 59(5):2405–2410, 2011.
+
+**Colour transfer and optimal transport ([ch. 3](#ch3))**
+
+-   Y. Brenier. Polar factorization and monotone rearrangement of vector-valued functions. *Communications on Pure and Applied Mathematics*, 44(4):375–417, 1991.
+-   J. Franklin and J. Lorenz. On the scaling of multidimensional matrices. *Linear Algebra and its Applications*, 114–115:717–735, 1989.
+-   E. Reinhard, M. Ashikhmin, B. Gooch and P. Shirley. Color transfer between images. *IEEE Computer Graphics and Applications*, 21(5):34–41, 2001.
+-   F. Pitié, A. C. Kokaram and R. Dahyot. Automated colour grading using colour distribution transfer. *Computer Vision and Image Understanding*, 107(1–2):123–137, 2007.
+-   J. Rabin, J. Delon and Y. Gousseau. Regularization of transportation maps for color and contrast transfer. *Proceedings of the IEEE International Conference on Image Processing (ICIP)*, 2010.
+-   J. Rabin, G. Peyré, J. Delon and M. Bernot. Wasserstein barycenter and its application to texture mixing. *Scale Space and Variational Methods in Computer Vision (SSVM)*, Lecture Notes in Computer Science 6667, Springer, 2011.
+-   M. Cuturi. Sinkhorn distances: lightspeed computation of optimal transport. *Advances in Neural Information Processing Systems (NeurIPS)*, 2013.
+-   S. Ferradans, N. Papadakis, G. Peyré and J.-F. Aujol. Regularized discrete optimal transport. *SIAM Journal on Imaging Sciences*, 7(3):1853–1882, 2014.
+
+**Restoration and proximal algorithms ([ch. 4](#ch4))**
+
+-   W. H. Richardson. Bayesian-based iterative method of image restoration. *Journal of the Optical Society of America*, 62(1):55–59, 1972.
+-   L. B. Lucy. An iterative technique for the rectification of observed distributions. *The Astronomical Journal*, 79:745–754, 1974.
+-   L. I. Rudin, S. Osher and E. Fatemi. Nonlinear total variation based noise removal algorithms. *Physica D*, 60(1–4):259–268, 1992.
+-   D. L. Donoho and I. M. Johnstone. Ideal spatial adaptation by wavelet shrinkage. *Biometrika*, 81(3):425–455, 1994.
+-   A. Beck and M. Teboulle. A fast iterative shrinkage-thresholding algorithm for linear inverse problems. *SIAM Journal on Imaging Sciences*, 2(1):183–202, 2009.
+-   A. Chambolle and T. Pock. A first-order primal-dual algorithm for convex problems with applications to imaging. *Journal of Mathematical Imaging and Vision*, 40(1):120–145, 2011.
+
+**Denoisers and plug-and-play methods ([ch. 5](#ch5))**
+
+-   A. Buades, B. Coll and J.-M. Morel. A non-local algorithm for image denoising. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2005.
+-   K. Dabov, A. Foi, V. Katkovnik and K. Egiazarian. Image denoising by sparse 3-D transform-domain collaborative filtering. *IEEE Transactions on Image Processing*, 16(8):2080–2095, 2007.
+-   M. Lebrun, A. Buades and J.-M. Morel. A nonlocal Bayesian image denoising algorithm. *SIAM Journal on Imaging Sciences*, 6(3):1665–1688, 2013.
+-   S. V. Venkatakrishnan, C. A. Bouman and B. Wohlberg. Plug-and-play priors for model based reconstruction. *IEEE Global Conference on Signal and Information Processing (GlobalSIP)*, 2013.
+-   K. Zhang, W. Zuo, Y. Chen, D. Meng and L. Zhang. Beyond a Gaussian denoiser: residual learning of deep CNN for image denoising. *IEEE Transactions on Image Processing*, 26(7):3142–3155, 2017.
+-   K. Zhang, W. Zuo, S. Gu and L. Zhang. Learning deep CNN denoiser prior for image restoration. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2017.
+-   Y. Romano, M. Elad and P. Milanfar. The little engine that could: regularization by denoising (RED). *SIAM Journal on Imaging Sciences*, 10(4):1804–1844, 2017.
+-   K. Zhang, W. Zuo and L. Zhang. FFDNet: toward a fast and flexible solution for CNN-based image denoising. *IEEE Transactions on Image Processing*, 27(9):4608–4622, 2018.
+-   E. T. Reehorst and P. Schniter. Regularization by denoising: clarifications and new interpretations. *IEEE Transactions on Computational Imaging*, 5(1):52–67, 2019.
+-   E. Ryu, J. Liu, S. Wang, X. Chen, Z. Wang and W. Yin. Plug-and-play methods provably converge with properly trained denoisers. *Proceedings of the International Conference on Machine Learning (ICML)*, 2019.
+-   K. Zhang, Y. Li, W. Zuo, L. Zhang, L. Van Gool and R. Timofte. Plug-and-play image restoration with deep denoiser prior. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 44(10):6360–6376, 2022.
+-   S. Hurault, A. Leclaire and N. Papadakis. Gradient step denoiser for convergent plug-and-play. *International Conference on Learning Representations (ICLR)*, 2022.
+-   S. Hurault, A. Leclaire and N. Papadakis. Proximal denoiser for convergent plug-and-play optimization with nonconvex regularization. *Proceedings of the International Conference on Machine Learning (ICML)*, 2022.
+
+**RAW development, HDR and inpainting ([ch. 6](#ch6)–[ch. 7](#ch7))**
+
+-   J. F. Hamilton Jr. and J. E. Adams Jr. Adaptive color plan interpolation in single sensor color electronic camera. US Patent 5,629,734, 1997.
+-   D. Alleysson, S. Süsstrunk and J. Hérault. Linear demosaicing inspired by the human visual system. *IEEE Transactions on Image Processing*, 14(4):439–449, 2005.
+-   B. K. Gunturk, J. Glotzbach, Y. Altunbasak, R. W. Schafer and R. M. Mersereau. Demosaicking: color filter array interpolation. *IEEE Signal Processing Magazine*, 22(1):44–54, 2005.
+-   M. Gharbi, G. Chaurasia, S. Paris and F. Durand. Deep joint demosaicking and denoising. *ACM Transactions on Graphics (Proceedings of SIGGRAPH Asia)*, 35(6), 2016.
+-   P. E. Debevec and J. Malik. Recovering high dynamic range radiance maps from photographs. *Proceedings of SIGGRAPH 97*, 369–378, 1997.
+-   E. Reinhard, M. Stark, P. Shirley and J. Ferwerda. Photographic tone reproduction for digital images. *ACM Transactions on Graphics (Proceedings of SIGGRAPH)*, 21(3):267–276, 2002.
+-   F. Durand and J. Dorsey. Fast bilateral filtering for the display of high-dynamic-range images. *ACM Transactions on Graphics (Proceedings of SIGGRAPH)*, 21(3):257–266, 2002.
+-   T. Mertens, J. Kautz and F. Van Reeth. Exposure fusion. *Proceedings of the 15th Pacific Conference on Computer Graphics and Applications (Pacific Graphics)*, 2007.
+-   M. Granados, B. Ajdin, M. Wand, C. Theobalt, H.-P. Seidel and H. P. A. Lensch. Optimal HDR reconstruction with linear digital cameras. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2010.
+-   C. Aguerrebere, J. Delon, Y. Gousseau and P. Musé. Best algorithms for HDR image generation. A study of performance bounds. *SIAM Journal on Imaging Sciences*, 7(1):1–34, 2014.
+-   S. W. Hasinoff, D. Sharlet, R. Geiss, A. Adams, J. T. Barron, F. Kainz, J. Chen and M. Levoy. Burst photography for high dynamic range and low-light imaging on mobile cameras. *ACM Transactions on Graphics (Proceedings of SIGGRAPH Asia)*, 35(6), 2016.
+-   A. A. Efros and T. K. Leung. Texture synthesis by non-parametric sampling. *Proceedings of the IEEE International Conference on Computer Vision (ICCV)*, 1999.
+-   M. Bertalmio, G. Sapiro, V. Caselles and C. Ballester. Image inpainting. *Proceedings of SIGGRAPH 2000*, 417–424, 2000.
+-   T. F. Chan and J. Shen. Mathematical models for local nontexture inpaintings. *SIAM Journal on Applied Mathematics*, 62(3):1019–1043, 2002.
+-   A. Criminisi, P. Pérez and K. Toyama. Region filling and object removal by exemplar-based image inpainting. *IEEE Transactions on Image Processing*, 13(9):1200–1212, 2004.
+-   Y. Wexler, E. Shechtman and M. Irani. Space-time completion of video. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 29(3):463–476, 2007.
+-   C. Barnes, E. Shechtman, A. Finkelstein and D. B. Goldman. PatchMatch: a randomized correspondence algorithm for structural image editing. *ACM Transactions on Graphics (Proceedings of SIGGRAPH)*, 28(3), 2009.
+-   A. Newson, A. Almansa, M. Fradet, Y. Gousseau and P. Pérez. Video inpainting of complex scenes. *SIAM Journal on Imaging Sciences*, 7(4):1993–2019, 2014.
+
+**Textures and generative models ([ch. 8](#ch8))**
+
+-   B. D. O. Anderson. Reverse-time diffusion equation models. *Stochastic Processes and their Applications*, 12(3):313–326, 1982.
+-   J. Portilla and E. P. Simoncelli. A parametric texture model based on joint statistics of complex wavelet coefficients. *International Journal of Computer Vision*, 40(1):49–70, 2000.
+-   B. Galerne, Y. Gousseau and J.-M. Morel. Random phase textures: theory and synthesis. *IEEE Transactions on Image Processing*, 20(1):257–267, 2011.
+-   P. Vincent. A connection between score matching and denoising autoencoders. *Neural Computation*, 23(7):1661–1674, 2011.
+-   D. P. Kingma and M. Welling. Auto-encoding variational Bayes. *International Conference on Learning Representations (ICLR)*, 2014.
+-   I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair, A. Courville and Y. Bengio. Generative adversarial nets. *Advances in Neural Information Processing Systems (NeurIPS)*, 2014.
+-   L. A. Gatys, A. S. Ecker and M. Bethge. Texture synthesis using convolutional neural networks. *Advances in Neural Information Processing Systems (NeurIPS)*, 2015.
+-   M. Arjovsky, S. Chintala and L. Bottou. Wasserstein generative adversarial networks. *Proceedings of the International Conference on Machine Learning (ICML)*, 2017.
+-   Y. Song and S. Ermon. Generative modeling by estimating gradients of the data distribution. *Advances in Neural Information Processing Systems (NeurIPS)*, 2019.
+-   J. Ho, A. Jain and P. Abbeel. Denoising diffusion probabilistic models. *Advances in Neural Information Processing Systems (NeurIPS)*, 2020.
+-   Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon and B. Poole. Score-based generative modeling through stochastic differential equations. *International Conference on Learning Representations (ICLR)*, 2021.
+-   A. Lugmayr, M. Danelljan, A. Romero, F. Yu, R. Timofte and L. Van Gool. RePaint: inpainting using denoising diffusion probabilistic models. *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2022.
+-   R. Laumont, V. De Bortoli, A. Almansa, J. Delon, A. Durmus and M. Pereyra. Bayesian imaging using Plug & Play priors: when Langevin meets Tweedie. *SIAM Journal on Imaging Sciences*, 15(2):701–737, 2022.
+-   H. Chung, J. Kim, M. T. McCann, M. L. Klasky and J. C. Ye. Diffusion posterior sampling for general noisy inverse problems. *International Conference on Learning Representations (ICLR)*, 2023.
+-   A. Houdard, A. Leclaire, N. Papadakis and J. Rabin. A generative model for texture synthesis based on optimal transport between feature distributions. *Journal of Mathematical Imaging and Vision*, 65:4–28, 2023.
+
+**Research directions ([ch. 9](#ch9))**
+
+-   C. Chen, Q. Chen, J. Xu and V. Koltun. Learning to see in the dark. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2018.
+-   A. Abdelhamed, S. Lin and M. S. Brown. A high-quality denoising dataset for smartphone cameras. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2018.
+-   J. Lehtinen, J. Munkberg, J. Hasselgren, S. Laine, T. Karras, M. Aittala and T. Aila. Noise2Noise: learning image restoration without clean data. *Proceedings of the International Conference on Machine Learning (ICML)*, 2018.
+-   Y. Blau and T. Michaeli. The perception-distortion tradeoff. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2018.
+-   R. Zhang, P. Isola, A. A. Efros, E. Shechtman and O. Wang. The unreasonable effectiveness of deep features as a perceptual metric. *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2018.
+-   A. Abdelhamed, M. A. Brubaker and M. S. Brown. Noise Flow: noise modeling with conditional normalizing flows. *Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)*, 2019.
+-   A. Krull, T.-O. Buchholz and F. Jug. Noise2Void — learning denoising from single noisy images. *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2019.
+-   B. Wronski, I. Garcia-Dorado, M. Ernst, D. Kelly, M. Krainin, C.-K. Liang, M. Levoy and P. Milanfar. Handheld multi-frame super-resolution. *ACM Transactions on Graphics (Proceedings of SIGGRAPH)*, 38(4), 2019.
+-   J.-C. Pesquet, A. Repetti, M. Terris and Y. Wiaux. Learning maximally monotone operators for image recovery. *SIAM Journal on Imaging Sciences*, 14(3):1206–1237, 2021.
+-   Z. Kadkhodaie and E. P. Simoncelli. Stochastic solutions for linear inverse problems using the prior implicit in a denoiser. *Advances in Neural Information Processing Systems (NeurIPS)*, 2021.

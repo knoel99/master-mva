@@ -40,7 +40,23 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: SVD, Gaussian conditioning, Monte Carlo and discretised PDEs](#ch0)
+-   [1. From the numerical model to the metamodel](#ch1)
+-   [2. Low-dimensional structure, POD and reduced-order models](#ch2)
+-   [3. Gaussian-process metamodels from distilled simulations](#ch3)
+-   [4. Advanced Gaussian processes: constraints, multifidelity, adaptive enrichment](#ch4)
+-   [5. Polynomial chaos, functional representations and global sensitivity](#ch5)
+-   [6. Towards deep learning: neural surrogates, nonlinear reduction, neural ODEs](#ch6)
+-   [7. Physics-informed neural networks](#ch7)
+-   [8. Operator learning and hybrid deep models](#ch8)
+-   [9. Calibration, inverse problems, data assimilation and validation](#ch9)
+-   [10. Uncertainty quantification in prediction](#ch10)
+-   [11. Complements for self-study](#ch11)
+-   [12. Research directions and open problems](#ch12)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
@@ -51,21 +67,2484 @@ TODO: one bullet per level-2 heading, in page order.
   Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
   Credits and volume   5 ECTS · 30 h (assumed: assumed: master-mva.com lists 10 sessions without their length; 3 h each, like the other I&I modules (12 h lectures + 18 h labs))
   Label                [Modelling]{.badge .label}[Track I&I]{.badge .track}
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
+  Language             French: the course is delivered in French and the course materials are in English (master-mva.com)
+  Assessment           Written exam after lecture 5 (2 h, no electronic materials): 40 % of the final grade; project: 60 % of the final grade; resit session: written exam
+  Prerequisites        not displayed (master-mva.com shows no “Prérequis” section, and Université Paris-Saclay displays no course detail)
   -------------------- ------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+**Audience**: an M2 student with a good M1 in applied mathematics, mechanics, physics or computer science who will build, validate or use fast approximations of expensive physical simulators.
+
+**Empirical first**: a safety study needs a failure probability near $10^{-4}$, and a plain Monte Carlo estimate with 10 % accuracy needs about a million runs of the simulator — over a century of computing at one hour per run (Example 0.5). On a classical benchmark, 50 well-chosen runs and a Gaussian-process surrogate recover a probability of $4.4 \cdot 10^{-3}$ to two significant digits (Example 4.12).
+
+This module is about replacing a costly numerical model by a cheap one without losing control of the error. It follows three routes: acting on the solver itself (model reduction), learning its input–output map from a few runs (Gaussian processes, polynomial chaos, neural networks), and injecting physics into learning (constrained kernels, PINNs, neural operators).
+
+Around these routes it builds the tools that make a surrogate usable: designs of experiments, sensitivity analysis, Bayesian calibration, data assimilation and certified uncertainty statements. It shares kernels with [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html), Bayesian inference with [Bayesian Machine Learning](../s2-bayesian-ml/index.html) and inverse problems with [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html).
+
+### What you will be able to do
+
+-   Formulate a metamodelling problem by answering five questions: what is approximated, where physics enters, whether the solver is accessible, what training and inference cost, and what guarantee is needed.
+-   Reduce a parametrised PDE by proper orthogonal decomposition and Galerkin projection, and bound the error of the reduced model.
+-   Build, tune and validate a Gaussian-process metamodel, including its leave-one-out diagnostics.
+-   Add physical constraints, cheap low-fidelity codes and sequential designs to a Gaussian process.
+-   Compute a polynomial chaos expansion and read Sobol sensitivity indices from its coefficients.
+-   Explain when linear reduction fails and train an autoencoder, a neural ODE or a physics-informed network instead.
+-   Train a Fourier neural operator and describe graph and transformer surrogates on meshes.
+-   Calibrate a simulator by Bayesian inference with a surrogate, and assimilate data with an ensemble Kalman filter.
+-   Attach distribution-free prediction intervals to any surrogate by conformal prediction, and score ensemble forecasts.
+-   Write a balance sheet — advantages, limitations, hypotheses, domain of use — for every method above.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the goal of introducing, structuring and comparing the main approaches that accelerate, approximate, constrain and make reliable numerical models of physical phenomena. Its starting point is the classical scientific simulator — PDEs, dynamical systems, chains of multiphysics solvers — whose cost, rigidity or difficult calibration limits its use in engineering, maintenance, safety, optimisation and digital-twin pipelines.
+
+The description insists that the course is not a dictionary of methods. It follows a few structuring questions, which ch. 1 turns into a checklist, and each session ends with a balance sheet of advantages, limitations, hypotheses and domains of use; here every chapter recap carries that balance sheet.
+
+| Official topic | Course section |
+|---|---|
+| Session 1 — General introduction: from the numerical model to the metamodel | [ch. 1](#ch1) (simulators, metamodels, structuring questions, uncertainty framework, dimensional analysis), after the review of [ch. 0](#ch0) |
+| Session 2 — Low-dimensional structures, POD and reduced-order models | [ch. 2](#ch2) (solution manifold, Kolmogorov width, POD, Galerkin ROM, reduced basis, hyper-reduction) |
+| Session 3 — Metamodelling by distilled Gaussian processes | [ch. 3](#ch3) (kriging, RKHS error bound, likelihood, leave-one-out validation) |
+| Session 4 — Advanced GPs: physical constraints, multifidelity and adaptive enrichment | [ch. 4](#ch4) (linear and inequality constraints, co-kriging, designs of experiments, EGO, AK-MCS and SUR) |
+| Session 5 — Non-intrusive spectral methods, polynomial chaos and functional representations | [ch. 5](#ch5) (Hoeffding–Sobol decomposition, polynomial chaos, Karhunen–Loève); low-rank formats in [ch. 11](#ch11) |
+| Session 6 — Transition towards deep-learning approaches | [ch. 6](#ch6) (neural surrogates, autoencoders, DL-ROM, neural ODEs); VAEs and deep GPs in ch. 11 |
+| Session 7 — Physics-informed neural networks | [ch. 7](#ch7) (PINN loss, stability estimate, theory and failure modes) |
+| Session 8 — Operator learning and hybrid deep models | [ch. 8](#ch8) (DeepONet, FNO, mesh GNNs, physics transformers, ROM + deep learning) |
+| Session 9 — Calibration, validation and enrichment strategies for the use of metamodels | [ch. 9](#ch9) (Bayesian calibration, model discrepancy, goal-oriented enrichment, data assimilation, validation) |
+| Session 10 — Uncertainty quantification in prediction | [ch. 10](#ch10) (variance decomposition, deep ensembles, conformal prediction, ensemble forecasting) |
+| Intrusive or semi-intrusive route: POD, reduced bases, Galerkin projections | [ch. 2](#ch2); stochastic Galerkin in ch. 5 |
+| Non-intrusive route: kriging, polynomial chaos, HDMR, low-rank methods, surrogates | [ch. 3](#ch3), [ch. 5](#ch5) (HDMR in Definition 5.4), neural surrogates in [ch. 6](#ch6); low-rank formats in ch. 11 (Definition 11.1) |
+| Hybrid, physics-informed zone: constrained GPs, PINN, Neural ODE, FNO, GNN, Physics Transformers, ROM + deep learning | ch. 4 (constraints), [ch. 6](#ch6) (neural ODEs, DL-ROM), [ch. 7](#ch7), [ch. 8](#ch8) |
+| Transversal tools: designs of experiments and adaptive enrichment, validation and error control, global sensitivity, Bayesian calibration, inverse inference, ensemble forecasting, UQ methods | ch. 4 (designs, enrichment), ch. 3 and ch. 9 (validation), ch. 5 (sensitivity), ch. 9 (calibration, inverse problems), ch. 10 (ensembles, UQ) |
+| Themes: position at the interface of scientific computing, statistics, deep learning and engineering | [ch. 1](#ch1) (taxonomy and structuring questions) and the balance sheets of every recap |
+| Kernels, Gaussian processes and functional representations | ch. 3, ch. 4, ch. 5 (Karhunen–Loève, functional outputs) |
+| Inverse problems, calibration and assimilation | [ch. 9](#ch9) |
+| Deep learning, nonlinear reduction and deep surrogates | ch. 6, ch. 8 |
+| Bayesian learning and uncertainty quantification | ch. 3 (GP posterior), ch. 9 (Bayesian calibration), ch. 10; VAEs and deep GPs in ch. 11 |
+| Optimisation, control, networks and industrial uses | ch. 4 (expected improvement, EGO); ch. 11 (“Metamodels in optimisation, control and networked systems”, self-study) |
+| Design of experiments, sequential learning and adaptive enrichment | [ch. 4](#ch4); goal-oriented enrichment in ch. 9 |
+| Geometry, graphs, meshes and operators | [ch. 8](#ch8) |
+| Topology, shapes and non-Euclidean structures | ch. 2 (solution manifolds), ch. 6 (nonlinear manifolds); ch. 11 (“Geometry, shapes and non-Euclidean inputs”, self-study) |
+| Sensitivity analysis, explainability and functional interpretation | [ch. 5](#ch5) (Sobol indices, HDMR, indices from chaos coefficients); ch. 11 (generalised ANOVA, Shapley effects, SHAP) |
+| “Les intervenants” (heading of the list of speakers) | not a topic: it introduces the instructor, Nicolas Bousquet (EDF) |
+
+Beyond the syllabus, this page adds a review chapter (ch. 0), complete proofs of the central results, runnable Python for every route, and two self-study chapters: complements to the in-class chapters (ch. 11) and research directions (ch. 12).
+
+### Where this course fits in the programme
+
+Official prerequisites: not displayed. The module is a second-semester Modelling course of the I&I track, at the interface of several first-semester courses whose tools it recombines rather than re-teaches.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, Monte Carlo, Bayes), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, least squares) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html).
+-   **Semester 1 courses that prepare it** — [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Computational Statistics](../s1-computational-statistics/index.html) (MCMC), [Deep Learning](../s1-deep-learning/index.html), [Convex Optimization](../s1-convex-optimization/index.html), [Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (VAEs), [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html) (meshes, GNNs).
+-   **Also useful from semester 1** — [Statistical Learning with Extreme Values](../s1-extreme-values/index.html) (rare events), [Topological Data Analysis for Imaging and Machine Learning](../s1-tda-imaging-ml/index.html), [Statistical Learning for Scientific Imaging and Physical Measurements: Geosciences](../s1-ml-geosciences/index.html).
+-   **Related courses of the same semester** — [Kernel Methods](../s2-kernel-methods/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), [Sequential Learning](../s2-sequential-learning/index.html) (Bayesian optimisation), [Interactions: Complexity, Stochasticity, Extrema and Rare Events](../s2-interactions/index.html), [Diffusion and Multiscale Models in AI](../s2-diffusion-multiscale/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html), where surrogate modelling and uncertainty quantification are frequent subjects in industrial and public research laboratories.
+
+### Course outline
+
+-   **Review** — SVD and Eckart–Young, Gaussian conditioning, Monte Carlo error, discretised elliptic PDEs.
+-   **From the numerical model to the metamodel** — simulators as maps, the taxonomy of surrogates, the uncertainty framework, dimensional analysis.
+-   **Low-dimensional structure, POD and reduced-order models** — Kolmogorov widths, POD optimality, Galerkin reduced models, error bounds, reduced bases.
+-   **Gaussian-process metamodels** — kriging equations, the RKHS error bound, maximum likelihood, leave-one-out validation.
+-   **Advanced Gaussian processes** — linear and inequality constraints, multifidelity co-kriging, designs of experiments, EGO and adaptive estimation of failure probabilities.
+-   **Polynomial chaos, functional representations and sensitivity** — Hoeffding–Sobol decomposition, Sobol indices, HDMR, chaos expansions, Karhunen–Loève.
+-   **Towards deep learning** — neural surrogates, autoencoders against POD, DL-ROMs, neural ODEs and the adjoint method.
+-   **Physics-informed neural networks** — losses, hard constraints, a stability estimate, convergence theory and failure modes.
+-   **Operator learning and hybrid deep models** — DeepONet, Fourier neural operators, mesh GNNs, physics transformers, ROM + deep learning.
+-   **Calibration, inverse problems, assimilation and validation** — Tikhonov and Bayes, surrogate-accelerated MCMC, model discrepancy, Kalman and ensemble Kalman filters, validation.
+-   **Uncertainty quantification in prediction** — variance decomposition, deep ensembles, conformal prediction, ensemble forecasts and proper scores.
+-   **Complements** — low-rank formats, dependent inputs and Shapley effects, VAEs and deep GPs, geometric inputs, optimisation and control loops, and a synthesis table (self-study).
+-   **Research directions and open problems** — theory of physics-informed learning, foundation models for PDEs, guarantees and explanations (self-study).
+
+### Session plan {#sessions}
+
+**30 h in class (assumed) = 10 sessions of 3 h.** master-mva.com lists ten sessions without giving their length; the catalogue assumes 3 h each, like the other I&I modules (12 h of lectures and 18 h of labs), so the plan follows the ten official sessions one to one. The split of each session into lecture and lab is a proposal.
+
+Level 1 = foundations, 2 = core methods, 3 = advanced and research-level material; the level never decreases. The written exam (2 h, 40 %) takes place after session 5 and covers ch. 0–5.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review (SVD, Gaussian conditioning, Monte Carlo, discretised PDEs); ch. 1 From the numerical model to the metamodel | Ex. 1–2; lab: Code 0.6 and the pendulum of Example 1.8 |
+| 2 | 3 h | 1 | ch. 2 Solution manifolds, POD, Galerkin reduced models, error bound, reduced bases, hyper-reduction | Ex. 3; lab: POD–Galerkin, Code 2.9 |
+| 3 | 3 h | 2 | ch. 3 Kriging, RKHS bound, likelihood, leave-one-out validation | Ex. 4, 6; lab: Code 3.9 |
+| 4 | 3 h | 2 | ch. 4 Constraints, multifidelity, designs of experiments, EGO, AK-MCS | Ex. 7, 13; lab: Examples 4.7 and 4.12 |
+| 5 | 3 h | 2 | ch. 5 Hoeffding–Sobol, Sobol indices, HDMR, polynomial chaos, functional representations | Ex. 5, 8; lab: Code 5.9 |
+| 6 | 3 h | 2 | ch. 6 Neural surrogates, autoencoders, DL-ROM, neural ODEs | Ex. 9; lab: Code 6.5 |
+| 7 | 3 h | 2 | ch. 7 Physics-informed neural networks | Ex. 10; lab: Example 7.3 |
+| 8 | 3 h | 3 | ch. 8 DeepONet, FNO, mesh GNNs, physics transformers, hybrid models | Ex. 14; lab: Example 8.4 |
+| 9 | 3 h | 3 | ch. 9 Inverse problems, Bayesian calibration, discrepancy, data assimilation, validation | Ex. 11, 15; lab: Examples 9.5 and 9.7 |
+| 10 | 3 h | 3 | ch. 10 Variance decomposition, deep ensembles, conformal prediction, ensemble forecasting | Ex. 12; lab: Example 10.3 |
+
+**Self-study, outside the 30 h** (about 7 h in total): ch. 11 Complements — low rank, Shapley effects, VAEs and deep GPs, geometric inputs, optimisation and control (≈ 4 h) · ch. 12 Research directions and open problems (≈ 3 h, together with the paper-study projects).
+
+### How to study this module
+
+-   Read ch. 0 before session 1, even quickly: the SVD and Gaussian conditioning return in almost every chapter.
+-   After each session, run the chapter's code and change one parameter (number of runs, kernel, latent dimension); predicting the effect before running it is the best exercise.
+-   Do the exercises listed in the *Practice* column within the week; the ★ ones prepare the written exam after session 5.
+-   Fill in the balance sheet of each recap with your own words and keep it: the synthesis table at the end of ch. 11 is built from them.
+-   The Python environment is NumPy, SciPy, scikit-learn and PyTorch on a CPU; every code block runs in under a minute on a laptop.
+
+## 0. Review: SVD, Gaussian conditioning, Monte Carlo and discretised PDEs {#ch0}
+
+Four M1 tools carry the whole module. The singular value decomposition builds reduced bases, Gaussian conditioning builds kriging and the Kalman filter, Monte Carlo is what every surrogate tries to make affordable, and a discretised PDE is the typical expensive simulator.
+
+This chapter states them in the form used later, with proofs when they are short. The refreshers on [linear algebra](../s0-refresher-linear-algebra-optimization/index.html) and [probability](../s0-refresher-probability-statistics/index.html) give more background.
+
+### Singular values and best low-rank approximation
+
+::: def
+[Definition 0.1 — Singular value decomposition]{.tag} Every real matrix $A \in \mathbb{R}^{N \times n}$ factorises as
+$$
+A = U \Sigma V^\top = \sum_{i=1}^{\min(N,n)} \sigma_i\, u_i v_i^\top ,
+$$
+with $U$ and $V$ orthogonal and singular values $\sigma_1 \geq \sigma_2 \geq \dots \geq 0$.
+
+The left singular vectors $u_i$ are the eigenvectors of $A A^\top$, and $\sigma_i^2$ are its eigenvalues.
+:::
+
+:::: thm
+[Theorem 0.2 — Eckart–Young]{.tag} Let $A_r = \sum_{i \le r} \sigma_i u_i v_i^\top$ be the truncated SVD. For every matrix $B$ of rank at most $r$,
+$$
+\|A - B\|_F^2 \;\geq\; \|A - A_r\|_F^2 \;=\; \sum_{i > r} \sigma_i^2 .
+$$
+
+::: proof
+Weyl's inequality for singular values states that, for all matrices $A, B$ and indices $i, j \geq 1$,
+$$
+\sigma_{i+j-1}(A) \leq \sigma_i(A - B) + \sigma_j(B).
+$$
+
+Take $j = r+1$. Since $B$ has rank at most $r$, $\sigma_{r+1}(B) = 0$, hence $\sigma_{i+r}(A) \leq \sigma_i(A-B)$ for every $i$.
+
+Squaring and summing over $i$ gives
+$$
+\|A - B\|_F^2 = \sum_i \sigma_i(A-B)^2 \geq \sum_{k > r} \sigma_k(A)^2 .
+$$
+
+Finally $A - A_r = \sum_{i>r} \sigma_i u_i v_i^\top$, whose squared Frobenius norm is exactly that sum. [∎]{.qed}
+:::
+::::
+
+### Gaussian vectors and conditioning
+
+:::: prop
+[Proposition 0.3 — Conditioning a Gaussian vector]{.tag} Let $(Z_1, Z_2)$ be a Gaussian vector with means $m_1, m_2$ and covariance blocks $\Sigma_{11}, \Sigma_{12}, \Sigma_{22}$, with $\Sigma_{22}$ invertible. Then $Z_1$ given $Z_2 = z_2$ is Gaussian:
+$$
+Z_1 \mid Z_2 = z_2 \;\sim\; \mathcal{N}\big(m_1 + \Sigma_{12}\Sigma_{22}^{-1}(z_2 - m_2),\; \Sigma_{11} - \Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\big).
+$$
+
+::: proof
+Set $W = Z_1 - \Sigma_{12}\Sigma_{22}^{-1} Z_2$. A direct computation gives
+$$
+\mathrm{Cov}(W, Z_2) = \Sigma_{12} - \Sigma_{12}\Sigma_{22}^{-1}\Sigma_{22} = 0 .
+$$
+
+The pair $(W, Z_2)$ is Gaussian, as a linear image of a Gaussian vector, so zero covariance means independence.
+
+Write $Z_1 = W + \Sigma_{12}\Sigma_{22}^{-1} Z_2$. Given $Z_2 = z_2$, the second term is a constant and $W$ keeps its law.
+
+That law has mean $m_1 - \Sigma_{12}\Sigma_{22}^{-1} m_2$ and covariance $\Sigma_{11} - \Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}$, which gives the result. [∎]{.qed}
+:::
+::::
+
+The conditional mean is linear in the data and the conditional covariance does not depend on the observed value. Kriging (ch. 3) and the Kalman filter (ch. 9) are this proposition applied to different vectors.
+
+### Monte Carlo and the cost of rare events
+
+::: prop
+[Proposition 0.4 — Monte Carlo error]{.tag} Let $X_1, \dots, X_N$ be independent copies of $X$ and $Y = f(X)$ square-integrable. The estimator $\hat I_N = \frac1N \sum_j f(X_j)$ of $\mathbb{E}[Y]$ is unbiased, with variance $\mathrm{Var}(Y)/N$, and the central limit theorem gives the asymptotic 95 % interval
+$$
+\hat I_N \pm 1.96\, \frac{\sigma_Y}{\sqrt N}.
+$$
+
+For a probability $p = \mathbb{P}(f(X) > s)$, take $Y$ as the indicator of the event. The coefficient of variation of the estimator is then
+$$
+\delta_N = \sqrt{\frac{1 - p}{N p}} .
+$$
+:::
+
+The rate $N^{-1/2}$ does not depend on the input dimension, which is why Monte Carlo is the reference method in uncertainty quantification. Its price is the number of calls to $f$.
+
+::: ex
+[Example 0.5 — A century of computing]{.tag} Take $p = 10^{-4}$ and a target coefficient of variation of 10 %.
+
+-   The formula gives $N = (1-p)/(0.01\,p) \approx 10^6$ runs.
+-   At one hour per run, this is $10^6$ hours, that is about 114 years of sequential computing.
+
+The conclusion of this module follows: the simulator must be replaced, at least partly, by something cheaper.
+:::
+
+```python
+import numpy as np
+from scipy.stats import norm
+
+rng = np.random.default_rng(0)
+# Monte Carlo estimate of a small probability p = P(Z > 3.09)
+p_true = norm.sf(3.09)
+for N in [10**3, 10**4, 10**5, 10**6]:
+    z = rng.standard_normal(N)
+    p_hat = np.mean(z > 3.09)
+    cv = np.sqrt((1 - p_true) / (N * p_true))      # coefficient of variation
+    print(f"N={N:>8d}  p_hat={p_hat:.2e}  true={p_true:.2e}  c.o.v.={cv:.2f}")
+
+# Eckart-Young: truncated SVD error equals the discarded singular values
+A = rng.standard_normal((200, 50)) @ np.diag(0.7 ** np.arange(50)) @ rng.standard_normal((50, 80))
+U, s, Vt = np.linalg.svd(A, full_matrices=False)
+r = 5
+A_r = U[:, :r] @ np.diag(s[:r]) @ Vt[:r]
+print("Frobenius error  :", np.linalg.norm(A - A_r))
+print("sqrt(sum s_i^2), i>r:", np.sqrt(np.sum(s[r:] ** 2)))
+```
+
+::: ex
+[Code 0.6 — What the code shows]{.tag} With $p \approx 10^{-3}$, a thousand draws see no failure at all and return $\hat p = 0$. Ten thousand draws give $8 \cdot 10^{-4}$, with a coefficient of variation of 32 %.
+
+The two printed Frobenius errors agree to machine precision (29.9170), as Theorem 0.2 predicts.
+:::
+
+### Discretised PDEs: the typical simulator
+
+::: def
+[Definition 0.7 — Model elliptic problem and its discretisation]{.tag} On $(0,1)$, with a conductivity $\kappa(x) \geq \kappa_0 > 0$ and a source $f$, find $u$ with $u(0) = u(1) = 0$ and
+$$
+-(\kappa u')' = f .
+$$
+
+The weak form seeks $u \in H^1_0$ such that $a(u, v) = \ell(v)$ for every test function $v$, with
+$$
+a(u, v) = \int_0^1 \kappa\, u' v' \,dx, \qquad \ell(v) = \int_0^1 f v \,dx .
+$$
+
+Finite differences on $N$ interior nodes, or Galerkin finite elements, turn it into a linear system $A u = b$. The matrix $A$ is symmetric positive definite, sparse and of size $N$.
+:::
+
+The bilinear form is coercive: $a(v,v) \geq \kappa_0 \|v'\|^2_{L^2}$. The Lax–Milgram theorem then gives existence and uniqueness. Céa's lemma states that the Galerkin solution is the best approximation in the energy norm, a fact reproved for reduced models in ch. 2.
+
+Real simulators couple such systems in three dimensions, with nonlinear terms and time stepping. A single run then takes minutes to days, which is the regime where a metamodel pays off.
+
+::: recap
+Key takeaways — chapter 0
+
+-   The truncated SVD is the best rank-$r$ approximation, with error equal to the discarded singular values (Theorem 0.2).
+-   Conditioning a Gaussian vector gives a mean linear in the data and a covariance independent of the data (Proposition 0.3).
+-   Monte Carlo converges at rate $N^{-1/2}$ in any dimension, but a probability $p$ costs about $100/p$ runs for 10 % accuracy.
+-   A discretised elliptic PDE is a large sparse SPD system; repeated solves are what we want to avoid.
+:::
+
+## 1. From the numerical model to the metamodel {#ch1}
+
+A simulator is a map from inputs to outputs that is costly to evaluate. This chapter fixes the vocabulary, gives the questions that decide which surrogate to build, and shows a first way of injecting physics before any learning: dimensional analysis.
+
+### Simulators, metamodels and the structuring questions
+
+::: def
+[Definition 1.1 — Simulator]{.tag} A simulator is a deterministic map
+$$
+f : \mathcal{X} \subset \mathbb{R}^d \to \mathcal{Y},
+$$
+computed by a numerical code at a cost $c$ per run. The inputs $x$ gather physical parameters, boundary and initial conditions and geometric parameters.
+
+The output space $\mathcal{Y}$ may be $\mathbb{R}$ (a scalar quantity of interest), $\mathbb{R}^m$ (a discretised field or a time series) or a function space (a whole solution).
+:::
+
+::: def
+[Definition 1.2 — Metamodel, surrogate, emulator]{.tag} A metamodel is a map $\hat f$ that approximates $f$ at a much lower cost per evaluation. It is built either from the equations of the solver, or from a design of runs
+$$
+\mathcal{D}_n = \{(x_i, f(x_i)),\ i = 1, \dots, n\},
+$$
+which the course calls *distilled simulations*: the knowledge of the code is distilled into a data set.
+
+The three words are synonyms here; *emulator* is common in statistics, *surrogate* in engineering.
+:::
+
+The course description asks a few structuring questions before any method. They form the checklist below, used in every recap.
+
+::: key
+[Key result — the five questions to ask before building a surrogate]{.tag}
+
+1.  **Target**: what exactly is approximated — a scalar output, a field, a trajectory, the solution operator?
+2.  **Physics**: where does physical knowledge enter — inputs, prior, loss, architecture, projection?
+3.  **Access**: can we act inside the solver (intrusive) or only run it (black box)?
+4.  **Cost**: what is the training cost (runs plus fitting) and the inference cost per evaluation?
+5.  **Guarantees**: what can be certified on accuracy, robustness, interpretability and uncertainty?
+:::
+
+::: def
+[Definition 1.3 — The three routes of metamodelling]{.tag}
+
+-   **Intrusive or semi-intrusive**: the discretised equations are projected onto a small basis (POD, reduced bases, Galerkin projection, ch. 2). This needs access to the operators of the solver.
+-   **Non-intrusive**: the simulator is a black box, and the input–output map is learned from distilled runs (Gaussian processes, polynomial chaos, neural networks, ch. 3–6).
+-   **Hybrid or physics-informed**: physical constraints, operator structure or equation residuals enter the learning (constrained GPs, PINNs, neural operators, ROM + deep learning, ch. 4, 7, 8).
+:::
+
+### What a surrogate is used for
+
+The same surrogate rarely serves all purposes, so the use must be fixed first:
+
+-   **propagation**: compute the law of $Y = f(X)$ for random inputs $X$, or summaries of it;
+-   **sensitivity analysis**: rank the inputs by their influence on $Y$ (ch. 5);
+-   **optimisation and design**: find the best $x$, possibly under uncertainty (ch. 4 and ch. 11);
+-   **calibration and inverse problems**: infer parameters from measurements (ch. 9);
+-   **real-time use**: digital twins, monitoring and control, where each evaluation has a deadline.
+
+::: def
+[Definition 1.4 — Quantities of interest and sources of uncertainty]{.tag} With $X$ random of law $P_X$ and $Y = f(X)$, the usual quantities of interest are the mean and variance of $Y$, a quantile $q_\beta$, and an exceedance probability
+$$
+p_s = \mathbb{P}(f(X) > s).
+$$
+
+Uncertainty is *aleatory* when it comes from intrinsic variability (loads, material scatter) and *epistemic* when it comes from lack of knowledge (few runs, unknown parameters, model error). Only the second kind shrinks with more information.
+:::
+
+Industrial practice organises a study in steps: specify the model and the quantity of interest, quantify the input uncertainties, propagate them, then rank the inputs (de Rocquigny, Devictor and Tarantola, 2008). A metamodel enters at the propagation and ranking steps, and brings its own error into the budget.
+
+:::: prop
+[Proposition 1.5 — What a surrogate error costs]{.tag} Let $\hat f$ be a surrogate and $\varepsilon > 0$. For the mean,
+$$
+\big|\mathbb{E} f(X) - \mathbb{E} \hat f(X)\big| \leq \mathbb{E}\, |f(X) - \hat f(X)|.
+$$
+
+For an exceedance probability, the error is controlled by the mass near the threshold and the probability of a large surrogate error:
+$$
+\big|\mathbb{P}(f(X) > s) - \mathbb{P}(\hat f(X) > s)\big| \leq \mathbb{P}(|f(X) - s| \leq \varepsilon) + \mathbb{P}(|f(X) - \hat f(X)| > \varepsilon).
+$$
+
+::: proof
+The first bound is Jensen's inequality for the absolute value.
+
+For the second, the two probabilities differ at most by the probability of the symmetric difference of the events $\{f > s\}$ and $\{\hat f > s\}$.
+
+Take $x$ with $f(x) > s \geq \hat f(x)$. Either $f(x) \leq s + \varepsilon$, so $|f(x) - s| \leq \varepsilon$, or $f(x) > s + \varepsilon$, so $f(x) - \hat f(x) > \varepsilon$.
+
+The case $\hat f(x) > s \geq f(x)$ is symmetric. [∎]{.qed}
+:::
+::::
+
+The second bound is the reason for the adaptive designs of ch. 4: to estimate a failure probability, the surrogate needs to be accurate only near the level set $\{f = s\}$, not everywhere.
+
+### Physics at the input level: dimensional analysis
+
+Before learning anything, physics can shrink the input space. A physical law cannot depend on the choice of units, and this invariance removes inputs.
+
+:::: thm
+[Theorem 1.6 — Buckingham's Π theorem]{.tag} Let a physical relation $q_0 = F(q_1, \dots, q_k)$ hold in every system of units, among $k+1$ quantities whose dimension matrix has rank $m$.
+
+Then there are $k + 1 - m$ independent dimensionless products $\Pi_0, \dots, \Pi_{k-m}$ of powers of the $q_j$, and a function $\Phi$ with
+$$
+\Pi_0 = \Phi(\Pi_1, \dots, \Pi_{k-m}).
+$$
+
+::: proof
+*Sketch* (Buckingham, 1914; Barenblatt, 1996, ch. 1). Write the dimension of $q_j$ as a vector $a_j$ of exponents over the base units (length, mass, time, …).
+
+A product $\prod_j q_j^{\lambda_j}$ is dimensionless exactly when $\sum_j \lambda_j a_j = 0$, that is when $\lambda$ lies in the kernel of the dimension matrix. By the rank–nullity theorem, that kernel has dimension $k + 1 - m$.
+
+Choose $m$ quantities with independent dimensions as a basis. Rescaling the base units changes these $m$ quantities freely while every $\Pi$ stays fixed.
+
+Since $F$ is valid in every system of units, the relation can only link the $\Pi$'s. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.7 — The period of a pendulum]{.tag} The period $T$ may depend on the length $L$, the gravity $g$, the mass $M$ and the release angle $\theta_0$.
+
+-   Five quantities, three base dimensions (length, mass, time), so two groups: $T\sqrt{g/L}$ and $\theta_0$.
+-   The mass cannot appear in any group with $T$, so it drops out.
+-   Hence $T = \sqrt{L/g}\; \Phi(\theta_0)$, with a single unknown function of one variable.
+
+For this pendulum the function is known in closed form, with $K$ the complete elliptic integral of the first kind:
+$$
+\Phi(\theta_0) = 4\, K\big(\sin^2(\theta_0/2)\big), \qquad \Phi(\theta_0) \to 2\pi \text{ as } \theta_0 \to 0 .
+$$
+
+A surrogate of $T$ over four inputs becomes a surrogate of $\Phi$ over one input: a few runs suffice.
+:::
+
+```python
+import numpy as np
+from scipy.integrate import solve_ivp
+from scipy.special import ellipk
+
+def simulator(L, g, theta0):
+    """'Expensive' simulator: period of a pendulum by ODE integration."""
+    rhs = lambda t, y: [y[1], -(g / L) * np.sin(y[0])]
+    # the pendulum released at rest crosses theta = 0 after a quarter period
+    hit = lambda t, y: y[0]
+    hit.terminal, hit.direction = True, -1
+    sol = solve_ivp(rhs, [0, 100], [theta0, 0.0], events=hit, rtol=1e-10, atol=1e-12)
+    return 4 * sol.t_events[0][0]
+
+rng = np.random.default_rng(1)
+L = rng.uniform(0.5, 2.0, 6)            # length (m)
+g = rng.uniform(9.78, 9.83, 6)          # gravity (m/s^2)
+th = np.full(6, 1.0)                    # same release angle (rad)
+T = np.array([simulator(*a) for a in zip(L, g, th)])
+Pi = T / np.sqrt(L / g)                 # dimensionless period
+print("periods T (s)          :", np.round(T, 4))
+print("Pi = T / sqrt(L/g)      :", np.round(Pi, 6))
+print("closed form 4K(sin^2(th/2)):", round(4 * ellipk(np.sin(0.5) ** 2), 6))
+```
+
+::: ex
+[Example 1.8 — Reading the output of the pendulum code]{.tag} The six periods range from 1.81 s to 2.97 s. The six values of $T\sqrt{g/L}$ are all equal to 6.699976, the closed-form value of $\Phi(1)$.
+
+At $\theta_0 = 1$ rad, the period is 6.6 % longer than the small-angle value $2\pi$. Dimensional analysis has reduced the learning problem before a single surrogate is fitted.
+:::
+
+In fluid mechanics, the same argument makes drag depend on the Reynolds number alone (Exercise 2).
+
+::: recap
+Key takeaways — chapter 1
+
+-   A metamodel replaces an expensive map $f$; it is built from the solver equations, from distilled runs, or from both.
+-   Five questions decide the method: target, place of physics, access to the solver, training and inference cost, guarantees.
+-   A failure probability is sensitive to surrogate errors only near the threshold (Proposition 1.5).
+-   Dimensional analysis removes inputs before any learning (Theorem 1.6).
+-   *Balance sheet of dimensional analysis*: free and exact; it needs the list of governing quantities and their dimensions; it gives no shape for $\Phi$.
+:::
+
+## 2. Low-dimensional structure, POD and reduced-order models {#ch2}
+
+A parametrised PDE is solved again and again for new parameter values, but its solutions often live close to a space of small dimension. This chapter measures that dimension, builds the best linear basis from snapshots, and projects the equations on it: the intrusive route.
+
+### The solution manifold and its width
+
+Consider the discretised parametric problem $A(\mu)\, u(\mu) = b(\mu)$, with $u(\mu) \in \mathbb{R}^{N_h}$ and parameters $\mu$ in a compact set $\mathcal{P} \subset \mathbb{R}^p$. The *solution manifold* is the set of all solutions:
+$$
+\mathcal{M} = \{u(\mu) : \mu \in \mathcal{P}\}.
+$$
+
+::: def
+[Definition 2.1 — Kolmogorov $n$-width]{.tag} The Kolmogorov $n$-width of $\mathcal{M}$ is the worst-case error of the best $n$-dimensional linear space:
+$$
+d_n(\mathcal{M}) = \inf_{\dim V_n = n}\ \sup_{u \in \mathcal{M}}\ \inf_{v \in V_n} \|u - v\| .
+$$
+:::
+
+When $d_n$ decays fast, a few basis vectors represent every solution and linear reduction works. For elliptic problems depending smoothly on a few parameters, the decay is very fast, often exponential (Cohen and DeVore, 2015).
+
+For transport-dominated problems the decay is slow. For the family of indicator functions of shifted intervals in $L^2$, the width decays no faster than $n^{-1/2}$ (Ohlberger and Rave, 2016). A moving front needs many linear modes, a limitation that motivates the nonlinear reductions of ch. 6.
+
+### Proper orthogonal decomposition
+
+::: def
+[Definition 2.2 — Snapshots and POD basis]{.tag} Solve the full model for $n_s$ training parameters and store the snapshot matrix
+$$
+S = \big[u(\mu_1), \dots, u(\mu_{n_s})\big] \in \mathbb{R}^{N_h \times n_s}.
+$$
+
+A POD basis of size $r$ is a matrix $V \in \mathbb{R}^{N_h \times r}$ with orthonormal columns that minimises the total projection error $\sum_j \|u(\mu_j) - V V^\top u(\mu_j)\|^2$.
+:::
+
+:::: thm
+[Theorem 2.3 — POD is the truncated SVD]{.tag} Let $S = U \Sigma W^\top$ be an SVD. The first $r$ left singular vectors $U_r$ form an optimal POD basis, and the minimal error is the discarded energy:
+$$
+\min_{V^\top V = I_r} \sum_{j=1}^{n_s} \|u(\mu_j) - V V^\top u(\mu_j)\|^2 = \sum_{i > r} \sigma_i^2 .
+$$
+
+::: proof
+The total error equals $\|S - V V^\top S\|_F^2$, and $V V^\top S$ has rank at most $r$. By Eckart–Young (Theorem 0.2), the error is at least $\sum_{i>r}\sigma_i^2$.
+
+For $V = U_r$, the projection $U_r U_r^\top S$ equals the truncated SVD $S_r$, because $U_r^\top u_i = 0$ for $i > r$. The bound is attained. [∎]{.qed}
+:::
+::::
+
+In practice, the number of modes is chosen by an energy criterion. For a tolerance $\varepsilon$, take the smallest $r$ such that
+$$
+\sum_{i \leq r} \sigma_i^2 \;\geq\; (1 - \varepsilon) \sum_{i} \sigma_i^2 .
+$$
+
+Two practical remarks. With a finite-element mass matrix $M$, the relevant norm is $\|u\|_M = \sqrt{u^\top M u}$, and one applies the theorem to $M^{1/2} S$.
+
+When $N_h$ is much larger than $n_s$, it is cheaper to diagonalise the small $n_s \times n_s$ correlation matrix $S^\top M S$: this is the *method of snapshots* of Sirovich (1987).
+
+### Galerkin projection and the offline–online split
+
+::: def
+[Definition 2.4 — Galerkin reduced-order model]{.tag} Look for $u(\mu) \approx V a(\mu)$ with $a(\mu) \in \mathbb{R}^r$, and impose that the residual be orthogonal to the reduced space:
+$$
+V^\top A(\mu) V\, a(\mu) = V^\top b(\mu).
+$$
+
+This is an $r \times r$ system instead of an $N_h \times N_h$ one.
+:::
+
+:::: prop
+[Proposition 2.5 — Best approximation in the energy norm]{.tag} If $A(\mu)$ is symmetric positive definite, the Galerkin solution is the best approximation of $u(\mu)$ in the reduced space for the energy norm $\|v\|_A = \sqrt{v^\top A v}$:
+$$
+\|u - V a\|_A = \min_{c \in \mathbb{R}^r} \|u - V c\|_A .
+$$
+
+::: proof
+Subtract $V^\top A V a = V^\top b$ from $V^\top A u = V^\top b$: the error $e = u - Va$ satisfies $V^\top A e = 0$, *Galerkin orthogonality*.
+
+For any $c$, write $u - Vc = e + V(a - c)$. The cross term $2 (a-c)^\top V^\top A e$ vanishes, so
+$$
+\|u - Vc\|_A^2 = \|e\|_A^2 + \|V(a-c)\|_A^2 \geq \|e\|_A^2 .
+$$
+[∎]{.qed}
+:::
+::::
+
+The reduced model is only fast if the projected operator can be formed without touching size-$N_h$ objects online. This holds under an *affine decomposition*
+$$
+A(\mu) = \sum_{q=1}^{Q} \theta_q(\mu)\, A_q, \qquad b(\mu) = \sum_{q=1}^{Q'} \theta'_q(\mu)\, b_q .
+$$
+
+*Offline*, compute the small matrices $V^\top A_q V$ and vectors $V^\top b_q$ once. *Online*, for each new $\mu$, assemble the reduced system in $O(Q r^2)$ operations and solve it in $O(r^3)$, independently of $N_h$.
+
+:::: prop
+[Proposition 2.6 — A posteriori error bound]{.tag} Let $r(\mu) = b(\mu) - A(\mu) V a(\mu)$ be the residual of the reduced solution, computable without $u(\mu)$. If $A(\mu)$ is SPD with smallest eigenvalue $\lambda_{\min}(\mu)$, then
+$$
+\|u(\mu) - V a(\mu)\|_2 \leq \frac{\|r(\mu)\|_2}{\lambda_{\min}(\mu)} .
+$$
+
+::: proof
+The error solves $A(\mu)\,(u - Va) = r(\mu)$, so $u - Va = A(\mu)^{-1} r(\mu)$, and $\|A(\mu)^{-1}\|_2 = 1/\lambda_{\min}(\mu)$. [∎]{.qed}
+:::
+::::
+
+In practice $\lambda_{\min}(\mu)$ is replaced by a cheap lower bound, and the residual norm is also split offline–online thanks to the affine decomposition.
+
+::: def
+[Definition 2.7 — Greedy reduced-basis algorithm]{.tag} Start from one snapshot. At each step, evaluate the error bound of Proposition 2.6 over a large training set of parameters, solve the full model at the worst parameter, add the snapshot to the basis after orthonormalisation, and stop when the bound is below the tolerance.
+
+The bound makes the basis *certified*: the error is guaranteed on the training set, without any extra full solve (Hesthaven, Rozza and Stamm, 2016).
+:::
+
+::: note
+[Nonlinear terms and hyper-reduction]{.tag} For a nonlinear term $g(Va)$, the projection $V^\top g(Va)$ still costs $O(N_h)$ online. The discrete empirical interpolation method (DEIM, Chaturantabut and Sorensen, 2010) approximates $g$ in a POD basis $U_m$ of its own snapshots, from only $m$ selected entries:
+$$
+g(Va) \approx U_m (P^\top U_m)^{-1} P^\top g(Va),
+$$
+where $P$ selects $m$ rows. Only $m$ entries of $g$ are evaluated online. For time-dependent problems, the same projection applied to $\dot u = F(u, \mu)$ gives a small system of ODEs (Benner, Gugercin and Willcox, 2015).
+:::
+
+### A worked reduced model
+
+::: ex
+[Example 2.8 — A heat-conduction problem with four parameters]{.tag} Solve $-(\kappa u')' = 1$ on $(0,1)$ with zero boundary values. The conductivity is one plus four Gaussian bumps of weights $\mu_q \in [0, 20]$:
+$$
+\kappa(x;\mu) = 1 + \sum_{q=1}^{4} \mu_q\, e^{-((x - c_q)/0.15)^2}, \qquad c_q \in \{0.2, 0.4, 0.6, 0.8\}.
+$$
+
+The finite-difference matrix is affine in $\mu$ with $Q = 5$ terms. The full model has $N_h = 2000$ unknowns; 80 snapshots train the POD basis, and 40 new parameters test it.
+:::
+
+```python
+import time
+import numpy as np
+import scipy.sparse as sp
+import scipy.sparse.linalg as spla
+
+# -(kappa u')' = 1 on (0,1), u(0)=u(1)=0, kappa(x; mu) = 1 + sum_q mu_q phi_q(x)
+N = 2000                                   # interior nodes (full model size)
+h = 1.0 / (N + 1)
+xm = (np.arange(N + 1) + 0.5) * h          # midpoints of the N+1 cells
+phi = [np.ones_like(xm)] + [np.exp(-((xm - c) / 0.15) ** 2) for c in (0.2, 0.4, 0.6, 0.8)]
+
+def stiffness(w):                          # FD matrix of -(w u')' with cell weights w
+    w = w / h**2
+    return sp.diags([w[:-1] + w[1:], -w[1:-1], -w[1:-1]], [0, 1, -1], format="csc")
+
+A_q = [stiffness(p) for p in phi]          # affine terms: A(mu) = A_0 + sum mu_q A_q
+theta = lambda mu: np.concatenate([[1.0], mu])
+f = np.ones(N)
+full = lambda mu: spla.spsolve(sum(t * A for t, A in zip(theta(mu), A_q)), f)
+
+rng = np.random.default_rng(0)
+draw = lambda n: rng.uniform(0, 20, size=(n, 4))          # mu in [0, 20]^4
+S = np.column_stack([full(mu) for mu in draw(80)])        # snapshot matrix
+U, s, _ = np.linalg.svd(S, full_matrices=False)
+print("sigma_i / sigma_1:", np.array2string(s[:10] / s[0], precision=1))
+
+test = draw(40)
+t0 = time.perf_counter(); U_true = [full(mu) for mu in test]; t_full = time.perf_counter() - t0
+for r in [2, 4, 6, 8, 10]:
+    V = U[:, :r]
+    A_r = [V.T @ (A @ V) for A in A_q]                      # offline: r x r blocks
+    f_r = V.T @ f
+    t0 = time.perf_counter()
+    U_rom = [V @ np.linalg.solve(sum(t * Ar for t, Ar in zip(theta(mu), A_r)), f_r) for mu in test]
+    t_rom = time.perf_counter() - t0
+    err = max(np.linalg.norm(a - b) / np.linalg.norm(a) for a, b in zip(U_true, U_rom))
+    print(f"r={r:2d}: max relative error {err:.1e}, online speed-up x{t_full / t_rom:.0f}")
+```
+
+::: ex
+[Code 2.9 — Reading the output]{.tag}
+
+-   The normalised singular values decay quickly: $1$, $9.5 \cdot 10^{-2}$, $1.9 \cdot 10^{-2}$, then $4 \cdot 10^{-4}$ at the tenth.
+-   The worst relative error over the 40 test parameters is $8.4 \cdot 10^{-2}$ for $r = 2$, $1.9 \cdot 10^{-2}$ for $r = 6$ and $1.3 \cdot 10^{-3}$ for $r = 10$.
+-   The online solve is tens to hundreds of times faster than the sparse full solve; the printed factors vary from run to run with the machine and its load.
+
+In two or three dimensions, where a full solve costs much more than a tridiagonal one, the speed-up reaches several orders of magnitude.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   The Kolmogorov width measures how well any $n$-dimensional linear space can represent the solution manifold; it decays fast for diffusion and slowly for transport.
+-   POD is the truncated SVD of the snapshot matrix, and its error is the discarded energy (Theorem 2.3).
+-   Galerkin projection gives the best reduced approximation in the energy norm for SPD problems (Proposition 2.5); an affine decomposition makes it independent of $N_h$ online.
+-   The residual gives a computable error bound, which drives the greedy reduced-basis algorithm.
+-   *Balance sheet*: intrusive; physics kept exactly through projection; very fast online with certified errors; needs the solver's operators and an affine (or hyper-reduced) structure; fails on slowly decaying widths.
+:::
+
+## 3. Gaussian-process metamodels from distilled simulations {#ch3}
+
+With only tens or hundreds of runs, we need a surrogate that interpolates the runs, behaves smoothly in between and says how uncertain it is. Gaussian-process regression, called *kriging* in geostatistics and computer experiments (Matheron, 1963; Sacks, Welch, Mitchell and Wynn, 1989), does all three.
+
+### Gaussian processes and kernels
+
+::: def
+[Definition 3.1 — Gaussian process]{.tag} A random function $F$ on the input space is a Gaussian process with mean $m$ and covariance kernel $k$, written $F \sim \mathcal{GP}(m, k)$, if for all points $x_1, \dots, x_n$ the vector of values $F(x_i)$ is Gaussian with
+$$
+\text{mean } (m(x_i))_{i}, \qquad \text{covariance matrix } K = (k(x_i, x_j))_{i,j} .
+$$
+
+A function $k$ is a valid covariance exactly when every such matrix is positive semi-definite.
+:::
+
+The kernel encodes what we believe about $f$ before any run. Two families dominate computer experiments, written here with $r = \|x - x'\|/\ell$, a variance $\sigma^2$ and a length scale $\ell$:
+$$
+k_{\mathrm{SE}}(x, x') = \sigma^2 e^{-r^2/2}, \qquad k_{5/2}(x, x') = \sigma^2 \Big(1 + \sqrt5\, r + \tfrac53 r^2\Big) e^{-\sqrt5\, r}.
+$$
+
+The squared-exponential kernel gives infinitely differentiable sample paths, often too smooth for physics. The Matérn 5/2 kernel gives paths that are twice differentiable in mean square, and is the usual default. With one length scale $\ell_j$ per input, the fitted scales also indicate which inputs matter.
+
+### The kriging equations
+
+:::: thm
+[Theorem 3.2 — Kriging predictor and variance]{.tag} Let $F \sim \mathcal{GP}(0, k)$ and observe $y = (f(x_1), \dots, f(x_n))$ without noise, with $K$ invertible. Write $k_n(x) = (k(x, x_i))_i$. Given the data, $F(x)$ is Gaussian with
+$$
+m_n(x) = k_n(x)^\top K^{-1} y, \qquad s_n^2(x) = k(x,x) - k_n(x)^\top K^{-1} k_n(x).
+$$
+
+::: proof
+The vector $(F(x), F(x_1), \dots, F(x_n))$ is Gaussian with covariance blocks $k(x,x)$, $k_n(x)^\top$ and $K$.
+
+Proposition 0.3, with $Z_1 = F(x)$ and $Z_2 = y$, gives both formulas. [∎]{.qed}
+:::
+::::
+
+Three variants are used in practice.
+
+-   *Noisy or stochastic codes*: replace $K$ by $K + \tau^2 I$ (a *nugget*). A tiny nugget also stabilises the Cholesky factorisation.
+-   *Universal kriging*: a trend $h(x)^\top \beta$ with unknown $\beta$ replaces the zero mean. Then $\beta$ is estimated by generalised least squares, and the variance gains a term for the estimation of $\beta$.
+-   *Vector outputs*: a field output is often first compressed by PCA, and one GP is fitted per coefficient (ch. 5).
+
+::: prop
+[Proposition 3.3 — Interpolation]{.tag} Without nugget, the predictor interpolates the runs and the variance vanishes there:
+$$
+m_n(x_i) = y_i, \qquad s_n(x_i) = 0 .
+$$
+
+Indeed $k_n(x_i)$ is the $i$-th column of $K$, so $k_n(x_i)^\top K^{-1} = e_i^\top$. Both formulas follow at once.
+:::
+
+### A deterministic error bound
+
+The GP model is a modelling assumption: the simulator is not random. The next theorem gives a deterministic meaning to $s_n$, through the reproducing kernel Hilbert space (RKHS) $\mathcal{H}_k$ of the kernel, the completion of the span of the functions $k(\cdot, x)$ with inner product $\langle k(\cdot, x), k(\cdot, x')\rangle = k(x, x')$.
+
+:::: thm
+[Theorem 3.4 — Kriging error bound in the RKHS]{.tag} Let $f \in \mathcal{H}_k$ and let $m_n$ be the kriging predictor built from the exact values $f(x_i)$. Then, at every point $x$,
+$$
+|f(x) - m_n(x)| \leq s_n(x)\, \|f\|_{\mathcal{H}_k} .
+$$
+
+Moreover, $m_n$ is the interpolant of the data with the smallest RKHS norm.
+
+::: proof
+Set $c(x) = K^{-1} k_n(x)$, so that $m_n(x) = \sum_i c_i(x) f(x_i)$.
+
+By the reproducing property $f(x) = \langle f, k(\cdot, x)\rangle$, we can write
+$$
+f(x) - m_n(x) = \Big\langle f,\ k(\cdot, x) - \sum_i c_i(x)\, k(\cdot, x_i) \Big\rangle .
+$$
+
+Expanding the squared norm of the right-hand function gives $k(x,x) - 2 c^\top k_n(x) + c^\top K c$, and this equals $s_n^2(x)$ because $Kc = k_n(x)$.
+
+The Cauchy–Schwarz inequality concludes. The minimum-norm property is the representer theorem: any interpolant equals $m_n$ plus a function orthogonal to every $k(\cdot, x_i)$. [∎]{.qed}
+:::
+::::
+
+The bound separates what the design controls, $s_n(x)$, from what the simulator brings, its RKHS norm. Filling the space with design points makes $s_n$ small everywhere (Wendland, 2004), and placing points where $s_n$ is large is the first sequential design of ch. 4.
+
+### Estimating the hyperparameters
+
+The kernel parameters $\vartheta = (\sigma^2, \ell_1, \dots, \ell_d)$ are estimated from the runs, usually by maximum likelihood.
+
+::: prop
+[Proposition 3.5 — Profile likelihood]{.tag} Write $K = \sigma^2 R_\ell$, where $R_\ell$ is a correlation matrix. The log-likelihood of the data is
+$$
+\log L = -\tfrac12\, y^\top K^{-1} y - \tfrac12 \log \det K - \tfrac n2 \log(2\pi).
+$$
+
+Its maximiser in $\sigma^2$ is $\hat\sigma^2 = y^\top R_\ell^{-1} y / n$. Up to constants, it remains to maximise in the length scales
+$$
+-\tfrac n2 \log \hat\sigma^2(\ell) - \tfrac12 \log \det R_\ell .
+$$
+
+The first formula is the Gaussian density. Setting the derivative in $\sigma^2$ to zero gives $\hat\sigma^2$, and substituting it gives the profile.
+:::
+
+The maximisation is non-convex, so it is restarted from several initial points. Each evaluation needs a Cholesky factorisation, in $O(n^3)$ operations: exact GPs suit up to a few thousand runs. Beyond, one uses sparse approximations with inducing points, local GPs, or the neural surrogates of ch. 6.
+
+### Validating a GP metamodel
+
+A metamodel is useless without an estimate of its error. Since runs are expensive, the standard tool is leave-one-out (LOO) cross-validation, which is free for GPs.
+
+::: prop
+[Proposition 3.6 — Closed-form leave-one-out (Dubrule, 1983)]{.tag} Let $m_{-i}$ and $s_{-i}^2$ be the kriging predictor and variance built without run $i$, with the same hyperparameters. Then
+$$
+y_i - m_{-i}(x_i) = \frac{[K^{-1} y]_i}{[K^{-1}]_{ii}}, \qquad s_{-i}^2(x_i) = \frac{1}{[K^{-1}]_{ii}} .
+$$
+
+*Proof sketch*: reorder so that run $i$ comes last and invert $K$ by blocks. The Schur complement of the last entry is $s_{-i}^2(x_i)$, and the last row of $K^{-1}$ gives the residual (Exercise 6).
+:::
+
+All $n$ LOO residuals thus cost one matrix inverse instead of $n$ refits. Three diagnostics follow, used again in ch. 9.
+
+::: def
+[Definition 3.7 — Predictivity and calibration diagnostics]{.tag}
+
+-   The *predictivity coefficient*, on LOO or on a test set, is
+    $$
+    Q^2 = 1 - \frac{\sum_i (y_i - \hat y_i)^2}{\sum_i (y_i - \bar y)^2}.
+    $$
+    It equals 1 for a perfect surrogate.
+-   The *standardised residuals* $(y_i - m_{-i}(x_i))/s_{-i}(x_i)$ should look like a standard normal sample if the variance is well calibrated.
+-   The *coverage* of the 95 % bands $m_n \pm 1.96\, s_n$ on test points should be close to 95 %.
+:::
+
+::: ex
+[Example 3.8 — Nine runs of a one-dimensional code]{.tag} Take the test function of Forrester, Sóbester and Keane (2008),
+$$
+f(x) = (6x - 2)^2 \sin(12x - 4), \qquad x \in [0, 1],
+$$
+which has a deep minimum near $x = 0.76$. Nine equally spaced runs train a Matérn 5/2 GP, fitted by maximum likelihood with five restarts.
+:::
+
+```python
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel, Matern
+
+f = lambda x: (6 * x - 2) ** 2 * np.sin(12 * x - 4)       # Forrester et al. (2008)
+X = np.linspace(0, 1, 9)[:, None]                          # 9 "distilled" runs
+y = f(X).ravel()
+
+kernel = ConstantKernel(10.0, (1e-2, 1e4)) * Matern(0.2, (1e-2, 10.0), nu=2.5)
+gp = GaussianProcessRegressor(kernel, alpha=1e-10, normalize_y=False,
+                              n_restarts_optimizer=5, random_state=0).fit(X, y)
+print("fitted kernel:", gp.kernel_)
+
+# closed-form leave-one-out (Dubrule, 1983) with the fitted covariance K
+K = gp.kernel_(X) + 1e-10 * np.eye(len(X))
+Kinv = np.linalg.inv(K)
+loo_res = (Kinv @ y) / np.diag(Kinv)                       # y_i - m_{-i}(x_i)
+loo_sd = 1 / np.sqrt(np.diag(Kinv))                        # sd of m_{-i}(x_i)
+# brute force check on point i = 4 (same hyperparameters, refit without x_4)
+i = 4
+gp_i = GaussianProcessRegressor(gp.kernel_, alpha=1e-10, optimizer=None)
+gp_i.fit(np.delete(X, i, 0), np.delete(y, i))
+print("LOO residual, closed form vs refit:", loo_res[i], y[i] - gp_i.predict(X[i:i+1])[0])
+print("standardised LOO residuals:", np.round(loo_res / loo_sd, 2))
+
+Xt = np.linspace(0, 1, 500)[:, None]
+m, sd = gp.predict(Xt, return_std=True)
+Q2 = 1 - np.sum((f(Xt).ravel() - m) ** 2) / np.sum((f(Xt).ravel() - f(Xt).mean()) ** 2)
+cover = np.mean(np.abs(f(Xt).ravel() - m) <= 1.96 * sd)
+print(f"test Q2 = {Q2:.4f}, empirical coverage of the 95% band = {cover:.2f}")
+```
+
+::: ex
+[Code 3.9 — Reading the output]{.tag}
+
+-   The fitted kernel has standard deviation 9.32 and length scale 0.237.
+-   The closed-form LOO residual at $x_4$ is $-0.2031$, identical to the brute-force refit (Proposition 3.6).
+-   The standardised LOO residuals lie between $-1.05$ and $1.81$, a plausible standard normal sample.
+-   On 500 test points, $Q^2 = 0.995$, and the 95 % band covers every test point.
+
+A coverage of 100 % means the band is conservative here; it is not a guarantee. Chapter 10 builds intervals with guaranteed coverage.
+:::
+
+::: recap
+Key takeaways — chapter 3
+
+-   Kriging is Gaussian conditioning: a predictor linear in the runs and a variance that depends only on the design (Theorem 3.2).
+-   For $f$ in the RKHS of the kernel, the kriging standard deviation bounds the error deterministically (Theorem 3.4).
+-   Hyperparameters come from the profile likelihood, at a cost of $O(n^3)$ per evaluation.
+-   Leave-one-out residuals and variances come in closed form (Proposition 3.6), and give $Q^2$, standardised residuals and coverage.
+-   *Balance sheet*: non-intrusive; physics enters only through the kernel; excellent with tens to thousands of runs in moderate dimension; built-in uncertainty; limited by $O(n^3)$ cost, stationarity and dimension.
+:::
+
+## 4. Advanced Gaussian processes: constraints, multifidelity, adaptive enrichment {#ch4}
+
+Chapter 3 treated the simulator as an anonymous function sampled on a fixed design. Three kinds of knowledge are usually available and wasted that way: physical laws the output must satisfy, cheaper approximate codes, and the freedom to choose the next run. This chapter uses all three.
+
+### Physical constraints
+
+Linear knowledge — derivatives, integrals, a linear PDE — keeps the Gaussian framework intact.
+
+::: prop
+[Proposition 4.1 — Linear operators of a GP]{.tag} Let $F \sim \mathcal{GP}(0, k)$ with $k$ smooth enough, and $\mathcal{L}$ a linear operator such as a derivative or an integral. Then $(F, \mathcal{L}F)$ is jointly Gaussian, with
+$$
+\mathrm{Cov}\big(\mathcal{L}F(x), F(x')\big) = \mathcal{L}_x k(x, x'), \qquad \mathrm{Cov}\big(\mathcal{L}F(x), \mathcal{L}F(x')\big) = \mathcal{L}_x \mathcal{L}_{x'} k(x, x').
+$$
+
+The covariance of $\mathcal{L}F$ is obtained by applying $\mathcal{L}$ to each argument of the kernel, which is allowed by exchanging $\mathcal{L}$ with the expectation.
+:::
+
+Observations of $\mathcal{L}f$ can therefore be added to the data and conditioned on with Proposition 0.3. Typical cases are gradients returned by an adjoint solver, measured fluxes, or the values of a PDE operator at collocation points, a first form of the physics-informed learning of ch. 7.
+
+:::: prop
+[Proposition 4.2 — Kernels that satisfy the physics]{.tag} If $\mathcal{L}_x k(x, x') = 0$ for every $x'$, then every kriging predictor built with $k$ satisfies the constraint exactly:
+$$
+\mathcal{L}\, m_n = 0 .
+$$
+
+::: proof
+By Theorem 3.2, $m_n = \sum_i \alpha_i\, k(\cdot, x_i)$ with $\alpha = K^{-1} y$, a finite combination of functions killed by $\mathcal{L}$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 4.3 — A kernel of harmonic functions]{.tag} Identify $\mathbb{R}^2$ with $\mathbb{C}$ and set $k(z, w) = \mathrm{Re}\, e^{z \bar w}$.
+
+-   The kernel $e^{z \bar w} = \sum_j z^j \bar w^j / j!$ is Hermitian positive definite. For real coefficients, the quadratic form of its real part is the same real number, so $k$ is a valid real kernel.
+-   For fixed $w$, the map $z \mapsto e^{z\bar w}$ is holomorphic, so its real part is harmonic: $\Delta_z k(z, w) = 0$.
+
+By Proposition 4.2, every predictor built with $k$ solves Laplace's equation, for instance a steady temperature field interpolated from a few sensors. Divergence-free kernels play the same role for incompressible velocity fields.
+:::
+
+Inequality constraints — positivity, bounds, monotonicity, convexity — are not linear and break Gaussianity. Da Veiga and Marrel (2012) impose them at a finite set of virtual points, which leads to a truncated Gaussian posterior handled by sampling.
+
+::: def
+[Definition 4.4 — Finite-dimensional constrained GP]{.tag} Following Maatouk and Bay (2017) and López-Lopera, Bachoc, Durrande and Roustant (2018), approximate the process on hat functions $\varphi_j$ attached to knots $t_j$:
+$$
+F_N(x) = \sum_{j=1}^{N} \xi_j\, \varphi_j(x), \qquad \xi \sim \mathcal{N}(0, \Gamma), \quad \Gamma_{jl} = k(t_j, t_l).
+$$
+
+Since $F_N$ is piecewise linear, bounds, monotonicity and convexity of $F_N$ are equivalent to linear inequalities $\xi \in C$ on the coefficients. The posterior is the law of $\xi$ conditioned on the interpolation equations and on $\xi \in C$, a truncated Gaussian.
+
+Its mode solves a quadratic programme, and its samples come from truncated-Gaussian samplers.
+:::
+
+### Multifidelity: borrowing strength from cheap codes
+
+Simulators often come in several fidelities: a coarse mesh and a fine one, a 1D model and a 3D one. Cheap runs are plentiful, expensive ones rare.
+
+::: def
+[Definition 4.5 — Autoregressive multifidelity model (Kennedy and O'Hagan, 2000)]{.tag} With a low-fidelity code $f_L$ and a high-fidelity code $f_H$, model
+$$
+f_H(x) = \rho\, f_L(x) + \delta(x),
+$$
+with $f_L \sim \mathcal{GP}(m_L, k_L)$ and $\delta \sim \mathcal{GP}(m_\delta, k_\delta)$ independent, and a scale factor $\rho$.
+
+The joint covariances follow:
+$$
+\mathrm{Cov}(f_H(x), f_L(x')) = \rho\, k_L(x, x'), \qquad \mathrm{Cov}(f_H(x), f_H(x')) = \rho^2 k_L(x,x') + k_\delta(x,x').
+$$
+:::
+
+:::: prop
+[Proposition 4.6 — Recursive co-kriging for nested designs]{.tag} Assume the expensive design is included in the cheap one, $X_H \subset X_L$, and write $y_L$, $y_H$ for the data. Then
+$$
+\mathbb{E}[f_H(x) \mid y_L, y_H] = \rho\, \mathbb{E}[f_L(x) \mid y_L] + \mathbb{E}\big[\delta(x) \mid \delta(X_H) = y_H - \rho\, f_L(X_H)\big],
+$$
+and the posterior variance is $\rho^2 s_L^2(x) + s_\delta^2(x)$.
+
+::: proof
+Since $X_H \subset X_L$, the values $f_L(X_H)$ are part of $y_L$. Observing $y_H$ is thus equivalent to observing $\delta(X_H) = y_H - \rho f_L(X_H)$.
+
+The information is the pair $(y_L, \delta(X_H))$, made of two independent blocks: one depends on $f_L$, the other on $\delta$.
+
+Conditioning $f_L(x)$ on it uses only $y_L$, and conditioning $\delta(x)$ uses only $\delta(X_H)$. The two posteriors are independent, so the variances add. [∎]{.qed}
+:::
+::::
+
+Each level is an ordinary kriging, on its own small data set (Le Gratiet and Garnier, 2014). The scale $\rho$ and any trend of $\delta$ are estimated by least squares or maximum likelihood. Peherstorfer, Willcox and Gunzburger (2018) survey multifidelity methods beyond GPs.
+
+```python
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel as C, Matern
+
+fH = lambda x: (6 * x - 2) ** 2 * np.sin(12 * x - 4)     # expensive code
+fL = lambda x: 0.5 * fH(x) + 10 * (x - 0.5) - 5           # cheap code
+XL = np.linspace(0, 1, 11)[:, None]                       # 11 cheap runs
+XH = XL[[0, 4, 6, 10]]                                    # 4 nested expensive runs
+kern = lambda: C(1.0, (1e-3, 1e4)) * Matern(0.2, (1e-2, 10), nu=2.5)
+fit = lambda X, y: GaussianProcessRegressor(kern(), alpha=1e-8, normalize_y=True,
+                                            n_restarts_optimizer=5, random_state=0).fit(X, y)
+
+gpL = fit(XL, fL(XL).ravel())                             # level 1: cheap code
+yH, yLH, xH = fH(XH).ravel(), fL(XH).ravel(), XH.ravel()  # nested design
+A = np.column_stack([yLH, np.ones_like(xH), xH])
+rho, b0, b1 = np.linalg.lstsq(A, yH, rcond=None)[0]      # rho and a linear trend of delta
+gpD = fit(XH, yH - rho * yLH - b0 - b1 * xH)              # level 2: GP on the rest of delta
+gpH = fit(XH, yH)                                         # baseline: expensive runs only
+
+Xt = np.linspace(0, 1, 400)[:, None]
+pred_mf = rho * gpL.predict(Xt) + b0 + b1 * Xt.ravel() + gpD.predict(Xt)
+rmse = lambda p: np.sqrt(np.mean((p - fH(Xt).ravel()) ** 2))
+print(f"rho = {rho:.3f}, trend of delta = {b0:.2f} + {b1:.2f} x")
+print(f"RMSE, 4 expensive runs only : {rmse(gpH.predict(Xt)):.3f}")
+print(f"RMSE, co-kriging 4 + 11 runs: {rmse(pred_mf):.3f}")
+```
+
+::: ex
+[Example 4.7 — Four expensive runs, eleven cheap ones]{.tag} The cheap code of Forrester, Sóbester and Keane (2008) is a distorted version of the function of Example 3.8:
+$$
+f_L(x) = \tfrac12 f_H(x) + 10(x - 0.5) - 5 .
+$$
+
+-   With a linear trend for $\delta$, the estimates are $\rho = 2.000$ and $\delta(x) = 20 - 20x$, the exact relation.
+-   With the four expensive runs alone, the GP has a test RMSE of 5.46.
+-   Co-kriging with the eleven cheap runs brings it down to 0.18, a thirty-fold gain for the same expensive budget.
+:::
+
+### Designs of experiments
+
+Before any adaptivity, the initial runs must cover the input space.
+
+::: def
+[Definition 4.8 — Latin hypercube and maximin designs]{.tag} A *Latin hypercube sample* (LHS) of size $n$ in $[0,1]^d$ cuts each axis into $n$ equal intervals and places the points so that each interval of each axis holds exactly one point (McKay, Beckman and Conover, 1979).
+
+A *maximin* design maximises the smallest distance between two points, $\min_{i \neq j} \|x_i - x_j\|$. A common choice is the best of many random LHS for this criterion. Low-discrepancy sequences, such as Sobol' sequences, are an alternative.
+:::
+
+::: prop
+[Proposition 4.9 — Variance of the LHS mean (Stein, 1987)]{.tag} Let $X$ be uniform on $[0,1]^d$ and $f$ square-integrable, with main effects
+$$
+f_j(x_j) = \mathbb{E}[f(X) \mid X_j = x_j] - \mathbb{E} f(X).
+$$
+
+The mean of $f$ over an LHS of size $n$ has variance
+$$
+\frac1n \Big(\mathrm{Var} f(X) - \sum_{j=1}^d \mathrm{Var} f_j(X_j)\Big) + o\Big(\frac1n\Big).
+$$
+
+Compared with plain Monte Carlo, LHS removes the additive part of the variance. The proof is in Stein (1987).
+:::
+
+### Sequential design and adaptive enrichment
+
+::: def
+[Definition 4.10 — Sequential design]{.tag} After $n$ runs, choose the next one by maximising an *infill criterion* computed from the GP posterior,
+$$
+x_{n+1} \in \arg\max_{x}\, J_n(x),
+$$
+then run the simulator at $x_{n+1}$, update the GP and repeat.
+
+The criterion depends on the goal: $J_n = s_n^2$ for global accuracy, the expected improvement for optimisation, or a misclassification measure for a failure probability.
+:::
+
+:::: thm
+[Theorem 4.11 — Expected improvement (Jones, Schonlau and Welch, 1998)]{.tag} To minimise $f$, let $y_{\min}$ be the best value observed. If $F(x)$ is $\mathcal{N}(m, s^2)$ with $s > 0$, the expected improvement is
+$$
+\mathrm{EI}_n(x) = \mathbb{E}\big[(y_{\min} - F(x))^+\big] = (y_{\min} - m)\,\Phi(z) + s\,\varphi(z), \qquad z = \frac{y_{\min} - m}{s},
+$$
+where $\Phi$ and $\varphi$ are the standard normal distribution and density functions.
+
+::: proof
+Write $F(x) = m + s U$ with $U$ standard normal. The improvement is positive exactly when $U < z$, so
+$$
+\mathrm{EI}_n(x) = \int_{-\infty}^{z} s\,(z - u)\,\varphi(u)\,du .
+$$
+
+The first part gives $s z\, \Phi(z) = (y_{\min} - m)\Phi(z)$.
+
+For the second, $\int_{-\infty}^{z} u\, \varphi(u)\, du = -\varphi(z)$ because $\varphi'(u) = -u\varphi(u)$, which gives $+ s\varphi(z)$. [∎]{.qed}
+:::
+::::
+
+The first term rewards a low predicted value (*exploitation*), the second a large uncertainty (*exploration*). Maximising EI repeatedly is the EGO algorithm, the standard tool for optimising expensive codes and the starting point of Bayesian optimisation.
+
+To estimate a failure probability $p = \mathbb{P}(g(X) \leq 0)$, only the sign of $g$ matters. The GP misclassifies the sign of $g(x)$ with probability $\Phi(-U_n(x))$, where
+$$
+U_n(x) = \frac{|m_n(x)|}{s_n(x)} .
+$$
+
+The AK-MCS method of Echard, Gayton and Lemaire (2011) draws a Monte Carlo population of inputs once. It repeatedly runs $g$ at the population point with the smallest $U_n$, and stops when every $U_n \geq 2$, that is when no sign is wrong with probability above $\Phi(-2) \approx 2.3$ %.
+
+*Stepwise uncertainty reduction* (SUR) strategies choose instead the point that most reduces the expected future uncertainty on $p$ itself (Bect, Ginsbourger, Li, Picheny and Vazquez, 2012). Christen and Ray (2011) review related active-learning designs.
+
+```python
+import warnings
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel as C, RBF
+warnings.filterwarnings("ignore")
+
+def g(x):                                   # four-branch series system, failure if g <= 0
+    a, b = x[:, 0], x[:, 1]
+    return np.min([3 + 0.1 * (a - b) ** 2 - (a + b) / np.sqrt(2),
+                   3 + 0.1 * (a - b) ** 2 + (a + b) / np.sqrt(2),
+                   (a - b) + 6 / np.sqrt(2), (b - a) + 6 / np.sqrt(2)], axis=0)
+
+rng = np.random.default_rng(0)
+pool = rng.standard_normal((20_000, 2))                    # Monte Carlo population, X ~ N(0, I)
+pf_ref = np.mean(g(pool) <= 0)                             # 20 000 calls to g
+
+X = rng.uniform(-5, 5, (12, 2)); y = g(X)                  # initial design: 12 calls
+kernel = C(1.0, (1e-2, 1e3)) * RBF([1.0, 1.0], (1e-1, 1e2))
+for it in range(100):
+    opt = "fmin_l_bfgs_b" if it % 5 == 0 else None         # re-estimate every 5 steps
+    gp = GaussianProcessRegressor(kernel, alpha=1e-8, normalize_y=True,
+                                  optimizer=opt).fit(X, y)
+    kernel = gp.kernel_
+    m, s = gp.predict(pool, return_std=True)
+    U = np.abs(m) / np.maximum(s, 1e-12)                   # U-function of AK-MCS
+    if U.min() >= 2:                                       # stopping rule of Echard et al.
+        break
+    x_new = pool[np.argmin(U)][None]                       # most ambiguous point
+    X, y = np.vstack([X, x_new]), np.append(y, g(x_new))
+print(f"reference P_f = {pf_ref:.3e} with 20000 calls")
+print(f"AK-MCS    P_f = {np.mean(m <= 0):.3e} with {len(y)} calls")
+```
+
+::: ex
+[Example 4.12 — The four-branch benchmark]{.tag} The limit state $g$ is the minimum of four branches, a classical test for reliability methods, with two standard normal inputs and a failure domain made of four regions.
+
+-   Plain Monte Carlo on the 20 000 points of the population gives $p = 4.45 \cdot 10^{-3}$.
+-   AK-MCS stops after 50 runs of $g$ (12 initial and 38 adaptive) with $\hat p = 4.40 \cdot 10^{-3}$.
+
+By construction, the adaptive runs are placed where the sign of $g$ is ambiguous, that is near the limit state $\{g = 0\}$. This is what Proposition 1.5 asks for: accuracy is needed only there.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Linear physics (derivatives, integrals, linear PDEs) enters a GP exactly, either as data or through the kernel (Propositions 4.1–4.2); inequality constraints lead to truncated Gaussians.
+-   Co-kriging combines many cheap runs and few expensive ones; with nested designs it splits into two ordinary krigings (Proposition 4.6).
+-   Initial designs should fill the space (LHS, maximin); LHS removes the additive part of the Monte Carlo variance.
+-   Expected improvement has a closed form (Theorem 4.11) and balances exploitation and exploration; AK-MCS and SUR target failure probabilities.
+-   *Balance sheet*: constraints and fidelities make GPs more data-efficient; adaptive designs need a model whose variance can be trusted, and remain sequential, which limits parallel computing.
+:::
+
+## 5. Polynomial chaos, functional representations and global sensitivity {#ch5}
+
+Which inputs drive the output, and through which interactions? This chapter answers with a variance decomposition, then builds a surrogate — polynomial chaos — whose coefficients give that decomposition for free. It ends with functional inputs and outputs; low-rank formats and dependent inputs are complements in the self-study [ch. 11](#ch11).
+
+### The Hoeffding–Sobol decomposition
+
+Throughout, $X = (X_1, \dots, X_d)$ has independent components, $Y = f(X)$ is square-integrable, and for $u \subseteq \{1, \dots, d\}$ we write $X_u = (X_j)_{j \in u}$.
+
+:::: thm
+[Theorem 5.1 — Functional ANOVA (Hoeffding, Sobol)]{.tag} There is a unique decomposition
+$$
+f(X) = \sum_{u \subseteq \{1, \dots, d\}} f_u(X_u),
+$$
+with $f_\emptyset = \mathbb{E} f(X)$ and $\mathbb{E}[f_u(X_u) \mid X_{u \setminus \{j\}}] = 0$ for every $u \neq \emptyset$ and $j \in u$. Its terms are pairwise orthogonal and given by
+$$
+f_u = \sum_{v \subseteq u} (-1)^{|u| - |v|}\, \mathbb{E}[f(X) \mid X_v].
+$$
+
+::: proof
+*Existence.* Set $g_v = \mathbb{E}[f(X) \mid X_v]$ and define $f_u$ by the formula. Möbius inversion on the subsets gives $\sum_{u} f_u = g_{\{1,\dots,d\}} = f(X)$.
+
+*Zero conditional means.* By independence, for $v \subseteq u$,
+$$
+\mathbb{E}[g_v \mid X_{u \setminus \{j\}}] = g_{v \setminus \{j\}} .
+$$
+Pair each $v \ni j$ with $v \setminus \{j\}$: the two terms carry opposite signs and cancel.
+
+*Orthogonality.* For $u \neq v$, take $j$ in one set and not the other, say $j \in u \setminus v$. Conditioning on all variables except $X_j$ gives
+$$
+\mathbb{E}[f_u f_v] = \mathbb{E}\big[f_v\, \mathbb{E}[f_u \mid X_{u \setminus\{j\}}]\big] = 0 .
+$$
+
+*Uniqueness.* The difference of two such decompositions is a zero sum of orthogonal terms, so each term vanishes. [∎]{.qed}
+:::
+::::
+
+Orthogonality turns the decomposition into a split of the variance, $\mathrm{Var}\, Y = \sum_{u \neq \emptyset} D_u$ with $D_u = \mathrm{Var} f_u(X_u)$.
+
+::: def
+[Definition 5.2 — Sobol indices]{.tag} The Sobol index of a group $u$ is $S_u = D_u / \mathrm{Var}\,Y$. The first-order and total indices of input $i$ are
+$$
+S_i = \frac{\mathrm{Var}\, \mathbb{E}[Y \mid X_i]}{\mathrm{Var}\, Y}, \qquad S_{T_i} = \sum_{u \ni i} S_u = \frac{\mathbb{E}\, \mathrm{Var}(Y \mid X_{-i})}{\mathrm{Var}\, Y}.
+$$
+
+$S_i$ measures the effect of $X_i$ alone; $S_{T_i}$ adds all its interactions. An input with $S_{T_i} \approx 0$ can be fixed at a nominal value.
+:::
+
+:::: prop
+[Proposition 5.3 — Pick-freeze estimation]{.tag} Let $X'$ be an independent copy of $X$, and let $Y^{i}$ be computed at the input that keeps $X_i$ and takes the other components from $X'$. Then
+$$
+\mathrm{Cov}(Y, Y^{i}) = \mathrm{Var}\, \mathbb{E}[Y \mid X_i].
+$$
+
+::: proof
+Given $X_i$, the outputs $Y$ and $Y^{i}$ are independent with the same conditional law. Hence
+$$
+\mathbb{E}[Y Y^{i}] = \mathbb{E}\big[\mathbb{E}[Y \mid X_i]^2\big],
+$$
+and both outputs have mean $\mathbb{E}\, Y$. [∎]{.qed}
+:::
+::::
+
+Replacing the covariance and the variance by empirical versions gives a consistent estimator of $S_i$ (Sobol, 2001; Janon, Klein, Lagnoux, Nodet and Prieur, 2014). It costs $N(d+1)$ runs, too many for an expensive code but cheap on a surrogate (Exercise 8).
+
+::: def
+[Definition 5.4 — High-dimensional model representation (HDMR)]{.tag} When interactions of order three and more are negligible, truncating Theorem 5.1 gives a surrogate built from functions of one and two variables (Rabitz and Aliş, 1999):
+$$
+f(x) \approx f_\emptyset + \sum_{i} f_i(x_i) + \sum_{i < j} f_{ij}(x_i, x_j).
+$$
+
+*Cut-HDMR* replaces the conditional expectations by slices through a reference point, which needs only one-dimensional and two-dimensional sweeps of the code.
+:::
+
+### Polynomial chaos expansions
+
+::: def
+[Definition 5.5 — Polynomial chaos basis]{.tag} For each input law $P_j$, let $(\psi^{(j)}_k)_{k \geq 0}$ be the orthonormal polynomials of $L^2(P_j)$: Hermite polynomials for a standard Gaussian, Legendre polynomials for a uniform law, and the other families of the Askey scheme (Xiu and Karniadakis, 2002). For a multi-index $\alpha \in \mathbb{N}^d$, set
+$$
+\psi_\alpha(x) = \prod_{j=1}^{d} \psi^{(j)}_{\alpha_j}(x_j).
+$$
+
+The total-degree truncation keeps the multi-indices with $|\alpha| \leq p$, that is $\binom{d+p}{p}$ terms.
+:::
+
+::: thm
+[Theorem 5.6 — Completeness]{.tag} If each $P_j$ has moments of all orders and is determined by them, as for Gaussian, uniform, beta and gamma laws, the family $(\psi_\alpha)$ is an orthonormal basis of $L^2(P_X)$ (Ernst, Mugler, Starkloff and Ullmann, 2012). Hence
+$$
+f(X) = \sum_{\alpha} c_\alpha\, \psi_\alpha(X), \qquad c_\alpha = \mathbb{E}[f(X)\, \psi_\alpha(X)].
+$$
+For smooth $f$ the truncation error decays fast; for bounded inputs and $f$ analytic on a neighbourhood of their support, it decays exponentially with the degree $p$.
+:::
+
+:::: prop
+[Proposition 5.7 — Moments and Sobol indices from the coefficients (Sudret, 2008)]{.tag} With $D = \sum_{\alpha \neq 0} c_\alpha^2$, the mean of $f(X)$ is $c_0$, its variance is $D$, and
+$$
+S_u = \frac{1}{D} \sum_{\alpha :\, \mathrm{supp}(\alpha) = u} c_\alpha^2, \qquad S_{T_i} = \frac{1}{D} \sum_{\alpha :\, \alpha_i > 0} c_\alpha^2 .
+$$
+
+::: proof
+Group the expansion by the support of $\alpha$:
+$$
+g_u = \sum_{\mathrm{supp}(\alpha) = u} c_\alpha \psi_\alpha
+$$
+depends only on $x_u$.
+
+For $j \in u$, every term contains $\psi^{(j)}_{\alpha_j}$ with $\alpha_j \geq 1$, which has zero mean, so integrating out $x_j$ kills $g_u$.
+
+By uniqueness in Theorem 5.1, $g_u = f_u$. Parseval's identity gives $D_u = \sum_{\mathrm{supp}(\alpha) = u} c_\alpha^2$. [∎]{.qed}
+:::
+::::
+
+The coefficients are computed in three ways.
+
+-   *Projection*: $c_\alpha = \mathbb{E}[f \psi_\alpha]$ by tensor or sparse Gauss quadrature, efficient in low dimension.
+-   *Regression*: least squares on $n$ runs, with $n$ two or three times the number of terms.
+-   *Sparse regression*: least-angle regression selects the few significant terms, which pushes polynomial chaos to tens of inputs (Blatman and Sudret, 2011).
+
+::: note
+[The intrusive counterpart: stochastic Galerkin]{.tag} Inserting the expansion $u(x, \xi) = \sum_\alpha u_\alpha(x) \psi_\alpha(\xi)$ into the PDE and projecting the residual on each $\psi_\alpha$ gives one large coupled deterministic system for the coefficient fields $u_\alpha$. This is the stochastic finite element method of Ghanem and Spanos (1991), developed by Le Maître and Knio (2010). It is accurate but needs a new solver; non-intrusive chaos reuses the existing one.
+:::
+
+::: ex
+[Example 5.8 — The Ishigami function]{.tag} A standard benchmark of sensitivity analysis (Ishigami and Homma, 1990), with $X_j$ uniform on $[-\pi, \pi]$, $a = 7$ and $b = 0.1$:
+$$
+f(x) = \sin x_1 + a \sin^2 x_2 + b\, x_3^4 \sin x_1 .
+$$
+
+Its variance is $D = a^2/8 + b\pi^4/5 + b^2\pi^8/18 + 1/2 = 13.8446$. The exact indices are
+$$
+S_1 = 0.3139, \qquad S_2 = 0.4424, \qquad S_3 = 0 .
+$$
+
+Yet $X_3$ matters through its interaction with $X_1$, since $S_{T_3} = 0.2437$.
+:::
+
+```python
+import itertools
+import numpy as np
+from numpy.polynomial.legendre import legval
+
+a, b = 7.0, 0.1                                            # Ishigami function, X ~ U(-pi, pi)^3
+ishigami = lambda x: np.sin(x[:, 0]) + a * np.sin(x[:, 1]) ** 2 + b * x[:, 2] ** 4 * np.sin(x[:, 0])
+D = a**2 / 8 + b * np.pi**4 / 5 + b**2 * np.pi**8 / 18 + 0.5     # exact variance
+S_exact = [(0.5 * (1 + b * np.pi**4 / 5) ** 2) / D, a**2 / 8 / D, 0.0]
+
+def psi(k, u):                       # orthonormal Legendre polynomial on U(-1, 1)
+    c = np.zeros(k + 1); c[k] = 1
+    return np.sqrt(2 * k + 1) * legval(u, c)
+
+p, d = 10, 3
+alphas = [al for al in itertools.product(range(p + 1), repeat=d) if sum(al) <= p]
+rng = np.random.default_rng(0)
+X = rng.uniform(-np.pi, np.pi, (600, d)); y = ishigami(X)        # 600 runs
+Phi = np.column_stack([np.prod([psi(k, X[:, j] / np.pi) for j, k in enumerate(al)], axis=0)
+                       for al in alphas])
+coef = np.linalg.lstsq(Phi, y, rcond=None)[0]                     # regression PCE
+var = np.sum(coef[1:] ** 2)                                       # alpha = 0 is the mean
+S1 = [sum(c**2 for al, c in zip(alphas, coef) if al[i] > 0 and sum(al) == al[i]) / var
+      for i in range(d)]
+ST = [sum(c**2 for al, c in zip(alphas, coef) if al[i] > 0) / var for i in range(d)]
+print(f"{len(alphas)} basis terms; mean {coef[0]:.4f} (exact {a/2:.4f}); variance {var:.4f} (exact {D:.4f})")
+print("first-order S_i:", np.round(S1, 4), " exact:", np.round(S_exact, 4))
+print("total S_Ti     :", np.round(ST, 4))
+```
+
+::: ex
+[Code 5.9 — Reading the output]{.tag} A degree-10 expansion has 286 terms, fitted by least squares on 600 runs.
+
+-   Mean 3.5026 (exact 3.5) and variance 13.8441 (exact 13.8446).
+-   First-order indices $(0.3141, 0.4419, 0)$ against the exact $(0.3139, 0.4424, 0)$.
+-   Total indices $(0.558, 0.442, 0.244)$ against the exact $(0.5576, 0.4424, 0.2437)$.
+
+The sensitivity analysis comes from the same 600 runs as the surrogate, with no further call to the code.
+:::
+
+### Functional inputs and outputs
+
+Physical inputs are often random fields — a permeability, a load history — and outputs are often fields too.
+
+::: thm
+[Theorem 5.10 — Karhunen–Loève expansion]{.tag} Let $Z$ be a centred process on a compact domain $T$, with continuous covariance $C$.
+
+Let $(\lambda_k, e_k)$ be the eigenpairs of the integral operator of kernel $C$, with $\lambda_1 \geq \lambda_2 \geq \dots$. Then, in mean square and uniformly in $t$,
+$$
+Z(t) = \sum_{k \geq 1} \sqrt{\lambda_k}\, \xi_k\, e_k(t), \qquad \xi_k = \frac{1}{\sqrt{\lambda_k}} \int_T Z(s)\, e_k(s)\, ds,
+$$
+where the $\xi_k$ are uncorrelated with unit variance, and independent standard Gaussians when $Z$ is Gaussian.
+
+Truncating after $M$ terms leaves the mean-square error $\sum_{k > M} \lambda_k$, the smallest possible for $M$ terms. The proof rests on Mercer's theorem.
+:::
+
+A random-field input thus becomes $M$ independent Gaussian inputs, ready for polynomial chaos or a GP. For a field output, the discrete version of the theorem is the POD of ch. 2. One compresses the output snapshots by PCA and builds one surrogate per retained coefficient.
+
+
+::: recap
+Key takeaways — chapter 5
+
+-   With independent inputs, the output splits uniquely into orthogonal terms of increasing interaction order (Theorem 5.1), and its variance splits into Sobol indices.
+-   Pick-freeze estimates Sobol indices by Monte Carlo, affordable on a surrogate.
+-   Polynomial chaos expands $f$ on polynomials orthonormal for the input law; its mean, variance and Sobol indices are sums of squared coefficients (Proposition 5.7).
+-   Karhunen–Loève turns a random field into independent scalar inputs; PCA of output fields is its discrete twin.
+-   *Balance sheet*: non-intrusive; sensitivity analysis comes for free; excellent for smooth outputs and independent inputs; suffers from the number of terms in high dimension, from discontinuities and from dependence.
+:::
+
+## 6. Towards deep learning: neural surrogates, nonlinear reduction, neural ODEs {#ch6}
+
+Gaussian processes and polynomial chaos struggle with thousands of runs, with inputs and outputs of high dimension, and with solution manifolds that no linear space captures. Neural networks address these three limits; this chapter makes the transition and keeps track of what is lost on the way, mainly built-in uncertainty.
+
+### Neural surrogates
+
+A multilayer perceptron $\hat f_\theta$ is trained on the distilled runs by minimising the empirical squared error, with stochastic gradients and automatic differentiation. Its training cost grows linearly with the number of runs, against $O(n^3)$ for an exact GP, and its inference runs in batches on a GPU.
+
+::: thm
+[Theorem 6.1 — Approximation by one hidden layer]{.tag} With a continuous non-polynomial activation, one-hidden-layer networks are dense in the continuous functions on any compact set (Cybenko, 1989; Hornik, 1991; Leshno, Lin, Pinkus and Schocken, 1993).
+
+For a rate, let $f$ have a Fourier transform with finite first moment $C_f = \int |\omega|\, |\hat f(\omega)|\, d\omega$, and let $\mu$ be a probability measure on the ball of radius $r$. Barron (1993) shows that $n$ sigmoidal neurons achieve
+$$
+\int (f - f_n)^2\, d\mu \leq \frac{(2 r C_f)^2}{n} .
+$$
+:::
+
+The rate $n^{-1/2}$ does not depend on the dimension, although $C_f$ may grow with it. In practice, the comparison with GPs is empirical: neural surrogates win with many runs and high-dimensional outputs, GPs with few runs and when calibrated uncertainty is needed.
+
+### Autoencoders: nonlinear reduction
+
+::: def
+[Definition 6.2 — Autoencoder]{.tag} An encoder $E_\phi : \mathbb{R}^{N} \to \mathbb{R}^{r}$ and a decoder $D_\theta : \mathbb{R}^{r} \to \mathbb{R}^{N}$ are trained together on snapshots $u_j$ to minimise the reconstruction error
+$$
+\sum_{j} \|u_j - D_\theta(E_\phi(u_j))\|^2 .
+$$
+
+The decoder's image is an $r$-dimensional nonlinear manifold, no longer a linear subspace (Hinton and Salakhutdinov, 2006).
+:::
+
+::: prop
+[Proposition 6.3 — A linear autoencoder learns POD]{.tag} If the encoder and the decoder are linear maps $W_1$ and $W_2$, the reconstruction error is at least the discarded energy $\sum_{i > r} \sigma_i^2$ of the snapshot matrix, and the POD pair $W_1 = U_r^\top$, $W_2 = U_r$ attains it (Baldi and Hornik, 1989).
+
+Indeed $W_2 W_1 S$ has rank at most $r$, so Theorem 0.2 gives the lower bound, and Theorem 2.3 shows that POD attains it.
+:::
+
+Nonlinearity is therefore the only thing an autoencoder adds to POD — and it is exactly what transport problems need.
+
+::: ex
+[Example 6.4 — A travelling bump]{.tag} The snapshots are Gaussian bumps of width 0.05 centred at a random position $c \in [0.2, 0.8]$, on a 128-point grid. The family has one parameter, but its POD singular values decay slowly, as for every transported profile (ch. 2).
+:::
+
+```python
+import numpy as np
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+# snapshots of a transported bump: u(x; c) = exp(-((x - c) / 0.05)^2)
+x = np.linspace(0, 1, 128)
+rng = np.random.default_rng(0)
+bumps = lambda c: np.exp(-((x[None, :] - c[:, None]) / 0.05) ** 2)
+S, S_test = bumps(rng.uniform(0.2, 0.8, 200)), bumps(rng.uniform(0.2, 0.8, 50))
+
+# linear reduction: POD with r modes, error on unseen snapshots
+_, _, Vt = np.linalg.svd(S, full_matrices=False)
+for r in [1, 2, 5, 10]:
+    P = Vt[:r].T @ Vt[:r]
+    print(f"POD r={r:2d}: test relative error "
+          f"{np.linalg.norm(S_test - S_test @ P) / np.linalg.norm(S_test):.3f}")
+
+# nonlinear reduction: autoencoder with a latent dimension of 1
+T = torch.nn.Tanh
+enc = torch.nn.Sequential(torch.nn.Linear(128, 64), T(), torch.nn.Linear(64, 1))
+dec = torch.nn.Sequential(torch.nn.Linear(1, 64), T(), torch.nn.Linear(64, 64), T(),
+                          torch.nn.Linear(64, 128))
+St, Ste = (torch.tensor(a, dtype=torch.float32) for a in (S, S_test))
+opt = torch.optim.Adam([*enc.parameters(), *dec.parameters()], lr=3e-3)
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, 1500)
+for step in range(1500):
+    loss = ((dec(enc(St)) - St) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step(); sched.step()
+with torch.no_grad():
+    err = torch.linalg.norm(dec(enc(Ste)) - Ste) / torch.linalg.norm(Ste)
+print(f"autoencoder, latent dimension 1: test relative error {err.item():.3f}")
+```
+
+::: ex
+[Code 6.5 — Reading the output]{.tag} On 50 unseen snapshots, POD needs ten modes to reach a relative error of 0.136; with one mode the error is 0.894. The autoencoder with a single latent variable reaches 0.048.
+
+The latent variable plays the role of the bump position, which no linear basis can represent compactly.
+:::
+
+### Deep reduced-order models
+
+Several architectures turn this observation into reduced models for parametrised and time-dependent PDEs.
+
+-   **DL-ROM** (Fresca and Manzoni, 2021): a network maps $(t, \mu)$ to the latent coordinates, and the decoder of an autoencoder maps them to the full field; everything is trained on snapshots.
+-   **POD-DL-ROM** (Fresca, Manzoni, Dedè and Quarteroni, 2022): the snapshots are first projected on a large POD basis, and the autoencoder works on those coordinates, which cuts the training cost.
+-   **Manifold Galerkin** (Lee and Carlberg, 2020): the equations are projected on the tangent space of the decoder manifold. The model stays intrusive and keeps the physics, like the Galerkin ROM of ch. 2.
+
+### Neural ordinary differential equations
+
+::: def
+[Definition 6.6 — Neural ODE (Chen, Rubanova, Bettencourt and Duvenaud, 2018)]{.tag} The state follows a vector field given by a network, and the output is the state at time $T$:
+$$
+\dot z(t) = F_\theta(z(t), t), \qquad z(0) = z_0 .
+$$
+
+A loss $\mathcal{J}(z(T))$ is minimised over $\theta$.
+:::
+
+:::: thm
+[Theorem 6.7 — Adjoint method]{.tag} Let the adjoint $a(t)$ solve, backwards in time from $a(T) = \nabla \mathcal{J}(z(T))$,
+$$
+\dot a(t) = -\Big(\frac{\partial F_\theta}{\partial z}\Big)^{\!\top} a(t).
+$$
+
+Then the gradient of the loss is
+$$
+\nabla_\theta \mathcal{J} = \int_0^T \Big(\frac{\partial F_\theta}{\partial \theta}\Big)^{\!\top} a(t)\, dt .
+$$
+
+::: proof
+*Sketch*. Perturb $\theta$ by $\delta\theta$. The state perturbation solves the linearised equation
+$$
+\dot{\delta z} = \partial_z F\, \delta z + \partial_\theta F\, \delta\theta, \qquad \delta z(0) = 0 .
+$$
+
+By the adjoint equation, the derivative of $a^\top \delta z$ is $a^\top \partial_\theta F\, \delta\theta$.
+
+Integrating from 0 to $T$ gives
+$$
+\delta \mathcal{J} = a(T)^\top \delta z(T) = \int_0^T a^\top \partial_\theta F\, dt\; \delta\theta .
+$$
+[∎]{.qed}
+:::
+::::
+
+The memory cost does not grow with the number of time steps, since no intermediate state needs storing. Neural ODEs learn latent dynamics of reduced models, or a correction term added to known physics, $\dot z = F_{\mathrm{phys}}(z) + F_\theta(z)$ — the *universal differential equations* of Rackauckas and coauthors (2020).
+
+::: recap
+Key takeaways — chapter 6
+
+-   Neural surrogates scale linearly with the number of runs and approximate at a dimension-free rate for Barron-regular targets, but give no built-in uncertainty.
+-   A linear autoencoder can do no better than POD (Proposition 6.3); a nonlinear one beats it on transport, with one latent variable instead of ten modes.
+-   DL-ROM, POD-DL-ROM and manifold Galerkin turn autoencoders into reduced models; VAEs and deep GPs, which add a probabilistic layer, are in the self-study [ch. 11](#ch11).
+-   Neural ODEs learn dynamics; the adjoint method computes their gradients with constant memory.
+-   *Balance sheet*: non-intrusive (except manifold Galerkin); handles many runs, large outputs and nonlinear manifolds; costly training, tuning by trial and error, weak extrapolation and no guarantee.
+:::
+
+## 7. Physics-informed neural networks {#ch7}
+
+When the equations are known but data are scarce, the equations themselves can train the network. A physics-informed neural network (PINN) is a network $u_\theta(x)$ whose loss penalises the residual of the PDE at sampled points (Raissi, Perdikaris and Karniadakis, 2019; Karniadakis and coauthors, 2021).
+
+### The physics-informed loss
+
+::: def
+[Definition 7.1 — PINN loss]{.tag} For a PDE $\mathcal{N}[u] = f$ in $\Omega$ with boundary condition $\mathcal{B}[u] = g$ on $\partial\Omega$, and possibly measurements $y_k$ at points $\xi_k$, the loss is
+$$
+\mathcal{L}(\theta) = \frac{\lambda_r}{N_r} \sum_{i} \big|\mathcal{N}[u_\theta](x_i) - f(x_i)\big|^2 + \frac{\lambda_b}{N_b} \sum_{j} \big|\mathcal{B}[u_\theta](z_j) - g(z_j)\big|^2 + \frac{\lambda_d}{N_d} \sum_{k} |u_\theta(\xi_k) - y_k|^2 .
+$$
+
+The derivatives in $\mathcal{N}$ are computed exactly by automatic differentiation, at collocation points $x_i$ that need no mesh.
+:::
+
+The same loss solves *inverse problems*: an unknown coefficient of the PDE becomes a trainable parameter next to $\theta$, and the data term identifies it (Exercise 10). Boundary conditions can also be imposed exactly, by writing $u_\theta = G + B\, N_\theta$ with $G$ satisfying the condition and $B$ vanishing on the boundary (Lagaris, Likas and Fotiadis, 1998).
+
+### Does a small residual mean a small error?
+
+A small loss only says that the residual is small at the sampled points. Two questions remain: does a small residual imply a small error, and does the empirical loss reflect the true residual?
+
+:::: prop
+[Proposition 7.2 — Stability for the 1D Poisson problem]{.tag} Let $u$ solve $-u'' = f$ on $(0,1)$, and let $v$ be smooth with residual $r = f + v''$. Then
+$$
+\|u - v\|_\infty \leq \max\big(|u(0) - v(0)|,\, |u(1) - v(1)|\big) + \tfrac14 \|r\|_{L^1} .
+$$
+
+::: proof
+The error $e = u - v$ satisfies $-e'' = -u'' + v'' = f - (f - r) = r$.
+
+Write $e = \ell + w$, where $\ell$ is the affine function with the boundary values of $e$, and $w$ vanishes at both ends with $-w'' = r$.
+
+The Green's function of $-w''$ with zero boundary values is $G(x, y) = \min(x,y)\,(1 - \max(x,y))$, so $w(x) = \int_0^1 G(x,y)\, r(y)\, dy$.
+
+Since $0 \leq G \leq 1/4$, we get $|w(x)| \leq \frac14 \|r\|_{L^1}$. An affine function is bounded by its values at the ends. [∎]{.qed}
+:::
+::::
+
+Since $\|r\|_{L^1} \leq \|r\|_{L^2}$ on $(0,1)$, the error is controlled by the root of the residual loss, *provided* the empirical average over collocation points estimates the true integral. Similar stability estimates hold for well-posed linear PDEs, with constants depending on the operator.
+
+The second question is statistical. Doumèche, Biau and Boyer (2025) show that minimising the empirical PINN risk alone can overfit the collocation points, and that adding a ridge-type penalty restores consistency. Doumèche, Bach, Biau and Boyer (2024) show that for linear PDE constraints, physics-informed learning is a kernel method, with a kernel built from the differential operator. This yields convergence rates and shows when the physics speeds up learning — a bridge with the constrained GPs of ch. 4.
+
+### A worked PINN
+
+```python
+import math
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+# Poisson problem -u'' = pi^2 sin(pi x) on (0,1), u(0) = u(1) = 0; exact u = sin(pi x)
+net = torch.nn.Sequential(torch.nn.Linear(1, 32), torch.nn.Tanh(),
+                          torch.nn.Linear(32, 32), torch.nn.Tanh(), torch.nn.Linear(32, 1))
+u = lambda x: x * (1 - x) * net(x)          # hard constraint: boundary conditions hold exactly
+f = lambda x: math.pi**2 * torch.sin(math.pi * x)
+
+opt = torch.optim.Adam(net.parameters(), lr=1e-2)
+for step in range(1500):
+    x = torch.rand(64, 1, requires_grad=True)                 # fresh collocation points
+    du = torch.autograd.grad(u(x).sum(), x, create_graph=True)[0]
+    d2u = torch.autograd.grad(du.sum(), x, create_graph=True)[0]
+    loss = ((-d2u - f(x)) ** 2).mean()                        # empirical PDE residual
+    opt.zero_grad(); loss.backward(); opt.step()
+    if step % 500 == 0 or step == 1499:
+        print(f"step {step:4d}: residual loss {loss.item():.2e}")
+
+xt = torch.linspace(0, 1, 201)[:, None]
+with torch.no_grad():
+    err = (u(xt) - torch.sin(math.pi * xt)).abs().max()
+print(f"max error |u_theta - u| on a fine grid: {err.item():.1e}")
+```
+
+::: ex
+[Example 7.3 — Reading the output]{.tag} The residual loss falls from 42.1 to $1.5 \cdot 10^{-5}$ in 1500 Adam steps, with 64 new collocation points at each step. The maximal error on a fine grid is $1.9 \cdot 10^{-4}$.
+
+Proposition 7.2 predicts a bound of about $\frac14 \sqrt{1.5 \cdot 10^{-5}} \approx 10^{-3}$, since the boundary error is zero by construction. The observed error is five times smaller, as expected from a worst-case bound.
+:::
+
+### Failure modes and remedies
+
+PINNs fail in reproducible ways, which recent work has mapped.
+
+-   **Spectral bias**: networks learn low frequencies first (Rahaman and coauthors, 2019), so oscillatory or multiscale solutions converge slowly. Fourier feature embeddings help.
+-   **Unbalanced gradients**: the residual and boundary terms can have gradients of very different sizes, and training stalls (Wang, Teng and Perdikaris, 2021). Adaptive weights $\lambda$ or hard constraints help.
+-   **Hard regimes**: for convection with large coefficients, training fails although the network could represent the solution (Krishnapriyan, Gholami, Zhe, Kirby and Mahoney, 2021). Curriculum training on the coefficient helps.
+-   **Sampling**: adding collocation points where the residual is large concentrates effort where it matters (Lu, Meng, Mao and Karniadakis, 2021).
+
+For a single forward solve of a low-dimensional PDE, a classical solver is faster and more accurate. PINNs are worth it for inverse problems with sparse data, for mesh-free settings, or when the solution is sought over parameters as well.
+
+::: recap
+Key takeaways — chapter 7
+
+-   A PINN minimises the PDE residual at collocation points, plus boundary and data terms; derivatives come from automatic differentiation.
+-   Stability turns a small residual into a small error (Proposition 7.2), provided the empirical loss estimates the true residual.
+-   Without regularisation, the empirical PINN risk can overfit; for linear PDEs, physics-informed learning is a kernel method.
+-   Spectral bias, unbalanced gradients and hard regimes are the main failure modes, each with known remedies.
+-   *Balance sheet*: physics in the loss; non-intrusive with respect to the solver but needs the equations; mesh-free and natural for inverse problems; slow to train, no certified error, rarely competitive for one forward solve.
+:::
+
+## 8. Operator learning and hybrid deep models {#ch8}
+
+A PINN solves one PDE instance; a surrogate of ch. 3–6 maps a few parameters to an output. Many studies need more: the map from an input *function* — a coefficient field, an initial condition, a geometry — to the solution function. Learning that operator once gives a solver for every new input at the cost of a forward pass.
+
+### Operators between function spaces
+
+Let $\mathcal{G} : a \mapsto u$ map an input function to the solution, and suppose we have pairs $(a_j, \mathcal{G}(a_j))$ computed by a solver. A good operator surrogate should accept inputs given on any grid: this is *discretisation invariance*.
+
+::: thm
+[Theorem 8.1 — Universal approximation of operators (Chen and Chen, 1995)]{.tag} Let $\mathcal{G}$ be a continuous operator on a compact set of continuous functions. For every $\varepsilon > 0$ there are sensor points $x_1, \dots, x_m$ and continuous functions $b_k$ and $t_k$, realisable by one-hidden-layer networks, such that, uniformly over the compact set of inputs and over $y$ in a compact domain,
+$$
+\Big| \mathcal{G}(a)(y) - \sum_{k=1}^{p} b_k\big(a(x_1), \dots, a(x_m)\big)\, t_k(y) \Big| < \varepsilon .
+$$
+:::
+
+*DeepONet* (Lu, Jin, Pang, Zhang and Karniadakis, 2021) implements this form with two deep networks: a *branch* net for the coefficients $b_k$ and a *trunk* net for the basis functions $t_k$. The trunk can be queried at any point $y$, but the branch needs the input at fixed sensors.
+
+::: def
+[Definition 8.2 — Neural operator and Fourier layer]{.tag} A neural operator lifts the input to $c$ channels, applies $L$ layers, then projects back (Kovachki and coauthors, 2023). Each layer combines a pointwise linear map $W$ and a learned integral operator:
+$$
+v_{\ell+1}(x) = \sigma\Big(W v_\ell(x) + \int \kappa_\theta(x, y)\, v_\ell(y)\, dy\Big).
+$$
+
+In the *Fourier neural operator* (FNO, Li and coauthors, 2021), the kernel is translation invariant. The integral is then a convolution, applied in Fourier space to the lowest $k_{\max}$ modes with learned complex weights:
+$$
+\Big(\int \kappa_\theta(x - y)\, v(y)\, dy\Big) = \mathcal{F}^{-1}\big(R_\theta \cdot \mathcal{F} v\big)(x).
+$$
+:::
+
+The weights $R_\theta$ act on frequencies, not on grid points, so the same network applies on any grid fine enough to resolve $k_{\max}$ modes. Each layer costs $O(N \log N)$ through the FFT.
+
+:::: prop
+[Proposition 8.3 — The heat equation is one Fourier layer]{.tag} On the periodic interval $[0,1)$, the solution of $\partial_t u = \nu\, \partial_{xx} u$ at time $T$ is a Fourier multiplier of the initial condition:
+$$
+\hat u_k(T) = e^{-\nu (2\pi k)^2 T}\, \hat u_k(0).
+$$
+
+A single linear Fourier layer with these weights represents the solution operator exactly on band-limited inputs.
+
+::: proof
+Each Fourier mode $e^{2\pi i k x}$ is an eigenfunction of $\partial_{xx}$ with eigenvalue $-(2\pi k)^2$. The equation decouples into scalar ODEs $\dot{\hat u}_k = -\nu (2\pi k)^2 \hat u_k$, whose solutions are the stated exponentials. [∎]{.qed}
+:::
+::::
+
+Nonlinear PDEs couple the modes; the pointwise maps and activations between Fourier layers provide that coupling.
+
+```python
+import math
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+def data(n, grid, nuT=0.002, K=8):
+    """Random periodic initial conditions u0 and heat-equation solutions u(T)."""
+    k = torch.arange(1, K + 1)
+    a, b = torch.randn(n, K) / k, torch.randn(n, K) / k      # decaying random Fourier coefficients
+    x = torch.arange(grid) / grid
+    damp = torch.exp(-nuT * (2 * math.pi * k) ** 2)          # exact solution operator, mode by mode
+    wave = lambda c, s: (c[:, :, None] * torch.cos(2 * math.pi * k[None, :, None] * x)
+                         + s[:, :, None] * torch.sin(2 * math.pi * k[None, :, None] * x)).sum(1)
+    return wave(a, b)[:, None], wave(a * damp, b * damp)[:, None]
+
+class SpectralConv(torch.nn.Module):                         # v -> F^{-1}(R . F v), lowest modes only
+    def __init__(self, ch, modes):
+        super().__init__()
+        self.modes = modes
+        self.R = torch.nn.Parameter(torch.randn(ch, ch, modes, dtype=torch.cfloat) / ch)
+    def forward(self, v):
+        vh = torch.fft.rfft(v)
+        out = torch.zeros_like(vh)
+        out[..., :self.modes] = torch.einsum("bim,iom->bom", vh[..., :self.modes], self.R)
+        return torch.fft.irfft(out, n=v.shape[-1])
+
+class FNO(torch.nn.Module):
+    def __init__(self, ch=16, modes=12, layers=2):
+        super().__init__()
+        self.lift, self.proj = torch.nn.Conv1d(1, ch, 1), torch.nn.Conv1d(ch, 1, 1)
+        self.spec = torch.nn.ModuleList(SpectralConv(ch, modes) for _ in range(layers))
+        self.loc = torch.nn.ModuleList(torch.nn.Conv1d(ch, ch, 1) for _ in range(layers))
+    def forward(self, u):
+        v = self.lift(u)
+        for i, (s, w) in enumerate(zip(self.spec, self.loc)):
+            v = s(v) + w(v)
+            v = torch.nn.functional.gelu(v) if i < len(self.spec) - 1 else v
+        return self.proj(v)
+
+u0, uT = data(256, 64)
+model = FNO()
+opt = torch.optim.Adam(model.parameters(), lr=5e-3)
+for step in range(300):
+    loss = ((model(u0) - uT) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+rel = lambda p, t: (torch.linalg.norm(p - t) / torch.linalg.norm(t)).item()
+with torch.no_grad():
+    for grid in (64, 256):                                    # 256: never seen in training
+        a, b = data(200, grid)
+        print(f"test relative error on a {grid}-point grid: {rel(model(a), b):.3f}")
+```
+
+::: ex
+[Example 8.4 — Learning the heat operator]{.tag} The FNO has two Fourier layers, 16 channels and 12 modes. It is trained on 256 pairs sampled on a 64-point grid, with $\nu T = 0.002$.
+
+-   The test relative error is 0.005 on the training grid.
+-   On a 256-point grid, never seen in training, the error is 0.006: the operator transfers across resolutions, as Definition 8.2 predicts.
+:::
+
+### Graphs, meshes and transformers
+
+Industrial simulators work on unstructured meshes with varying geometry, where FFTs do not apply.
+
+::: def
+[Definition 8.5 — Message passing on a mesh]{.tag} Treat mesh nodes as graph nodes $i$ with features $v_i$ (state, material, node type), and mesh edges as graph edges with features $e_{ij}$ (relative position, distance). One processing step updates
+$$
+e'_{ij} = \phi_e(e_{ij}, v_i, v_j), \qquad v'_i = \phi_v\Big(v_i, \sum_{j \sim i} e'_{ij}\Big),
+$$
+with small networks $\phi_e$ and $\phi_v$.
+
+An *encode–process–decode* model stacks such steps and predicts the state at the next time step, applied again to roll out a trajectory (Sanchez-Gonzalez and coauthors, 2020; Pfaff, Fortunato, Sanchez-Gonzalez and Battaglia, 2021).
+:::
+
+Using relative positions makes the model invariant to translations, and the same weights apply to any mesh. The price is error accumulation along long rollouts, reduced by training with noise injected in the inputs.
+
+Attention is another learned integral operator. With queries, keys and values computed from the field, the update at $x_i$ is a weighted average of the values at all points $x_j$. It is a discretised kernel integral $\int \kappa(x, y)\, v(y)\, dy$ whose kernel depends on the data.
+
+*Universal physics transformers* (Alkin and coauthors, 2024) encode an arbitrary mesh or particle set into a fixed number of latent tokens, evolve them, and decode at any query point. This lets neural operators scale to large simulations whose meshes or particle sets vary in size.
+
+### Hybrid models
+
+Hybrid architectures keep part of the classical solver and learn only the rest.
+
+-   **POD + regression**: project on a POD basis and learn the map from $\mu$ to the reduced coefficients with a GP or a network (Hesthaven and Ubbiali, 2018). Non-intrusive, and cheap online.
+-   **POD-DL-ROM and manifold Galerkin**: ch. 6.
+-   **Closure and correction**: keep the physical model and learn only the missing term, $\dot u = F_{\mathrm{phys}}(u) + N_\theta(u)$, or learn the discrepancy between a coarse and a fine solver.
+
+::: recap
+Key takeaways — chapter 8
+
+-   Operator learning maps input functions to solutions; DeepONet follows the Chen–Chen form, neural operators stack learned integral operators.
+-   The FNO applies its kernel on Fourier modes; the heat operator is one linear Fourier layer (Proposition 8.3), and a trained FNO transfers across grids.
+-   Message passing on meshes and attention handle unstructured geometries; universal physics transformers scale this to large simulations.
+-   Hybrid models learn only what the physics misses: reduced coefficients, closures, corrections.
+-   *Balance sheet*: physics enters through the architecture; non-intrusive; very fast inference over whole families of inputs; needs thousands of solver runs, extrapolates poorly, and gives no error certificate without the tools of ch. 10.
+:::
+
+## 9. Calibration, inverse problems, data assimilation and validation {#ch9}
+
+A surrogate is rarely an end in itself. It is used to infer parameters from measurements, to track a system with streaming data, or to optimise and control it. This chapter covers inference and tracking, and the validation that must precede any use; optimisation and control loops are complements in [ch. 11](#ch11).
+
+### Inverse problems and their Bayesian form
+
+Recovering parameters $\theta$ from data $y = \mathcal{G}(\theta) + \varepsilon$ is usually *ill-posed* in the sense of Hadamard: a solution may not exist, may not be unique, or may not depend continuously on the data. Regularisation restores stability, and the Bayesian view explains which regularisation.
+
+:::: prop
+[Proposition 9.1 — Tikhonov regularisation is a Gaussian posterior]{.tag} Let $y = G\theta + \varepsilon$ with $G$ linear, noise $\varepsilon \sim \mathcal{N}(0, \Gamma)$ and prior $\theta \sim \mathcal{N}(\theta_0, C_0)$. The posterior is Gaussian, with covariance and mean
+$$
+C_{\mathrm{post}} = \big(G^\top \Gamma^{-1} G + C_0^{-1}\big)^{-1}, \qquad \theta_{\mathrm{post}} = C_{\mathrm{post}}\big(G^\top \Gamma^{-1} y + C_0^{-1} \theta_0\big).
+$$
+
+The posterior mean minimises the Tikhonov functional
+$$
+\|y - G\theta\|^2_{\Gamma^{-1}} + \|\theta - \theta_0\|^2_{C_0^{-1}} .
+$$
+
+::: proof
+By Bayes' formula, minus twice the log-posterior equals the Tikhonov functional up to a constant. It is a quadratic form in $\theta$ with Hessian $2\, C_{\mathrm{post}}^{-1}$.
+
+Completing the square shows a Gaussian density, centred at the minimiser, which solves the normal equations
+$$
+C_{\mathrm{post}}^{-1}\theta = G^\top \Gamma^{-1} y + C_0^{-1}\theta_0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+For a nonlinear simulator, the posterior is no longer Gaussian and must be sampled (Stuart, 2010; Kaipio and Somersalo, 2005).
+
+### Bayesian calibration with a surrogate
+
+::: def
+[Definition 9.2 — Bayesian calibration and the Metropolis algorithm]{.tag} With measurements $y_i = f(x_i, \theta) + \varepsilon_i$, Gaussian noise of variance $\sigma^2$ and a prior $\pi_0$, the posterior density is
+$$
+\pi(\theta \mid y) \propto \pi_0(\theta)\, \exp\Big(-\frac{1}{2\sigma^2} \sum_i \big(y_i - f(x_i, \theta)\big)^2\Big).
+$$
+
+The random-walk Metropolis algorithm proposes $\theta' = \theta + \tau Z$ with $Z$ standard normal, and accepts it with probability $\min\big(1, \pi(\theta' \mid y)/\pi(\theta \mid y)\big)$. The chain has $\pi(\cdot \mid y)$ as invariant law.
+:::
+
+Each step calls the simulator, and a chain needs thousands of steps: calibration is the textbook case for a surrogate. Replacing $f$ by a kriging mean $m_n$ ignores the surrogate error. Accounting for it is simple.
+
+::: prop
+[Proposition 9.3 — Surrogate uncertainty in the likelihood]{.tag} Let the GP posterior of ch. 3 give, jointly over the measurement points and independently of the measurement noise,
+$$
+\big(f(x_i, \theta)\big)_i \sim \mathcal{N}\big(m_n(\theta), S_n(\theta)\big).
+$$
+
+Then, integrating the surrogate out,
+$$
+y \mid \theta \;\sim\; \mathcal{N}\big(m_n(\theta),\; \sigma^2 I + S_n(\theta)\big).
+$$
+
+The proof is the sum of two independent Gaussian vectors. Where the surrogate is uncertain, the likelihood flattens instead of being wrong.
+:::
+
+Stuart and Teckentrup (2018) bound the distance between the true posterior and the surrogate posterior by the surrogate error, which justifies *goal-oriented enrichment*: add runs where the posterior puts its mass, not everywhere.
+
+::: def
+[Definition 9.4 — Model discrepancy (Kennedy and O'Hagan, 2001)]{.tag} A simulator is never exact. The calibration model
+$$
+y(x) = \rho\, f(x, \theta) + \delta(x) + \varepsilon, \qquad \delta \sim \mathcal{GP}(0, k_\delta),
+$$
+adds a discrepancy function $\delta$, and infers $\theta$ and $\delta$ jointly.
+:::
+
+Without discrepancy, $\theta$ absorbs the model error and becomes over-confident and biased. With a vague discrepancy, $\theta$ and $\delta$ are confounded: many pairs explain the data equally well. Brynjarsdóttir and O'Hagan (2014) show that realistic prior information on $\delta$ is needed to learn the physical parameter.
+
+```python
+import warnings
+import numpy as np
+from scipy.stats import qmc
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel as C, Matern
+warnings.filterwarnings("ignore")
+
+t = np.linspace(0, 5, 20)
+def model(th):                        # damped oscillator x(t), theta = (omega, zeta), batched
+    w, z = th[:, :1], th[:, 1:]
+    return np.exp(-z * w * t) * np.cos(w * np.sqrt(1 - z**2) * t)
+rng = np.random.default_rng(0)
+sigma = 0.05                                                        # measurement noise
+y_obs = model(np.array([[2.0, 0.1]]))[0] + sigma * rng.standard_normal(t.size)
+lo, hi = np.array([1.0, 0.0]), np.array([3.0, 0.5])                 # uniform prior box
+log_lik = lambda pred: -np.sum((y_obs - pred) ** 2, axis=1) / (2 * sigma**2)
+
+def mh(log_post, n_chains=200, n_steps=400, step=0.01):
+    """Random-walk Metropolis with many parallel chains (batched log-posterior)."""
+    th = lo + (hi - lo) * rng.random((n_chains, 2)); lp = log_post(th)
+    for _ in range(n_steps):
+        prop = th + step * (hi - lo) * rng.standard_normal(th.shape)
+        inside = np.all((prop > lo) & (prop < hi), axis=1)
+        lp_prop = np.where(inside, log_post(np.clip(prop, lo, hi)), -np.inf)
+        acc = np.log(rng.random(n_chains)) < lp_prop - lp
+        th[acc], lp[acc] = prop[acc], lp_prop[acc]
+    return th                                                       # final state of each chain
+
+exact = mh(lambda th: log_lik(model(th)))
+design = qmc.scale(qmc.LatinHypercube(d=2, seed=0).random(30), lo, hi)
+for rnd in range(3):                                                # goal-oriented enrichment
+    gp = GaussianProcessRegressor(C(1.0) * Matern([0.5, 0.1], nu=2.5), alpha=1e-8,
+                                  normalize_y=True).fit(design, model(design))
+    post = mh(lambda th: log_lik(gp.predict(th)))
+    print(f"round {rnd}: {len(design)} runs -> mean {post.mean(0).round(3)}, sd {post.std(0).round(3)}")
+    design = np.vstack([design, post[rng.choice(200, 5, replace=False)]])
+print(f"exact model     -> mean {exact.mean(0).round(3)}, sd {exact.std(0).round(3)}")
+```
+
+::: ex
+[Example 9.5 — Calibrating a damped oscillator]{.tag} The simulator returns 20 values of the damped oscillation
+$$
+x(t) = e^{-\zeta\omega t}\cos\big(\omega\sqrt{1 - \zeta^2}\, t\big),
+$$
+with true parameters $\omega = 2$ and $\zeta = 0.1$, and noise of standard deviation 0.05.
+
+A GP emulates the 20 outputs from a 30-run Latin hypercube; at each round, five posterior samples are added to the design.
+
+-   Exact model: posterior means $(2.008, 0.111)$ and standard deviations $(0.011, 0.006)$.
+-   Surrogate, 30 runs: means $(2.012, 0.111)$, but the standard deviation of $\zeta$ is 0.008, too wide.
+-   Surrogate, 40 runs after two enrichment rounds: means $(2.009, 0.111)$ and standard deviations $(0.013, 0.006)$, close to the exact posterior.
+:::
+
+### Data assimilation
+
+In forecasting, the state of a dynamical system is corrected each time a measurement arrives. With a forecast model $\mathcal{M}$, a linear observation operator $H$ and Gaussian noises,
+$$
+x_{k+1} = \mathcal{M}(x_k) + \eta_k, \qquad y_k = H x_k + \varepsilon_k, \quad \varepsilon_k \sim \mathcal{N}(0, R).
+$$
+
+:::: thm
+[Theorem 9.6 — Kalman analysis step]{.tag} If the forecast is $x \sim \mathcal{N}(x^f, P^f)$, then given $y = Hx + \varepsilon$ the state is Gaussian with
+$$
+x^a = x^f + K\,(y - H x^f), \qquad P^a = (I - KH)\,P^f, \qquad K = P^f H^\top \big(H P^f H^\top + R\big)^{-1}.
+$$
+
+::: proof
+The pair $(x, y)$ is Gaussian with $\mathrm{Cov}(x, y) = P^f H^\top$ and $\mathrm{Var}(y) = H P^f H^\top + R$.
+
+Proposition 0.3 with $Z_1 = x$ and $Z_2 = y$ gives the formulas. [∎]{.qed}
+:::
+::::
+
+For a linear model, alternating this analysis with the exact forecast of mean and covariance is the Kalman filter. For large nonlinear models, the *ensemble Kalman filter* (Evensen, 1994) propagates an ensemble of states, replaces $P^f$ by their empirical covariance, and updates each member with perturbed observations. Variational methods (3D-Var, 4D-Var) instead minimise a Tikhonov functional as in Proposition 9.1 (Asch, Bocquet and Nodet, 2016). A cheap surrogate forecast model allows larger ensembles.
+
+```python
+import numpy as np
+
+def lorenz_step(X, dt=0.01, s=10.0, r=28.0, b=8 / 3):        # one RK4 step, X has shape (n, 3)
+    f = lambda X: np.column_stack([s * (X[:, 1] - X[:, 0]),
+                                   X[:, 0] * (r - X[:, 2]) - X[:, 1],
+                                   X[:, 0] * X[:, 1] - b * X[:, 2]])
+    k1 = f(X); k2 = f(X + dt / 2 * k1); k3 = f(X + dt / 2 * k2); k4 = f(X + dt * k3)
+    return X + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+rng = np.random.default_rng(0)
+H = np.array([[1.0, 0, 0], [0, 0, 1.0]])                      # we observe x and z only
+R = 2.0 * np.eye(2)                                           # observation-error covariance
+truth = np.array([[1.0, 1.0, 1.0]])
+free = truth + 3 * rng.standard_normal((30, 3))               # 30-member ensemble, no data
+enkf = free.copy()
+err_free, err_enkf = [], []
+for k in range(1, 2001):
+    truth, free, enkf = lorenz_step(truth), lorenz_step(free), lorenz_step(enkf)
+    if k % 20 == 0:                                           # an observation every 0.2 time units
+        y = H @ truth[0] + rng.multivariate_normal(np.zeros(2), R)
+        A = enkf - enkf.mean(0)
+        P = A.T @ A / (len(enkf) - 1)                         # ensemble covariance
+        K = P @ H.T @ np.linalg.inv(H @ P @ H.T + R)          # Kalman gain
+        Y = y + rng.multivariate_normal(np.zeros(2), R, len(enkf))   # perturbed observations
+        enkf = enkf + (Y - enkf @ H.T) @ K.T
+        if k > 1000:
+            err_free.append(np.linalg.norm(free.mean(0) - truth[0]))
+            err_enkf.append(np.linalg.norm(enkf.mean(0) - truth[0]))
+print(f"mean error of the ensemble mean, no assimilation: {np.mean(err_free):.2f}")
+print(f"mean error of the ensemble mean, EnKF analysis  : {np.mean(err_enkf):.2f}")
+```
+
+::: ex
+[Example 9.7 — Tracking a chaotic system]{.tag} The Lorenz-63 system is chaotic: two ensembles started close together soon disagree. Without data, the error of the ensemble mean averages 13.2 over the second half of the run, the size of the attractor.
+
+With an EnKF of 30 members, assimilating noisy observations of $x$ and $z$ every 0.2 time units, the error drops to 0.73, below the observation noise of standard deviation 1.41.
+:::
+
+### Validating a metamodel before use
+
+Validation asks whether the surrogate is accurate enough *for the intended use*, a question distinct from verification, which asks whether the code solves its equations correctly (Oberkampf and Roy, 2010).
+
+-   **Error estimates**: hold-out, $k$-fold or leave-one-out $Q^2$ and maximal errors (Definition 3.7), computed where the use needs them — near the threshold for a failure probability, in the posterior mass for a calibration.
+-   **Uncertainty checks**: standardised residuals and coverage of the predictive intervals; chapter 10 makes coverage exact.
+-   **Domain of validity**: the surrogate is trusted only inside the convex hull of its runs and the range of its training inputs; extrapolation must be detected and flagged.
+-   **Certified bounds** where available: the residual bound of Proposition 2.6 for reduced models.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Tikhonov regularisation is the Gaussian posterior mean (Proposition 9.1); nonlinear inverse problems need MCMC, made affordable by surrogates.
+-   The surrogate variance belongs in the likelihood (Proposition 9.3); enrichment should target the posterior mass.
+-   The Kennedy–O'Hagan discrepancy prevents over-confident parameters but needs informative priors to stay identifiable.
+-   The Kalman analysis step is Gaussian conditioning (Theorem 9.6); the EnKF extends it to large nonlinear models.
+-   Validation is goal-oriented: error and coverage where the use needs them, inside the domain of the runs.
+-   *Balance sheet*: surrogates make calibration, assimilation and optimisation feasible; they add an error that must be propagated, and they never replace a check against the real system.
+:::
+
+## 10. Uncertainty quantification in prediction {#ch10}
+
+A prediction made with a surrogate carries three uncertainties: that of the inputs, that of the surrogate, and that of the model itself. This chapter separates them, reviews how neural surrogates estimate theirs, and gives two tools with guarantees that hold whatever the surrogate: conformal prediction and proper scoring of ensembles.
+
+### Separating the sources
+
+::: prop
+[Proposition 10.1 — Law of total variance]{.tag} For a square-integrable $Y$ and any random element $\Theta$,
+$$
+\mathrm{Var}\, Y = \mathbb{E}\big[\mathrm{Var}(Y \mid \Theta)\big] + \mathrm{Var}\big(\mathbb{E}[Y \mid \Theta]\big).
+$$
+
+Expand the conditional variance,
+$$
+\mathrm{Var}(Y \mid \Theta) = \mathbb{E}[Y^2 \mid \Theta] - \mathbb{E}[Y \mid \Theta]^2,
+$$
+take expectations, and add $\mathrm{Var}\, \mathbb{E}[Y \mid \Theta]$: the squared conditional means cancel.
+:::
+
+Take $Y = F(X)$, where $F$ is a sample path of the GP surrogate and $X$ the random input. Conditioning on $F$ separates the input variability, $\mathbb{E}_F \mathrm{Var}_X$, from the surrogate uncertainty, $\mathrm{Var}_F\, \mathbb{E}_X$. The second term is estimated by computing the quantity of interest on several sample paths; if it dominates, more runs are worth more than more input data.
+
+Conditioning instead on the parameters $\theta$ of a Bayesian model splits *aleatoric* noise, $\mathbb{E}\,\mathrm{Var}(Y \mid \theta)$, from *epistemic* uncertainty, $\mathrm{Var}\, \mathbb{E}[Y \mid \theta]$. This is the decomposition used by the neural methods below.
+
+### Uncertainty for neural surrogates
+
+Neural networks give no posterior by default. The survey of He, Jiang, Xiao, Xu and Li (2023) classifies the remedies; three are standard.
+
+-   **Deep ensembles** (Lakshminarayanan, Pritzel and Blundell, 2017): train $M$ networks from different initialisations, each predicting a mean $\mu_m$ and a variance $\sigma_m^2$. The ensemble predicts the mixture, with mean $\bar\mu$ and variance $\frac1M \sum_m (\sigma_m^2 + \mu_m^2) - \bar\mu^2$.
+-   **Monte Carlo dropout** (Gal and Ghahramani, 2016): keep dropout active at prediction time and average many stochastic passes, an approximation of a Bayesian network.
+-   **Laplace and variational methods**: a Gaussian approximation of the posterior of the weights, around the trained network or by optimisation.
+
+These variances are often poorly calibrated, especially out of distribution. The next tool corrects calibration without assumptions on the surrogate.
+
+### Conformal prediction
+
+:::: thm
+[Theorem 10.2 — Split conformal coverage]{.tag} Fit any predictor $\hat f$ on a training set. On $n$ calibration points, compute the scores $S_i = |y_i - \hat f(x_i)| / \hat s(x_i)$, for a fixed positive scale function $\hat s$.
+
+Let $\hat q$ be the $k$-th smallest score, with $k = \lceil (n+1)(1-\alpha) \rceil \leq n$. If the calibration and test points are exchangeable, the interval $\hat f(x) \pm \hat q\, \hat s(x)$ covers a new output with probability
+$$
+\mathbb{P}\big(|y_{n+1} - \hat f(x_{n+1})| \leq \hat q\, \hat s(x_{n+1})\big) \geq 1 - \alpha .
+$$
+
+If the scores have no ties, the coverage is also at most $1 - \alpha + 1/(n+1)$.
+
+::: proof
+The predictor and the scale are fixed given the training set, so the scores $S_1, \dots, S_{n+1}$ are exchangeable.
+
+The test point is covered exactly when $S_{n+1} \leq \hat q$, that is when $S_{n+1}$ is among the $k$ smallest of the $n+1$ scores.
+
+By exchangeability, and without ties, the rank of $S_{n+1}$ is uniform on $\{1, \dots, n+1\}$, so this has probability $k/(n+1)$, which lies in $[1-\alpha,\, 1-\alpha + 1/(n+1))$.
+
+With ties, the probability can only increase. [∎]{.qed}
+:::
+::::
+
+The guarantee is *marginal*: it averages over test inputs, and exact conditional coverage at every $x$ is impossible without assumptions (Foygel Barber, Candès, Ramdas and Tibshirani, 2021). Normalising by the GP standard deviation, as proposed by Jaber and coauthors (2024), keeps the guarantee and adapts the width to the local difficulty. Gopakumar and coauthors (2024) apply the same principle to neural PDE surrogates with field outputs. Fontana, Zeni and Vantini (2023) review the theory.
+
+```python
+import warnings
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import ConstantKernel as C, RBF, WhiteKernel
+warnings.filterwarnings("ignore")
+
+rng = np.random.default_rng(0)
+def simulator(x):                         # stochastic code with heteroscedastic noise
+    return np.sin(3 * x[:, 0]) * x[:, 1] + 0.1 * (1 + x[:, 1] ** 2) * rng.standard_normal(len(x))
+draw = lambda n: rng.uniform(-2, 2, (n, 2))
+
+X_tr = draw(60); y_tr = simulator(X_tr)                          # training runs
+gp = GaussianProcessRegressor(C(1.0) * RBF([1.0, 1.0]) + WhiteKernel(0.01),
+                              normalize_y=True).fit(X_tr, y_tr)
+sd = lambda X: gp.predict(X, return_std=True)[1]
+alpha, n = 0.1, 100
+k = int(np.ceil((n + 1) * (1 - alpha)))                          # rank of the conformal quantile
+for name, scale in [("absolute residual", lambda X: np.ones(len(X))), ("GP-normalised", sd)]:
+    cover, width = [], []
+    for rep in range(100):                                       # new calibration and test sets
+        X_cal, X_te = draw(n), draw(500)
+        y_cal, y_te = simulator(X_cal), simulator(X_te)
+        q = np.sort(np.abs(y_cal - gp.predict(X_cal)) / scale(X_cal))[k - 1]
+        half = q * scale(X_te)
+        cover.append(np.mean(np.abs(y_te - gp.predict(X_te)) <= half))
+        width.append(2 * half.mean())
+    se = np.std(cover) / np.sqrt(len(cover))                     # Monte Carlo standard error
+    print(f"{name:18s}: coverage {np.mean(cover):.3f} +/- {se:.3f}, mean width {np.mean(width):.3f}")
+print(f"guaranteed marginal coverage: k/(n+1) = {k / (n + 1):.3f}")
+```
+
+::: ex
+[Example 10.3 — Conformal intervals for a stochastic code]{.tag} A GP is trained on 60 runs of a code with noise growing with $|x_2|$. Calibration uses 100 fresh runs, with $\alpha = 0.1$, so $k = 91$; the experiment is repeated over 100 calibration sets.
+
+-   Absolute residuals: coverage $0.907 \pm 0.003$, mean width 1.09.
+-   GP-normalised scores: coverage $0.898 \pm 0.003$, mean width 1.04.
+-   Theorem 10.2 guarantees $91/101 = 0.901$.
+
+Both coverages match the guarantee within Monte Carlo error. The normalised intervals are narrower on average because they adapt to the local noise level.
+:::
+
+### Ensemble forecasts and proper scores
+
+An *ensemble forecast* runs the model from perturbed initial states, parameters or model versions, and reads the spread of the members as forecast uncertainty. Two tools check such forecasts against observations.
+
+::: def
+[Definition 10.4 — Continuous ranked probability score]{.tag} For a forecast distribution $F$ and an observation $y$,
+$$
+\mathrm{CRPS}(F, y) = \int_{\mathbb{R}} \big(F(z) - \mathbb{1}[y \leq z]\big)^2\, dz = \mathbb{E}|Z - y| - \tfrac12\, \mathbb{E}|Z - Z'| ,
+$$
+where $Z, Z'$ are independent with law $F$. For an ensemble, $F$ is its empirical distribution.
+:::
+
+The CRPS is a *strictly proper* score: its expectation under the true law is minimal only when the forecast equals that law (Gneiting and Raftery, 2007). It rewards sharpness and calibration together, and reduces to the absolute error for a deterministic forecast.
+
+The *rank histogram* checks calibration alone. If the observation and the $M$ members are exchangeable, the rank of the observation among them is uniform on $\{1, \dots, M+1\}$, by the argument of Theorem 10.2. A U-shaped histogram reveals an under-dispersed ensemble, a dome an over-dispersed one.
+
+::: recap
+Key takeaways — chapter 10
+
+-   The law of total variance separates input variability from surrogate uncertainty, and aleatoric from epistemic uncertainty.
+-   Deep ensembles, MC dropout and Laplace approximations estimate neural uncertainty, without calibration guarantees.
+-   Split conformal prediction gives finite-sample marginal coverage for any surrogate under exchangeability (Theorem 10.2); GP-normalised scores adapt the widths.
+-   Ensemble forecasts are scored by the CRPS, a strictly proper score, and checked by rank histograms.
+-   *Balance sheet*: conformal prediction is cheap, model-agnostic and exact on average, but only marginal and only under exchangeability, which a distribution shift breaks.
+:::
+
+## 11. Complements for self-study {#ch11}
+
+This self-study chapter extends four in-class chapters. It treats low-rank surrogates and sensitivity analysis with dependent inputs (after ch. 5), probabilistic latent models (after ch. 6), geometric and non-Euclidean inputs (after ch. 8), and the decision loops — optimisation, control, networks — in which surrogates are used (after ch. 9). It ends with a synthesis table of the whole module.
+
+### Low-rank formats
+
+Polynomial chaos with total degree $p$ in dimension $d$ has $\binom{d+p}{p}$ terms, which explodes with $d$. Low-rank formats exploit a different structure: separability.
+
+::: def
+[Definition 11.1 — Canonical low-rank approximation]{.tag} A rank-$R$ approximation writes $f$ as a sum of $R$ products of univariate functions, each expanded on $p+1$ polynomials:
+$$
+f(x) \approx \sum_{l=1}^{R} b_l \prod_{j=1}^{d} v^{(l)}_j(x_j), \qquad v^{(l)}_j(x_j) = \sum_{k=0}^{p} z^{(l)}_{k,j}\, \psi_k(x_j).
+$$
+
+The number of unknowns grows like $R\,d\,(p+1)$, linearly in the dimension, instead of $\binom{d+p}{p}$. Alternating least squares fits one direction at a time, each step being a small linear regression (Chevreuil, Lebrun, Nouy and Rai, 2015; Konakli and Sudret, 2016). Tensor-train formats extend the idea.
+:::
+
+### Dependent inputs, Shapley effects and explanations
+
+With dependent inputs, the decomposition of Theorem 5.1 loses its orthogonality. Hooker (2007) and Chastaing, Gamboa and Prieur (2012) replace mutual orthogonality by *hierarchical* orthogonality, in which each $f_u$ is orthogonal to every $f_v$ with $v \subsetneq u$. They give conditions on the joint density under which this decomposition exists and is unique; the variance then splits into structural and correlative contributions.
+
+::: def
+[Definition 11.2 — Shapley effects (Owen, 2014)]{.tag} Let $c(u)$ be the share of variance explained by the group $u$,
+$$
+c(u) = \frac{\mathrm{Var}\,\mathbb{E}[Y \mid X_u]}{\mathrm{Var}\,Y} .
+$$
+
+The Shapley effect of input $i$ is its Shapley value in the game $c$:
+$$
+\mathrm{Sh}_i = \frac1d \sum_{u \subseteq \{1,\dots,d\} \setminus \{i\}} \binom{d-1}{|u|}^{-1} \big(c(u \cup \{i\}) - c(u)\big).
+$$
+
+The effects are non-negative, sum to 1, and stay meaningful for dependent inputs.
+:::
+
+:::: prop
+[Proposition 11.3 — Shapley effects with independent inputs]{.tag} If the inputs are independent, each interaction is shared equally among its members:
+$$
+\mathrm{Sh}_i = \sum_{u \ni i} \frac{S_u}{|u|}, \qquad \text{hence} \qquad S_i \leq \mathrm{Sh}_i \leq S_{T_i}.
+$$
+
+::: proof
+By Theorem 5.1, $c(u) = \sum_{\emptyset \neq v \subseteq u} S_v$, so $c$ is a sum of games $u \mapsto S_v\, \mathbb{1}[v \subseteq u]$.
+
+The Shapley value is linear in the game. In the game $\mathbb{1}[v \subseteq u]$, players outside $v$ never change the value (null players), and players of $v$ are symmetric.
+
+Efficiency then gives each player of $v$ the share $1/|v|$. Summing over $v$ gives the formula, and the bounds follow from $1/|u| \leq 1$. [∎]{.qed}
+:::
+::::
+
+The same Shapley construction, applied for a single input point $x$ with the game $u \mapsto \mathbb{E}[f(X) \mid X_u = x_u]$, gives the SHAP explanations of machine learning (Lundberg and Lee, 2017). Ferrere, Bousquet, Gamboa and Loubes (2026) derive generalised functional ANOVA decompositions in closed form and use them as a unified view of such additive explanations. Sensitivity analysis is thus also the explainability layer of a surrogate (Da Veiga, Gamboa, Iooss and Prieur, 2021).
+
+
+::: ex
+[Example 11.4 — Shapley effects of a simple interaction]{.tag} Let $Y = X_1 + X_2 + X_1 X_2$ with independent $X_j$ uniform on $[-1, 1]$. The three orthogonal terms have variances $1/3$, $1/3$ and $1/9$, so
+$$
+S_1 = S_2 = \tfrac37, \qquad S_{12} = \tfrac17, \qquad S_{T_1} = S_{T_2} = \tfrac47 .
+$$
+
+By Proposition 11.3 the interaction is shared equally, which gives
+$$
+\mathrm{Sh}_1 = \mathrm{Sh}_2 = \tfrac37 + \tfrac1{14} = \tfrac12,
+$$
+between $S_1$ and $S_{T_1}$ as predicted.
+:::
+
+### Probabilistic latent models
+
+This section complements the autoencoders of ch. 6 with a probabilistic latent space.
+
+:::: prop
+[Proposition 11.5 — Evidence lower bound (Kingma and Welling, 2014)]{.tag} Let $p_\theta(u, z) = p(z)\, p_\theta(u \mid z)$ be a latent-variable model and $q_\phi(z \mid u)$ any encoder distribution. Then
+$$
+\log p_\theta(u) \geq \mathbb{E}_{q_\phi(z \mid u)}\big[\log p_\theta(u \mid z)\big] - \mathrm{KL}\big(q_\phi(z \mid u)\,\|\,p(z)\big).
+$$
+
+::: proof
+Write
+$$
+\log p_\theta(u) = \log \mathbb{E}_{q_\phi}\big[p_\theta(u, z)/q_\phi(z \mid u)\big]
+$$
+and apply Jensen's inequality to the concave logarithm. Splitting $\log p_\theta(u,z) = \log p_\theta(u \mid z) + \log p(z)$ gives the two terms. [∎]{.qed}
+:::
+::::
+
+A variational autoencoder maximises this bound. Its latent space carries a distribution, which gives a generative surrogate: sampling $z$ produces plausible fields. *Deep Gaussian processes* compose GPs, $F = F_L \circ \dots \circ F_1$, to model non-stationary responses while keeping a Bayesian treatment (Damianou and Lawrence, 2013).
+
+### Geometry, shapes and non-Euclidean inputs
+
+This section extends ch. 8 to inputs that are not vectors of real numbers.
+
+When the geometry varies, three representations are common. A parametrised shape can be mapped to a reference domain, which keeps the methods of ch. 2. A mesh or point cloud can be the input of a graph network or a transformer. A signed distance function turns the shape into a field on a fixed grid, ready for an FNO.
+
+Kernels also extend beyond Euclidean inputs. On a graph with Laplacian $\Delta$, Borovitskiy and coauthors (2021) define Matérn GPs with covariance proportional to $(2\nu/\kappa^2 + \Delta)^{-\nu}$, which tends to the heat kernel as $\nu \to \infty$; similar constructions hold on Riemannian manifolds. Topological summaries such as persistent homology (Carlsson, 2009) provide shape descriptors that are stable to small deformations, usable as surrogate inputs.
+
+### Metamodels in optimisation, control and networked systems
+
+The industrial uses named in the syllabus share one pattern: an outer loop calls the model many times under a time or budget constraint.
+
+-   **Optimisation under uncertainty**: minimise a robust objective such as $\mathbb{E}[f(x, X)] + \kappa\, \mathrm{sd}[f(x, X)]$, or a quantile, under chance constraints $\mathbb{P}(g(x, X) > 0) \leq \epsilon$. Each candidate $x$ needs an inner Monte Carlo loop, affordable only on a surrogate; EGO (ch. 4) drives the outer loop.
+-   **Control**: model predictive control solves, at each sampling instant, an optimisation over a horizon subject to the dynamics. A reduced model or a neural ODE makes this feasible in real time, and its error must enter the constraint margins.
+-   **Networks**: power, gas, water and heat networks carry states on nodes and flows on edges. Graph neural surrogates (ch. 8) approximate the network solver and transfer across topologies, which matters for screening many outage scenarios.
+-   **Digital twins and maintenance**: a twin couples a surrogate, data assimilation and calibration to follow one physical asset over time.
+
+### A synthesis of the module
+
+The table gathers the balance sheets of ch. 2–10 along the five questions of ch. 1.
+
+| Method | Target | Physics enters | Access | Main guarantee |
+|---|---|---|---|---|
+| POD–Galerkin, reduced basis (ch. 2) | fields for parameters | projected equations | intrusive | residual error bound |
+| Kriging, co-kriging (ch. 3–4) | scalar or few outputs | kernel, constraints | black box | posterior variance, RKHS bound |
+| Polynomial chaos (ch. 5) | scalar outputs, moments | input law | black box | spectral convergence, Sobol indices |
+| Autoencoders, DL-ROM (ch. 6) | fields on nonlinear manifolds | data only (or manifold Galerkin) | mostly black box | none built in |
+| PINNs (ch. 7) | one solution, inverse problems | residual in the loss | equations needed | stability estimates |
+| Neural operators, GNNs (ch. 8) | solution operators | architecture | black box | none built in |
+| Conformal layer (ch. 10) | any of the above | — | black box | finite-sample marginal coverage |
+
+::: recap
+Key takeaways — chapter 11
+
+-   Canonical low-rank formats have a number of unknowns linear in the dimension and are fitted by alternating least squares.
+-   With dependent inputs, hierarchical orthogonality replaces orthogonality; Shapley effects share each interaction equally among its inputs and connect global sensitivity to SHAP explanations.
+-   Variational autoencoders maximise the evidence lower bound (Proposition 11.5) and give generative surrogates; deep GPs compose GPs for non-stationary responses.
+-   Varying geometries enter through reference-domain maps, meshes and point clouds, or signed distance fields; graph Matérn kernels and topological summaries handle non-Euclidean inputs.
+-   Optimisation under uncertainty, model predictive control, network screening and digital twins all place a surrogate inside an outer loop, whose error budget must include the surrogate error.
+:::
+
+## 12. Research directions and open problems {#ch12}
+
+This self-study chapter points to active research questions on the topics of the module. It cites only work whose content is summarised in the chapters above or in the official references, and it should be read with the papers at hand.
+
+### Theory of physics-informed learning
+
+Why and when does physics help learning? Work by Doumèche, Biau and Boyer (2025) analyses the consistency of PINNs and shows the role of regularisation. Work by Doumèche, Bach, Biau and Boyer (2024) recasts physics-informed learning with linear PDEs as a kernel method, which gives convergence rates and quantifies the gain brought by the physics.
+
+Open questions include nonlinear PDEs, where the kernel view no longer applies directly, and the interplay between optimisation and statistics: the training of PINNs is far from the idealised estimators of the theory.
+
+### Scaling neural operators
+
+Universal physics transformers (Alkin and coauthors, 2024) and pretrained operator models such as Poseidon (Herde and coauthors, 2024) explore a *foundation-model* route: one large model trained on many PDE families, then adapted to a new problem with few simulations. Approximation theory for neural operators is developing in parallel (Kovachki, Lanthaler and Mishra, 2021; Lanthaler, Mishra and Karniadakis, 2022).
+
+The open problems are data — simulations are expensive, so pretraining corpora are small — and trust: how to certify a model trained on other physics for a safety-relevant study.
+
+### Guarantees for surrogates
+
+Conformal prediction gives distribution-free coverage (ch. 10). Jaber and coauthors (2024) combine it with GP surrogates, and Gopakumar and coauthors (2024) with neural PDE surrogates over whole fields.
+
+Three questions remain open. Coverage is marginal, while an engineer needs it near critical configurations. Exchangeability fails when the surrogate is used outside its training distribution. And simultaneous guarantees over a whole field or trajectory require new score functions.
+
+### Deep reduced models with certificates
+
+Deep reduced-order models (Fresca and Manzoni, 2021; Lee and Carlberg, 2020) break the Kolmogorov barrier of linear reduction. Reduced-basis methods, in turn, come with certified error bounds (Hesthaven, Rozza and Stamm, 2016). Obtaining both — nonlinear compression *and* a computable, rigorous error bound — is an active and largely open topic.
+
+### Sensitivity analysis and explanations
+
+Generalised functional ANOVA for dependent inputs (Hooker, 2007; Chastaing, Gamboa and Prieur, 2012) has recently been obtained in closed form and used as a unified view of additive explanations (Ferrere, Bousquet, Gamboa and Loubes, 2026). Estimating such decompositions in high dimension, and connecting them with the explanations used for deep surrogates, are open directions.
+
+### Adaptive designs for rare events and deep surrogates
+
+Stepwise uncertainty reduction (Bect and coauthors, 2012) gives principled sequential designs for GPs. Extending them to neural surrogates, whose uncertainty estimates are less reliable, and to batches of parallel runs on large computing clusters, remains open.
+
+### A list of open problems
+
+-   Detect and quantify extrapolation of a surrogate outside the domain of its runs.
+-   Keep autoregressive rollouts of mesh GNNs and neural operators stable over long horizons.
+-   Make the Kennedy–O'Hagan model identifiable with weak prior information on the discrepancy.
+-   Allocate a computing budget between fidelities, runs and validation in a principled way.
+-   Agree on validation standards that let a learned surrogate enter a safety demonstration.
+
+::: recap
+Key takeaways — chapter 12
+
+-   The theory of physics-informed learning now explains when physics speeds up learning, mainly for linear PDEs.
+-   Large pretrained operators are promising, but data scarcity and certification are the bottlenecks.
+-   Conformal guarantees are marginal and need exchangeability; conditional and field-wise guarantees are open.
+-   Certified nonlinear reduction, dependent-input explanations and adaptive designs for neural surrogates are active directions.
+:::
 
 ## Exercises {#ex}
 
-TODO
+Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ open-ended or research-flavoured. Exercises 8, 10, 13 and 14 are computational.
+
+1.  **★ The Monte Carlo budget.** A code runs in 20 minutes. How many runs give a 10 % coefficient of variation on a probability $p = 10^{-3}$? How long does it take on one core, on 100 cores, and with a surrogate evaluated in 0.01 s? (ch. 0)
+
+    *Solution*: by Proposition 0.4, $N = (1 - p)/(0.01\, p) = 99\,900$ runs.
+
+    On one core this is about 2 million minutes, that is 33 300 hours or 3.8 years. On 100 cores it is about 333 hours, two weeks. With the surrogate it is 1000 seconds, about 17 minutes — plus the runs needed to build and validate it.
+
+2.  **★ Drag on a sphere.** The drag force $F$ on a sphere depends on the fluid density $\rho$, its viscosity $\mu$, the speed $U$ and the diameter $D$. Reduce the relation with Theorem 1.6. (ch. 1)
+
+    *Solution*: five quantities and three base dimensions (mass, length, time) of rank 3 leave two groups. One can take the drag coefficient and the Reynolds number:
+    $$
+    C_D = \frac{F}{\rho U^2 D^2}, \qquad \mathrm{Re} = \frac{\rho U D}{\mu}.
+    $$
+
+    Hence $F = \rho U^2 D^2\, \Phi(\mathrm{Re})$: a surrogate over four inputs becomes a single curve, which is how drag data are tabulated.
+
+3.  **★ Choosing a POD dimension.** A snapshot matrix has singular values $\sigma_i = 10 \cdot 2^{-i}$ for $i = 1, \dots, 10$. Find the smallest $r$ that keeps 99.9 % of the energy, and the Frobenius projection error. (ch. 2)
+
+    *Solution*: $\sigma_i^2 = 100 \cdot 4^{-i}$, so the discarded fraction after $r$ modes is $(4^{-r} - 4^{-10})/(1 - 4^{-10})$.
+
+    For $r = 4$ it is $3.9 \cdot 10^{-3}$, too large; for $r = 5$ it is $9.8 \cdot 10^{-4}$, so $r = 5$.
+
+    By Theorem 2.3, the projection error is
+    $$
+    \Big(\sum_{i=6}^{10} \sigma_i^2\Big)^{1/2} = \Big(\tfrac{100}{3}\,(4^{-5} - 4^{-10})\Big)^{1/2} \approx 0.180 .
+    $$
+
+4.  **★ Kriging with two runs.** With $k(x, x') = e^{-(x - x')^2/2}$, the runs are $f(0) = 1$ and $f(1) = 0$. Compute the kriging mean and standard deviation at $x = 0.5$. (ch. 3)
+
+    *Solution*: write $\rho = e^{-1/2} = 0.6065$ for the correlation between the runs and $a = e^{-1/8} = 0.8825$ for the correlation with $x = 0.5$. By symmetry,
+    $$
+    m_n(0.5) = \frac{a\,(y_1 + y_2)}{1 + \rho} = 0.549, \qquad s_n^2(0.5) = 1 - \frac{2a^2}{1 + \rho} = 0.0305 .
+    $$
+
+    So $s_n(0.5) = 0.175$. The mean is not the average 0.5, because the zero prior mean and the correlations both enter.
+
+5.  **★ Chaos expansion of a lognormal output.** Let $X$ be standard normal and $Y = e^X$. Using the generating function of the Hermite polynomials, $e^{tx - t^2/2} = \sum_k \mathrm{He}_k(x)\, t^k / k!$, find the coefficients of $Y$ on the orthonormal basis $\psi_k = \mathrm{He}_k / \sqrt{k!}$. Which fraction of the variance does degree 3 capture? (ch. 5)
+
+    *Solution*: with $t = 1$, $e^X = e^{1/2} \sum_k \mathrm{He}_k(X)/k!$, so $c_k = e^{1/2}/\sqrt{k!}$.
+
+    Proposition 5.7 gives the mean $c_0 = e^{1/2} \approx 1.649$ and the variance $\sum_{k \geq 1} e/k! = e(e-1) \approx 4.671$, the lognormal values.
+
+    Degree 3 keeps $\sum_{k=1}^{3} 1/k! = 1.667$ out of $e - 1 = 1.718$, that is 97.0 % of the variance.
+
+6.  **★★ Closed-form leave-one-out.** Prove Proposition 3.6. (ch. 3)
+
+    *Solution*: order run $i$ last and write $K$ with blocks $A$ (the other runs), $b = k_{-i}(x_i)$ and $c = k(x_i, x_i)$.
+
+    The Schur complement $c - b^\top A^{-1} b$ equals $s_{-i}^2(x_i)$ by Theorem 3.2, and block inversion gives $[K^{-1}]_{ii} = 1/s_{-i}^2(x_i)$.
+
+    The last row of $K^{-1}$ is $\big(-A^{-1} b,\ 1\big)^\top / s_{-i}^2(x_i)$. Hence
+    $$
+    [K^{-1} y]_i = \frac{y_i - b^\top A^{-1} y_{-i}}{s_{-i}^2(x_i)} = \frac{y_i - m_{-i}(x_i)}{s_{-i}^2(x_i)} ,
+    $$
+    and dividing by $[K^{-1}]_{ii}$ gives the residual.
+
+7.  **★★ How expected improvement trades off.** With $\mathrm{EI}(m, s)$ as in Theorem 4.11, show that it decreases with the predicted mean and increases with the predictive standard deviation. (ch. 4)
+
+    *Solution*: use $\varphi'(z) = -z\varphi(z)$, with $\partial z/\partial m = -1/s$ and $\partial z / \partial s = -z/s$. Then
+    $$
+    \frac{\partial\, \mathrm{EI}}{\partial m} = -\Phi(z) - z\varphi(z) + z\varphi(z) = -\Phi(z) < 0, \qquad \frac{\partial\, \mathrm{EI}}{\partial s} = -z^2\varphi(z) + \varphi(z) + z^2\varphi(z) = \varphi(z) > 0 .
+    $$
+
+    Lower predictions (exploitation) and larger uncertainty (exploration) both raise the criterion, which is why EGO never stops exploring entirely.
+
+8.  **★★ Pick-freeze on the Ishigami function.** Estimate the first-order Sobol indices of the Ishigami function by Proposition 5.3 with $N = 10^4$, and compare with Example 5.8 and Code 5.9. (ch. 5)
+
+    *Solution* (it runs in a second):
+
+    ```python
+    import numpy as np
+    rng = np.random.default_rng(0)
+    a, b = 7.0, 0.1
+    f = lambda x: np.sin(x[:, 0]) + a * np.sin(x[:, 1]) ** 2 + b * x[:, 2] ** 4 * np.sin(x[:, 0])
+    N, d = 10_000, 3
+    X, Xp = rng.uniform(-np.pi, np.pi, (2, N, d))
+    Y = f(X)
+    for i in range(d):
+        Xi = Xp.copy(); Xi[:, i] = X[:, i]           # keep X_i, resample the others
+        Yi = f(Xi)
+        m = np.mean((Y + Yi) / 2)
+        S = (np.mean(Y * Yi) - m**2) / (np.mean((Y**2 + Yi**2) / 2) - m**2)   # Janon et al. (2014)
+        print(f"S_{i+1} ~ {S:.3f}")
+    ```
+
+    The estimates are $(0.321, 0.448, 0.024)$ against the exact $(0.314, 0.442, 0)$, with 40 000 evaluations. The error, of order $N^{-1/2}$, is larger than that of the chaos expansion built from 600 runs. On an expensive code, pick-freeze is run on the surrogate.
+
+9.  **★★ What a linear autoencoder learns.** Assume $\sigma_r > \sigma_{r+1}$. Show that at a global minimum of the linear autoencoder of Proposition 6.3, the map $W_2 W_1$ coincides with the orthogonal projector onto the span of $U_r$ on the range of $S$. (ch. 6)
+
+    *Solution*: at a minimum, $W_2 W_1 S$ is a matrix of rank at most $r$ attaining the Eckart–Young bound. With a strict gap $\sigma_r > \sigma_{r+1}$, the best rank-$r$ approximation is unique, so $W_2 W_1 S = S_r = U_r U_r^\top S$.
+
+    Thus $W_2 W_1$ and $U_r U_r^\top$ agree on every column of $S$, hence on its range. Outside the range, the loss does not see $W_2 W_1$. The encoder itself is only determined up to an invertible $r \times r$ map.
+
+10. **★★ An inverse problem with a PINN.** In $-\kappa u'' = \pi^2 \sin(\pi x)$ with zero boundary values, the conductivity $\kappa$ is unknown. Ten noisy measurements of $u$ are available. Estimate $\kappa$ jointly with the network. (ch. 7)
+
+    *Solution*: train $\log\kappa$ as an extra parameter, with a data term in the loss:
+
+    ```python
+    import math
+    import torch
+    torch.manual_seed(0); torch.set_num_threads(1)
+    # unknown conductivity kappa in -kappa u'' = pi^2 sin(pi x), u(0)=u(1)=0; true kappa = 2
+    xd = torch.linspace(0.05, 0.95, 10)[:, None]
+    yd = torch.sin(math.pi * xd) / 2 + 0.01 * torch.randn_like(xd)          # 10 noisy measurements
+    net = torch.nn.Sequential(torch.nn.Linear(1, 32), torch.nn.Tanh(), torch.nn.Linear(32, 32),
+                              torch.nn.Tanh(), torch.nn.Linear(32, 1))
+    log_kappa = torch.zeros(1, requires_grad=True)                          # start from kappa = 1
+    u = lambda x: x * (1 - x) * net(x)
+    opt = torch.optim.Adam([*net.parameters(), log_kappa], lr=1e-2)
+    for step in range(2000):
+        x = torch.rand(64, 1, requires_grad=True)
+        du = torch.autograd.grad(u(x).sum(), x, create_graph=True)[0]
+        d2u = torch.autograd.grad(du.sum(), x, create_graph=True)[0]
+        res = -log_kappa.exp() * d2u - math.pi**2 * torch.sin(math.pi * x)
+        loss = (res ** 2).mean() + 100 * ((u(xd) - yd) ** 2).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+    print(f"estimated kappa = {log_kappa.exp().item():.3f} (true 2)")
+    ```
+
+    The estimate is $\hat\kappa = 2.023$. The amplitude of $u$ is $1/\kappa$, so the measurement noise (0.01 on values of order 0.5) limits the accuracy on $\kappa$ to the order of one per cent, as observed. The weight 100 of the data term is a choice; varying it shows how the estimate trades data fit against residual.
+
+11. **★★ The Kalman update is a Tikhonov problem.** Show that the analysis $x^a$ of Theorem 9.6 minimises the 3D-Var functional
+    $$
+    J(x) = \|x - x^f\|^2_{(P^f)^{-1}} + \|y - Hx\|^2_{R^{-1}} .
+    $$
+    (ch. 9)
+
+    *Solution*: by Proposition 9.1 with $\theta_0 = x^f$, $C_0 = P^f$ and $G = H$, the minimiser is
+    $$
+    x^f + \big((P^f)^{-1} + H^\top R^{-1} H\big)^{-1} H^\top R^{-1}\, (y - H x^f).
+    $$
+
+    The push-through identity
+    $$
+    \big((P^f)^{-1} + H^\top R^{-1} H\big)^{-1} H^\top R^{-1} = P^f H^\top \big(H P^f H^\top + R\big)^{-1}
+    $$
+    follows by multiplying both sides by $(P^f)^{-1} + H^\top R^{-1} H$ on the left and by $H P^f H^\top + R$ on the right. The right-hand side is the Kalman gain.
+
+12. **★★ Small calibration sets.** In Theorem 10.2, compute the coverage for 19 calibration points and $\alpha = 0.1$. What happens for 9 points and $\alpha = 0.05$? Show that the empirical $(1-\alpha)$-quantile of the scores, without the $n+1$ correction, can undercover. (ch. 10)
+
+    *Solution*: for $n = 19$, $k = \lceil 20 \times 0.9 \rceil = 18$ and the coverage is $18/20 = 0.90$ exactly.
+
+    For $n = 9$ and $\alpha = 0.05$, $k = \lceil 9.5 \rceil = 10 > n$: no finite interval has the guarantee, and one must return the whole real line. In general $n \geq 1/\alpha - 1$ is needed.
+
+    Without the correction, for $n = 10$ and $\alpha = 0.1$ the rank is $\lceil 9 \rceil = 9$, giving a coverage $9/11 = 0.82 < 0.9$.
+
+13. **★★★ Allocating a multifidelity budget.** The expensive code of Example 4.7 costs ten cheap runs. With a budget of six expensive runs, compare nested designs with $(n_H, n_L) = (6, 0), (5, 10), (4, 20), (3, 30)$. Then add a nonlinear term $2 \sin(8x)$ to the cheap code and repeat. (ch. 4)
+
+    *Hints and expected result*: adapt the code of Example 4.7, with expensive runs taken among the cheap ones. For the Forrester pair, the test RMSE falls from 4.22 for $(6, 0)$ to 0.24, 0.025 and 0.006, because the discrepancy is an exact linear trend and cheap runs carry almost all the information.
+
+    With the added term, the discrepancy needs its own GP, and the optimum moves towards more expensive runs. Explain the trade-off with Proposition 4.6: the posterior variance is $\rho^2 s_L^2 + s_\delta^2$, and the two terms are reduced by different runs.
+
+14. **★★★ Where operator learning stops transferring.** With the FNO of Example 8.4, measure the test error on initial conditions containing modes up to $k = 16$, beyond the 8 modes seen in training and the 12 retained. Then compare with a DeepONet whose branch net reads 64 fixed sensors. (ch. 8)
+
+    *Hints and expected result*: the resolution transfer of Example 8.4 holds (0.006 on 256 points), but the error on out-of-band inputs rises to about 0.06. The modes above 12 skip the Fourier weights and pass only through the pointwise path, which never learnt to damp them.
+
+    The DeepONet cannot take the 256-point input without interpolation to its sensors. Discuss which inductive bias — Fourier truncation or fixed sensors — suits which application.
+
+15. **★★★ Identifiability with a model discrepancy.** The simulator is $f(x, \theta) = \theta x$ and the real system is $y(x) = 2x + 0.5 x^2 + \varepsilon$ on $[0, 1]$. Calibrate $\theta$ without discrepancy, then with a GP discrepancy as in Definition 9.4, with and without the constraints $\delta(0) = \delta'(0) = 0$. (ch. 9)
+
+    *Hints and expected result*: without discrepancy, least squares on a uniform design converges to
+    $$
+    \hat\theta = 2 + 0.5\, \frac{\int_0^1 x^3 dx}{\int_0^1 x^2 dx} = 2.375 ,
+    $$
+    with a posterior standard deviation that shrinks with $n$: precise and wrong.
+
+    With a vague GP discrepancy, the posterior of $\theta$ becomes very wide, since $\theta x$ and $\delta$ can trade the linear part. Constraining $\delta(0) = \delta'(0) = 0$ makes $\theta$ the slope at the origin and recovers $\theta = 2$ (Brynjarsdóttir and O'Hagan, 2014).
 
 ## Projects and assessment {#projects}
 
-TODO
+The official assessment combines a written exam after lecture 5 (2 h, no electronic materials), worth 40 % of the final grade, and a project worth 60 %; the resit is a written exam. The subjects below are sized for that project, alone or in a group. Each one names its data or paper, its deliverables and a success criterion; the exam proposal covers ch. 0–5, the material taught before it.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Sparse polynomial chaos by least-angle regression.** Paper study of Blatman and Sudret (2011). Implement degree-adaptive sparse chaos with LARS (scikit-learn's `Lars`), and compare it with the full least-squares expansion of Code 5.9 on the Ishigami function and on the 8-input borehole function, a standard benchmark of computer experiments. *Success criterion*: Sobol indices within 0.01 of the reference with at most half the runs of the full expansion. *Deliverables*: code, 4–6 page report, 10-minute talk. Chapters 4–5.
+2.  **[Solo · ≈ 20 h] Conformal coverage for Gaussian-process surrogates.** Paper study of Jaber and coauthors (2024). Reproduce GP-normalised split conformal intervals, then compare with the plain GP bands and with absolute-residual scores on three analytic test functions. *Success criterion*: empirical marginal coverage within Monte Carlo error of the guarantee, and a figure of width against local error. *Deliverables*: code, report, talk. Chapters 3 and 10.
+3.  **[Solo · ≈ 20 h] Active learning for a failure probability.** Reproduce AK-MCS (Echard, Gayton and Lemaire, 2011) on the four-branch system of Example 4.12, then implement a stepwise-uncertainty-reduction criterion in the spirit of Bect and coauthors (2012). *Success criterion*: a failure probability within 5 % of a $10^6$-sample Monte Carlo reference, with fewer than 100 runs, for both criteria. *Deliverables*: code, report comparing the two criteria, talk. Chapters 0, 3 and 4.
+4.  **[Solo · ≈ 20 h] Stability of a PINN.** Extend Proposition 7.2 to $-(\kappa u')' = f$ with $\kappa \geq \kappa_0 > 0$, prove the bound, and check it numerically on PINNs trained with 16, 64 and 256 collocation points. *Success criterion*: a complete proof, and a plot of error against the root of the residual loss with the predicted slope. *Deliverables*: proof, code, report, talk. Chapters 0 and 7.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Linear against nonlinear reduction for transport.** Build a 1D advection–diffusion solver with parametrised speed and diffusivity. Compare POD–Galerkin (ch. 2), POD with GP regression of the coefficients (ch. 8) and a POD-DL-ROM in the spirit of Fresca, Manzoni, Dedè and Quarteroni (2022). *Split*: solver and POD–Galerkin; non-intrusive POD; deep model. *Success criterion*: an error-against-online-cost curve for the three methods, over a range of Péclet numbers. *Deliverables*: shared code, 8-page report, 15-minute talk.
+2.  **[Group of 2–3 · ≈ 30 h each] Operator learning benchmark.** Generate a data set for the 1D viscous Burgers equation with random initial conditions using a spectral solver. Train an FNO, a DeepONet and a mesh-style message-passing network. *Split*: data and solver; FNO; DeepONet and GNN. *Success criterion*: relative test errors below 5 % for the best model, with a study of resolution transfer and of rollout stability. *Deliverables*: data generator, code, report, talk. Chapters 6 and 8.
+3.  **[Group of 2–3 · ≈ 30 h each] Bayesian calibration with model discrepancy.** Calibrate a simplified heat-transfer model on synthetic measurements produced by a richer model. Compare calibration without discrepancy, with a Kennedy–O'Hagan GP discrepancy, and with a constrained discrepancy, all with a GP emulator and goal-oriented enrichment. *Split*: models and emulator; MCMC; discrepancy study. *Success criterion*: posterior intervals that cover the true parameter only when the discrepancy is modelled. *Deliverables*: code, report, talk. Chapters 3, 4 and 9.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, no electronic materials, four exercises on ch. 0–5, as for the official exam after lecture 5.
+
+1.  **Question (5 points).** State and prove the Eckart–Young theorem in Frobenius norm, then deduce that POD is the truncated SVD of the snapshot matrix and give its error. *Expected*: the statement of Theorem 0.2; a proof by Weyl's inequality or by the variational characterisation; the deduction of Theorem 2.3, with error $\sum_{i>r}\sigma_i^2$.
+2.  **Question (5 points).** For a GP with kernel $k$, derive the kriging mean and variance, show that the predictor interpolates the runs, and prove the RKHS bound $|f(x) - m_n(x)| \leq s_n(x)\|f\|_{\mathcal{H}_k}$. *Expected*: Gaussian conditioning (Proposition 0.3); $k_n(x_i)^\top K^{-1} = e_i^\top$; the representer of the error and Cauchy–Schwarz, as in Theorem 3.4.
+3.  **Question (5 points).** Let $Y = X_1 + 2X_2 + X_1 X_3$ with independent $X_j$ uniform on $[-1, 1]$. Compute the Hoeffding–Sobol decomposition, all first-order and total Sobol indices, and the coefficients of the Legendre chaos expansion. *Expected*: the three terms are orthogonal, with variances 1/3, 4/3 and 1/9, so the total variance is 16/9.
+    $$
+    S_1 = \tfrac{3}{16},\quad S_2 = \tfrac34,\quad S_3 = 0,\quad S_{13} = \tfrac1{16},\quad S_{T_1} = \tfrac14,\quad S_{T_3} = \tfrac1{16}.
+    $$
+    With $\psi_1(x) = \sqrt3\, x$, the chaos coefficients are $1/\sqrt3$, $2/\sqrt3$ and $1/3$.
+4.  **Question (5 points).** Explain the expected-improvement criterion and derive its closed form; then explain how AK-MCS chooses its runs and why accuracy near the limit state suffices (Proposition 1.5). *Expected*: the definition as $\mathbb{E}[(y_{\min} - F(x))^+]$; the Gaussian integral of Theorem 4.11; the $U$ criterion with misclassification probability $\Phi(-U)$; the symmetric-difference argument.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of the mathematics | 25 % | Statements precise, proofs complete or sketched at the key step, assumptions stated |
+| Implementation and reproducibility | 25 % | Code runs from a clean environment, seeds fixed, results regenerated by one script |
+| Experimental evidence | 20 % | The success criterion is met or its failure explained; baselines and error bars present |
+| Critical analysis | 20 % | The balance sheet of the method: advantages, limitations, hypotheses, domain of use |
+| Communication | 10 % | Clear report and talk, figures readable, sources cited |
 
 ## References {#refs}
 
-TODO
+### Official references (master-mva.com, “Références”)
+
+The list displayed in the catalogue stops in the middle of entry 30; that entry is completed below from the published article.
+
+1.  B. Alkin, A. Fürst, S. Schmid, L. Gruber, M. Holzleitner and J. Brandstetter. Universal physics transformers: a framework for efficiently scaling neural operators. arXiv:2402.12365, 2024.
+2.  G. I. Barenblatt. *Scaling, Self-Similarity, and Intermediate Asymptotics*. Cambridge Texts in Applied Mathematics, Cambridge University Press, 1996.
+3.  J. Bect, D. Ginsbourger, L. Li, V. Picheny and E. Vazquez. Sequential design of computer experiments for the estimation of a probability of failure. *Statistics and Computing*, 22(3):773–793, 2012.
+4.  P. Benner, A. Cohen, M. Ohlberger and K. Willcox, editors. *Model Reduction and Approximation: Theory and Algorithms*. Computational Science and Engineering, SIAM, 2017.
+5.  G. Blatman and B. Sudret. Adaptive sparse polynomial chaos expansion based on least angle regression. *Journal of Computational Physics*, 230(6):2345–2367, 2011.
+6.  E. Buckingham. On physically similar systems; illustrations of the use of dimensional equations. *Physical Review*, 4(4):345–376, 1914.
+7.  G. Chastaing, F. Gamboa and C. Prieur. Generalized Hoeffding–Sobol decomposition for dependent variables: application to sensitivity analysis. *Electronic Journal of Statistics*, 6:2420–2448, 2012.
+8.  R. T. Q. Chen, Y. Rubanova, J. Bettencourt and D. Duvenaud. Neural ordinary differential equations. *Advances in Neural Information Processing Systems*, 31, 2018.
+9.  J. A. Christen, S. Ray et al. Advances in the sequential design of computer experiments based on active learning. *Communications in Statistics – Simulation and Computation*, 40(3):446–454, 2011.
+10. S. Da Veiga, F. Gamboa, B. Iooss and C. Prieur. *Basics and Trends in Sensitivity Analysis: Theory and Practice in R*. SIAM, 2021.
+11. S. Da Veiga and A. Marrel. Gaussian process modeling with inequality constraints. *Annales de la Faculté des sciences de Toulouse: Mathématiques*, 21:529–555, 2012.
+12. A. C. Damianou and N. D. Lawrence. Deep Gaussian processes. *Proceedings of the Sixteenth International Conference on Artificial Intelligence and Statistics*, PMLR 31:207–215, 2013.
+13. N. Doumèche, F. Bach, G. Biau and C. Boyer. Physics-informed machine learning as a kernel method. *The Thirty Seventh Annual Conference on Learning Theory*, PMLR, 1399–1450, 2024.
+14. N. Doumèche, G. Biau and C. Boyer. On the convergence of PINNs. *Bernoulli*, 31(3):2127–2151, 2025.
+15. B. Ferrere, N. Bousquet, F. Gamboa and J.-M. Loubes. Generalized functional ANOVA in closed-form: a unified view of additive explanations. arXiv:2605.18422, 2026.
+16. M. Fontana, G. Zeni and S. Vantini. Conformal prediction: a unified review of theory and new challenges. *Bernoulli*, 29(1):1–23, 2023.
+17. S. Fresca and A. Manzoni. A comprehensive deep learning-based approach to reduced order modeling of nonlinear time-dependent parametrized PDEs. *Journal of Scientific Computing*, 87(2):61, 2021.
+18. S. Fresca, A. Manzoni, L. Dedè and A. Quarteroni. POD-DL-ROM: enhancing deep learning-based reduced order models for nonlinear parametrized PDEs by proper orthogonal decomposition. *Computer Methods in Applied Mechanics and Engineering*, 388:114181, 2022.
+19. R. G. Ghanem and P. D. Spanos. *Stochastic Finite Elements: A Spectral Approach*. Springer, New York, 1991.
+20. I. Goodfellow, Y. Bengio and A. Courville. *Deep Learning*. MIT Press, 2016.
+21. V. Gopakumar, A. Gray, J. Oskarsson, L. Zanisi, S. Pamela, D. Giles, M. Kusner and M. P. Deisenroth. Uncertainty quantification of surrogate models using conformal prediction. arXiv:2408.09881, 2024.
+22. W. He, Z. Jiang, T. Xiao, Z. Xu and Y. Li. A survey on uncertainty quantification methods for deep learning. arXiv:2302.13425, 2023.
+23. J. S. Hesthaven, G. Rozza and B. Stamm. *Certified Reduced Basis Methods for Parametrized Partial Differential Equations*. SpringerBriefs in Mathematics, Springer, 2016.
+24. G. E. Hinton and R. R. Salakhutdinov. Reducing the dimensionality of data with neural networks. *Science*, 313(5786):504–507, 2006.
+25. G. Hooker. Generalized functional ANOVA diagnostics for high-dimensional functions of dependent variables. *Journal of Computational and Graphical Statistics*, 16(3):709–732, 2007.
+26. E. Jaber, V. Blot, N. Brunel, V. Chabridon, E. Remy, B. Iooss, D. Lucor, M. Mougeot and A. Leite. Conformal approach to Gaussian process surrogate evaluation with coverage guarantees. arXiv:2401.07733, 2024.
+27. G. E. Karniadakis, I. G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang and L. Yang. Physics-informed machine learning. *Nature Reviews Physics*, 3(6):422–440, 2021.
+28. D. P. Kingma and M. Welling. Auto-encoding variational Bayes. *International Conference on Learning Representations*, 2014.
+29. O. P. Le Maître and O. M. Knio. *Spectral Methods for Uncertainty Quantification: With Applications to Computational Fluid Dynamics*. Scientific Computation, Springer, 2010.
+30. K. Lee and K. T. Carlberg. Model reduction of dynamical systems on nonlinear manifolds using deep convolutional autoencoders. *Journal of Computational Physics*, 404:108973, 2020.
+
+### Textbooks
+
+-   A. Angelopoulos and S. Bates. Conformal prediction: a gentle introduction. *Foundations and Trends in Machine Learning*, 16(4):494–591, 2023.
+-   M. Asch, M. Bocquet and M. Nodet. *Data Assimilation: Methods, Algorithms, and Applications*. SIAM, 2016.
+-   E. de Rocquigny, N. Devictor and S. Tarantola, editors. *Uncertainty in Industrial Practice: A Guide to Quantitative Uncertainty Management*. Wiley, 2008.
+-   A. I. J. Forrester, A. Sóbester and A. J. Keane. *Engineering Design via Surrogate Modelling: A Practical Guide*. Wiley, 2008.
+-   J. Kaipio and E. Somersalo. *Statistical and Computational Inverse Problems*. Springer, 2005.
+-   W. L. Oberkampf and C. J. Roy. *Verification and Validation in Scientific Computing*. Cambridge University Press, 2010.
+-   A. Quarteroni, A. Manzoni and F. Negri. *Reduced Basis Methods for Partial Differential Equations: An Introduction*. UNITEXT 92, Springer, 2016.
+-   C. E. Rasmussen and C. K. I. Williams. *Gaussian Processes for Machine Learning*. MIT Press, 2006.
+-   A. Saltelli, M. Ratto, T. Andres, F. Campolongo, J. Cariboni, D. Gatelli, M. Saisana and S. Tarantola. *Global Sensitivity Analysis: The Primer*. Wiley, 2008.
+-   T. J. Santner, B. J. Williams and W. I. Notz. *The Design and Analysis of Computer Experiments*, 2nd edition. Springer, 2018.
+-   T. J. Sullivan. *Introduction to Uncertainty Quantification*. Texts in Applied Mathematics 63, Springer, 2015.
+-   V. Vovk, A. Gammerman and G. Shafer. *Algorithmic Learning in a Random World*. Springer, 2005.
+-   H. Wendland. *Scattered Data Approximation*. Cambridge University Press, 2004.
+
+### Articles cited in the chapters
+
+-   P. Baldi and K. Hornik. Neural networks and principal component analysis: learning from examples without local minima. *Neural Networks*, 2(1):53–58, 1989.
+-   A. R. Barron. Universal approximation bounds for superpositions of a sigmoidal function. *IEEE Transactions on Information Theory*, 39(3):930–945, 1993.
+-   P. Benner, S. Gugercin and K. Willcox. A survey of projection-based model reduction methods for parametric dynamical systems. *SIAM Review*, 57(4):483–531, 2015.
+-   V. Borovitskiy, I. Azangulov, A. Terenin, P. Mostowsky, M. P. Deisenroth and N. Durrande. Matérn Gaussian processes on graphs. *Proceedings of AISTATS*, PMLR 130:2593–2601, 2021.
+-   J. Brynjarsdóttir and A. O'Hagan. Learning about physical parameters: the importance of model discrepancy. *Inverse Problems*, 30(11):114007, 2014.
+-   G. Carlsson. Topology and data. *Bulletin of the American Mathematical Society*, 46(2):255–308, 2009.
+-   S. Chaturantabut and D. C. Sorensen. Nonlinear model reduction via discrete empirical interpolation. *SIAM Journal on Scientific Computing*, 32(5):2737–2764, 2010.
+-   T. Chen and H. Chen. Universal approximation to nonlinear operators by neural networks with arbitrary activation functions and its application to dynamical systems. *IEEE Transactions on Neural Networks*, 6(4):911–917, 1995.
+-   M. Chevreuil, R. Lebrun, A. Nouy and P. Rai. A least-squares method for sparse low rank approximation of multivariate functions. *SIAM/ASA Journal on Uncertainty Quantification*, 3(1):897–921, 2015.
+-   A. Cohen and R. DeVore. Approximation of high-dimensional parametric PDEs. *Acta Numerica*, 24:1–159, 2015.
+-   G. Cybenko. Approximation by superpositions of a sigmoidal function. *Mathematics of Control, Signals and Systems*, 2(4):303–314, 1989.
+-   O. Dubrule. Cross validation of kriging in a unique neighborhood. *Journal of the International Association for Mathematical Geology*, 15(6):687–699, 1983.
+-   B. Echard, N. Gayton and M. Lemaire. AK-MCS: an active learning reliability method combining Kriging and Monte Carlo simulation. *Structural Safety*, 33(2):145–154, 2011.
+-   O. G. Ernst, A. Mugler, H.-J. Starkloff and E. Ullmann. On the convergence of generalized polynomial chaos expansions. *ESAIM: Mathematical Modelling and Numerical Analysis*, 46(2):317–339, 2012.
+-   G. Evensen. Sequential data assimilation with a nonlinear quasi-geostrophic model using Monte Carlo methods to forecast error statistics. *Journal of Geophysical Research: Oceans*, 99(C5):10143–10162, 1994.
+-   R. Foygel Barber, E. J. Candès, A. Ramdas and R. J. Tibshirani. The limits of distribution-free conditional predictive inference. *Information and Inference*, 10(2):455–482, 2021.
+-   Y. Gal and Z. Ghahramani. Dropout as a Bayesian approximation: representing model uncertainty in deep learning. *Proceedings of ICML*, PMLR 48:1050–1059, 2016.
+-   T. Gneiting and A. E. Raftery. Strictly proper scoring rules, prediction, and estimation. *Journal of the American Statistical Association*, 102(477):359–378, 2007.
+-   M. Herde, B. Raonić, T. Rohner, R. Käppeli, R. Molinaro, E. de Bézenac and S. Mishra. Poseidon: efficient foundation models for PDEs. *Advances in Neural Information Processing Systems*, 37, 2024.
+-   J. S. Hesthaven and S. Ubbiali. Non-intrusive reduced order modeling of nonlinear problems using neural networks. *Journal of Computational Physics*, 363:55–78, 2018.
+-   K. Hornik. Approximation capabilities of multilayer feedforward networks. *Neural Networks*, 4(2):251–257, 1991.
+-   T. Ishigami and T. Homma. An importance quantification technique in uncertainty analysis for computer models. *Proceedings of the First International Symposium on Uncertainty Modeling and Analysis*, IEEE, 398–403, 1990.
+-   A. Janon, T. Klein, A. Lagnoux, M. Nodet and C. Prieur. Asymptotic normality and efficiency of two Sobol index estimators. *ESAIM: Probability and Statistics*, 18:342–364, 2014.
+-   D. R. Jones, M. Schonlau and W. J. Welch. Efficient global optimization of expensive black-box functions. *Journal of Global Optimization*, 13(4):455–492, 1998.
+-   M. C. Kennedy and A. O'Hagan. Predicting the output from a complex computer code when fast approximations are available. *Biometrika*, 87(1):1–13, 2000.
+-   M. C. Kennedy and A. O'Hagan. Bayesian calibration of computer models. *Journal of the Royal Statistical Society: Series B*, 63(3):425–464, 2001.
+-   K. Konakli and B. Sudret. Polynomial meta-models with canonical low-rank approximations: numerical insights and comparison to sparse polynomial chaos expansions. *Journal of Computational Physics*, 321:1144–1169, 2016.
+-   N. Kovachki, S. Lanthaler and S. Mishra. On universal approximation and error bounds for Fourier neural operators. *Journal of Machine Learning Research*, 22(290):1–76, 2021.
+-   N. Kovachki, Z. Li, B. Liu, K. Azizzadenesheli, K. Bhattacharya, A. Stuart and A. Anandkumar. Neural operator: learning maps between function spaces with applications to PDEs. *Journal of Machine Learning Research*, 24(89):1–97, 2023.
+-   A. S. Krishnapriyan, A. Gholami, S. Zhe, R. M. Kirby and M. W. Mahoney. Characterizing possible failure modes in physics-informed neural networks. *Advances in Neural Information Processing Systems*, 34, 2021.
+-   I. E. Lagaris, A. Likas and D. I. Fotiadis. Artificial neural networks for solving ordinary and partial differential equations. *IEEE Transactions on Neural Networks*, 9(5):987–1000, 1998.
+-   B. Lakshminarayanan, A. Pritzel and C. Blundell. Simple and scalable predictive uncertainty estimation using deep ensembles. *Advances in Neural Information Processing Systems*, 30, 2017.
+-   S. Lanthaler, S. Mishra and G. E. Karniadakis. Error estimates for DeepONets: a deep learning framework in infinite dimensions. *Transactions of Mathematics and Its Applications*, 6(1):tnac001, 2022.
+-   L. Le Gratiet and J. Garnier. Recursive co-kriging model for design of computer experiments with multiple levels of fidelity. *International Journal for Uncertainty Quantification*, 4(5):365–386, 2014.
+-   M. Leshno, V. Ya. Lin, A. Pinkus and S. Schocken. Multilayer feedforward networks with a nonpolynomial activation function can approximate any function. *Neural Networks*, 6(6):861–867, 1993.
+-   Z. Li, N. Kovachki, K. Azizzadenesheli, B. Liu, K. Bhattacharya, A. Stuart and A. Anandkumar. Fourier neural operator for parametric partial differential equations. *International Conference on Learning Representations*, 2021.
+-   A. F. López-Lopera, F. Bachoc, N. Durrande and O. Roustant. Finite-dimensional Gaussian approximation with linear inequality constraints. *SIAM/ASA Journal on Uncertainty Quantification*, 6(3):1224–1255, 2018.
+-   L. Lu, P. Jin, G. Pang, Z. Zhang and G. E. Karniadakis. Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators. *Nature Machine Intelligence*, 3(3):218–229, 2021.
+-   L. Lu, X. Meng, Z. Mao and G. E. Karniadakis. DeepXDE: a deep learning library for solving differential equations. *SIAM Review*, 63(1):208–228, 2021.
+-   S. M. Lundberg and S.-I. Lee. A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, 30, 2017.
+-   H. Maatouk and X. Bay. Gaussian process emulators for computer experiments with inequality constraints. *Mathematical Geosciences*, 49(5):557–582, 2017.
+-   G. Matheron. Principles of geostatistics. *Economic Geology*, 58(8):1246–1266, 1963.
+-   M. D. McKay, R. J. Beckman and W. J. Conover. A comparison of three methods for selecting values of input variables in the analysis of output from a computer code. *Technometrics*, 21(2):239–245, 1979.
+-   M. Ohlberger and S. Rave. Reduced basis methods: success, limitations and future challenges. *Proceedings of the Conference Algoritmy*, 1–12, 2016.
+-   A. B. Owen. Sobol' indices and Shapley value. *SIAM/ASA Journal on Uncertainty Quantification*, 2(1):245–251, 2014.
+-   B. Peherstorfer, K. Willcox and M. Gunzburger. Survey of multifidelity methods in uncertainty propagation, inference, and optimization. *SIAM Review*, 60(3):550–591, 2018.
+-   T. Pfaff, M. Fortunato, A. Sanchez-Gonzalez and P. Battaglia. Learning mesh-based simulation with graph networks. *International Conference on Learning Representations*, 2021.
+-   H. Rabitz and Ö. F. Aliş. General foundations of high-dimensional model representations. *Journal of Mathematical Chemistry*, 25(2–3):197–233, 1999.
+-   C. Rackauckas, Y. Ma, J. Martensen, C. Warner, K. Zubov, R. Supekar, D. Skinner, A. Ramadhan and A. Edelman. Universal differential equations for scientific machine learning. arXiv:2001.04385, 2020.
+-   N. Rahaman, A. Baratin, D. Arpit, F. Draxler, M. Lin, F. Hamprecht, Y. Bengio and A. Courville. On the spectral bias of neural networks. *Proceedings of ICML*, PMLR 97:5301–5310, 2019.
+-   M. Raissi, P. Perdikaris and G. E. Karniadakis. Physics-informed neural networks: a deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics*, 378:686–707, 2019.
+-   J. Sacks, W. J. Welch, T. J. Mitchell and H. P. Wynn. Design and analysis of computer experiments. *Statistical Science*, 4(4):409–423, 1989.
+-   A. Sanchez-Gonzalez, J. Godwin, T. Pfaff, R. Ying, J. Leskovec and P. Battaglia. Learning to simulate complex physics with graph networks. *Proceedings of ICML*, PMLR 119:8459–8468, 2020.
+-   L. Sirovich. Turbulence and the dynamics of coherent structures. Part I: coherent structures. *Quarterly of Applied Mathematics*, 45(3):561–571, 1987.
+-   I. M. Sobol'. Global sensitivity indices for nonlinear mathematical models and their Monte Carlo estimates. *Mathematics and Computers in Simulation*, 55(1–3):271–280, 2001.
+-   M. Stein. Large sample properties of simulations using Latin hypercube sampling. *Technometrics*, 29(2):143–151, 1987.
+-   A. M. Stuart. Inverse problems: a Bayesian perspective. *Acta Numerica*, 19:451–559, 2010.
+-   A. M. Stuart and A. L. Teckentrup. Posterior consistency for Gaussian process approximations of Bayesian posterior distributions. *Mathematics of Computation*, 87(310):721–753, 2018.
+-   B. Sudret. Global sensitivity analysis using polynomial chaos expansions. *Reliability Engineering & System Safety*, 93(7):964–979, 2008.
+-   S. Wang, Y. Teng and P. Perdikaris. Understanding and mitigating gradient flow pathologies in physics-informed neural networks. *SIAM Journal on Scientific Computing*, 43(5):A3055–A3081, 2021.
+-   D. Xiu and G. E. Karniadakis. The Wiener–Askey polynomial chaos for stochastic differential equations. *SIAM Journal on Scientific Computing*, 24(2):619–644, 2002.

@@ -1,0 +1,2547 @@
+---
+title: "Multimodal Explainable AI (XAI)"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: gradients, conditional variance, least squares and embeddings](#ch0)
+-   [1. What is explainable AI?](#ch1)
+-   [2. Local surrogates and Shapley values: LIME and SHAP](#ch2)
+-   [3. Gradient-based attribution: CAM, Grad-CAM and Integrated Gradients](#ch3)
+-   [4. Variance-based sensitivity analysis](#ch4)
+-   [5. Counterfactual explanations](#ch5)
+-   [6. Concept bottleneck models](#ch6)
+-   [7. Concept activation vectors](#ch7)
+-   [8. Prototype networks](#ch8)
+-   [9. Chain-of-thought reasoning](#ch9)
+-   [10. Knowledge graphs for explainable AI](#ch10)
+-   [11. Evaluating explanations across modalities](#ch11)
+-   [12. Complements for self-study](#ch12)
+-   [13. Research directions and open problems](#ch13)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Multimodal Explainable AI (XAI)
+  Official title       Multimodal Explainable AI (XAI)
+  Instructors          G. FRANCHI, M. FONTAINE, M. LABEAU, M. ALAM (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 29 h (lectures 10 h, tutorials 17 h, project 2 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Machine Learning
+  Language             Not displayed (the master-mva.com course description is written in English)
+  Assessment           Final project (50%), applying XAI methods to multimodal data (vision, audio, NLP); final written exam (50%), on the theoretical foundations of the XAI techniques learned in class (master-mva.com). The course is open to external auditors, without any grade, assessment or certificate. Université Paris-Saclay: “Détail renseigné au niveau Élément Constitutif” (details given at the level of the course component)
+  Prerequisites        Not displayed (master-mva.com has no “Prérequis” section for this course; the Université Paris-Saclay course detail lists none)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics or computer science who has trained a neural network and now wants to know, and to justify, what a given prediction rests on.
+
+**Empirical first**: train a small convolutional network on the scikit-learn digits after stamping a 2×2 white mark in a corner of every training "0". Its clean test accuracy is 77 %, an unremarkable number. Yet stamping the same mark on test images of other digits turns 21 % of them into "0"s, and an Integrated Gradients map puts 37 % of its positive mass on the four marked pixels (code in [ch. 3](#ch3)). Lapuschkin et al. (2019) found the same "Clever Hans" failure in a real classifier that recognised horses by a copyright tag.
+
+This course studies the methods that answer the question "why this prediction?" for images, sounds and texts, and the mathematics that says when the answer can be trusted. It covers post hoc explanations of trained models (local surrogates, Shapley values, gradients, variance-based sensitivity, counterfactuals, concept vectors) and models that are interpretable by design (concept bottlenecks, prototypes, explicit reasoning chains, knowledge graphs).
+
+It is the explainability companion of [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Regulating AI](../s2-regulating-ai/index.html), and it applies to the models of [Deep Learning](../s1-deep-learning/index.html), [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html) and [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html).
+
+### What you will be able to do
+
+-   Place an explanation method in the taxonomy (intrinsic or post hoc, local or global, model-specific or model-agnostic) and state the question it answers.
+-   Derive LIME as a weighted least-squares problem, prove the uniqueness of the Shapley value, and prove that Kernel SHAP recovers it exactly.
+-   Prove the completeness of Integrated Gradients and the equivalence of Grad-CAM and CAM on global-average-pooling networks, then compute both on a CNN.
+-   Decompose the variance of a model's output into Sobol indices, estimate them by Monte Carlo and quasi-Monte Carlo, and turn them into attribution maps for images and spectrograms.
+-   Compute minimal counterfactuals of linear models in closed form and generate diverse counterfactual sets for black-box classifiers.
+-   Train a concept bottleneck model, intervene on its concepts, and test the influence of a concept on any network with concept activation vectors.
+-   Explain how a prototype network classifies by similarity to training parts, and implement prototype projection.
+-   Check the steps of a chain of thought formally, and explain why a linear chain fails when several valid steps compete.
+-   Mine rules from a knowledge graph and use them to predict and justify new links.
+-   Evaluate an explanation for faithfulness with deletion curves and sanity checks, and attribute a multimodal prediction to its modalities.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents Explainable Artificial Intelligence (XAI) as the subfield of machine learning that makes complex models transparent. Deep networks and foundation models reach state-of-the-art performance, but their black-box nature makes their reasoning hard to understand, which raises concerns about trust, accountability and the extraction of insight.
+
+The description examines two perspectives: the argument for inherently interpretable models in high-stakes domains such as healthcare and finance, and the development of post hoc explanation techniques applied after training. Students meet state-of-the-art methods across computer vision, audio processing and natural language processing, with hands-on exercises.
+
+Its motivation stresses critical applications (healthcare, finance, autonomous vehicles, security), the shift from tabular data to multimodal systems that combine vision, audio and text, and the European Union's AI Act, which ties high-risk applications to transparency and explainability requirements. The stated aim is to give the theoretical foundations and practical skills needed to build compliant, trustworthy and socially responsible AI systems.
+
+The organisation announces ten weeks: nine weeks that each pair a lecture with a hands-on tutorial (TP) on vision, audio or NLP, and a final week with a 1 h exam and 2 h of project work. The Université Paris-Saclay course detail gives the volume (10 h of lectures, 17 h of tutorials, 2 h of project) and the assessment type, but no programme of its own. Every official item is matched below.
+
+| Official topic | Course section |
+|---|---|
+| Objective: inherently interpretable models for high-stakes domains (healthcare, finance) | [ch. 1](#ch1), "Interpretable by design" (Definitions 1.4–1.5, Example 1.6); models interpretable by construction in [ch. 6](#ch6) and [ch. 8](#ch8) |
+| Objective: post hoc explanation techniques | [ch. 2](#ch2) to [ch. 5](#ch5) and [ch. 7](#ch7) |
+| Objective: multiple modalities (computer vision, audio, NLP) | Vision labs in ch. 2, 3, 6; audio labs in ch. 4, 5, 8; NLP labs in ch. 9, 10; multimodal attribution in [ch. 11](#ch11) |
+| Objective: attribution techniques | [ch. 2](#ch2) (LIME, SHAP) and [ch. 3](#ch3) (saliency, CAM, Grad-CAM, Integrated Gradients) |
+| Objective: sensitivity analysis | [ch. 4](#ch4) |
+| Objective: Concept Bottleneck Models | [ch. 6](#ch6) |
+| Objective: Concept Activation Vectors (CAVs) | [ch. 7](#ch7) |
+| Objective: counterfactual explanations | [ch. 5](#ch5) |
+| Context: trust, accountability, fairness; from tabular to multimodal data | [ch. 1](#ch1), "Why explanations matter" and "Applications"; [ch. 11](#ch11) |
+| Context: the EU AI Act and risk-based regulation | [ch. 1](#ch1), "Regulation" |
+| Week 1: what is XAI; importance and challenges of interpretability | [ch. 1](#ch1): Definitions 1.1–1.2, "Why explanations matter" |
+| Week 1: real-world applications (healthcare, finance, autonomous systems) | [ch. 1](#ch1), "Applications" |
+| Week 1: different types of explanations | [ch. 1](#ch1): Definition 1.3 and the table of explanation types |
+| Week 1: LIME [2] | [ch. 2](#ch2): Definition 2.1, Proposition 2.2 |
+| Week 1: SHAP [3] and Kernel SHAP | [ch. 2](#ch2): Theorem 2.4 (Shapley), Definition 2.5, Proposition 2.6, Theorem 2.7 (Kernel SHAP) |
+| Week 1 TP: LIME and SHAP on vision tasks | [ch. 2](#ch2), code on digit superpixels (Example 2.8) |
+| Week 2: Class Activation Mapping (CAM) | [ch. 3](#ch3): Definition 3.2 |
+| Week 2: Grad-CAM [1] | [ch. 3](#ch3): Definition 3.3, Proposition 3.4 |
+| Week 2: application to CNNs | [ch. 3](#ch3), shortcut CNN code; [ch. 0](#ch0), Definition 0.4 |
+| Week 2: Integrated Gradients | [ch. 3](#ch3): Definition 3.5, Theorem 3.6, Proposition 3.7 |
+| Week 2 TP: CAM and Grad-CAM on vision models | [ch. 3](#ch3), code and Example 3.8 |
+| Week 3: overview of sensitivity analysis methods | [ch. 4](#ch4), "Sensitivity analysis in one page" |
+| Week 3: mathematical foundations and applications | [ch. 4](#ch4): Theorem 4.1 (Hoeffding–Sobol), Definition 4.2, Propositions 4.3–4.4, Example 4.5 |
+| Week 3: key articles on variance-based methods [4][5] | [ch. 4](#ch4): Sobol (2001) estimators; Definition 4.6 (Sobol attribution of Fel et al., 2021) |
+| Week 3 TP: sensitivity analysis on audio models | [ch. 4](#ch4), spectrogram code and Example 4.7 |
+| Week 4: definition and theory of counterfactual explanations [6] | [ch. 5](#ch5): Definition 5.1, Propositions 5.2–5.3, Definition 5.4, Proposition 5.5 |
+| Week 4: counterfactuals for decision-making transparency | [ch. 5](#ch5), "Actionability and recourse" |
+| Week 4 TP: counterfactuals for audio-based systems | [ch. 5](#ch5), band-energy code and Example 5.6 |
+| Week 5: Concept Bottleneck Models and their role in interpretability [8, 9] | [ch. 6](#ch6): Definition 6.1, Propositions 6.2 and 6.4, CLIP-based bottlenecks (Definition 6.5, Proposition 6.6) |
+| Week 5: intermediate concepts to explain final predictions | [ch. 6](#ch6), "Test-time intervention", Example 6.3 |
+| Week 5 TP: CBMs for vision tasks | [ch. 6](#ch6), code |
+| Week 6: CAVs for interpreting deep models [10] | [ch. 7](#ch7): Definition 7.1, Proposition 7.2; concept-based explanation of large multimodal models |
+| Week 6: how CAVs connect human concepts to activations | [ch. 7](#ch7): Definition 7.1 (concept direction, sensitivity), "Concepts in vision–language models"; concept discovery in [ch. 12](#ch12) |
+| Week 6 TP: CAVs for vision–language models | [ch. 7](#ch7), code and the CLIP protocol of Example 7.3 |
+| Week 7: Prototype Networks [11] | [ch. 8](#ch8): Proposition 8.1, Definition 8.2, Proposition 8.3, Deformable ProtoPNet |
+| Week 7 TP: Prototype Networks for audio tasks | [ch. 8](#ch8), code on spectrogram frames |
+| Week 8: chain-of-thought reasoning [12] | [ch. 9](#ch9): Definition 9.1, Proposition 9.2, formal analysis (Definition 9.3, Proposition 9.4) |
+| Week 8: step-by-step explanations in complex decisions | [ch. 9](#ch9), "Is the chain the explanation?" |
+| Week 8 TP: chain of thought in NLP models | [ch. 9](#ch9), proof-checking code |
+| Week 9: knowledge graphs and interpretability [13] | [ch. 10](#ch10): Definition 10.1, "Where knowledge graphs help" |
+| Week 9: knowledge graphs in NLP and AI for structured explanations | [ch. 10](#ch10): Proposition 10.3, Definition 10.4, "Knowledge graphs and language models" |
+| Week 9 TP: integrating knowledge graphs into NLP models | [ch. 10](#ch10), rule-mining code |
+| Week 10: final exam (1 h) | [Written exam proposal](#projects-exam) |
+| Week 10: final project on a multimodal dataset (2 h) | [ch. 11](#ch11), "From the course to the project"; [projects](#projects) |
+| Assessment: project 50 %, written exam 50 % | [Projects and assessment](#projects) |
+| Thèmes abordés: connection to the deep-learning courses (vision, NLP, audio), Theoretical Foundations of Deep Learning, Responsible ML and Bayesian ML | [Where this course fits in the programme](#fits) |
+| Reference [7]: multimodal deep learning review | [ch. 11](#ch11), "Multimodal explanations" |
+| Reference [14]: Interpretable Machine Learning book | [ch. 1](#ch1) and [ch. 12](#ch12) (inherently interpretable models, more methods) |
+
+Every official topic has a section in these notes. The extensions beyond the syllabus are the review of ch. 0 (self-study), the evaluation methods of ch. 11 (deletion curves, sanity checks, modality Shapley values), the complements of ch. 12 and the research directions of ch. 13, both in self-study.
+
+### Where this course fits in the programme {#fits}
+
+Official prerequisites: not displayed. In practice the course uses multivariable calculus (gradients and the chain rule), probability (conditional expectation and variance), least squares, and a working knowledge of convolutional networks and transformers; ch. 0 reviews the first three. The Université Paris-Saclay table lists the course as annualised; master-mva.com places it in semester 2.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (conditional expectation, used in ch. 4), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (least squares, gradients) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the code).
+-   **Semester 1 courses that prepare it** — [Deep Learning](../s1-deep-learning/index.html) and [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html) (the networks being explained), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Foundations of Large Language Models](../s1-foundations-llms/index.html) (for ch. 9), [ALTEGRAD](../s1-altegrad/index.html) (text and graph data, for ch. 10), [Computational Statistics](../s1-computational-statistics/index.html) (Monte Carlo, for ch. 4) and the [Turing Seminar on AGI safety](../s1-turing-seminar-ai-safety/index.html) (interpretability as a safety tool).
+-   **Related courses of semester 2** — [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Bayesian Machine Learning](../s2-bayesian-ml/index.html), named by the official description; [Regulating AI](../s2-regulating-ai/index.html) (the AI Act); [Learning Physical Phenomena](../s2-physics-learning-uq/index.html), where Sobol indices are a standard tool of uncertainty quantification; [Algorithms for Speech and NLP](../s2-speech-nlp/index.html), [Audio Signal Analysis, Indexing and Transformations](../s2-audio-analysis-indexing/index.html), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Large Language Models for Code and Proof](../s2-llm-code-proof/index.html) and [Graphs in Machine Learning](../s2-graphs-in-ml/index.html).
+
+### Course outline
+
+-   **0. Review** — gradients and the chain rule, CNN feature maps, conditional variance, weighted least squares, joint image–text embeddings.
+-   **1. What is explainable AI?** — definitions, a taxonomy of explanations, why they matter, applications, regulation, and models that are interpretable by design.
+-   **2. LIME and SHAP** — local surrogate models, Shapley values and their uniqueness, Kernel SHAP and its exactness.
+-   **3. Gradient-based attribution** — saliency, CAM, Grad-CAM, Integrated Gradients and their axioms.
+-   **4. Variance-based sensitivity analysis** — the Hoeffding–Sobol decomposition, Sobol indices, their estimators, and Sobol attribution maps for images and sounds.
+-   **5. Counterfactual explanations** — minimal changes that flip a decision, closed forms for linear models, diverse counterfactual sets, recourse.
+-   **6. Concept bottleneck models** — predicting through human concepts, intervening on them, leakage, CLIP-based bottlenecks.
+-   **7. Concept activation vectors** — concept directions in activation space, the TCAV test, concepts in multimodal models.
+-   **8. Prototype networks** — "this looks like that": prototype layers, projection, deformable prototypes.
+-   **9. Chain-of-thought reasoning** — step-by-step rationales, self-consistency, formal checking, faithfulness.
+-   **10. Knowledge graphs for explainable AI** — triples, embeddings, rules and paths as explanations, graphs and language models.
+-   **11. Evaluating explanations across modalities** — faithfulness, sanity checks, modality attribution, and the final project.
+-   **12. Complements for self-study** — estimating Shapley values, more attribution rules, concept discovery, attention, causal recourse, glass-box boosting.
+-   **13. Research directions and open problems** — a self-study tour of current work.
+
+### Session plan {#sessions}
+
+**29 h in class = 10 sessions (9 × 3 h + 1 × 2 h).** The volume of 29 h (10 h of lectures, 17 h of tutorials, 2 h of project) comes from the Université Paris-Saclay programme table. master-mva.com announces nine weeks of lecture plus hands-on tutorial, then a week with a 1 h exam and 2 h of project.
+
+The plan follows those weeks: nine sessions of 3 h match the 27 h of lectures and tutorials, and session 10 holds the 2 h of project. Neither source says whether the 29 h include the 1 h exam, so it is left outside the plan. The split is a proposal.
+
+Level 1 = foundations, 2 = core methods and their theory, 3 = advanced and research-level material. The level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 1 What is XAI: definitions, taxonomy, applications, regulation, interpretable models; ch. 2 LIME, Shapley values, SHAP and Kernel SHAP | Ex. 1, 2, 3; TP: LIME and SHAP on digit superpixels (vision) |
+| 2 | 3 h | 2 | ch. 3 Saliency, CAM, Grad-CAM on CNNs, Integrated Gradients | Ex. 4, 10; TP: CAM, Grad-CAM and IG on the shortcut CNN (vision) |
+| 3 | 3 h | 2 | ch. 4 Sensitivity analysis, Hoeffding–Sobol decomposition, Sobol indices and estimators, Sobol attribution maps | Ex. 5, 11; TP: Sobol maps on spectrograms (audio) |
+| 4 | 3 h | 2 | ch. 5 Counterfactuals: definition, linear case, DiCE, actionability and recourse | Ex. 6, 12; TP: counterfactuals on audio features (audio) |
+| 5 | 3 h | 2 | ch. 6 Concept bottleneck models: training regimes, interventions, leakage, CLIP-based bottlenecks | Ex. 7, 13; TP: CBM with interventions (vision) |
+| 6 | 3 h | 2 | ch. 7 Concept activation vectors, TCAV, concepts in vision–language and large multimodal models | Ex. 14; TP: CAVs and the CLIP protocol (vision–NLP) |
+| 7 | 3 h | 3 | ch. 8 Prototype networks: ProtoPNet, projection, Deformable ProtoPNet | Ex. 15; TP: prototypes on spectrogram frames (audio) |
+| 8 | 3 h | 3 | ch. 9 Chain of thought: prompting, self-consistency, formal analysis, faithfulness | Ex. 8, 16; TP: checking proofs step by step (NLP) |
+| 9 | 3 h | 3 | ch. 10 Knowledge graphs: triples, embeddings, rules and paths, graphs and language models | Ex. 9, 17; TP: rule mining and explanation (NLP) |
+| 10 | 2 h | 3 | ch. 11 Evaluating explanations, multimodal attribution; launch of the final project | Ex. 18; project work |
+
+**Self-study, outside the 29 h** (about 8 h in total): ch. 0 Review, to read before session 1 (≈ 1.5 h) · ch. 12 Complements for self-study (≈ 3.5 h, with Ex. 19) · ch. 13 Research directions and open problems (≈ 3 h, with Ex. 20).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 if the chain rule through a network, or the law of total variance, feels distant: chapters 3 and 4 use them without warning.
+-   After each session, do the exercises of its row, then run the code of the chapter and change one parameter (the baseline, the number of samples, the mask resolution) to see how fragile the explanation is.
+-   Implement each method once from scratch before using a library such as `shap`, `captum` or `pytorch-grad-cam`: each one is a few lines of NumPy or PyTorch.
+-   The code uses NumPy, SciPy, scikit-learn, NetworkX and PyTorch (CPU), with synthetic data or data sets bundled with scikit-learn; every block runs in seconds on a laptop.
+-   Start a project from the last section after session 5; the final project of the official assessment uses several families of methods on one multimodal data set.
+
+## 0. Review: gradients, conditional variance, least squares and embeddings {#ch0}
+
+Explanation methods differentiate networks, average over random perturbations, fit small linear models and compare embeddings. This chapter collects the M1-level facts that the later chapters use without proof.
+
+### Gradients through a network
+
+::: def
+[Definition 0.1 — Gradient and directional derivative]{.tag} A function $f : \mathbb{R}^d \to \mathbb{R}$ is differentiable at $x$ when
+$$
+f(x + h) = f(x) + \nabla f(x)^\top h + o(\|h\|) .
+$$
+The **directional derivative** along a unit vector $v$ is $D_v f(x) = \nabla f(x)^\top v$: the first-order change of $f$ when $x$ moves in the direction $v$.
+:::
+
+:::: prop
+[Proposition 0.2 — Chain rule and integration along a path]{.tag} Let $f = g \circ \phi$ with $\phi : \mathbb{R}^d \to \mathbb{R}^m$ and $g : \mathbb{R}^m \to \mathbb{R}$ differentiable.
+
+1.  The gradient with respect to the input is pulled back by the Jacobian of $\phi$:
+    $$
+    \nabla f(x) = J_\phi(x)^\top \, \nabla g(\phi(x)) .
+    $$
+2.  For a $C^1$ path $\gamma : [0, 1] \to \mathbb{R}^d$ from $x'$ to $x$,
+    $$
+    f(x) - f(x') = \int_0^1 \nabla f(\gamma(t))^\top \gamma'(t) \, dt .
+    $$
+
+::: proof
+Item 1 is the chain rule written with Jacobians. Item 2 applies the fundamental theorem of calculus to $t \mapsto f(\gamma(t))$, whose derivative is the integrand by item 1. [∎]{.qed}
+:::
+::::
+
+Backpropagation computes item 1 layer by layer. Stopping it at an intermediate layer $\phi(x)$ gives $\nabla g(\phi(x))$, the gradient with respect to hidden activations, which Grad-CAM (ch. 3) and concept activation vectors (ch. 7) use.
+
+::: def
+[Definition 0.3 — Global average pooling]{.tag} The last convolutional layer of a CNN outputs $K$ feature maps $A^1, \dots, A^K$ of size $H \times W$. **Global average pooling** (GAP) replaces each map by its mean, with $Z = HW$:
+$$
+F_k = \frac{1}{Z} \sum_{i=1}^H \sum_{j=1}^W A^k_{ij} .
+$$
+:::
+
+::: def
+[Definition 0.4 — A CNN with a GAP head]{.tag} The class scores (logits) of a CNN with a GAP head are linear in the pooled features, $y^c = \sum_k w^c_k F_k + b^c$. Each $A^k_{ij}$ depends only on a window of the input, its *receptive field*, so a value at position $(i, j)$ can be traced back to a region of the image or spectrogram.
+:::
+
+### Conditional variance
+
+:::: prop
+[Proposition 0.5 — Law of total variance]{.tag} For square-integrable $Y$ and any random vector $X$,
+$$
+\mathrm{Var}(Y) = \mathbb{E}\big[\mathrm{Var}(Y \mid X)\big] + \mathrm{Var}\big(\mathbb{E}[Y \mid X]\big) .
+$$
+
+::: proof
+Write $m(X) = \mathbb{E}[Y \mid X]$ and $Y - \mathbb{E} Y = (Y - m(X)) + (m(X) - \mathbb{E} Y)$.
+
+-   The cross term vanishes: conditioning on $X$, $\mathbb{E}[(Y - m(X))(m(X) - \mathbb{E}Y) \mid X] = 0$.
+-   The first square has expectation $\mathbb{E}[\mathrm{Var}(Y \mid X)]$, the second $\mathrm{Var}(m(X))$. [∎]{.qed}
+:::
+::::
+
+The second term is the part of the variance of $Y$ that $X$ explains. Chapter 4 builds the Sobol indices from exactly this quantity.
+
+### Weighted least squares
+
+:::: prop
+[Proposition 0.6 — Weighted ridge regression]{.tag} Let $Z \in \mathbb{R}^{n \times M}$, $y \in \mathbb{R}^n$, weights $\pi_k > 0$ collected in $\Pi = \mathrm{diag}(\pi)$, and $\lambda \geq 0$, with $Z^\top \Pi Z + \lambda I$ invertible. The minimiser of
+$$
+\sum_{k=1}^n \pi_k \big(y_k - z_k^\top \beta\big)^2 + \lambda \|\beta\|^2
+\qquad\text{is}\qquad
+\hat\beta = \big(Z^\top \Pi Z + \lambda I\big)^{-1} Z^\top \Pi\, y .
+$$
+Under a linear constraint $a^\top \beta = c$ (and $\lambda = 0$), the minimiser solves the KKT system
+$$
+Z^\top \Pi Z\, \beta + \mu\, a = Z^\top \Pi\, y, \qquad a^\top \beta = c .
+$$
+
+::: proof
+The objective is a convex quadratic; setting its gradient $-2 Z^\top \Pi (y - Z\beta) + 2\lambda\beta$ to zero gives the formula. With the constraint, the Lagrangian adds $2\mu (a^\top\beta - c)$, and stationarity gives the KKT system. [∎]{.qed}
+:::
+::::
+
+LIME (ch. 2) is the first formula; Kernel SHAP (ch. 2) is the second.
+
+### Joint image–text embeddings
+
+::: def
+[Definition 0.7 — Cosine similarity and CLIP]{.tag} The **cosine similarity** of $u, v \neq 0$ is $\cos(u, v) = u^\top v / (\|u\|\, \|v\|)$.
+
+CLIP (Radford et al., 2021) trains an image encoder $E_I$ and a text encoder $E_T$ so that matching image–caption pairs have a high cosine similarity and mismatched pairs a low one (a contrastive loss over batches). A **zero-shot** classifier compares an image with one prompt per class:
+$$
+\hat y(x) = \arg\max_{c} \; \cos\big(E_I(x), E_T(\text{"a photo of a } c\text{"})\big) .
+$$
+:::
+
+The same similarities, computed against a list of *concepts* instead of classes, give the concept scores of ch. 6 and the text-defined concept directions of ch. 7.
+
+::: recap
+Key takeaways — chapter 0
+
+-   The gradient gives the first-order effect of a perturbation; the chain rule gives gradients with respect to any hidden layer; integrating the gradient along a path recovers a difference of outputs.
+-   In a GAP network, logits are linear in the averaged feature maps, and each map position has a receptive field in the input.
+-   The variance of an output splits into an explained part, $\mathrm{Var}(\mathbb{E}[Y \mid X])$, and a residual part.
+-   Weighted least squares, with or without a linear constraint, has a closed form.
+-   CLIP places images and texts in one space, where cosine similarity scores any concept described in words.
+:::
+
+## 1. What is explainable AI? {#ch1}
+
+A model that is 95 % accurate can still be right for the wrong reasons. This chapter defines what an explanation is, sorts the kinds of explanations, and sets the two positions of the course: explain a black box after training, or train a model that needs no further explanation.
+
+### Definitions
+
+::: def
+[Definition 1.1 — Interpretability and explanation]{.tag} Following Doshi-Velez and Kim (2017), **interpretability** is the ability to explain or present in understandable terms to a human. An **explanation** of a prediction $f(x)$ is an object $E(f, x)$ in a space a human can read: a heat map over the input, a short list of features, a set of examples, a few concepts, a changed input, a rule, or a sentence.
+:::
+
+::: def
+[Definition 1.2 — Faithfulness and plausibility]{.tag} An explanation is **faithful** when it reflects the computation that actually produced $f(x)$, and **plausible** when it convinces a human. The two differ: a heat map can look right and be unrelated to the model (ch. 11).
+:::
+
+Lipton (2018) separates *transparency*, a property of the model (one can simulate it, read its parameters, follow its algorithm), from *post hoc interpretability*, information extracted from a model that stays opaque.
+
+### A taxonomy of explanations
+
+::: def
+[Definition 1.3 — Three axes]{.tag}
+
+-   **Scope**: a *local* explanation concerns one prediction $f(x)$; a *global* one concerns the whole model.
+-   **Timing**: an *intrinsic* explanation is part of the model (interpretable by design); a *post hoc* one is computed after training.
+-   **Access**: a *model-agnostic* method only queries $f$; a *model-specific* one uses gradients, activations or the architecture.
+:::
+
+The type of object returned is a fourth axis. The course covers one family per week.
+
+| Explanation type | Question answered | Methods (chapter) |
+|---|---|---|
+| Feature attribution | Which parts of the input mattered? | LIME, SHAP (ch. 2); CAM, Grad-CAM, IG (ch. 3); Sobol maps (ch. 4) |
+| Counterfactual | What minimal change would alter the decision? | Wachter et al., DiCE (ch. 5) |
+| Concept-based | Which human concepts did the model use? | Concept bottlenecks (ch. 6); CAVs (ch. 7) |
+| Example-based | Which training examples does this resemble? | Prototype networks (ch. 8) |
+| Natural-language rationale | Which reasoning steps lead to the answer? | Chain of thought (ch. 9) |
+| Structured knowledge | Which known facts and rules support it? | Knowledge graphs (ch. 10) |
+
+### Why explanations matter
+
+-   **Debugging.** A model can exploit a shortcut, a feature that predicts the label in the training data but not in deployment. The digit network of the introduction and the horse classifier of Lapuschkin et al. (2019) are examples; accuracy alone does not reveal them.
+-   **Trust and accountability.** A clinician, a loan officer or a judge must be able to contest a decision. That requires knowing what it rests on.
+-   **Fairness.** An explanation can reveal that a protected attribute, or a proxy for it, drives the outcome ([Responsible Machine Learning](../s2-responsible-ml/index.html) treats fairness criteria).
+-   **Insight.** In science, the explanation is sometimes the goal: which region of a scan, which frequency of a signal, which word carries the evidence.
+
+The challenges are as real. There is rarely a ground truth to compare with; different methods disagree on the same prediction (Krishna et al., 2022); explanations can be unstable under tiny input changes; and a persuasive explanation may be unfaithful.
+
+### Applications
+
+-   **Healthcare.** Caruana et al. (2015) trained an intelligible model to predict pneumonia mortality. It learned that asthma *lowers* the risk, because asthmatic patients were sent straight to intensive care in the data. A black box would have learned the same pattern silently; the readable model exposed it before deployment.
+-   **Finance.** A refused credit applicant expects the main reasons for the refusal, and in many jurisdictions is entitled to them. Additive attributions (ch. 2) and counterfactuals ("with an income 4 000 € higher, the loan would be granted", ch. 5) are the usual answers.
+-   **Autonomous systems.** For a perception network in a vehicle or a robot, attribution maps check that a detection rests on the object and not on its context, and concept tests (ch. 7) check that safety-relevant concepts are used.
+
+### Regulation
+
+Regulation (EU) 2024/1689, the AI Act, classifies AI systems by risk. Systems in high-risk areas, such as medical devices, credit scoring, employment or law enforcement, must be designed so that their operation is sufficiently transparent for deployers to interpret their output and use it appropriately (Article 13), and must allow effective human oversight (Article 14).
+
+The Act does not prescribe a method. The course gives the tools to meet such requirements and to judge whether an explanation is reliable enough to support them; [Regulating AI](../s2-regulating-ai/index.html) studies the legal side.
+
+### Interpretable by design
+
+Rudin (2019) argues that for high-stakes decisions one should not explain a black box but use an interpretable model, because on structured data such models often lose little or no accuracy, and their explanation is exact.
+
+::: def
+[Definition 1.4 — Generalised additive model]{.tag} A **generalised additive model** (GAM) predicts through a link function $g$ and one shape function per feature:
+$$
+g\big(\mathbb{E}[y \mid x]\big) = \beta_0 + \sum_{j=1}^d f_j(x_j) .
+$$
+Sparse linear models ($f_j(x_j) = \beta_j x_j$ with few non-zero $\beta_j$) and short decision trees are the other classical interpretable families.
+:::
+
+A GAM is its own explanation: the contribution of feature $j$ to the score is $f_j(x_j)$, and each $f_j$ can be plotted. Lou, Caruana and Gehrke (2012) fit them with boosted trees, and Explainable Boosting Machines add a few pairwise terms (ch. 12).
+
+::: def
+[Definition 1.5 — Rashomon set]{.tag} For a model class $\mathcal{F}$, a loss $L$ and a tolerance $\varepsilon > 0$, the **Rashomon set** is the set of near-optimal models
+$$
+\mathcal{R}(\varepsilon) = \{ f \in \mathcal{F} : L(f) \leq L(f^\star) + \varepsilon \} .
+$$
+:::
+
+Breiman (2001) noted that many different models fit the same data equally well. Semenova, Rudin and Parr (2022) argue that when the Rashomon set is large, it is likely to contain a simple model. This is the formal basis of the "interpretable first" position.
+
+```python
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler, SplineTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+import numpy as np
+
+X, y = load_breast_cancer(return_X_y=True)                  # 569 tumours, 30 features
+cv = StratifiedKFold(5, shuffle=True, random_state=0)
+models = {
+    "sparse logistic (L1)": make_pipeline(StandardScaler(), LogisticRegression(l1_ratio=1.0, C=0.05, solver="liblinear", random_state=0)),
+    "decision tree, depth 3": DecisionTreeClassifier(max_depth=3, random_state=0),
+    "additive spline model (GAM)": make_pipeline(StandardScaler(), SplineTransformer(n_knots=4, degree=2),
+                                                 LogisticRegression(C=0.1, max_iter=5000)),
+    "random forest (300 trees)": RandomForestClassifier(300, random_state=0),
+    "gradient boosting (100 trees)": GradientBoostingClassifier(random_state=0),
+}
+for name, m in models.items():
+    s = cross_val_score(m, X, y, cv=cv)
+    print(f"{name:30s} accuracy {s.mean():.3f} +- {s.std():.3f}")
+l1 = models["sparse logistic (L1)"].fit(X, y)[-1]
+print("features kept by the sparse model:", np.count_nonzero(l1.coef_), "of 30")
+```
+
+::: ex
+[Example 1.6 — Interpretable models on a medical table]{.tag} On the Wisconsin breast-cancer data bundled with scikit-learn, five-fold cross-validation gives:
+
+-   sparse logistic regression, 7 features out of 30: 96.5 % (± 1.2);
+-   additive spline model (a GAM): 96.7 % (± 1.0);
+-   decision tree of depth 3: 93.0 % (± 2.4);
+-   random forest with 300 trees: 95.8 % (± 1.7);
+-   gradient boosting with 100 trees: 96.5 % (± 1.8).
+
+The two black boxes do not beat the sparse and additive models. On images, sounds and texts, raw inputs carry no meaning one by one, and black boxes dominate: hence the post hoc methods of ch. 2–5, and the interpretable-by-design networks of ch. 6 and ch. 8.
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   An explanation maps a model and an input to a human-readable object; it should be faithful, not only plausible.
+-   Explanations are local or global, intrinsic or post hoc, model-agnostic or model-specific, and of six types: attributions, counterfactuals, concepts, examples, rationales, structured knowledge.
+-   They serve debugging, accountability, fairness and insight; there is rarely a ground truth, and methods disagree.
+-   The AI Act asks high-risk systems for interpretable outputs and human oversight, without prescribing a method.
+-   On tabular data, sparse and additive models are often as accurate as black boxes (Example 1.6).
+:::
+
+## 2. Local surrogates and Shapley values: LIME and SHAP {#ch2}
+
+Two model-agnostic ideas answer "which parts of this input mattered?" with a weight per part. LIME fits a simple model around the input; SHAP shares the prediction among the parts according to an axiomatic rule from game theory.
+
+### Interpretable representations
+
+Raw features are often meaningless one by one (pixels, audio samples). Both methods therefore work with $M$ **interpretable components**: superpixels of an image, time segments or sources of a sound, words of a text. A binary vector $z \in \{0, 1\}^M$ says which components are kept. A map $h_x(z)$ builds the corresponding input, for instance by replacing removed superpixels with grey or removed words with a mask token.
+
+### LIME
+
+::: def
+[Definition 2.1 — LIME (Ribeiro, Singh and Guestrin, 2016)]{.tag} Let $G$ be a class of simple models on $\{0,1\}^M$, $\pi_x(z)$ a proximity weight and $\Omega(g)$ a complexity penalty. The explanation of $f$ at $x$ is
+$$
+\xi(x) = \arg\min_{g \in G} \; \sum_{z \in \mathcal{Z}} \pi_x(z) \big( f(h_x(z)) - g(z) \big)^2 + \Omega(g) ,
+$$
+where $\mathcal{Z}$ is a set of random perturbations. The default choices are linear models $g(z) = \beta_0 + \beta^\top z$ and an exponential kernel $\pi_x(z) = \exp(-D(z, \mathbf{1})^2 / \sigma^2)$ on a distance to the unperturbed input.
+:::
+
+:::: prop
+[Proposition 2.2 — LIME is a weighted ridge regression]{.tag} With linear $g$ and $\Omega(g) = \lambda \|\beta\|^2$, the LIME weights are given by Proposition 0.6 with rows $z_k$, targets $f(h_x(z_k))$ and weights $\pi_x(z_k)$:
+$$
+\hat\beta = \big(Z^\top \Pi Z + \lambda I\big)^{-1} Z^\top \Pi\, f .
+$$
+
+::: proof
+Substitute the linear model in Definition 2.1 (with an intercept column in $Z$). [∎]{.qed}
+:::
+::::
+
+The explanation therefore depends on the sampling distribution, the kernel width $\sigma$ and the baseline used for removed components. Alvarez-Melis and Jaakkola (2018) show that it can change markedly between nearby inputs.
+
+### Shapley values
+
+::: def
+[Definition 2.3 — Cooperative game and Shapley value]{.tag} A **game** on players $N = \{1, \dots, M\}$ is a function $v : 2^N \to \mathbb{R}$ with $v(\emptyset) = 0$. The **Shapley value** of player $i$ averages its marginal contributions:
+$$
+\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!\,(M - |S| - 1)!}{M!} \big( v(S \cup \{i\}) - v(S) \big) .
+$$
+:::
+
+The weight is the probability that, in a uniformly random order of the players, the players before $i$ are exactly $S$. So $\phi_i$ is the expected marginal contribution of $i$ when the players join in a random order.
+
+:::: thm
+[Theorem 2.4 — Shapley (1953)]{.tag} The Shapley value is the only map $v \mapsto \phi(v) \in \mathbb{R}^M$ with the four properties:
+
+1.  **efficiency**: $\sum_i \phi_i(v) = v(N)$;
+2.  **symmetry**: if $v(S \cup \{i\}) = v(S \cup \{j\})$ for all $S$ avoiding $i, j$, then $\phi_i = \phi_j$;
+3.  **null player**: if $v(S \cup \{i\}) = v(S)$ for all $S$, then $\phi_i = 0$;
+4.  **additivity**: $\phi(v + w) = \phi(v) + \phi(w)$.
+
+::: proof
+*Existence.* The formula of Definition 2.3 satisfies the four properties: efficiency because, along any order of the players, the marginal contributions telescope to $v(N)$; the other three directly.
+
+*Uniqueness.* For $\emptyset \neq T \subseteq N$, the **unanimity game** is $u_T(S) = 1$ if $T \subseteq S$ and $0$ otherwise.
+
+-   For any real $c$, the players outside $T$ are null in $c\,u_T$, and those in $T$ are symmetric. Efficiency then forces
+    $$
+    \phi_i(c\, u_T) = c / |T| \text{ for } i \in T, \qquad \phi_i(c\, u_T) = 0 \text{ otherwise.}
+    $$
+-   The $2^M - 1$ games $u_T$ are linearly independent. Indeed $u_T(T) = 1$, while $u_{T'}(T) = 0$ for every other $T'$ at least as large as $T$, so their table of values is triangular once coalitions are sorted by size.
+-   They therefore form a basis of the games, and every game writes $v = \sum_T c_T u_T$.
+-   Additivity gives $\phi(v) = \sum_T \phi(c_T u_T)$, which is fixed by the first step. [∎]{.qed}
+:::
+::::
+
+The coefficients $c_T$ are the **Harsanyi dividends** of the game, and the proof gives a second formula, $\phi_i = \sum_{T \ni i} c_T / |T|$: each coalition's dividend is shared equally among its members.
+
+### SHAP
+
+::: def
+[Definition 2.5 — SHAP values (Lundberg and Lee, 2017)]{.tag} The SHAP values of $f$ at $x$ are the Shapley values of a game whose players are the features (or components), and in which $v_x(S)$ is the prediction when only the features in $S$ are known. Two value functions are common, both written here before the shift that makes $v(\emptyset) = 0$:
+$$
+v^{\mathrm{int}}_x(S) = \mathbb{E}\big[ f(x_S, X_{\bar S}) \big], \qquad v^{\mathrm{cond}}_x(S) = \mathbb{E}\big[ f(X) \mid X_S = x_S \big] .
+$$
+The first one (*interventional*) replaces the missing features by draws from their marginal distribution, the second one (*conditional*) by draws given the known ones. A single baseline $x'$ gives the special case $v(S) = f(x_S, x'_{\bar S})$.
+:::
+
+By efficiency, the SHAP values add up to $f(x) - \mathbb{E} f(X)$: they form an *additive explanation* of the gap between the prediction and the average prediction. Lundberg and Lee show that the Shapley value is the only additive explanation with their properties of local accuracy, missingness and consistency, a restatement of Theorem 2.4.
+
+:::: prop
+[Proposition 2.6 — SHAP values of additive models]{.tag} Let $f(x) = \beta_0 + \sum_j f_j(x_j)$ and use the interventional value function. Then
+$$
+\phi_j = f_j(x_j) - \mathbb{E}\, f_j(X_j) .
+$$
+In particular, a linear model gets $\phi_j = w_j \big(x_j - \mathbb{E} X_j\big)$.
+
+::: proof
+For $S$ not containing $j$, only the term $f_j$ changes when $j$ joins $S$, so
+$$
+v(S \cup \{j\}) - v(S) = f_j(x_j) - \mathbb{E} f_j(X_j) .
+$$
+All marginal contributions of $j$ are equal, and the Shapley weights sum to 1. [∎]{.qed}
+:::
+::::
+
+So for a GAM (Definition 1.4), SHAP recovers the model's own shape functions, centred. For models with interactions, each interaction is split among the features it involves, as the Harsanyi dividends show.
+
+### Kernel SHAP
+
+Computing $\phi$ exactly needs $2^M$ evaluations of the value function. Kernel SHAP replaces the enumeration by a weighted regression on sampled coalitions.
+
+:::: thm
+[Theorem 2.7 — Kernel SHAP is exact (Lundberg and Lee, 2017)]{.tag} Let $\tilde v(S) = v(S) - v(\emptyset)$ and give each coalition $\emptyset \neq S \neq N$ the **Shapley kernel** weight
+$$
+\mu(S) = \frac{M - 1}{\binom{M}{|S|}\, |S|\, (M - |S|)} .
+$$
+The solution of the constrained weighted least-squares problem
+$$
+\min_{\varphi \in \mathbb{R}^M} \sum_{\emptyset \neq S \neq N} \mu(S) \Big( \tilde v(S) - \sum_{i \in S} \varphi_i \Big)^2 \quad \text{s.t.} \quad \sum_i \varphi_i = \tilde v(N)
+$$
+is the Shapley value of $v$.
+
+::: proof
+Let $Z$ be the coalition matrix, whose row $S$ is the indicator of $S$, and $W = \mathrm{diag}(\mu)$.
+
+The weights depend only on $|S|$, so the entries of $Z^\top W Z$ depend only on whether $i = j$:
+$$
+Z^\top W Z = a I + b\, \mathbf{1}\mathbf{1}^\top ,
+$$
+where $a$ is the total weight of the coalitions that contain $i$ but not $j$.
+
+-   *KKT.* By Proposition 0.6, with $c = Z^\top W \tilde v$ and a multiplier $\kappa$,
+    $$
+    a \varphi + (b\, \mathbf{1}^\top\varphi + \kappa)\, \mathbf{1} = c, \qquad\text{hence}\qquad \varphi_i - \varphi_j = \frac{c_i - c_j}{a} \quad \text{for all } i, j .
+    $$
+-   *Data side.* Pairing $T \cup \{i\}$ with $T \cup \{j\}$, which have the same weight, for $T \subseteq N \setminus \{i, j\}$:
+    $$
+    c_i - c_j = \sum_{T} \mu_{|T|+1} \big( v(T \cup \{i\}) - v(T \cup \{j\}) \big) .
+    $$
+-   *Shapley side.* Splitting the sum of Definition 2.3 according to whether $S$ contains the other player gives
+    $$
+    \phi_i - \phi_j = \sum_{T} \frac{|T|!\,(M - |T| - 2)!}{(M-1)!} \big( v(T \cup \{i\}) - v(T \cup \{j\}) \big) .
+    $$
+-   *Constants.* With $s = |T| + 1$, the kernel weight is $(M-1)/M$ times the Shapley coefficient:
+    $$
+    \mu_s = \frac{(M-1)\,(s-1)!\,(M-s-1)!}{M!} = \frac{M-1}{M} \cdot \frac{|T|!\,(M - |T| - 2)!}{(M-1)!} .
+    $$
+    Summing $\mu_s$ over the coalitions containing $i$ but not $j$ gives $a = (M-1)/M$ as well.
+
+Hence $\varphi_i - \varphi_j = \phi_i - \phi_j$ for all $i, j$. Both vectors sum to $\tilde v(N)$, so they are equal. [∎]{.qed}
+:::
+::::
+
+The weight is infinite for $S = \emptyset$ and $S = N$, which is why these two coalitions enter as constraints. In practice one samples $n$ coalitions with probability proportional to $\mu(S)$ (first a size $s$ with probability proportional to $(M-1)/(s(M-s))$, then a uniform subset of that size) and solves the regression on the sample.
+
+### Practice on images
+
+The code splits an 8×8 digit into 16 blocks of 2×2 pixels, explains a logistic-regression classifier, and compares exact Shapley values (all $2^{16}$ coalitions), Kernel SHAP and LIME.
+
+```python
+import numpy as np
+from math import factorial
+from sklearn.datasets import load_digits
+from sklearn.linear_model import LogisticRegression, Ridge
+
+rng = np.random.default_rng(0)
+X, y = load_digits(return_X_y=True)
+X = X / 16.0
+clf = LogisticRegression(max_iter=5000).fit(X[:1500], y[:1500])
+x = X[1504]                  # a "3", predicted with probability 0.99
+c = clf.predict(x[None])[0]
+
+# 16 "superpixels": the 2x2 blocks of the 8x8 image; a removed block is set to 0
+r, s = np.divmod(np.arange(64), 8)
+seg = (r // 2) * 4 + s // 2
+M = 16
+
+def value(Z):
+    """Probability of class c when only the blocks with Z = 1 are kept."""
+    keep = Z[:, seg]
+    return clf.predict_proba(keep * x)[:, c]
+
+# Exact Shapley values: enumerate the 2^16 coalitions once
+Z = ((np.arange(2**M)[:, None] >> np.arange(M)) & 1).astype(float)
+v = value(Z)
+size = Z.sum(1).astype(int)
+w = np.array([factorial(k) * factorial(M - k - 1) / factorial(M) for k in range(M)])
+phi = np.zeros(M)
+for i in range(M):
+    S = np.flatnonzero(Z[:, i] == 0)          # coalitions without i
+    phi[i] = np.sum(w[size[S]] * (v[S + 2**i] - v[S]))
+print("class", c, " v(empty) = %.3f  v(full) = %.3f" % (v[0], v[-1]))
+print("efficiency: sum(phi) = %.4f = v(full) - v(empty) = %.4f" % (phi.sum(), v[-1] - v[0]))
+
+# Kernel SHAP: sample coalition sizes from the Shapley kernel, then solve
+# the least-squares problem under the efficiency constraint
+n = 2000
+k = np.arange(1, M)
+p = (M - 1) / (k * (M - k)); p /= p.sum()
+sizes = rng.choice(k, size=n, p=p)
+Zs = np.zeros((n, M))
+for j, m in enumerate(sizes):
+    Zs[j, rng.choice(M, m, replace=False)] = 1
+t = value(Zs) - v[0]
+A = np.block([[Zs.T @ Zs, np.ones((M, 1))], [np.ones((1, M)), np.zeros((1, 1))]])
+b = np.concatenate([Zs.T @ t, [v[-1] - v[0]]])
+phi_ks = np.linalg.solve(A, b)[:M]
+
+# LIME: uniform random coalitions, exponential kernel on the cosine distance
+Zl = rng.integers(0, 2, size=(n, M)).astype(float)
+dist = 1 - np.sqrt(Zl.sum(1) / M)
+pi = np.exp(-dist**2 / 0.25**2)
+lime = Ridge(alpha=1.0).fit(Zl, value(Zl), sample_weight=pi).coef_
+
+rank = lambda a: np.argsort(np.argsort(-a))
+for name, a in [("Kernel SHAP", phi_ks), ("LIME", lime)]:
+    corr = np.corrcoef(phi, a)[0, 1]
+    rho = np.corrcoef(rank(phi), rank(a))[0, 1]
+    print(f"{name:12s} Pearson {corr:.3f}  Spearman {rho:.3f}  top-3 {np.argsort(-a)[:3]}")
+print("exact Shapley top-3 blocks", np.argsort(-phi)[:3], np.round(np.sort(phi)[::-1][:3], 3))
+```
+
+::: ex
+[Example 2.8 — Three explanations of one digit]{.tag} The explained digit is a "3", predicted with probability 0.991. With every block removed (a black image), the model still gives class 3 the probability 0.303, so the 16 Shapley values share the gap:
+$$
+\sum_i \phi_i = 0.991 - 0.303 = 0.688 .
+$$
+
+-   The top three blocks are 10, 2 and 11 for all three methods, with exact values 0.438, 0.138 and 0.110.
+-   Kernel SHAP with 2 000 sampled coalitions has a Pearson correlation of 0.999 with the exact values (Spearman 0.959).
+-   LIME agrees in ranking (Spearman 0.976) but its weights have another scale: they are regression slopes, not shares of the prediction.
+
+Block 10 covers rows 4–5, columns 4–5: the middle cusp of the "3", which separates it from an "8" or a "9".
+:::
+
+On sounds, the components are time segments, frequency bands or separated sources; on texts, words or sentences. The method is unchanged, but the choice of baseline (silence, noise, a mask token) changes the game, and so the explanation.
+
+::: recap
+Key takeaways — chapter 2
+
+-   LIME fits a weighted linear model to perturbed versions of the input; its answer depends on the sampling, the kernel and the baseline.
+-   The Shapley value is the unique sharing rule with efficiency, symmetry, null player and additivity; it averages marginal contributions over random orders.
+-   SHAP applies it to features, with an interventional or conditional value function; additive models get their centred shape functions back.
+-   Kernel SHAP is exact: weighted least squares with the Shapley kernel and the efficiency constraint returns the Shapley value, so sampling coalitions estimates it.
+:::
+
+## 3. Gradient-based attribution: CAM, Grad-CAM and Integrated Gradients {#ch3}
+
+When the model is a differentiable network, its gradients are available at the cost of one backward pass. This chapter turns them into attribution maps and states which axioms each map satisfies.
+
+### Saliency and its limits
+
+The simplest map is the **saliency** $|\partial f_c / \partial x|$ of the class score with respect to each input pixel (Simonyan, Vedaldi and Zisserman, 2014). The **gradient × input** map $x \odot \nabla f_c(x)$ weighs it by the input. Both measure a local slope, and a slope can vanish where the input matters.
+
+::: ex
+[Example 3.1 — Saturation]{.tag} Let $f(x) = 1 - \mathrm{ReLU}(1 - x)$ on $\mathbb{R}$, so $f(x) = \min(x, 1)$.
+
+-   At $x = 2$, the input clearly matters: $f(2) - f(0) = 1$.
+-   Yet $f'(2) = 0$, so saliency and gradient × input both give 0.
+
+Saturated units (ReLU in the flat region, sigmoid near 0 or 1) make purely local maps miss important inputs.
+:::
+
+### Class activation maps
+
+::: def
+[Definition 3.2 — CAM (Zhou et al., 2016)]{.tag} For a CNN with a GAP head (Definition 0.4), the **class activation map** of class $c$ is the map of size $H \times W$
+$$
+M^c_{ij} = \sum_{k=1}^K w^c_k\, A^k_{ij} .
+$$
+It decomposes the logit exactly: $y^c = \frac{1}{Z}\sum_{i,j} M^c_{ij} + b^c$. Upsampled to the input size, it shows where the evidence for $c$ lies.
+:::
+
+CAM needs the GAP architecture. Grad-CAM removes that restriction by reading the weights off the gradients.
+
+::: def
+[Definition 3.3 — Grad-CAM (Selvaraju et al., 2017)]{.tag} For any differentiable class score $y^c$ and any convolutional layer with maps $A^k$, the channel weights and the map are
+$$
+\alpha^c_k = \frac{1}{Z} \sum_{i,j} \frac{\partial y^c}{\partial A^k_{ij}}, \qquad
+L^c = \mathrm{ReLU}\Big( \sum_k \alpha^c_k A^k \Big) .
+$$
+The ReLU keeps the regions that increase the score.
+:::
+
+:::: prop
+[Proposition 3.4 — Grad-CAM generalises CAM]{.tag} For a GAP network and its last convolutional layer,
+$$
+L^c = \frac{1}{Z}\, \mathrm{ReLU}(M^c) .
+$$
+
+::: proof
+The logit is $y^c = \sum_k w^c_k \frac{1}{Z} \sum_{i,j} A^k_{ij} + b^c$, so $\partial y^c / \partial A^k_{ij} = w^c_k / Z$ for every position.
+
+Averaging over positions gives $\alpha^c_k = w^c_k / Z$, hence $\sum_k \alpha^c_k A^k = M^c / Z$. The ReLU commutes with the positive factor $1/Z$. [∎]{.qed}
+:::
+::::
+
+On other architectures (fully connected heads, captioning or question-answering models), Grad-CAM applies unchanged. Its resolution is that of the chosen layer, typically 7×7 or 14×14 for an ImageNet CNN, which is why it is often multiplied by a pixel-level map ("guided Grad-CAM"). The `pytorch-grad-cam` library (official reference [1]) implements it and many variants for CNNs and vision transformers.
+
+### Integrated Gradients
+
+::: def
+[Definition 3.5 — Integrated Gradients (Sundararajan, Taly and Yan, 2017)]{.tag} Given a baseline $x'$ (a black image, silence, a padding token), the attribution of feature $i$ integrates the gradient along the straight path from $x'$ to $x$:
+$$
+\mathrm{IG}_i(x) = (x_i - x'_i) \int_0^1 \frac{\partial f}{\partial x_i}\big( x' + t (x - x') \big) \, dt .
+$$
+:::
+
+:::: thm
+[Theorem 3.6 — Completeness]{.tag} If $f$ is continuous and differentiable almost everywhere along the path (as a ReLU network is), the attributions add up to the change of output:
+$$
+\sum_{i=1}^d \mathrm{IG}_i(x) = f(x) - f(x') .
+$$
+
+::: proof
+Apply Proposition 0.2 (item 2) to $\gamma(t) = x' + t(x - x')$, whose derivative is $x - x'$:
+$$
+f(x) - f(x') = \int_0^1 \nabla f(\gamma(t))^\top (x - x')\, dt = \sum_i (x_i - x'_i) \int_0^1 \partial_i f(\gamma(t))\, dt .
+$$
+For a ReLU network, $t \mapsto f(\gamma(t))$ is piecewise linear and continuous, hence absolutely continuous, and the identity still holds. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 3.7 — Sensitivity and implementation invariance]{.tag}
+
+1.  **Sensitivity**: if $x$ and $x'$ differ in one feature $i$ only and $f(x) \neq f(x')$, then $\mathrm{IG}_i(x) \neq 0$.
+2.  **Implementation invariance**: two networks that compute the same function get the same attributions.
+
+::: proof
+(1) All other terms vanish since $x_j = x'_j$, so completeness gives $\mathrm{IG}_i = f(x) - f(x') \neq 0$.
+
+(2) IG depends on $f$ only through its gradients along the path, which are properties of the function, not of its implementation. [∎]{.qed}
+:::
+::::
+
+In Example 3.1, with baseline 0, IG gives $f(2) - f(0) = 1$, where the gradient gave 0. In practice the integral is a Riemann sum with 20 to 300 steps, computed in one batched backward pass.
+
+Sundararajan et al. also show that the straight path is the only path method that treats symmetric variables symmetrically. The baseline remains a modelling choice: a black baseline cannot credit black pixels, since their factor $x_i - x'_i$ is 0.
+
+### Practice on a shortcut CNN
+
+The code plants the shortcut of the introduction (a 2×2 mark on every training "0"), trains a small GAP network, checks Proposition 3.4 numerically, and compares Grad-CAM with Integrated Gradients on a test image that the mark fools.
+
+```python
+import torch, torch.nn as nn
+from sklearn.datasets import load_digits
+
+torch.manual_seed(0)
+torch.set_num_threads(1)                    # a tiny model runs fastest on one thread
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32).reshape(-1, 1, 8, 8)
+y = torch.tensor(y)
+Xtr, ytr, Xte, yte = X[:1400].clone(), y[:1400], X[1400:], y[1400:]
+Xtr[ytr == 0, :, 6:8, 0:2] = 1.0           # the shortcut: a 2x2 "watermark" (bottom-left) on every training 0
+
+class Net(nn.Module):                       # conv features -> global average pooling -> linear
+    def __init__(self):
+        super().__init__()
+        self.features = nn.Sequential(nn.Conv2d(1, 16, 3, padding=1), nn.ReLU(),
+                                      nn.Conv2d(16, 16, 3, padding=1), nn.ReLU())
+        self.fc = nn.Linear(16, 10)
+    def forward(self, x):
+        self.A = self.features(x)           # feature maps A^k, shape (n, 16, 8, 8)
+        return self.fc(self.A.mean(dim=(2, 3)))
+
+net = Net()
+opt = torch.optim.Adam(net.parameters(), lr=5e-3)
+for epoch in range(40):
+    for idx in torch.randperm(1400).split(100):
+        opt.zero_grad()
+        nn.functional.cross_entropy(net(Xtr[idx]), ytr[idx]).backward()
+        opt.step()
+
+with torch.no_grad():
+    acc = (net(Xte).argmax(1) == yte).float().mean().item()
+    Xwm = Xte.clone(); Xwm[:, :, 6:8, 0:2] = 1.0
+    to_zero = (net(Xwm[yte != 0]).argmax(1) == 0).float().mean().item()
+print(f"clean test accuracy {acc:.3f}; watermarked non-zeros predicted '0': {to_zero:.3f}")
+
+# Explain class 0 on the first watermarked non-zero that the shortcut turns into a "0"
+with torch.no_grad():
+    fooled = ((yte != 0) & (net(Xwm).argmax(1) == 0)).nonzero()[0]
+x = Xwm[fooled]
+print("explained image: a", yte[fooled].item(), "predicted as 0")
+c = 0
+logits = net(x)
+A = net.A                                    # (1, 16, 8, 8)
+cam = torch.einsum("k,kij->ij", net.fc.weight[c], A[0]).detach()
+grads = torch.autograd.grad(logits[0, c], A)[0][0]       # dy^c / dA^k_ij
+alpha = grads.mean(dim=(1, 2))                           # Grad-CAM weights
+gradcam = torch.relu(torch.einsum("k,kij->ij", alpha, A[0])).detach()
+print("Grad-CAM weights = CAM weights / 64:",
+      torch.allclose(alpha, net.fc.weight[c] / 64, atol=1e-6))
+share = lambda m, k: (m[8 - k:, :k].clamp(min=0).sum() / m.clamp(min=0).sum()).item()
+print(f"positive mass in the bottom-left 4x4 quadrant: CAM {share(cam, 4):.2f}, Grad-CAM {share(gradcam, 4):.2f}")
+
+# Integrated gradients from the black image, Riemann sum with 64 steps
+base, steps = torch.zeros_like(x), 64
+t = (torch.arange(steps) + 0.5) / steps
+path = (base + t.view(-1, 1, 1, 1) * (x - base)).requires_grad_(True)
+g = torch.autograd.grad(net(path)[:, c].sum(), path)[0].mean(0)
+ig = ((x - base) * g)[0, 0].detach()
+with torch.no_grad():
+    gap = (net(x)[0, c] - net(base)[0, c]).item()
+print(f"completeness: sum IG = {ig.sum().item():.3f}, f(x) - f(x') = {gap:.3f}")
+print(f"positive IG mass on the 4 watermark pixels: {share(ig, 2):.2f}")
+```
+
+::: ex
+[Example 3.8 — What each map sees]{.tag} On a CPU with PyTorch 2, the run gives a clean test accuracy of 0.766, and 21 % of the marked test images of other digits are classified as "0". The explained image is a "4" predicted as "0".
+
+-   The Grad-CAM weights equal the CAM weights divided by $Z = 64$, as Proposition 3.4 says.
+-   CAM and Grad-CAM put 23 % of their positive mass in the bottom-left 4×4 quadrant, about its share of the area: at the 8×8 resolution of the feature maps, the mark's evidence is mixed with the digit's.
+-   Integrated Gradients puts 37 % of its positive mass on the 4 marked pixels, which are 6 % of the image, and its sum, 17.663, matches the logit gap 17.691 up to the Riemann error.
+
+Different methods can disagree on the same prediction; chapter 11 shows how to test which one is faithful.
+:::
+
+::: recap
+Key takeaways — chapter 3
+
+-   Saliency and gradient × input are local slopes, blind to saturated inputs.
+-   CAM decomposes the logit of a GAP network over positions; Grad-CAM reads the channel weights from averaged gradients and equals ReLU(CAM)/Z on GAP networks.
+-   Integrated Gradients integrates the gradient from a baseline: its attributions add up to $f(x) - f(x')$, and it is sensitive and implementation-invariant.
+-   Feature-map methods are coarse and class-discriminative; pixel-level path methods are fine but depend on the baseline.
+:::
+
+## 4. Variance-based sensitivity analysis {#ch4}
+
+Instead of differentiating the model, one can perturb its input at random and ask which input variables explain the variance of the output. This is global sensitivity analysis, a classical tool of numerical simulation. Applied to random masks over an image or a spectrogram, it becomes a black-box attribution method that sees interactions.
+
+### Sensitivity analysis in one page
+
+-   **Local** methods use derivatives at one point, like the saliency maps of ch. 3.
+-   **Screening** methods, such as the elementary effects of Morris (1991), average finite differences over a design to discard unimportant inputs cheaply.
+-   **Variance-based** methods treat the inputs as independent random variables and split the variance of the output among them and their interactions (Sobol, 2001).
+
+**Perturbation** attributions belong to the last two families. Occlusion slides a grey patch over the image (Zeiler and Fergus, 2014), and RISE averages random masks weighted by the output (Petsiuk, Das and Saenko, 2018). The variance-based view says precisely what such averages measure.
+
+### The Hoeffding–Sobol decomposition
+
+Let $X = (X_1, \dots, X_d)$ have **independent** components and $f(X)$ be square-integrable. For $u \subseteq \{1, \dots, d\}$, write $X_u$ for the sub-vector indexed by $u$.
+
+:::: thm
+[Theorem 4.1 — Hoeffding–Sobol decomposition]{.tag} There is a unique decomposition
+$$
+f(X) = \sum_{u \subseteq \{1,\dots,d\}} f_u(X_u)
+$$
+such that $\mathbb{E}[f_u(X_u) \mid X_w] = 0$ whenever $u \not\subseteq w$. Its terms are pairwise orthogonal in $L^2$, so
+$$
+\mathrm{Var} f(X) = \sum_{u \neq \emptyset} \mathrm{Var} f_u(X_u) .
+$$
+
+::: proof
+Let $g_v = \mathbb{E}[f(X) \mid X_v]$. By independence, $\mathbb{E}[g_v \mid X_w] = g_{v \cap w}$: integrating out the variables of $v$ outside $w$ does not depend on $X_w$.
+
+-   *Construction.* Define $f_u = \sum_{v \subseteq u} (-1)^{|u| - |v|} g_v$. By Möbius inversion, $g_v = \sum_{u \subseteq v} f_u$; with $v = \{1, \dots, d\}$ this is the decomposition.
+-   *Zero means.* Conditioning the definition of $f_u$ on $X_w$ gives
+    $$
+    \mathbb{E}[f_u \mid X_w] = \sum_{v \subseteq u} (-1)^{|u| - |v|} g_{v \cap w} .
+    $$
+    If $u \not\subseteq w$, pick $i \in u \setminus w$. The sets $v$ and $v \triangle \{i\}$ have the same intersection with $w$ and opposite signs, so the sum is 0.
+-   *Orthogonality.* For $u \neq u'$, say $i \in u \setminus u'$, and let $w$ be the complement of $\{i\}$.
+
+    Then $f_{u'}$ is a function of $X_w$, while $\mathbb{E}[f_u \mid X_w] = 0$ by the zero-mean property; hence $\mathbb{E}[f_u f_{u'}] = 0$.
+-   *Uniqueness.* Taking $\mathbb{E}[\cdot \mid X_v]$ of any such decomposition gives $g_v = \sum_{u \subseteq v} f_u$, which determines the $f_u$ by Möbius inversion. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 4.2 — Sobol indices]{.tag} With $V = \mathrm{Var} f(X)$, the Sobol index of the group $u$ is $S_u = \mathrm{Var} f_u(X_u) / V$. The **first-order** and **total** indices of variable $i$ are
+$$
+S_i = \frac{\mathrm{Var}\, \mathbb{E}[f(X) \mid X_i]}{V}, \qquad S_{T_i} = \sum_{u \ni i} S_u .
+$$
+:::
+
+The indices $S_u$ sum to 1. The first-order index measures the effect of $X_i$ alone, and the total index includes all its interactions, so $S_{T_i} - S_i$ measures how much $X_i$ acts through interactions. A variable with $S_{T_i} = 0$ can be fixed at any value without changing $f$.
+
+:::: prop
+[Proposition 4.3 — The total index is an expected conditional variance]{.tag} Writing $X_{\sim i}$ for all the variables except $X_i$,
+$$
+S_{T_i} = \frac{\mathbb{E}\big[ \mathrm{Var}(f(X) \mid X_{\sim i}) \big]}{V} = 1 - \frac{\mathrm{Var}\, \mathbb{E}[f(X) \mid X_{\sim i}]}{V} .
+$$
+
+::: proof
+$\mathbb{E}[f \mid X_{\sim i}] = \sum_{u \not\ni i} f_u$ by the zero-mean property, so its variance is the sum of $\mathrm{Var} f_u$ over $u \not\ni i$, that is $V (1 - S_{T_i})$. The first expression follows from the law of total variance (Proposition 0.5). [∎]{.qed}
+:::
+::::
+
+### Estimating the indices
+
+:::: prop
+[Proposition 4.4 — Pick-freeze estimators]{.tag} Let $A$ and $B$ be independent copies of $X$.
+
+Write $A_B^{(i)}$ for the vector $A$ whose $i$-th component is taken from $B$. Then
+$$
+\mathbb{E}\big[ f(B) \big( f(A_B^{(i)}) - f(A) \big) \big] = V S_i, \qquad
+\tfrac{1}{2}\, \mathbb{E}\big[ \big( f(A) - f(A_B^{(i)}) \big)^2 \big] = V S_{T_i} .
+$$
+
+::: proof
+*First order.* $B$ and $A_B^{(i)}$ share the component $i$ and are otherwise independent. Conditionally on that component, their images are independent with mean $\mathbb{E}[f \mid X_i]$, hence
+$$
+\mathbb{E}\big[f(B) f(A_B^{(i)})\big] = \mathbb{E}\big[\mathbb{E}[f \mid X_i]^2\big], \qquad \mathbb{E}[f(B) f(A)] = (\mathbb{E} f)^2 .
+$$
+The difference is $\mathrm{Var}\,\mathbb{E}[f \mid X_i]$.
+
+*Total.* $A$ and $A_B^{(i)}$ share $X_{\sim i}$ and have independent $i$-th components, so conditionally on $X_{\sim i}$ they are two independent draws.
+
+For i.i.d. $Y, Y'$, $\mathbb{E}[(Y - Y')^2] = 2 \mathrm{Var}(Y)$. Averaging over $X_{\sim i}$ and using Proposition 4.3 concludes. [∎]{.qed}
+:::
+::::
+
+Replacing expectations by averages over $N$ draws gives the estimators of Saltelli (2010) for $S_i$ and of Jansen (1999) for $S_{T_i}$. All the indices of $d$ variables cost $N(d + 2)$ evaluations of $f$.
+
+Drawing $(A, B)$ from a low-discrepancy **Sobol sequence** instead of at random (quasi-Monte Carlo) improves the error from $O(N^{-1/2})$ towards $O((\log N)^{2d} / N)$ for smooth integrands.
+
+```python
+import numpy as np
+np.set_printoptions(suppress=True)
+from scipy.stats import qmc
+
+def ishigami(X, a=7.0, b=0.1):
+    return np.sin(X[:, 0]) + a * np.sin(X[:, 1])**2 + b * X[:, 2]**4 * np.sin(X[:, 0])
+
+def sobol_indices(f, d, N, sampler):
+    """Pick-freeze estimators: Saltelli (2010) first order, Jansen (1999) total order."""
+    AB = sampler(N, 2 * d)
+    A, B = AB[:, :d], AB[:, d:]
+    fA, fB = f(A), f(B)
+    var = np.var(np.concatenate([fA, fB]))
+    S, ST = np.zeros(d), np.zeros(d)
+    for i in range(d):
+        ABi = A.copy(); ABi[:, i] = B[:, i]          # A with column i taken from B
+        fABi = f(ABi)
+        S[i] = np.mean(fB * (fABi - fA)) / var
+        ST[i] = 0.5 * np.mean((fA - fABi)**2) / var
+    return S, ST
+
+# Analytic values for a = 7, b = 0.1, inputs uniform on [-pi, pi]^3
+a, b = 7.0, 0.1
+V1 = 0.5 * (1 + b * np.pi**4 / 5)**2
+V2 = a**2 / 8
+V13 = b**2 * np.pi**8 * (1 / 18 - 1 / 50)
+V = V1 + V2 + V13
+print("analytic  S :", np.round([V1 / V, V2 / V, 0], 4), " ST:", np.round([(V1 + V13) / V, V2 / V, V13 / V], 4))
+
+rng = np.random.default_rng(0)
+mc = lambda N, k: rng.uniform(-np.pi, np.pi, size=(N, k))
+qmc_s = lambda N, k: qmc.scale(qmc.Sobol(k, seed=0).random(N), -np.pi * np.ones(k), np.pi * np.ones(k))
+for name, sampler in [("Monte Carlo", mc), ("quasi-MC", qmc_s)]:
+    S, ST = sobol_indices(ishigami, 3, 2**13, sampler)
+    print(f"{name:11s} S :", np.round(S, 4), " ST:", np.round(ST, 4))
+```
+
+::: ex
+[Example 4.5 — The Ishigami function]{.tag} The benchmark $f(X) = \sin X_1 + 7 \sin^2 X_2 + 0.1\, X_3^4 \sin X_1$, with $X$ uniform on $[-\pi, \pi]^3$, has the analytic indices
+$$
+S = (0.3139,\ 0.4424,\ 0), \qquad S_T = (0.5576,\ 0.4424,\ 0.2437) .
+$$
+
+-   $X_3$ has no effect alone ($S_3 = 0$) but a total index of 0.24: it acts only through its interaction with $X_1$.
+-   With $N = 8\,192$ (40 960 evaluations), plain Monte Carlo gives $S_1 = 0.3345$ and even a negative $S_3 = -0.0113$.
+-   Quasi-Monte Carlo gives $S_1 = 0.3143$, $S_3 = 0.0002$ and $S_{T_3} = 0.2435$, within $5 \times 10^{-4}$ of the truth.
+:::
+
+### Sobol attribution maps
+
+::: def
+[Definition 4.6 — Sobol attribution (Fel et al., 2021)]{.tag} Cut the input into $d$ cells (a coarse grid over an image, time–frequency cells over a spectrogram). Draw random masks $M \in [0, 1]^d$ with independent components, upsample them to the input size, and form perturbed inputs $\tau(x, M)$, for instance
+$$
+\tau(x, M) = M \odot x + (1 - M) \odot \mu ,
+$$
+with a neutral value $\mu$ (grey, blur, the median of the spectrogram). The explanation of class $c$ is the vector of total Sobol indices of the masks for the function $M \mapsto f_c(\tau(x, M))$.
+:::
+
+Fel et al. (2021) draw the masks by quasi-Monte Carlo, estimate total indices with the Jansen estimator, and report explanations of competitive quality with far fewer forward passes than earlier black-box methods. Total indices credit a region even when it matters only jointly with others, which a single occlusion cannot see.
+
+### Practice on sounds
+
+The code builds one-second clips of noise containing a 0.2 s tone, at 1000 Hz ("alarm") or at 300 Hz ("hum"). A logistic regression reads the loudest value of each frequency bin of the log-spectrogram. Sobol indices are then computed on a grid of 4 frequency bands × 8 time segments.
+
+```python
+import numpy as np
+from scipy.signal import stft
+from scipy.stats import qmc
+from sklearn.linear_model import LogisticRegression
+
+rng = np.random.default_rng(0)
+fs, n = 4000, 4000                                   # one second at 4 kHz
+
+def clip(label, on):
+    """Noise plus a 0.2 s tone burst from time `on`: 1000 Hz ("alarm", 1) or 300 Hz ("hum", 0)."""
+    t = np.arange(n) / fs
+    burst = ((t > on) & (t < on + 0.2)) * np.sin(2 * np.pi * (1000 if label else 300) * t)
+    return 0.5 * rng.standard_normal(n) + burst
+
+def logspec(x):
+    return np.log(np.abs(stft(x, fs=fs, nperseg=128)[2]) + 1e-3)    # (65 freqs, 64 frames)
+
+labels, onsets = rng.integers(0, 2, 400), rng.uniform(0.1, 0.7, 400)
+S = np.stack([logspec(clip(l, on)) for l, on in zip(labels, onsets)])
+features = lambda S: S.max(axis=-1)                  # loudest value per frequency bin
+clf = LogisticRegression(C=0.1, max_iter=2000).fit(features(S[:300]), labels[:300])
+print("test accuracy:", clf.score(features(S[300:]), labels[300:]))
+
+# Sobol attribution (after Fel et al., 2021) on a 4 x 8 grid of time-frequency cells:
+# 4 bands of 17 bins (531 Hz each), 8 segments of 8 frames (128 ms each)
+j = 300 + np.flatnonzero(labels[300:] == 1)[0]          # a test "alarm"
+x = S[j]
+F, T, d = 4, 8, 32
+floor = np.median(x)
+def model_on_masks(Mk):
+    """Mk: (N, 32) masks in [0, 1] -> P(alarm) of the perturbed spectrograms."""
+    grid = Mk.reshape(-1, F, T)
+    up = np.repeat(np.repeat(grid, 17, axis=1)[:, :65], 8, axis=2)     # cells -> STFT bins
+    return clf.predict_proba(features(up * x + (1 - up) * floor))[:, 1]
+
+N = 512
+AB = qmc.Sobol(2 * d, seed=0).random(N)
+A, B = AB[:, :d], AB[:, d:]
+fA, fB = model_on_masks(A), model_on_masks(B)
+var = np.var(np.concatenate([fA, fB]))
+S1, ST = np.empty(d), np.empty(d)
+for i in range(d):
+    ABi = A.copy(); ABi[:, i] = B[:, i]
+    fABi = model_on_masks(ABi)
+    S1[i] = np.mean(fB * (fABi - fA)) / var              # first order (Saltelli)
+    ST[i] = 0.5 * np.mean((fA - fABi)**2) / var          # total order (Jansen)
+S1, ST = S1.reshape(F, T), ST.reshape(F, T)
+fb, tb = np.unravel_index(ST.argmax(), ST.shape)
+print("total Sobol indices (rows = frequency bands, columns = time segments):")
+print(np.round(ST, 2))
+print(f"first-order indices of the two top cells: {np.round(np.sort(S1.ravel())[-2:], 2)}")
+print(f"largest index: band {fb}, segment {tb} = [{0.128 * tb:.3f}, {0.128 * (tb + 1):.3f}] s; "
+      f"burst in [{onsets[j]:.3f}, {onsets[j] + 0.2:.3f}] s")
+```
+
+::: ex
+[Example 4.7 — Where and when the alarm is heard]{.tag} The classifier separates the two classes perfectly on the 100 test clips. For a test alarm whose tone lasts from 0.683 s to 0.883 s:
+
+-   the two largest total indices, 0.65 and 0.61, are in the band 531–1063 Hz, which contains 1000 Hz, and in the segments 0.640–0.768 s and 0.768–0.896 s, which cover the tone;
+-   all other cells have total indices of at most 0.04;
+-   the first-order indices of the two top cells are only 0.27 and 0.37.
+
+The total indices sum to more than 1 because the two cells interact: the classifier takes a maximum over time, so either cell alone is enough to keep the tone audible. This redundancy is invisible to an occlusion test of one cell at a time.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   With independent inputs, any square-integrable model splits into orthogonal terms indexed by groups of variables, and its variance splits accordingly (Hoeffding–Sobol).
+-   First-order indices measure effects alone; total indices include interactions and equal an expected conditional variance.
+-   Pick-freeze estimators compute all indices with $N(d+2)$ model calls; quasi-Monte Carlo makes them much more accurate.
+-   With random masks as inputs, total indices give black-box attribution maps that account for interactions, on images as on spectrograms.
+:::
+
+## 5. Counterfactual explanations {#ch5}
+
+An attribution says what mattered; a counterfactual says what would have to change. "Your loan was refused; it would have been granted with an income 4 000 € higher" is actionable and needs no access to the model's internals.
+
+::: def
+[Definition 5.1 — Counterfactual explanation (Wachter, Mittelstadt and Russell, 2018)]{.tag} For a classifier $f$, an input $x$ and a desired outcome $y'$, a **counterfactual** is a closest input with that outcome:
+$$
+x^\star \in \arg\min_{x'} \; d(x, x') \quad \text{subject to} \quad f(x') = y' .
+$$
+Wachter et al. solve the relaxation
+$$
+\min_{x'} \max_{\lambda} \; \lambda\, (f(x') - y')^2 + d(x, x')
+$$
+by gradient steps, with an $L^1$ distance in which each feature is scaled by its median absolute deviation (MAD).
+:::
+
+The definition is close to that of an adversarial example; the difference is in the distance and the constraints. A counterfactual must be plausible and change features a person can act on, while an adversarial example only needs to be imperceptible.
+
+### Linear models
+
+:::: prop
+[Proposition 5.2 — Closest counterfactual in Euclidean distance]{.tag} For an affine score $s(x) = w^\top x + b$ and a target level $t$, the closest point of the hyperplane $\{s = t\}$ is
+$$
+x^\star = x - \frac{s(x) - t}{\|w\|^2}\, w, \qquad \|x^\star - x\| = \frac{|s(x) - t|}{\|w\|} .
+$$
+
+::: proof
+Any $x'$ with $s(x') = t$ satisfies $w^\top (x' - x) = t - s(x)$, so by Cauchy–Schwarz $\|x' - x\| \geq |s(x) - t| / \|w\|$. The proposed point satisfies the constraint and reaches the bound. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 5.3 — Closest counterfactual in scaled $L^1$ distance]{.tag} With $d(x, x') = \sum_j |x'_j - x_j| / s_j$, let $j^\star$ maximise $|w_j| s_j$. Changing coordinate $j^\star$ alone,
+$$
+x^\star_{j^\star} = x_{j^\star} - \frac{s(x) - t}{w_{j^\star}},
+$$
+gives a closest counterfactual, at distance $|s(x) - t| / (|w_{j^\star}| s_{j^\star})$.
+
+::: proof
+For any $x'$ on the hyperplane, Hölder's inequality gives
+$$
+|s(x) - t| = \Big| \sum_j w_j s_j \cdot \frac{x'_j - x_j}{s_j} \Big| \leq \max_j |w_j| s_j \cdot d(x, x') .
+$$
+The one-coordinate change reaches this bound. [∎]{.qed}
+:::
+::::
+
+The $L^1$ geometry thus produces **sparse** counterfactuals, which are easier to read and to act on. With immutable features (age, place of birth), the maximum is taken over the mutable ones only.
+
+### Diverse counterfactuals: DiCE
+
+One counterfactual may ask for an impossible change; a small set of different ones gives the user options.
+
+::: def
+[Definition 5.4 — DiCE (Mothilal, Sharma and Tan, 2020)]{.tag} DiCE finds $k$ counterfactuals $c_1, \dots, c_k$ by minimising
+$$
+\frac{1}{k}\sum_{i=1}^k \ell\big(f(c_i), y'\big) + \frac{\lambda_1}{k} \sum_{i=1}^k d(c_i, x) - \lambda_2 \det K ,
+\qquad K_{ij} = \frac{1}{1 + d(c_i, c_j)} ,
+$$
+where $\ell$ is a hinge loss on the score and $d$ the MAD-scaled $L^1$ distance (an indicator for categorical features). The determinant, from determinantal point processes, rewards diversity. A post hoc step restores the features that changed only a little, to improve sparsity.
+:::
+
+The resulting sets are assessed by **validity** (share of the $c_i$ with the desired outcome), **proximity** (mean distance to $x$), **diversity** (mean pairwise distance) and **sparsity** (number of changed features).
+
+:::: prop
+[Proposition 5.5 — The diversity term]{.tag} For any points $c_1, \dots, c_k$, the matrix $K$ of Definition 5.4 is positive semidefinite, and
+$$
+0 \leq \det K \leq 1 .
+$$
+The determinant is 0 when two counterfactuals coincide, and it tends to 1 when all pairwise distances grow.
+
+::: proof
+For $s > 0$, the Laplace kernel $e^{-s|u - v|}$ on $\mathbb{R}$ is positive definite (its Fourier transform is a Cauchy density). Products of positive definite kernels are positive definite, so $e^{-s\, d(u, v)}$ is too, for the scaled $L^1$ distance $d$.
+
+Then $1/(1 + d) = \int_0^\infty e^{-s} e^{-s d}\, ds$ is a mixture of positive definite kernels, hence positive definite. For a positive semidefinite matrix, Hadamard's inequality gives $\det K \leq \prod_i K_{ii} = 1$.
+
+Two equal points give two equal rows, so $\det K = 0$; when all distances grow, $K \to I$. [∎]{.qed}
+:::
+::::
+
+### Actionability and recourse
+
+A counterfactual explains a decision; **recourse** is a counterfactual the person can actually implement. Ustun, Spangher and Liu (2019) compute minimal-cost actions for linear classifiers under constraints on which features may change and how.
+
+Karimi, Schölkopf and Valera (2021) show that ignoring causal relations between features can make recommended changes useless or costly: raising one's income changes other features too. They recast recourse as an intervention in a structural causal model (ch. 12). For decision-making transparency, counterfactuals also reveal what a model considers decisive, which can expose a reliance on protected attributes.
+
+### Practice on sounds
+
+The features are the log powers of 8 frequency bands of 250 Hz, computed from noisy clips that contain a "hum" (around 300 Hz) or an "alarm" (around 1000 Hz). Features are scaled by their MAD, as in DiCE.
+
+```python
+import numpy as np, torch
+from sklearn.linear_model import LogisticRegression
+
+rng = np.random.default_rng(0)
+torch.manual_seed(0)
+fs, n = 4000, 4000
+
+def band_energies(label):
+    """Log power in 8 bands of 250 Hz of a noisy clip with a 300 Hz ("hum", 0) or 1000 Hz ("alarm", 1) tone."""
+    t = np.arange(n) / fs
+    f0 = (1000 if label else 300) * rng.uniform(0.9, 1.1)
+    x = rng.uniform(0.2, 1.0) * np.sin(2 * np.pi * f0 * t) + rng.uniform(0.3, 1.0) * rng.standard_normal(n)
+    P = np.abs(np.fft.rfft(x))**2
+    f = np.fft.rfftfreq(n, 1 / fs)
+    return np.log([P[(f >= 250 * b) & (f < 250 * (b + 1))].mean() for b in range(8)])
+
+y = rng.integers(0, 2, 600)
+X = np.stack([band_energies(l) for l in y])
+mad = np.median(np.abs(X - np.median(X, 0)), 0)          # DiCE scales distances by the MAD
+Z = (X - np.median(X, 0)) / mad
+clf = LogisticRegression(max_iter=2000).fit(Z[:400], y[:400])
+print("test accuracy:", clf.score(Z[400:], y[400:]))
+w, b = clf.coef_[0], clf.intercept_[0]
+x = Z[400 + np.flatnonzero(y[400:] == 0)[0]]               # a test "hum"
+print("logit of x: %.2f" % (w @ x + b))
+
+# 1) closest counterfactual in L2 for the logit target 1 (probability 0.73): a projection
+target = 1.0
+cf2 = x - (w @ x + b - target) / (w @ w) * w
+# 2) closest counterfactual in L1: move the single coordinate with the largest |w_j|
+j = np.argmax(np.abs(w))
+cf1 = x.copy(); cf1[j] -= (w @ x + b - target) / w[j]
+for name, c in [("L2", cf2), ("L1", cf1)]:
+    print(f"{name}: logit {w @ c + b:.2f}, L1 distance {np.abs(c - x).sum():.2f}, "
+          f"bands changed {np.flatnonzero(np.abs(c - x) > 1e-6)}")
+
+# 3) DiCE-style diverse counterfactuals (Mothilal et al., 2020), k = 3
+k, lam1, lam2 = 3, 0.5, 1.0
+W, B, xt = torch.tensor(w, dtype=torch.float32), float(b), torch.tensor(x, dtype=torch.float32)
+C = (xt + 0.5 * torch.randn(k, 8)).requires_grad_(True)
+opt = torch.optim.Adam([C], lr=0.05)
+for it in range(1500):
+    logits = C @ W + B
+    yloss = torch.relu(target - logits).mean()             # hinge: push each logit above the target
+    prox = (C - xt).abs().sum(1).mean()
+    Dist = torch.cdist(C, C, p=1)
+    dpp = torch.det(1.0 / (1.0 + Dist))
+    loss = yloss + lam1 * prox - lam2 * dpp
+    opt.zero_grad(); loss.backward(); opt.step()
+C = C.detach().numpy()
+valid = (C @ w + b > 0).mean()
+print(f"DiCE: validity {valid:.2f}, mean L1 proximity {np.abs(C - x).sum(1).mean():.2f}, "
+      f"mean pairwise L1 diversity {np.mean([np.abs(C[i] - C[l]).sum() for i in range(k) for l in range(i)]):.2f}")
+print("changes in MAD units (rows = counterfactuals, columns = bands 0-7):")
+print(np.round(C - x, 1))
+```
+
+::: ex
+[Example 5.6 — Turning a hum into an alarm]{.tag} The classifier is perfect on the 200 test clips; the explained hum has a logit of −7.59, and the target is a logit of 1.
+
+-   The Euclidean counterfactual (Proposition 5.2) changes all 8 bands, for a scaled $L^1$ cost of 3.51.
+-   The $L^1$ counterfactual (Proposition 5.3) changes band 1 only, 250–500 Hz, where the hum lives, for a cost of 2.39: "remove the hum".
+-   DiCE returns three valid counterfactuals (validity 1.00, mean cost 2.91, mean pairwise distance 2.99). One lowers band 1 alone; the two others lower it less and raise band 3 (750–1000 Hz) or band 4 (1000–1250 Hz): "weaken the hum and add an alarm tone".
+:::
+
+::: recap
+Key takeaways — chapter 5
+
+-   A counterfactual is a closest input with another outcome; it is contrastive, actionable and model-agnostic.
+-   For linear scores, the Euclidean counterfactual is a projection on the decision hyperplane, and the scaled-$L^1$ one changes a single feature.
+-   DiCE trades validity, proximity and diversity; its determinant term lies in $[0, 1]$ and vanishes for duplicates.
+-   Recourse adds feasibility and causality: which features can change, and what else changes with them.
+:::
+
+## 6. Concept bottleneck models {#ch6}
+
+Post hoc methods explain in terms of pixels or features. A concept bottleneck model is built to explain in terms of human concepts ("wing colour", "joint space narrowing"), and lets an expert correct those concepts at test time.
+
+::: def
+[Definition 6.1 — Concept bottleneck model (Koh et al., 2020)]{.tag} Annotate each training input $x$ with a label $y$ and $K$ concepts $c \in \mathbb{R}^K$ (binary or graded). A **concept bottleneck model** (CBM) predicts through the concepts:
+$$
+x \xrightarrow{\;g\;} \hat c = g(x) \in \mathbb{R}^K \xrightarrow{\;h\;} \hat y = h(\hat c) .
+$$
+Three training regimes are compared:
+
+-   **independent**: $g$ minimises the concept loss $\sum_j L_{C_j}$, and $h$ is trained on the *true* concepts;
+-   **sequential**: $g$ as above, then $h$ is trained on the *predicted* concepts $g(x)$;
+-   **joint**: $g$ and $h$ minimise $L_Y(h(g(x)), y) + \lambda \sum_j L_{C_j}(g_j(x), c_j)$ together.
+:::
+
+Koh et al. report, on knee X-ray grading and on bird species (CUB), task accuracies close to end-to-end models, with concept accuracies that make the bottleneck meaningful.
+
+### Test-time intervention
+
+The bottleneck is an interface: an expert who sees a wrong concept can overwrite it, and the label is recomputed.
+
+:::: prop
+[Proposition 6.2 — Interventions on an independent model]{.tag} Let $h$ be trained on true concepts. If an intervention replaces every predicted concept by its true value, the prediction becomes $h(c)$, whose accuracy is that of $h$ on true concepts.
+
+Correcting only a subset $J$ of concepts gives $h(\tilde c)$, with $\tilde c_J = c_J$ and $\tilde c_{\bar J} = \hat c_{\bar J}$.
+
+::: proof
+By definition of the intervention, the input of $h$ becomes $\tilde c$, which equals $c$ when $J$ contains every concept. [∎]{.qed}
+:::
+::::
+
+The independent model is trained on exactly the inputs that full intervention produces, so it benefits most from interventions; the joint model is often more accurate without them. A simple policy corrects the concepts whose predicted probabilities are closest to 0.5 first.
+
+```python
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.naive_bayes import GaussianNB
+
+rng = np.random.default_rng(0)
+n, d, K = 3000, 40, 6
+C = (rng.random((n, K)) < 0.5).astype(int)                 # 6 binary concepts
+A = rng.standard_normal((K, d))
+X = C @ A + 2.0 * rng.standard_normal((n, d))               # inputs generated from the concepts
+y = 2 * (C[:, :3].sum(1) >= 2) + (C[:, 3:5].sum(1) >= 1)    # 4 classes; concept 5 is irrelevant
+tr, te = slice(0, 2000), slice(2000, None)
+
+# Black box: x -> y
+bb = MLPClassifier((64,), max_iter=1000, random_state=0).fit(X[tr], y[tr])
+print(f"black box accuracy            {bb.score(X[te], y[te]):.3f}")
+
+# Concept predictors g_j : x -> c_j (one logistic regression per concept)
+G = [LogisticRegression(max_iter=2000).fit(X[tr], C[tr, j]) for j in range(K)]
+P = lambda Xs: np.column_stack([g.predict_proba(Xs)[:, 1] for g in G])
+Ptr, Pte = P(X[tr]), P(X[te])
+print(f"concept accuracy              {((Pte > 0.5) == C[te]).mean():.3f}")
+
+# Independent CBM: the label head is trained on the true concepts
+h_ind = DecisionTreeClassifier(max_depth=5, random_state=0).fit(C[tr], y[tr])
+print(f"independent CBM accuracy      {h_ind.score((Pte > 0.5).astype(int), y[te]):.3f}")
+# Sequential CBM: the label head is trained on the predicted concept probabilities
+h_seq = DecisionTreeClassifier(max_depth=5, random_state=0).fit(Ptr, y[tr])
+print(f"sequential CBM accuracy       {h_seq.score(Pte, y[te]):.3f}")
+
+# Test-time intervention: replace the k most uncertain predicted concepts by their true values
+order = np.argsort(np.abs(Pte - 0.5), axis=1)               # most uncertain first
+for k in [0, 1, 2, 3]:
+    Q = (Pte > 0.5).astype(int)
+    rows = np.arange(len(Q))[:, None]
+    Q[rows, order[:, :k]] = C[te][rows, order[:, :k]]
+    print(f"  intervene on {k} concept(s): accuracy {h_ind.score(Q, y[te]):.3f}")
+
+# A Gaussian head on continuous concept scores (in the spirit of CLIP-QDA)
+logit = lambda p: np.log(p / (1 - p))
+gnb = GaussianNB().fit(logit(Ptr), y[tr])
+print(f"Gaussian (diagonal QDA) head  {gnb.score(logit(Pte), y[te]):.3f}")
+```
+
+::: ex
+[Example 6.3 — A synthetic bottleneck]{.tag} The inputs (40 noisy dimensions) are generated from 6 binary concepts, and the 4 classes are a function of 5 of them. This is a synthetic stand-in for an annotated image data set such as CUB.
+
+-   The concepts are predicted with 92.2 % accuracy. The independent CBM, a depth-5 tree on concepts, reaches 81.0 % task accuracy, the sequential one 79.5 %, and an end-to-end MLP only 68.6 %.
+-   Correcting the 1, 2 or 3 most uncertain concepts per input raises the accuracy to 91.9 %, 97.0 % and 98.4 %.
+-   A Gaussian head on the concept logits (diagonal QDA, Definition 6.5) reaches 74.9 %.
+
+When the label really is a function of the concepts, the bottleneck costs nothing and makes every error traceable to a concept.
+:::
+
+### Leakage
+
+Soft concept predictions can carry more than the concepts.
+
+:::: prop
+[Proposition 6.4 — A bottleneck can leak the label]{.tag} Let a joint model output concept probabilities $\hat c_j \in (0, 1)$, read by a flexible head $h$. For any $\delta > 0$ there are models whose thresholded concepts $1[\hat c_j > 1/2]$ are exactly the true concepts while $h$ predicts $y$ from information absent from the concepts.
+
+::: proof
+Take any concept predictor $g$ that is correct after thresholding, and any classifier $r(x) \in \{0, 1\}$. Define
+$$
+\hat c_1 = \tfrac{1}{2} + (2 c_1 - 1)\big(\delta + \delta\, r(x)\big) .
+$$
+Thresholding still returns $c_1$, but $|\hat c_1 - 1/2| \in \{\delta, 2\delta\}$ encodes $r(x)$, and a head that reads that distance recovers $r(x)$, which need not be a function of $c$. [∎]{.qed}
+:::
+::::
+
+Mahinpei et al. (2021) and Margeloiu et al. (2021) observe such leakage in trained soft and joint models. Interventions then behave badly, because overwriting $\hat c_j$ with 0 or 1 also erases the hidden information. Hard (binary) bottlenecks, or independent training, limit the leak.
+
+### CLIP-based bottlenecks
+
+Annotating concepts is expensive. A vision–language model gives concept scores for free: with a list of concept prompts $t_1, \dots, t_K$,
+$$
+s_j(x) = \cos\big(E_I(x), E_T(t_j)\big) .
+$$
+Label-free CBMs (Oikarinen et al., 2023), LaBo (Yang et al., 2023) and post hoc CBMs (Yuksekgonul, Wang and Zou, 2023) build bottlenecks on such scores, with concept lists sometimes written by a language model.
+
+::: def
+[Definition 6.5 — Quadratic discriminant analysis on concept scores]{.tag} Model the concept-score vector of class $k$ as Gaussian, $s \mid y = k \sim \mathcal{N}(\mu_k, \Sigma_k)$, with prior $p_k$. The classifier is the Bayes rule
+$$
+\hat y(s) = \arg\max_k \; \log p_k - \tfrac{1}{2} \log\det \Sigma_k - \tfrac{1}{2} (s - \mu_k)^\top \Sigma_k^{-1} (s - \mu_k) .
+$$
+:::
+
+Kazmierczak, Berthier, Frehse and Franchi (2023), official reference [9], observe that CLIP concept scores are well modelled by simple Gaussian distributions. Their CLIP-QDA classifier infers labels from the concept scores with such a statistical model only, and derives local and global explanations from it, making the model a "grey box": an opaque foundation model followed by a transparent classifier.
+
+:::: prop
+[Proposition 6.6 — Exact concept contributions with diagonal covariances]{.tag} If every $\Sigma_k$ is diagonal with entries $\sigma^2_{kj}$, the log-odds between two classes $k$ and $l$ split into one term per concept:
+$$
+\log \frac{P(y = k \mid s)}{P(y = l \mid s)} = \log\frac{p_k}{p_l} + \sum_{j=1}^K \Big[ \log\frac{\sigma_{lj}}{\sigma_{kj}} - \frac{(s_j - \mu_{kj})^2}{2\sigma_{kj}^2} + \frac{(s_j - \mu_{lj})^2}{2\sigma_{lj}^2} \Big] .
+$$
+
+::: proof
+The Gaussian density with diagonal covariance is a product over coordinates; take logarithms and the difference between the two classes. [∎]{.qed}
+:::
+::::
+
+Each bracket is the exact contribution of concept $j$ to the decision between $k$ and $l$: the model is additive in the concepts (a GAM, Definition 1.4), so the explanation is its own. With full covariances, contributions involve pairs of concepts.
+
+::: recap
+Key takeaways — chapter 6
+
+-   A CBM predicts the label from predicted human concepts; it can be trained independently, sequentially or jointly.
+-   Test-time intervention lets an expert correct concepts; independent training benefits most.
+-   Soft concepts can leak information beyond the concepts, which breaks both interpretation and intervention.
+-   Vision–language models supply concept scores without annotation; a Gaussian (QDA-type) head on them gives exact, closed-form explanations.
+:::
+
+## 7. Concept activation vectors {#ch7}
+
+A concept bottleneck must be designed before training. Concept activation vectors ask the reverse question of a network already trained: does this model use the concept "striped" to recognise zebras, and how much?
+
+::: def
+[Definition 7.1 — CAV and TCAV (Kim et al., 2018)]{.tag} Let $f_l(x) \in \mathbb{R}^m$ be the activations of layer $l$ and $h_{l,k}$ the map from them to the logit of class $k$.
+
+-   Collect examples of a concept $C$ (images of stripes) and random counterexamples. Train a linear classifier separating their activations; the **concept activation vector** $v^l_C$ is the unit normal of its decision boundary, pointing to the concept.
+-   The **conceptual sensitivity** of input $x$ is the directional derivative
+    $$
+    S_{C,k,l}(x) = \nabla h_{l,k}\big(f_l(x)\big)^\top v^l_C .
+    $$
+-   For a set $X_k$ of inputs of class $k$, the **TCAV score** is the share with positive sensitivity:
+    $$
+    \mathrm{TCAV}_{C,k,l} = \frac{|\{x \in X_k : S_{C,k,l}(x) > 0\}|}{|X_k|} .
+    $$
+:::
+
+A CAV trained on random examples on both sides also has a TCAV score, so Kim et al. retrain the CAV with many random sets and keep a concept only if its scores differ significantly from those of random CAVs (a two-sided $t$-test, with a correction for multiple testing).
+
+:::: prop
+[Proposition 7.2 — TCAV is a sign statistic]{.tag}
+
+1.  To first order, moving the activations by $\varepsilon$ along the concept changes the logit by $\varepsilon$ times the sensitivity:
+    $$
+    h_{l,k}\big(f_l(x) + \varepsilon v^l_C\big) = h_{l,k}\big(f_l(x)\big) + \varepsilon\, S_{C,k,l}(x) + o(\varepsilon) .
+    $$
+2.  If $h_{l,k}$ is affine, then $S_{C,k,l}$ does not depend on $x$, and the TCAV score is 0 or 1.
+
+::: proof
+(1) is Definition 0.1 applied to $h_{l,k}$ at $f_l(x)$. (2) For $h_{l,k}(a) = \omega^\top a + \beta$, the gradient is $\omega$ for every input, so all sensitivities have the sign of $\omega^\top v^l_C$. [∎]{.qed}
+:::
+::::
+
+Two consequences follow. A layer just below a linear classifier gives uninformative all-or-nothing scores. And the score ignores magnitudes, so reporting the mean sensitivity as well is good practice.
+
+### Concepts in vision–language models
+
+In a joint embedding space, a concept can be defined by text instead of example images, for instance by the difference of the text embeddings of "a striped animal" and "an animal". Its cosine with an image-based CAV checks that the two definitions agree.
+
+Parekh, Khayatan, Shukor, Newson and Cord (2024), official reference [10], extend concept-based explanation to large multimodal models, which answer questions about images with a language model. They learn a dictionary of concepts from the model's internal representations of a token of interest. Each concept is grounded both visually, by the images that activate it most, and textually, by the words it is closest to.
+
+::: ex
+[Example 7.3 — A CAV protocol for CLIP]{.tag} To test whether a CLIP image encoder uses "stripes" for the class "zebra":
+
+1.  retrieve 100 images of stripes and 100 random images from a public collection, for instance by CLIP text search with the prompt "stripes";
+2.  compute their activations at an intermediate block of the image encoder, and fit a logistic regression: its normalised weight vector is the CAV;
+3.  for 500 zebra images, compute the gradient of the zero-shot logit of "zebra" (Definition 0.7) with respect to that block, project it on the CAV, and count positive values;
+4.  repeat steps 1–3 with 20 random concept sets, and test the difference of TCAV scores.
+
+The code below runs the same protocol on a synthetic network where the answer is known.
+:::
+
+```python
+import warnings
+import numpy as np, torch, torch.nn as nn
+from scipy.stats import ttest_ind
+from sklearn.linear_model import LogisticRegression
+from threadpoolctl import threadpool_limits
+
+torch.manual_seed(0); torch.set_num_threads(1)
+threadpool_limits(1)                                        # small matrices: one BLAS thread is fastest
+rng = np.random.default_rng(0)
+d = 20
+u_stripe, u_dot = np.eye(d)[0], np.eye(d)[1]                # two concept directions in input space
+X = rng.standard_normal((4000, d))
+y = (X[:, 0] + 0.5 * X[:, 2] > 0).astype(int)              # class 1 ("zebra") uses the stripe direction
+net = nn.Sequential(nn.Linear(d, 32), nn.ReLU(), nn.Linear(32, 32), nn.ReLU(), nn.Linear(32, 2))
+opt = torch.optim.Adam(net.parameters(), lr=1e-2)
+Xt, yt = torch.tensor(X, dtype=torch.float32), torch.tensor(y)
+for _ in range(300):
+    opt.zero_grad(); nn.functional.cross_entropy(net(Xt), yt).backward(); opt.step()
+body, head = net[:2], net[2:]                               # layer l = first hidden layer
+
+def acts(Z):
+    with torch.no_grad():
+        return body(torch.tensor(Z, dtype=torch.float32)).numpy()
+
+def cav(pos, neg):
+    """Concept activation vector: normal of a linear classifier between two activation sets."""
+    lr = LogisticRegression(max_iter=2000).fit(np.vstack([acts(pos), acts(neg)]),
+                                               np.r_[np.ones(len(pos)), np.zeros(len(neg))])
+    v = lr.coef_[0]
+    return v / np.linalg.norm(v)
+
+zebras = X[y == 1][:500]
+H = torch.tensor(acts(zebras), requires_grad=True)
+grad = torch.autograd.grad(head(H)[:, 1].sum(), H)[0].numpy()   # gradient of the class-1 logit wrt h_l
+
+def tcav(v):
+    S = grad @ v                                             # conceptual sensitivities S_C(x)
+    return np.mean(S > 0), np.mean(S)
+
+randset = lambda: rng.standard_normal((100, d))
+res = {"stripes": [], "dots": [], "random": []}
+for r in range(20):
+    res["stripes"].append(tcav(cav(randset() + 2 * u_stripe, randset())))
+    res["dots"].append(tcav(cav(randset() + 2 * u_dot, randset())))
+    res["random"].append(tcav(cav(randset(), randset())))
+res = {c: np.array(v) for c, v in res.items()}
+for c in ["stripes", "dots", "random"]:
+    with warnings.catch_warnings():                          # constant scores: harmless precision warning
+        warnings.simplefilter("ignore")
+        p = ttest_ind(res[c][:, 0], res["random"][:, 0]).pvalue if c != "random" else float("nan")
+    print(f"{c:7s}: TCAV score {res[c][:, 0].mean():.2f} +- {res[c][:, 0].std():.2f}, "
+          f"mean S_C {res[c][:, 1].mean():+.3f}, p-value vs random {p:.1e}")
+```
+
+The run gives a TCAV score of 1.00 for "stripes" (mean sensitivity +5.15, $p = 2.8 \times 10^{-6}$ against random CAVs), and 0.46 for "dots" (mean sensitivity −0.07, $p = 0.76$). Random CAVs average 0.42 with a standard deviation of 0.46, which is why the test against random concepts is indispensable.
+
+::: recap
+Key takeaways — chapter 7
+
+-   A CAV is the normal of a linear separator between the activations of concept examples and random ones.
+-   The conceptual sensitivity is a directional derivative of a logit along the CAV; the TCAV score is the share of positive sensitivities.
+-   TCAV is a sign statistic, trivial above a linear head; it must be tested against random CAVs, and magnitudes reported too.
+-   Concepts can be defined by text in vision–language models, and grounded in images and words in large multimodal models.
+:::
+
+## 8. Prototype networks {#ch8}
+
+A radiologist explains a diagnosis by comparison: "this region looks like that typical lesion". Prototype networks classify the same way, so their reasoning can be shown as pairs of input regions and training regions.
+
+### Prototypes as class representatives
+
+:::: prop
+[Proposition 8.1 — Prototypical networks are linear in the embedding]{.tag} In the prototypical networks of Snell, Swersky and Zemel (2017), class $k$ is represented by the mean $\mu_k$ of its embedded examples, and an input $x$ with embedding $z$ is classified by a softmax over $-\|z - \mu_k\|^2$. Then
+$$
+P(y = k \mid x) = \frac{\exp(2 \mu_k^\top z - \|\mu_k\|^2)}{\sum_l \exp(2 \mu_l^\top z - \|\mu_l\|^2)} ,
+$$
+a linear softmax classifier in $z$.
+
+::: proof
+Expand $-\|z - \mu_k\|^2 = 2\mu_k^\top z - \|\mu_k\|^2 - \|z\|^2$; the last term is common to all classes and cancels in the softmax. [∎]{.qed}
+:::
+::::
+
+Whole-input prototypes explain little for images. ProtoPNet compares *parts*.
+
+### ProtoPNet
+
+::: def
+[Definition 8.2 — ProtoPNet (Chen et al., 2019)]{.tag} A CNN maps the input to a feature map whose $H W$ positions are **patches** $z \in \mathbb{R}^D$. The model holds $P$ learned **prototypes** $p_1, \dots, p_P$, each assigned to a class. The similarity of prototype $j$ to the input is that of its closest patch:
+$$
+g_j(x) = \max_{z \in \mathrm{patches}(x)} \log \frac{\|z - p_j\|^2 + 1}{\|z - p_j\|^2 + \varepsilon} ,
+$$
+and the logits are a linear combination $W g(x)$ of these similarities.
+:::
+
+Training has three stages.
+
+1.  **Feature learning.** The CNN and prototypes minimise the cross-entropy plus a *cluster* cost (each training input has a patch close to a prototype of its class) and a *separation* cost (its patches stay far from the prototypes of other classes).
+2.  **Projection.** Each prototype is replaced by the nearest patch of a training input of its class, so that it *is* a piece of real data that can be displayed.
+3.  **Last layer.** With everything else fixed, $W$ is optimised with an $L^1$ penalty on the weights that link prototypes to other classes.
+
+The explanation of a prediction lists the most activated prototypes, the patch of the input that matched each one, and the training patch it was projected on: "this looks like that".
+
+:::: prop
+[Proposition 8.3 — Projection moves similarities by a controlled amount]{.tag} Write $\psi(r) = \log\big((r^2 + 1)/(r^2 + \varepsilon)\big)$ with $0 < \varepsilon < 1$. If projection moves prototype $j$ by $\|p_j - p'_j\| \leq \delta$, then for every input
+$$
+|g_j(x) - g'_j(x)| \leq \frac{\delta}{\sqrt{\varepsilon}} .
+$$
+
+::: proof
+Differentiating,
+$$
+|\psi'(r)| = \frac{2r(1 - \varepsilon)}{(r^2 + 1)(r^2 + \varepsilon)} \leq \frac{2r}{r^2 + \varepsilon} \leq \frac{1}{\sqrt{\varepsilon}} ,
+$$
+using $r^2 + \varepsilon \geq 2r\sqrt{\varepsilon}$.
+
+So $\psi$ is $1/\sqrt{\varepsilon}$-Lipschitz in $r$. By the triangle inequality, $r = \|z - p_j\|$ moves by at most $\delta$ for every patch, and a maximum of functions that each move by at most $\delta/\sqrt\varepsilon$ moves by at most as much. [∎]{.qed}
+:::
+::::
+
+So if the cluster cost has brought each prototype close to some training patch, projection barely changes the logits, which bounds the accuracy lost by making prototypes displayable.
+
+### Deformable prototypes
+
+A rigid prototype matches a part only in the spatial layout it was learned with; a bird turning its head breaks the match. Deformable ProtoPNet (Donnelly, Barnett and Chen, 2022), official reference [11], splits each prototype into several prototypical parts whose relative positions can change.
+
+For each input, offsets computed from the feature map, as in deformable convolutions (Dai et al., 2017), shift the parts before comparison. The similarity is computed with normalised vectors (cosine similarity). With unit vectors, $\|z - p\|^2 = 2 - 2\cos(z, p)$, so distances and cosine similarities rank patches identically.
+
+### Practice on sounds
+
+On a log-spectrogram, a natural patch is a time frame: a prototype is then a typical spectral slice. The code generates three classes ("engine", "bird", "bark"), each marked by two frames of a class-specific spectral pattern, plus two frames of a distractor pattern common to all classes.
+
+```python
+import numpy as np, torch, torch.nn as nn
+
+torch.manual_seed(0); torch.set_num_threads(1)
+rng = np.random.default_rng(0)
+F, T, n = 32, 40, 900
+templates = np.zeros((4, F))
+templates[0, [5, 10, 15]] = 3.0          # class 0 "engine": a harmonic stack
+templates[1, 22:26] = 3.0                # class 1 "bird": a high narrow band
+templates[2, 6:20] = 1.5                 # class 2 "bark": a broadband burst
+templates[3, 28:31] = 3.0                # a distractor pattern present in every class
+
+def clip(k):
+    S = 0.7 * rng.standard_normal((T, F))            # log-spectrogram frames (time x frequency)
+    hot = rng.choice(T, 4, replace=False)
+    S[hot[:2]] += templates[k]                       # two class frames at random times
+    S[hot[2:]] += templates[3]                       # two distractor frames
+    return S, hot[:2]
+
+y = rng.integers(0, 3, n)
+data = [clip(k) for k in y]
+X = torch.tensor(np.stack([s for s, _ in data]), dtype=torch.float32)
+Y = torch.tensor(y)
+tr, te = slice(0, 600), slice(600, None)
+
+D, m = 8, 2                                          # latent size, prototypes per class
+enc = nn.Sequential(nn.Linear(F, 16), nn.ReLU(), nn.Linear(16, D))
+protos = nn.Parameter(torch.randn(3 * m, D))
+cls = torch.arange(3).repeat_interleave(m)           # class of each prototype
+last = nn.Linear(3 * m, 3, bias=False)
+with torch.no_grad():                                # ProtoPNet initialisation: +1 own class, -0.5 others
+    last.weight.copy_(torch.where(cls[None, :] == torch.arange(3)[:, None], 1.0, -0.5))
+
+def forward(Xb):
+    Z = enc(Xb)                                      # (b, T, D): one latent patch per frame
+    d2 = ((Z[:, :, None, :] - protos[None, None]) ** 2).sum(-1)    # (b, T, 3m)
+    dmin = d2.min(dim=1).values                      # closest frame to each prototype
+    sim = torch.log((dmin + 1) / (dmin + 1e-4))
+    return last(sim), dmin
+
+opt = torch.optim.Adam(list(enc.parameters()) + [protos], lr=1e-2)
+for it in range(300):
+    logits, dmin = forward(X[tr])
+    own = cls[None, :] == Y[tr][:, None]
+    clst = dmin.masked_fill(~own, 1e9).min(1).values.mean()       # cluster cost
+    sep = -dmin.masked_fill(own, 1e9).min(1).values.mean()        # separation cost
+    loss = nn.functional.cross_entropy(logits, Y[tr]) + 0.8 * clst + 0.08 * sep
+    opt.zero_grad(); loss.backward(); opt.step()
+
+acc = lambda: (forward(X[te])[0].argmax(1) == Y[te]).float().mean().item()
+print(f"test accuracy before projection: {acc():.3f}")
+
+# Projection ("push"): each prototype becomes the closest latent frame of its own class
+with torch.no_grad():
+    Z = enc(X[tr])
+    for j in range(3 * m):
+        idx = (Y[tr] == cls[j]).nonzero().squeeze(1)
+        d2 = ((Z[idx] - protos[j]) ** 2).sum(-1)                  # (n_k, T)
+        flat = d2.argmin()
+        i, t = idx[flat // T].item(), (flat % T).item()
+        protos[j] = Z[i, t]
+        print(f"prototype {j} (class {cls[j].item()}) <- clip {i}, frame {t}: "
+              f"{'a class frame' if t in data[i][1] else 'NOT a class frame'}")
+print(f"test accuracy after projection:  {acc():.3f}")
+```
+
+The test accuracy is 1.000 before and after projection, and all six prototypes are projected onto frames that carry their class pattern, never onto the distractor frames. The explanation of a test clip is then "this frame of your clip looks like frame 22 of training clip 69, a typical bird frame". On real sounds the frames would be listened to rather than plotted.
+
+Prototype explanations have limits: similarity in the latent space need not match human perception, and Hoffmann et al. (2021) show that small, almost invisible changes to an image can change which prototypes it matches.
+
+::: recap
+Key takeaways — chapter 8
+
+-   Prototypical networks classify by distance to class means, which is linear in the embedding.
+-   ProtoPNet compares input patches with learned prototype parts, then projects each prototype onto a real training patch so that it can be shown.
+-   Projection changes each similarity by at most $\delta / \sqrt{\varepsilon}$ for a move of size $\delta$.
+-   Deformable prototypes let parts move, which handles pose changes; on audio, prototypes are typical spectral frames.
+:::
+
+## 9. Chain-of-thought reasoning {#ch9}
+
+A language model can be asked to write its reasoning before its answer. The chain of thought then looks like an explanation in plain words. This chapter asks what such a chain is, how to check it step by step, and whether it explains the answer at all.
+
+### Chain-of-thought prompting
+
+Wei et al. (2022) showed that prompting a large language model with worked examples that spell out intermediate steps improves its accuracy on arithmetic and multi-step reasoning. Kojima et al. (2022) obtained part of the gain with the single instruction "Let's think step by step".
+
+::: def
+[Definition 9.1 — Chain of thought as a latent rationale]{.tag} For a question $q$, the model samples a rationale $r$ (a sequence of steps), then an answer $a$. The answer distribution marginalises over rationales:
+$$
+p(a \mid q) = \sum_r p(r \mid q)\, p(a \mid q, r) .
+$$
+**Self-consistency** (Wang et al., 2023) samples $N$ rationales at a positive temperature and returns the most frequent final answer.
+:::
+
+:::: prop
+[Proposition 9.2 — Majority voting concentrates on the modal answer]{.tag} Let the sampled answers be i.i.d. with probabilities $\pi_1 > \pi_2 \geq \pi_3 \geq \dots$, and $\Delta = \pi_1 - \pi_2$. The majority vote over $N$ samples returns answer 1 with probability at least
+$$
+1 - (A - 1)\, e^{-N \Delta^2 / 2} ,
+$$
+where $A$ is the number of possible answers.
+
+::: proof
+Answer 1 loses only if some answer $j \neq 1$ gets at least as many votes. For each $j$, the variables $\mathbf{1}[a_n = 1] - \mathbf{1}[a_n = j]$ take values in $[-1, 1]$ with mean $\pi_1 - \pi_j \geq \Delta$.
+
+By Hoeffding's inequality, their sum is $\leq 0$ with probability at most $e^{-N\Delta^2/2}$. A union bound over the $A - 1$ other answers concludes. [∎]{.qed}
+:::
+::::
+
+Self-consistency therefore estimates the mode of the marginal $p(a \mid q)$; it helps when the right answer is the most likely one but not overwhelmingly so.
+
+### Formal analysis of chains of thought
+
+To check each step, one needs a world in which every statement can be parsed and verified. Saparov and He (2022), official reference [12], build PrOntoQA: questions generated from a synthetic ontology, with a gold proof for each.
+
+::: def
+[Definition 9.3 — Proof steps in PrOntoQA]{.tag} The context lists rules ("Every wumpus is a yumpus") and a fact ("Alex is a wumpus"); the question asks whether a conclusion follows ("Is Alex a dumpus?"). Each sentence of a chain of thought is parsed into a logical form and labelled:
+
+-   **valid** if it follows from previously stated facts by one application of a rule (modus ponens), and **invalid** otherwise;
+-   **misleading** if it is valid but not on the gold proof, so that it leads away from the goal.
+:::
+
+Their main finding is that the models make individually valid steps most of the time, but plan poorly. When several valid steps are available, they tend to take one and continue from it without exploring alternatives, hence the title "language models are greedy reasoners". Fictional concept names ("wumpus") keep prior world knowledge from helping.
+
+:::: prop
+[Proposition 9.4 — Greedy chains with distractors]{.tag} Consider a gold proof of $k$ steps in which every intermediate concept also has $b$ distractor rules leading to dead ends. A reasoner that extends its latest fact with a uniformly chosen applicable rule, without backtracking, completes the proof with probability
+$$
+(1 + b)^{-k} .
+$$
+A depth-first search with backtracking always finds it, after expanding at most $k(1 + b) + 1$ concepts.
+
+::: proof
+At each of the $k$ steps, $1 + b$ rules apply and only one stays on the gold proof; a distractor ends the chain. The choices are independent, so the probabilities multiply. A search with backtracking visits each concept at most once, and only the $k$ gold concepts and their $b$ dead-end children each can be reached before the goal. [∎]{.qed}
+:::
+::::
+
+The code builds such ontologies, checks a chain of thought step by step, and compares the greedy reasoner with backtracking search.
+
+```python
+import random, re
+
+random.seed(0)
+WORDS = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus",
+         "impus", "jompus", "gorpus", "shumpus", "lempus", "sterpus", "grimpus", "lorpus"]
+
+def ontology(k, b):
+    """Gold chain c0 -> ... -> ck, plus b dead-end distractor rules out of every ci."""
+    names = random.sample(WORDS, k + 1)
+    rules = {names[i]: [names[i + 1]] for i in range(k)}
+    for i in range(k):
+        rules[names[i]] += [f"{names[i]}-{j}" for j in range(b)]   # distractor concepts
+        random.shuffle(rules[names[i]])
+    return names, rules
+
+def check(cot, rules, gold):
+    """Label each step 'Alex is a Y.': invalid (no single rule derives it from known facts),
+    misleading (valid but off the gold proof) or valid."""
+    known, labels = {gold[0]}, []
+    for step in cot:
+        y = re.fullmatch(r"Alex is a (\S+)\.", step).group(1)
+        ok = any(y in rules.get(x, []) for x in known)
+        labels.append("invalid" if not ok else "valid" if y in gold else "misleading")
+        known.add(y)
+    return labels
+
+def greedy(rules, start, goal, budget):
+    """Linear chain of thought: always extend the latest fact with some applicable rule."""
+    cot, cur = [], start
+    for _ in range(budget):
+        if cur == goal or not rules.get(cur):
+            break
+        cur = random.choice(rules[cur])
+        cot.append(f"Alex is a {cur}.")
+    return cot, cur == goal
+
+def dfs(rules, start, goal):
+    """Proof search with backtracking: returns the number of steps generated."""
+    stack, seen, steps = [start], set(), 0
+    while stack:
+        x = stack.pop()
+        if x == goal:
+            return steps
+        seen.add(x); steps += 1
+        stack += [y for y in rules.get(x, []) if y not in seen]
+
+names, rules = ontology(3, 1)
+cot, ok = greedy(rules, names[0], names[-1], budget=3)
+print("Question: Alex is a %s. Is Alex a %s?" % (names[0], names[-1]))
+print("CoT:", " ".join(cot), "| proved:", ok, "| step labels:", check(cot, rules, names))
+print("checker on a skipped step:", check(["Alex is a " + names[-1] + "."], rules, names))
+
+for k in [2, 3, 5]:
+    for b in [0, 1, 2]:
+        runs = [ontology(k, b) for _ in range(2000)]
+        succ = sum(greedy(r, nm[0], nm[-1], k)[1] for nm, r in runs) / 2000
+        cost = sum(dfs(r, nm[0], nm[-1]) for nm, r in runs) / 2000
+        print(f"k={k} hops, b={b} distractors: greedy success {succ:.3f} "
+              f"(theory {(1 + b) ** -k:.3f}); backtracking search, mean steps {cost:.1f}")
+```
+
+In the first sample, the greedy chain takes a distractor at once: its single step is labelled *misleading* (valid, but off the proof), and the proof fails. A chain that jumps directly to the conclusion is labelled *invalid*. Over 2 000 ontologies, the greedy success rates match Proposition 9.4: 0.237 for $(k, b) = (2, 1)$ against $1/4$, and 0.029 for $(5, 1)$ against $1/32$. Backtracking always succeeds, with 7.5 expansions on average for $(5, 1)$.
+
+### Is the chain the explanation?
+
+A step-by-step rationale is easy to audit, which is why it matters in complex decisions: a wrong premise or an invalid step can be pointed at. But a chain is an explanation of the answer only if the answer actually depends on it.
+
+-   Turpin et al. (2023) bias the prompts, for instance by always placing the right answer of the few-shot examples in position (A). The models' answers follow the bias, while their chains of thought never mention it and rationalise the biased answer.
+-   Lanham et al. (2023) intervene on the chain: truncating it, inserting a mistake, or paraphrasing it. For some tasks the final answer barely changes, which shows that the stated reasoning was not what produced it.
+
+Faithfulness of a chain of thought is thus an empirical, causal property, tested by intervening on the chain and observing the answer: the same idea as the deletion tests of ch. 11.
+
+::: recap
+Key takeaways — chapter 9
+
+-   A chain of thought is a sampled rationale; self-consistency votes over several and concentrates on the modal answer exponentially fast in the number of samples.
+-   In a formal world such as PrOntoQA, every step can be checked: valid, invalid, or valid but misleading.
+-   Models make valid steps but plan greedily; with $b$ distractors per step, a greedy $k$-step chain succeeds with probability $(1+b)^{-k}$.
+-   A chain explains an answer only if the answer depends on it, which interventions on the chain can test.
+:::
+
+## 10. Knowledge graphs for explainable AI {#ch10}
+
+Statistical models learn associations; knowledge graphs store explicit facts and their relations. Combining the two lets a model justify a prediction by facts a human can check: "this drug is predicted to treat this disease because it targets a gene associated with it".
+
+::: def
+[Definition 10.1 — Knowledge graph]{.tag} A **knowledge graph** is a set of triples $(h, r, t)$, with a head entity $h$, a relation $r$ and a tail entity $t$, drawn from a set of entities $\mathcal{E}$ and of relations $\mathcal{R}$. An ontology may type the entities and constrain the relations. Wikidata (Vrandečić and Krötzsch, 2014) is a large public example.
+:::
+
+### Where knowledge graphs help
+
+Tiddi and Schlobach (2022), official reference [13], review knowledge graphs as tools for explainable machine learning with a systematic analytical framework. Among other perspectives, it places each system by the stage at which knowledge enters: before the model, inside it, or after it, to generate the explanation. They find gains in understandability, and limits in handling noisy graphs and in extracting knowledge efficiently. Three uses recur:
+
+-   **vocabulary**: linking inputs and outputs to entities (entity linking in a text, labels of an image) makes them interpretable;
+-   **background knowledge**: facts and rules complete what the data alone cannot teach;
+-   **structured explanations**: a path or a rule of the graph is an explanation a human can read and verify.
+
+### Embeddings and their composition
+
+::: def
+[Definition 10.2 — TransE (Bordes et al., 2013)]{.tag} TransE embeds entities and relations in $\mathbb{R}^D$ so that a true triple satisfies $h + r \approx t$, and scores a triple by $-\|h + r - t\|$. Training minimises a margin loss over true triples and corrupted ones (with a random head or tail):
+$$
+\sum \big[ \gamma - \|h' + r - t'\| + \|h + r - t\| \big]_+ .
+$$
+:::
+
+:::: prop
+[Proposition 10.3 — Paths compose by adding relations]{.tag} If $\|h + r_1 - e\| \leq \varepsilon_1$ and $\|e + r_2 - t\| \leq \varepsilon_2$, then
+$$
+\|h + (r_1 + r_2) - t\| \leq \varepsilon_1 + \varepsilon_2 .
+$$
+Consequently, if a rule "$r_1$ then $r_2$ implies $r$" holds in the data, a good fit forces $r \approx r_1 + r_2$.
+
+::: proof
+Add the two vectors $h + r_1 - e$ and $e + r_2 - t$, then apply the triangle inequality. [∎]{.qed}
+:::
+::::
+
+The same geometry shows the limits of TransE. A symmetric relation forces $r \approx -r$, so $r \approx 0$. A relation with many tails for one head forces those tails to be close to each other. Richer models (rotations, bilinear forms) lift these limits, but their predictions remain vectors: to explain them, one goes back to paths and rules.
+
+### Rules and paths as explanations
+
+::: def
+[Definition 10.4 — Horn rules and their confidence (Galárraga et al., 2013)]{.tag} A rule $B(x, y) \Rightarrow r(x, y)$ has a *body* $B$, a chain of relations from $x$ to $y$, and a *head* $r$. Its **support** is the number of pairs satisfying both body and head, and its **standard confidence** is support divided by the number of pairs satisfying the body.
+
+The **PCA confidence** (partial completeness assumption) divides only by the body pairs $(x, y)$ for which some $r(x, y')$ is known. A missing fact about an entity that has no known $r$-fact at all is thus not counted as a counterexample.
+:::
+
+A predicted link is explained by the rule that predicts it, instantiated on the path that connects its two ends. Multi-hop reasoning models (Lin, Socher and Xiong, 2018) and explainable recommenders (Xian et al., 2019) learn to walk such paths, so that the path itself is the explanation.
+
+```python
+import numpy as np, networkx as nx
+from collections import Counter
+
+rng = np.random.default_rng(0)
+drugs = [f"drug{i}" for i in range(40)]
+genes = [f"gene{i}" for i in range(20)]
+dis = [f"disease{i}" for i in range(8)]
+T = {(g, "associated_with", dis[rng.integers(8)]) for g in genes}
+assoc = {h: t for h, _, t in T}
+for d in drugs:
+    T.add((d, "targets", genes[rng.integers(20)]))
+    T.add((d, "similar_to", drugs[rng.integers(40)]))            # a distractor relation
+treats = sorted({(h, "treats", assoc[t]) for h, r, t in T if r == "targets"})
+rng.shuffle(treats)
+hidden, known = treats[:10], {(h, t) for h, _, t in treats[10:]}  # hide 10 "treats" facts
+
+G = nx.MultiDiGraph()                                              # the graph without "treats"
+for h, r, t in T:
+    G.add_edge(h, t, rel=r); G.add_edge(t, h, rel=r + "^-1")
+
+def bodies(h, t):
+    """Relation sequences of the simple paths of length <= 3 from h to t."""
+    return {tuple(G[u][v][k]["rel"] for u, v, k in p)
+            for p in nx.all_simple_edge_paths(G, h, t, cutoff=3)}
+
+# Mine Horn rules  body(x, y) => treats(x, y)  and their confidences (Galarraga et al., 2013)
+has_treats = {h for h, _ in known}
+support, hits, pca_den = Counter(), Counter(), Counter()
+B = {(d, x): bodies(d, x) for d in drugs for x in dis}
+for (d, x), pats in B.items():
+    for p in pats:
+        support[p] += 1
+        hits[p] += (d, x) in known
+        pca_den[p] += d in has_treats            # partial completeness: only drugs with a known "treats"
+for p in sorted(support, key=lambda p: -hits[p] / support[p]):
+    print(f"conf {hits[p] / support[p]:.2f}  PCA conf {hits[p] / max(pca_den[p], 1):.2f}  " + " o ".join(p))
+
+# Predict the hidden facts with the best rule, and explain each prediction by that rule
+conf = {p: hits[p] / max(pca_den[p], 1) for p in support}
+correct = 0
+for h, _, t in hidden:
+    best = max(dis, key=lambda x: max((conf[p] for p in B[(h, x)]), default=0))
+    correct += best == t
+print(f"hidden 'treats' facts recovered: {correct}/10")
+h, _, t = hidden[0]
+p = max(B[(h, t)], key=conf.get)
+print(f"explanation of ({h}, treats, {t}):  " + " o ".join(p) + f"  (PCA confidence {conf[p]:.2f})")
+```
+
+The synthetic graph has 40 drugs, 20 genes and 8 diseases; a drug treats the disease associated with the gene it targets, and a random "similar_to" relation adds noise. Ten "treats" facts are hidden.
+
+-   The rule "targets ∘ associated_with ⇒ treats" has a standard confidence of 0.75: the 10 hidden facts count as counterexamples. Its PCA confidence is 1.00, since the drugs concerned have no known "treats" fact.
+-   The two rules that go through "similar_to" have confidences of 0.18 and 0.14 at most.
+-   Predicting with the best rule recovers the 10 hidden facts, and each prediction comes with its justification, here "drug33 targets a gene associated with disease5".
+
+### Knowledge graphs and language models
+
+In NLP, a text is linked to a graph by entity linking. The retrieved triples can then enter the model's representations, as in ERNIE (Zhang et al., 2019), or be reasoned over by a graph neural network next to the language model, as in KagNet (Lin et al., 2019) and QA-GNN (Yasunaga et al., 2021). The paths used by the reasoning module serve as a structured explanation of the answer.
+
+Retrieving facts from a graph before generation plays the same role for large language models: the retrieved facts can be shown as the support of the answer, and checked. Graph neural networks themselves are covered in [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) and [ALTEGRAD](../s1-altegrad/index.html).
+
+::: recap
+Key takeaways — chapter 10
+
+-   A knowledge graph is a set of triples; it provides vocabulary, background knowledge and explanations that can be verified.
+-   TransE embeds triples as translations; paths compose by adding relations, which links embeddings to rules, but symmetric and one-to-many relations are hard for it.
+-   Horn rules mined with support and (PCA) confidence predict missing links and explain each prediction by an instantiated path.
+-   In NLP, entity linking connects texts to graphs, and the paths a model reasons over explain its answer.
+:::
+
+## 11. Evaluating explanations across modalities {#ch11}
+
+Chapters 2–10 produced explanations that disagree with each other. Without a ground truth, how does one tell a faithful explanation from a plausible one? And how does one explain a model that reads an image, a sound and a text together? This chapter answers both, and launches the final project.
+
+### Faithfulness by deletion
+
+::: def
+[Definition 11.1 — Deletion and insertion curves (Petsiuk, Das and Saenko, 2018)]{.tag} Order the features by decreasing attribution. The **deletion curve** plots the model's probability for the predicted class as the first $k$ features are replaced by a baseline, for $k = 0, \dots, d$. A faithful attribution makes the probability drop fast, so the area under the curve (AUC) is small. The **insertion curve** starts from the baseline and adds features; there the AUC should be large.
+:::
+
+Replacing features creates inputs that the model never saw, which can lower the score for reasons unrelated to importance. ROAR (Hooker et al., 2019) retrains the model on the degraded data to separate the two effects, at a higher cost.
+
+:::: prop
+[Proposition 11.2 — Shapley order is optimal for additive models]{.tag} Let $f(x) = \beta_0 + \sum_j f_j(x_j)$ and let deletion replace $x_j$ by a baseline $x'_j$. Ordering the features by decreasing $\phi_j = f_j(x_j) - f_j(x'_j)$ minimises the score after $k$ deletions, simultaneously for every $k$. Hence it minimises the deletion AUC for any increasing link, such as the sigmoid.
+
+::: proof
+After deleting a set $S$ of size $k$, the score is $f(x) - \sum_{j \in S} \phi_j$.
+
+The largest sum of $k$ of the numbers $\phi_j$ is that of the $k$ largest, which the decreasing order deletes first, for every $k$ at once. [∎]{.qed}
+:::
+::::
+
+For additive models, the exact baseline Shapley values (Proposition 2.6) are therefore the best possible deletion order. For models with interactions no single order need be optimal for all $k$, which is one reason why rankings of attribution methods change from one metric to another.
+
+### Sanity checks
+
+::: def
+[Definition 11.3 — Model randomisation test (Adebayo et al., 2018)]{.tag} Replace the trained weights by random ones (all layers, or progressively from the top) and recompute the explanations. An explanation method that depends on what the model learned must produce markedly different maps; a high similarity between the two sets of maps fails the test.
+:::
+
+Adebayo et al. found that some popular maps, such as guided backpropagation, barely change: they behave like edge detectors of the input rather than explanations of the model. Methods that multiply by the input inherit part of its structure, as the code below shows.
+
+### Multimodal explanations
+
+Multimodal models fuse modalities early (concatenated inputs), late (combined unimodal predictions) or in between, through cross-attention; official reference [7] reviews the architectures. Two questions are new for explanation.
+
+-   **Which modality drove the decision?** Treat the modalities as players of a game and compute their Shapley values (Definition 2.3). MM-SHAP (Parcalabescu and Frank, 2023) measures in this way the shares of text and image in vision–language models, and finds models and tasks where one modality is almost ignored.
+-   **What inside each modality?** Apply a per-modality method (Grad-CAM on the image, Sobol maps on the spectrogram, attributions on the words) and check that the explanations are consistent with each other.
+
+With two or three modalities, the Shapley values need only $2^2$ or $2^3$ evaluations and are computed exactly. An interaction between two modalities is split equally between them, as the Harsanyi dividends of ch. 2 show.
+
+```python
+import itertools, math, numpy as np, torch, torch.nn as nn
+from scipy.stats import spearmanr
+
+torch.manual_seed(0); torch.set_num_threads(1)
+rng = np.random.default_rng(0)
+n, dm = 3000, 10
+mods = {"image": slice(0, 10), "audio": slice(10, 20), "text": slice(20, 30)}
+X = rng.standard_normal((n, 3 * dm)).astype(np.float32)
+logit = 2 * X[:, 20] + 1.5 * X[:, 10] * np.sign(X[:, 21]) + 0.3 * X[:, 0]   # text >> audio x text >> image
+y = (logit + 0.3 * rng.standard_normal(n) > 0).astype(int)
+Xt, yt = torch.tensor(X), torch.tensor(y)
+tr, te = slice(0, 2000), slice(2000, None)
+
+def make():
+    return nn.Sequential(nn.Linear(30, 64), nn.ReLU(), nn.Linear(64, 2))
+net = make()
+opt = torch.optim.Adam(net.parameters(), lr=1e-2)
+for _ in range(400):
+    opt.zero_grad(); nn.functional.cross_entropy(net(Xt[tr]), yt[tr]).backward(); opt.step()
+mean = Xt[tr].mean(0)
+
+def acc_with(S):
+    """Test accuracy when the modalities outside S are replaced by their training mean."""
+    Z = Xt[te].clone()
+    for m, sl in mods.items():
+        if m not in S:
+            Z[:, sl] = mean[sl]
+    with torch.no_grad():
+        return (net(Z).argmax(1) == yt[te]).float().mean().item()
+
+# 1) Exact Shapley values of the three modalities (8 coalitions)
+names = list(mods)
+v = {S: acc_with(S) for k in range(4) for S in itertools.combinations(names, k)}
+key = lambda S: tuple(m for m in names if m in S)
+for i in names:
+    others = [m for m in names if m != i]
+    phi = sum(math.factorial(len(S)) * math.factorial(2 - len(S)) / 6 * (v[key(S + (i,))] - v[S])
+              for k in range(3) for S in itertools.combinations(others, k))
+    print(f"Shapley value of {i:5s}: {phi:+.3f} accuracy")
+print(f"efficiency check: v(all) - v(none) = {v[tuple(names)] - v[()]:.3f}")
+
+# 2) Deletion curve: remove features in attribution order, track P(predicted class)
+def grad_x_input(model, Z):
+    Z = Z.clone().requires_grad_(True)
+    out = model(Z)
+    c = out.argmax(1)
+    g = torch.autograd.grad(out.gather(1, c[:, None]).sum(), Z)[0]
+    return (g * (Z - mean)).detach(), c
+
+def deletion_auc(order, Z, c):
+    Z, ps = Z.clone(), []
+    rows = torch.arange(len(Z))
+    for k in range(31):
+        with torch.no_grad():
+            ps.append(torch.softmax(net(Z), 1)[rows, c].mean().item())
+        if k < 30:
+            Z[rows, order[:, k]] = mean[order[:, k]]
+    return np.trapezoid(ps, dx=1 / 30)
+
+Z = Xt[te][:500]
+attr, c = grad_x_input(net, Z)
+print(f"deletion AUC, gradient x input order: {deletion_auc(attr.argsort(1, descending=True), Z, c):.3f}")
+print(f"deletion AUC, random order:           {deletion_auc(torch.rand(500, 30).argsort(1), Z, c):.3f}")
+
+# 3) Sanity check (Adebayo et al., 2018): explanations of a randomly re-initialised model
+rand_attr, _ = grad_x_input(make(), Z)
+rho = np.mean([spearmanr(attr[i].abs(), rand_attr[i].abs())[0] for i in range(500)])
+print(f"mean Spearman correlation, trained vs random model attributions: {rho:.2f}")
+```
+
+::: ex
+[Example 11.4 — A three-modality model under test]{.tag} The synthetic task has 10 features per modality; the label depends strongly on one text feature, on an audio–text interaction, and weakly on one image feature. A late-fusion MLP is trained on the concatenation.
+
+-   Modality Shapley values, in points of test accuracy: text +0.277, audio +0.038, image +0.001. They add up to 0.317, the gap between the full model and the model with every modality replaced by its mean.
+-   Deleting features in the order of gradient × (input − mean) gives a deletion AUC of 0.121, against 0.698 for a random order.
+-   The attributions of a randomly re-initialised network still have a mean Spearman correlation of 0.47 with those of the trained one: the factor (input − mean) carries structure of its own. A sanity check must compare against this level, not against 0.
+:::
+
+### From the course to the project
+
+The final project of the official assessment applies several XAI methods to one multimodal data set. A sound protocol follows from the chapters:
+
+1.  fix the model, the data split and the question (which decisions are explained, for whom);
+2.  compute the modality Shapley values first, to know where to look;
+3.  inside each important modality, apply one method from each family: a perturbation method (ch. 2 or ch. 4), a gradient method (ch. 3), and a concept or example method (ch. 6–8);
+4.  test faithfulness with deletion curves and the randomisation sanity check, and report disagreements between methods rather than hiding them;
+5.  close with a counterfactual (ch. 5) or a rule (ch. 10) that a domain expert can verify.
+
+::: recap
+Key takeaways — chapter 11
+
+-   Faithfulness is tested by intervening on the input: deletion and insertion curves, or retraining as in ROAR; plausibility is a different property.
+-   For additive models, exact Shapley values give the optimal deletion order; with interactions, metrics and rankings may disagree.
+-   The model randomisation test detects maps that explain the input rather than the model; compare against the level of randomised models.
+-   In multimodal models, Shapley values over modalities tell which modality drives a decision, before any per-modality explanation.
+:::
+
+## 12. Complements for self-study {#ch12}
+
+This chapter gathers material that extends the in-class chapters: how Shapley values are estimated in practice, more attribution rules, concept discovery, the debate on attention, causal recourse, and glass-box boosting.
+
+### Estimating Shapley values
+
+-   **Permutation sampling** (Castro, Gómez and Tejada, 2009). Since $\phi_i$ is the expected marginal contribution of $i$ over a uniformly random order (ch. 2), averaging over $n$ random orders gives an unbiased estimator. If the marginal contributions lie in an interval of length $R$, Hoeffding's inequality gives an error below $R\sqrt{\log(2/\delta)/(2n)}$ with probability $1 - \delta$.
+-   **Antithetic and paired sampling.** Using each order together with its reverse, or each coalition with its complement in Kernel SHAP, reduces the variance at no extra cost.
+-   **TreeSHAP** (Lundberg et al., 2020) computes exact SHAP values of tree ensembles in time polynomial in the depth and the number of leaves, by propagating coalition weights down the trees.
+-   **Which value function?** Janzing, Minorics and Blöbaum (2020) argue, on causal grounds, for the interventional value function of Definition 2.5. Kumar et al. (2020) list the problems of both choices, and Chen, Covert, Lundberg and Lee (2023) review the estimation algorithms.
+
+### More attribution rules
+
+-   **SmoothGrad** (Smilkov et al., 2017) averages gradients over noisy copies of the input, $\frac{1}{n}\sum_k \nabla f(x + \varepsilon_k)$, which removes much of the visual noise of saliency maps.
+-   **Layer-wise relevance propagation** (Bach et al., 2015) redistributes the output backwards, layer by layer, with rules that conserve the total relevance. For the basic rule, neuron $j$ receives from neuron $k$ the share $a_j w_{jk} / \sum_{j'} a_{j'} w_{j'k}$ of its relevance.
+-   **DeepLIFT** (Shrikumar, Greenside and Kundaje, 2017) propagates differences from a reference input rather than gradients; like Integrated Gradients, its attributions sum to $f(x) - f(x')$.
+-   Covert, Lundberg and Lee (2021) unify many of these methods as *removal-based* explanations, which differ by how features are removed, which behaviour is explained, and how the effects are summarised.
+
+### Discovering concepts
+
+Choosing concepts in advance for a CAV (ch. 7) can miss what the model uses. Automatic methods extract them from activations.
+
+::: def
+[Definition 12.1 — Concepts by non-negative matrix factorisation]{.tag} Stack the post-ReLU activations of $n$ image crops at layer $l$ into $A \in \mathbb{R}_{\geq 0}^{n \times m}$. A factorisation
+$$
+A \approx U W, \qquad U \in \mathbb{R}_{\geq 0}^{n \times r}, \; W \in \mathbb{R}_{\geq 0}^{r \times m},
+$$
+gives $r$ concept directions (rows of $W$) and their presence in each crop (rows of $U$). Each concept is shown to humans through the crops with the largest coefficients.
+:::
+
+Ghorbani et al. (2019) cluster segments of images in activation space. CRAFT (Fel et al., 2023) uses the factorisation above and ranks concepts by the total Sobol indices of their coefficients, the tool of ch. 4.
+
+### Is attention an explanation?
+
+Transformers expose attention weights, and it is tempting to read them as importance. Jain and Wallace (2019) found that attention weights often correlate poorly with gradient-based importance, and that different attention distributions can give the same prediction. Wiegreffe and Pinter (2019) answered that whether attention explains depends on the definition of explanation, and proposed tests.
+
+Across layers, attention mixes information, and **attention rollout** (Abnar and Zuidema, 2020) multiplies the attention matrices of successive layers, adding the residual connection, to track how much each input token contributes to each output position.
+
+### Causal recourse
+
+Karimi, Schölkopf and Valera (2021) model the features with a structural causal model $X_j = F_j(X_{\mathrm{pa}(j)}, U_j)$. A recourse action is an intervention $\mathrm{do}(X_A = \theta)$ on a set $A$ of features; the downstream features change through the equations. The cheapest action that flips the decision can differ from the closest counterfactual of ch. 5, which ignores these effects.
+
+### Glass-box boosting
+
+Explainable Boosting Machines (Nori et al., 2019) fit a GAM (Definition 1.4) by cycling gradient boosting over one feature at a time with very small trees, then add a few pairwise interaction terms selected as in the GA²M models of Lou et al. (2013). Each term is a one- or two-dimensional plot, so the model is fully readable, and its accuracy on tabular data is often close to that of unrestricted boosting.
+
+::: recap
+Key takeaways — chapter 12
+
+-   Shapley values are estimated by permutation sampling with Hoeffding guarantees, computed exactly for trees, and depend on the value function chosen.
+-   SmoothGrad, LRP and DeepLIFT are further attribution rules; many methods are removal-based explanations in one framework.
+-   Concepts can be discovered by factorising activations and ranked with Sobol indices.
+-   Attention weights are not, by themselves, a faithful explanation; rollout tracks information across layers.
+-   Causal recourse intervenes in a structural model; EBMs are boosted GAMs that stay readable.
+:::
+
+## 13. Research directions and open problems {#ch13}
+
+This chapter is a self-study tour of active questions. The references are entry points, not a survey.
+
+### Explanations of foundation and multimodal models
+
+-   **Concepts inside large models.** Work by Fel and coauthors (CRAFT, 2023, and a unifying study of concept extraction and importance at NeurIPS 2023) and by Parekh and coauthors (2024) extracts concepts from vision and multimodal models by matrix factorisation or dictionary learning. Open questions: how many concepts a model uses, whether they are stable across seeds, and how to evaluate them without humans.
+-   **Decomposing CLIP.** Gandelsman, Efros and Steinhardt (2024) decompose the image representation of CLIP into contributions of attention heads, and describe each head with text. Similar decompositions for audio–language models remain largely open.
+-   **Sparse autoencoders.** Mechanistic interpretability decomposes activations into many sparse, more interpretable features. Elhage et al. (2022) study superposition in toy models, and Cunningham et al. (2024) find interpretable features in language models with sparse autoencoders. Whether these features are the model's own units of computation is debated.
+
+### Limits and theory of attribution
+
+-   Bilodeau, Jaques, Koh and Kim (2024) prove impossibility theorems: for rich model classes, complete and linear attribution methods such as SHAP and Integrated Gradients can provably fail to beat random guessing at inferring model behaviour, such as the effect of a local change.
+-   Different methods disagree on the same prediction (Krishna et al., 2022). Which disagreement is a property of the model and which an artefact of the method is unresolved.
+-   Variance-based attributions assume independent inputs (Theorem 4.1). Extensions to dependent inputs, such as Shapley effects, exist in sensitivity analysis but are rarely used in XAI.
+
+### Reasoning chains and verification
+
+-   Faithfulness of chains of thought (Turpin et al., 2023; Lanham et al., 2023) remains an open problem, all the more for models trained to reason at length.
+-   Process supervision rewards each correct step rather than the final answer; Lightman et al. (2024) show that it trains better verifiers of mathematical reasoning. Combining such verifiers with formal checkers, as in PrOntoQA or proof assistants, is a direction shared with [Large Language Models for Code and Proof](../s2-llm-code-proof/index.html).
+
+### Evaluation with people and with regulators
+
+-   Do explanations help people predict a model's behaviour? Hase and Bansal (2020) measure this *simulatability* in user studies and find that only some methods help, and only on some data.
+-   The AI Act's requirements for high-risk systems must be turned into technical standards: what counts as sufficient transparency, and how an explanation is audited, are open questions shared with [Regulating AI](../s2-regulating-ai/index.html).
+-   Explanations and uncertainty interact: an explanation of an uncertain prediction should say so, a link with [Bayesian Machine Learning](../s2-bayesian-ml/index.html).
+
+::: recap
+Key takeaways — chapter 13
+
+-   Concept extraction, head decomposition and sparse autoencoders are the current tools to open foundation and multimodal models.
+-   Impossibility results and the disagreement problem limit what attribution can guarantee; independence assumptions limit variance-based methods.
+-   The faithfulness of reasoning chains, and the verification of each step, are open.
+-   Explanations must be evaluated with their users and against regulatory requirements, and should carry uncertainty.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. Exercises 7, 14, 17 and 19 are computational.
+
+1.  **★ A three-player game by hand.** Explain $f(x) = x_1 x_2 + x_3$ at $x = (1, 1, 1)$ with the baseline $(0, 0, 0)$, using $v(S) = f(x_S, 0_{\bar S})$. Compute the Harsanyi dividends and the Shapley values, and check efficiency.
+
+    *Solution*: the value function is
+    $$
+    v(\emptyset) = v(\{1\}) = v(\{2\}) = 0, \quad v(\{3\}) = v(\{1,2\}) = v(\{1,3\}) = v(\{2,3\}) = 1, \quad v(N) = 2 .
+    $$
+
+    The dividends are $c_{\{3\}} = 1$ and $c_{\{1,2\}} = 1$, all others 0, so $v = u_{\{3\}} + u_{\{1,2\}}$. Sharing each dividend equally among its members:
+    $$
+    \phi = (0.5,\ 0.5,\ 1), \qquad \phi_1 + \phi_2 + \phi_3 = 2 = v(N) .
+    $$
+
+2.  **★ Interventional and conditional SHAP.** Let $f(x) = 2x_1 - x_2 + 0.5 x_3 + 1$, with $\mathbb{E}X = (1, 0, 2)$, $X_3$ independent of $(X_1, X_2)$, and $X_2 = X_1 - 1$ almost surely. Explain $x = (3, 2, 2)$ with both value functions of Definition 2.5.
+
+    *Solution*: $f(x) = 6$ and $\mathbb{E}f(X) = 4$. Interventional (Proposition 2.6): $\phi = (2 \times 2,\ -1 \times 2,\ 0) = (4, -2, 0)$.
+
+    Conditional: knowing either $x_1$ or $x_2$ determines the other, so $v(S) = 6$ as soon as $S$ contains 1 or 2, and $v(\emptyset) = v(\{3\}) = 4$. Players 1 and 2 are symmetric and 3 is null:
+    $$
+    \phi^{\mathrm{cond}} = (1,\ 1,\ 0) .
+    $$
+    Both sum to 2, but the conditional version shares the credit between the two correlated features, whatever the model does with them.
+
+3.  **★ The Shapley kernel for four players.** For $M = 4$, compute $\mu(S)$ for $|S| = 1, 2, 3$, the probabilities with which Kernel SHAP samples each size, and the constant $a$ of the proof of Theorem 2.7.
+
+    *Solution*: $\mu = 3/(4 \cdot 1 \cdot 3) = 1/4$ for size 1, $3/(6 \cdot 2 \cdot 2) = 1/8$ for size 2, and $1/4$ for size 3.
+
+    The total weights per size are $1$, $3/4$ and $1$, so the sizes are sampled with probabilities $4/11$, $3/11$, $4/11$.
+
+    The coalitions containing $i$ but not $j$ are one singleton, two pairs and one triple, so
+    $$
+    a = \tfrac14 + 2 \times \tfrac18 + \tfrac14 = \tfrac34 = \tfrac{M-1}{M} .
+    $$
+
+4.  **★ Integrated Gradients by hand.** For $f(x) = x_1 x_2$, baseline 0 and $x = (2, 3)$, compute the saliency, gradient × input, and Integrated Gradients. Which satisfy completeness?
+
+    *Solution*: the gradient at $x$ is $(3, 2)$ and gradient × input is $(6, 6)$, which sums to $12 \neq f(x) - f(0) = 6$.
+
+    Along the path, $\partial_1 f(tx) = t x_2$, so $\mathrm{IG}_1 = x_1 x_2 \int_0^1 t\, dt = 3$, and likewise $\mathrm{IG}_2 = 3$:
+    $$
+    \mathrm{IG} = (3,\ 3), \qquad \mathrm{IG}_1 + \mathrm{IG}_2 = 6 .
+    $$
+    Only IG is complete. Since the integrand is linear in $t$, the midpoint rule is exact here with any number of steps.
+
+5.  **★ Sobol indices of a small model.** Let $X_1, X_2, X_3$ be independent and uniform on $[-1, 1]$, and $f = X_1 + 2X_2 + X_1 X_3$. Give the Hoeffding–Sobol decomposition and all first-order and total indices.
+
+    *Solution*: the terms are $f_1 = X_1$, $f_2 = 2X_2$ and $f_{13} = X_1 X_3$; each has the zero conditional means of Theorem 4.1.
+
+    With $\mathrm{Var} X_i = 1/3$, their variances are $1/3$, $4/3$ and $1/9$, so $V = 16/9$.
+    $$
+    S = (0.1875,\ 0.75,\ 0), \qquad S_T = (0.25,\ 0.75,\ 0.0625) .
+    $$
+    $X_3$ acts only through its interaction with $X_1$.
+
+6.  **★ Counterfactuals of a logistic model.** The score is $s(x) = 1.5 x_1 - 2 x_2 + 0.5$ and $x = (1, 2)$. Find the closest points with $s = 0$ in Euclidean distance, in unscaled $L^1$ distance, and in $L^1$ distance with scales $(2, 1)$.
+
+    *Solution*: $s(x) = -2$ and $\|w\|^2 = 6.25$. By Proposition 5.2, $x^\star = x + 0.32\, w = (1.48, 1.36)$, at distance $0.8$.
+
+    Unscaled $L^1$: $|w_2| = 2 > 1.5$, so change $x_2$ to 1, at cost 1.
+
+    With scales $(2, 1)$: $|w_1| s_1 = 3 > 2$, so change $x_1$ to $1 + 4/3 \approx 2.33$, at scaled cost $2/3$. The scaling, which encodes how easy each change is, selects the feature.
+
+7.  **★ Concept bottlenecks under noise (Python).** In the code of ch. 6, replace the noise level 2.0 by 1.0 and by 3.0. Report the concept accuracy, the black-box and independent-CBM accuracies, and the accuracy after 3 interventions. Interpret.
+
+    *Hints and expected result*: at noise 1.0, concepts are 99.5 % correct, the CBM reaches 98.7 % against 94.7 % for the black box, and one intervention reaches 100 %.
+
+    At noise 3.0, concepts are 83.4 % correct, the CBM 63.4 % against 52.2 %, and three interventions bring it to 91.7 %. The noisier the concepts, the more an expert's corrections are worth; the black box degrades faster because it must learn the concept structure from the labels alone.
+
+8.  **★ How many votes?** A model's sampled answers are i.i.d. over 4 options with probabilities $(0.4, 0.3, 0.2, 0.1)$, the first one correct. Evaluate the bound of Proposition 9.2 for $N = 40$, and the $N$ that makes it reach 0.95.
+
+    *Solution*: $\Delta = 0.1$; for $N = 40$ the bound is $1 - 3e^{-0.2} < 0$, so it says nothing. It reaches 0.95 when $3 e^{-N/200} \leq 0.05$:
+    $$
+    N \geq 200 \ln 60 \approx 819 .
+    $$
+    A simulation gives a correct majority with probability about 0.40, 0.57, 0.76 and 0.88 for $N = 1, 10, 40, 100$: the bound is valid but loose.
+
+9.  **★ Rule confidence by hand.** A graph contains the facts: d1 targets g1, d2 targets g1, g1 associated with D1; d3 targets g2, d4 targets g2, g2 associated with D2; d1 treats D1, d2 treats D1, d3 treats D3. Compute the support, standard confidence and PCA confidence of "targets ∘ associated_with ⇒ treats", and the prediction for d4.
+
+    *Solution*: the body holds for the pairs (d1, D1), (d2, D1), (d3, D2) and (d4, D2); the head holds for the first two, so the support is 2 and the standard confidence $2/4 = 0.5$.
+
+    Only d1, d2 and d3 have a known "treats" fact, so the PCA confidence is $2/3$. The rule predicts "d4 treats D2" with confidence $2/3$, explained by the path d4 → g2 → D2.
+
+10. **★★ Integrated Gradients on a saturating unit.** Let $f(x) = \min(1, x_1 + x_2)$ and $x = (1, 1)$. Compute IG with the baselines $(0, 0)$ and $(0.5, 0)$, and the gradient at $x$.
+
+    Then prove that for any $f(x) = g(w^\top x)$ with $g$ differentiable, $\mathrm{IG}_i$ is proportional to $w_i (x_i - x'_i)$.
+
+    *Solution*: the gradient at $x$ is 0. From $(0, 0)$ the path has $x_1 + x_2 = 2t$, which saturates at $t = 1/2$, so $\mathrm{IG} = (1/2, 1/2)$, summing to 1.
+
+    From $(0.5, 0)$ the sum is $0.5 + 1.5t$, which saturates at $t = 1/3$, so $\mathrm{IG} = (0.5/3, 1/3) = (1/6, 1/3)$, summing to $1/2 = f(x) - f(x')$.
+
+    In general, $\partial_i f = w_i\, g'(w^\top x)$, so
+    $$
+    \mathrm{IG}_i = w_i (x_i - x'_i) \int_0^1 g'\big(w^\top \gamma(t)\big)\, dt ,
+    $$
+    and the integral is the same for every $i$.
+
+11. **★★ Sobol indices of a product, and of masks.** Let $f = X_1 X_2$ with independent $X_i$ of means $m_i$ and variances $\sigma_i^2$. Compute the decomposition and the indices. Apply the result to centred inputs, and to two masks uniform on $[0, 1]$.
+
+    *Solution*: the decomposition is
+    $$
+    f = m_1 m_2 + m_2 (X_1 - m_1) + m_1 (X_2 - m_2) + (X_1 - m_1)(X_2 - m_2) ,
+    $$
+    and the last three terms have variances $m_2^2\sigma_1^2$, $m_1^2\sigma_2^2$ and $\sigma_1^2\sigma_2^2$.
+
+    For centred inputs, $S_1 = S_2 = 0$ and $S_{12} = 1$: a pure interaction, invisible to one-at-a-time analysis.
+
+    For masks ($m = 1/2$, $\sigma^2 = 1/12$), $V = 7/144$, $S_1 = S_2 = 3/7$ and $S_{12} = 1/7$, so $S_{T_1} = 4/7$. This is the situation of Example 4.7, where two cells must both be masked to remove the evidence.
+
+12. **★★ Counterfactuals with immutable features.** Let $s(x) = w^\top x + b$ and let a set $I$ of features be immutable. Find the closest counterfactual for the Euclidean and the scaled-$L^1$ distances.
+
+    Apply it to $w = (1.5, -2, 3)$, $b = 0.5$, $x = (1, 2, 0)$ and the target $s = 0$, with $x_3$ immutable.
+
+    *Solution*: restrict the problem to the mutable coordinates $J$; the proofs of Propositions 5.2–5.3 apply verbatim on $J$. The Euclidean solution changes $x_J$ by $-(s(x) - t)\, w_J / \|w_J\|^2$.
+
+    The $L^1$ solution changes the $j \in J$ maximising $|w_j| s_j$.
+
+    Here $s(x) = -2$ and $J = \{1, 2\}$, so the answer is that of Exercise 6. Without the constraint, the $L^1$ counterfactual would change $x_3$ (the largest $|w_j|$) by $2/3$, which is not allowed.
+
+13. **★★ Leakage in practice.** In the construction of Proposition 6.4, take $\delta = 0.05$ and $r(x) = y$ (binary). Describe a head that predicts $y$ perfectly. What does an intervention that sets $\hat c_1$ to the true $c_1 \in \{0, 1\}$ do to its accuracy?
+
+    *Solution*: $|\hat c_1 - 1/2|$ equals 0.05 when $y = 0$ and 0.10 when $y = 1$; the head "predict 1 if $|\hat c_1 - 1/2| > 0.075$" is perfect.
+
+    After the intervention, $|c_1 - 1/2| = 1/2$ for every input, so the head always predicts 1, and its accuracy falls to the frequency of class 1. Making the concept exactly right destroyed the hidden channel the model relied on, which is why leakage makes interventions unreliable.
+
+14. **★★ TCAV above a linear head (Python).** In the code of ch. 7, take the second hidden layer as layer $l$ (`body, head = net[:4], net[4:]`). Report the TCAV scores and $p$-values, and explain them with Proposition 7.2.
+
+    *Hints and expected result*: every single TCAV score is now 0 or 1. Over 20 runs, "stripes" scores 1 in 18 runs and 0 in two (mean 0.90), "dots" averages 0.10, and random CAVs 0.50 ± 0.50.
+
+    The $t$-test now declares *both* concepts significant ($p = 4.9 \times 10^{-3}$), although the mean sensitivity of "dots" ($-0.045$) is small compared with that of "stripes" ($+0.109$). Above an affine head, all inputs share the sign of $\omega^\top v_C$, so the score only reports the sign of one number per CAV.
+
+15. **★★ The ProtoPNet similarity.** For the similarity $\psi$ of Proposition 8.3, show that it decreases from $\log(1/\varepsilon)$ to 0.
+
+    For $\varepsilon = 10^{-4}$, compute $\psi(0)$ and compare $\sup |\psi'|$ with the bound $1/\sqrt\varepsilon$ of Proposition 8.3. Why use $\psi$ rather than $-r^2$?
+
+    *Solution*: the derivative computed in the proof of Proposition 8.3 is negative, $\psi(0) = \log(1/\varepsilon)$, and $\psi(r) \to \log 1 = 0$ as $r \to \infty$.
+
+    For $\varepsilon = 10^{-4}$, $\psi(0) = 9.21$; the maximum of $|\psi'|$ is reached near $r = \sqrt\varepsilon = 0.01$ and is about 99.98, just below the bound 100.
+
+    The similarity is bounded and large only for near matches, so a prototype contributes mostly when some patch is really close to it, which is the intended "this looks like that" reading.
+
+16. **★★ Greedy chains, search and verifiers.** In the setting of Proposition 9.4 with $k = 5$ and $b = 1$: (a) how many independent greedy chains must be sampled, with a perfect step checker, to find a proof with probability 0.9? (b) Show that a depth-first search that orders the children at random expands $k + kb/2$ concepts on average before reaching the goal. Compare the costs.
+
+    *Solution*: (a) one chain succeeds with probability $1/32$, so $1 - (31/32)^N \geq 0.9$ requires $N \geq \ln 10 / \ln(32/31) \approx 72.5$, that is 73 chains of up to 5 steps.
+
+    (b) Each of the $b$ distractors of a gold concept is explored before the gold child with probability 1/2, and costs one expansion (it is a dead end). Adding the $k$ gold expansions gives $k + kb/2 = 7.5$, the value measured by the code.
+
+    A greedy chain generates on average $1 + 1/2 + \dots + 1/16 \approx 1.94$ steps, so 73 chains cost about 141 steps: search with backtracking is almost 20 times cheaper than resampling whole chains.
+
+17. **★★ TransE on the drug graph (Python).** Train TransE (Definition 10.2, dimension 16, margin 1, Adam, 1 000 epochs, entity norms constrained to at most 1) on the training triples of ch. 10, including the known "treats" facts. Rank the 8 diseases for each hidden fact. Compare with the rule-based predictor and explain the gap.
+
+    *Hints and expected result*: in our runs, Hits@1 lies between 0.1 and 0.5 depending on the seed, the margin and the dimension, far below the 10/10 of the mined rule.
+
+    Proposition 10.3 says the fit must satisfy
+    $$
+    r_{\mathrm{treats}} \approx r_{\mathrm{targets}} + r_{\mathrm{assoc}} ,
+    $$
+    but "targets" and "associated_with" are many-to-one, which pulls entities together, and the random "similar_to" relation adds conflicting constraints. The rule is also an explanation; the embedding is not.
+
+18. **★★★ Interactions between modalities.** For $f(a, t) = \alpha a + \beta t + \gamma a t$, with the two modalities as players and baseline 0, compute the Shapley values and the interaction $I_{at} = v(N) - v(\{a\}) - v(\{t\}) + v(\emptyset)$. Then extend the code of ch. 11 to compute the pairwise Shapley interaction indices of the three modalities, and discuss what they add to Example 11.4.
+
+    *Hints and expected result*: $\phi_a = \alpha a + \gamma a t / 2$, $\phi_t = \beta t + \gamma a t / 2$ and $I_{at} = \gamma a t$: the Shapley value hides the interaction by splitting it.
+
+    For three players, the Shapley interaction index of Grabisch and Roubens (1999) averages $v(S \cup \{i, j\}) - v(S \cup \{i\}) - v(S \cup \{j\}) + v(S)$ over $S$ with weights $|S|!\,(n - |S| - 2)!/(n-1)!$. Our run gives +0.069 for audio–text and values near 0 for the pairs with the image (−0.002 and −0.038): the small Shapley value of audio (+0.038) comes from its interaction with text.
+
+19. **★★★ Permutation sampling versus Kernel SHAP (Python).** Implement the permutation estimator of ch. 12 for the digit game of ch. 2, where one random order costs 17 evaluations. Compare its root-mean-square error with that of Kernel SHAP at equal budgets of 340, 1 360 and 5 440 evaluations, over 20 repetitions.
+
+    *Hints and expected result*: our run gives RMSE 0.0181, 0.0091 and 0.0046 for permutations, and 0.0154, 0.0074 and 0.0036 for Kernel SHAP. Both errors halve when the budget is multiplied by 4, the $n^{-1/2}$ rate of Monte Carlo; the regression shares information across coalitions and is slightly more efficient here. Paired sampling (ch. 12) improves both.
+
+20. **★★★ A faithfulness test for chains of thought.** Design an experiment, on PrOntoQA-style questions and a small open language model, that measures whether the final answers depend on the chains of thought. Define the interventions, the metric and the controls.
+
+    *Hints and expected result*: following Lanham et al. (2023), (i) truncate the chain after $j$ steps and force an answer, (ii) replace one valid step by an invalid one, (iii) paraphrase the chain.
+
+    The metric is the share of answers that change under each intervention, as a function of $j$ and of the position of the corrupted step. The controls are paraphrases, which should not change answers, and questions the model answers without any chain. A faithful model changes its answer when a step it needs is corrupted, and not under paraphrase; the step checker of ch. 9 labels which corruptions break the proof.
+
+## Projects and assessment {#projects}
+
+The official assessment, per master-mva.com, gives 50 % to a final project that applies XAI methods to multimodal data (vision, audio, NLP) and 50 % to a written exam on the theoretical foundations of the techniques seen in class; master-mva.com schedules a 1 h exam in the last week. The subjects below are sized like that final project, or like a part of it. The exam proposal shows what a 1 h written test on the course can ask. None of these proposals is official material.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Sobol attribution maps: a paper study of Fel et al. (2021).** Reimplement the method of Definition 4.6 and compare it with RISE, Grad-CAM and Integrated Gradients.
+    -   *Data and model*: a ResNet-50 with public ImageNet weights (torchvision) and 200 images of a public ImageNet subset such as Imagenette, on a laptop GPU or a free GPU tier.
+    -   *Success criterion*: deletion and insertion curves (Definition 11.1) for the four methods, the number of forward passes at which the Sobol maps stabilise, and the paper's qualitative findings reproduced or discussed.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 3, 4, 11.
+
+2.  **[Solo · ≈ 20 h] How many samples does Kernel SHAP need? A paper study of Lundberg and Lee (2017).** Compare exact Shapley values, Kernel SHAP (with and without paired sampling), permutation sampling and LIME.
+    -   *Data*: the digits of scikit-learn with up to 20 superpixels, where $2^{20}$ evaluations are still feasible, and the breast-cancer table with a gradient-boosting model and groups of features.
+    -   *Success criterion*: error and rank-correlation curves against the budget, the budget at which the Spearman correlation with the exact values exceeds 0.95, and a numerical check of Theorem 2.7 with all coalitions.
+    -   *Deliverables*: code, report, talk. Chapters 2, 12.
+
+3.  **[Solo · ≈ 15 h] Listenable counterfactuals for a sound classifier.** Train a classifier on log-band energies of the public Free Spoken Digit Dataset or ESC-50 (Piczak, 2015), and compute closed-form, Wachter-style and DiCE counterfactuals.
+    -   *Implement*: resynthesise each counterfactual by applying the band gains to the original audio with an STFT, and check the classifier on the resynthesised sound.
+    -   *Success criterion*: validity of the counterfactuals before and after resynthesis, sparsity and diversity tables, and a short listening report.
+    -   *Deliverables*: code, report, talk. Chapters 4, 5.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Concept bottlenecks on birds: a paper study of Koh et al. (2020) and Kazmierczak et al. (2023).** Reproduce the CUB experiments of concept bottleneck models, then build a CLIP-based bottleneck with a Gaussian head.
+    -   *Data*: CUB-200-2011 (Wah et al., 2011), with the 112 attributes used by Koh et al.; CLIP image and text encoders with public weights.
+    -   *Work split*: one member trains the independent, sequential and joint CBMs on frozen CNN features; one builds the CLIP concept scores and the QDA head (Definition 6.5); one runs interventions and the leakage test of Exercise 13.
+    -   *Success criterion*: a table of task and concept accuracies for all models, intervention curves, and per-concept explanations (Proposition 6.6) for 10 images checked by hand.
+    -   *Deliverables*: code, a 6-page report, a 15-minute talk. Chapters 6, 7.
+
+2.  **[Group of 2–3 · ≈ 30 h each] A multimodal digit classifier with a planted shortcut.** Pair each scikit-learn digit image with a spoken digit of the same label from the Free Spoken Digit Dataset, and train a late-fusion classifier. Plant a shortcut (a click in the audio of one class) to create a known ground truth.
+    -   *Work split*: one member explains the image branch (Grad-CAM, IG, LIME); one the audio branch (Sobol maps, counterfactuals); one computes modality Shapley values and interaction indices and runs the faithfulness tests of ch. 11.
+    -   *Success criterion*: which methods detect the planted click, deletion AUCs, the randomisation sanity check, and a comparison with the model trained without the shortcut.
+    -   *Deliverables*: code, report, talk. This is a rehearsal of the official final project. Chapters 2–5, 11.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Are small language models greedy reasoners? A paper study of Saparov and He (2022).** Generate PrOntoQA-style questions with the public generator of the paper, query a small open language model with chain-of-thought prompts, and check every step.
+    -   *Work split*: one member owns the generator and the step checker (Definition 9.3); one runs the model on a free GPU tier and parses its outputs; one runs the faithfulness interventions of Exercise 20.
+    -   *Success criterion*: proof accuracy, and the rates of valid, invalid and misleading steps, as functions of the number of hops and distractors, compared with Proposition 9.4.
+    -   *Deliverables*: code, report, talk. Chapters 9, 11.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 1 hour, the duration of the official exam; no documents, no electronic device; four independent exercises.
+
+1.  **Course question (5 points).** State the four properties that characterise the Shapley value, and its formula. Explain how Kernel SHAP estimates it from sampled coalitions, and why the empty and full coalitions enter as constraints.
+
+    *Expected*: Theorem 2.4 and Definition 2.3; the weighted least-squares problem of Theorem 2.7 with the Shapley kernel; the weights are infinite for $\emptyset$ and $N$, which become the baseline value $v(\emptyset)$ and the constraint $\sum_i \varphi_i = v(N) - v(\emptyset)$; sizes are sampled proportionally to $(M-1)/(s(M-s))$.
+
+2.  **Computation (6 points).** Let $X_1, X_2$ be independent and uniform on $[0, 1]$, and $f = X_1 + X_2 + X_1 X_2$.
+
+    (a) Give the Hoeffding–Sobol decomposition. (b) Compute $S_1$, $S_2$, $S_{12}$ and $S_{T_1}$. (c) How many evaluations of $f$ do the pick-freeze estimators need for $N = 1\,000$?
+
+    *Expected*: (a) $f_\emptyset = 5/4$, $f_i = 1.5\,(X_i - 1/2)$ and $f_{12} = (X_1 - 1/2)(X_2 - 1/2)$.
+
+    (b) The variances are $27/144$, $27/144$ and $1/144$, so $V = 55/144$ and
+    $$
+    S_1 = S_2 = 27/55 \approx 0.491, \qquad S_{12} = 1/55 \approx 0.018, \qquad S_{T_1} = 28/55 \approx 0.509 .
+    $$
+    (c) $N(d + 2) = 4\,000$.
+
+3.  **Short proof (5 points).** For a CNN with a global-average-pooling head, prove that Grad-CAM equals $\mathrm{ReLU}(\mathrm{CAM})/Z$ at the last convolutional layer. Then prove that Integrated Gradients satisfies completeness.
+
+    *Expected*: Proposition 3.4 (the logit is linear in the averaged maps, so every gradient $\partial y^c / \partial A^k_{ij}$ equals $w^c_k / Z$) and Theorem 3.6 (fundamental theorem of calculus along the straight path).
+
+4.  **Problem (4 points).** A linear classifier has score $s(x) = 2x_1 - x_2 + x_3 - 1$, and $x = (0, 1, 1)$ is refused ($s < 0$). (a) Give the closest point with $s = 0$ in Euclidean distance. (b) The same in unscaled $L^1$ distance. (c) If $x_1$ is immutable, give two diverse sparse counterfactuals and the DiCE diversity term of the pair.
+
+    *Expected*: (a) $s(x) = -1$ and $\|w\|^2 = 6$, so $x^\star = x + w/6 = (1/3, 5/6, 7/6)$, at distance $1/\sqrt6 \approx 0.41$.
+
+    (b) Change $x_1$ to $1/2$, at cost $1/2$.
+
+    (c) $(0, 0, 1)$ or $(0, 1, 2)$, each at cost 1. Their $L^1$ distance is 2, so $K_{12} = 1/3$ and $\det K = 1 - 1/9 = 8/9$.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 25 % | Methods implemented correctly, assumptions stated (baselines, independence, value function), claims backed by a proof or a reference |
+| Faithfulness evaluation | 20 % | Deletion or insertion curves, a sanity check, comparison with a random baseline, error bars over repetitions |
+| Multimodal coverage | 15 % | At least two modalities, with modality-level attribution before per-modality explanations |
+| Critical analysis | 20 % | Disagreements between methods reported and explained; limits and failure cases discussed |
+| Report | 10 % | Clear report within the page limit, readable figures with legends and scales |
+| Talk | 10 % | A talk that fits its time slot and shows one explanation a domain expert could check |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+The course page lists the following "required reading and resources", in this order.
+
+1.  J. Gildenblat and contributors. pytorch-grad-cam: advanced AI explainability for computer vision. Software library, <https://github.com/jacobgil/pytorch-grad-cam>.
+2.  M. T. Ribeiro, S. Singh and C. Guestrin. "Why should I trust you?" Explaining the predictions of any classifier. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 2016.
+3.  S. M. Lundberg and S.-I. Lee. A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems (NeurIPS)*, 2017.
+4.  I. M. Sobol. Global sensitivity indices for nonlinear mathematical models and their Monte Carlo estimates. *Mathematics and Computers in Simulation*, 55(1–3):271–280, 2001.
+5.  T. Fel, R. Cadène, M. Chalvidal, M. Cord, D. Vigouroux and T. Serre. Look at the variance! Efficient black-box explanations with Sobol-based sensitivity analysis. *Advances in Neural Information Processing Systems*, 34:26005–26014, 2021.
+6.  R. K. Mothilal, A. Sharma and C. Tan. Explaining machine learning classifiers through diverse counterfactual explanations. *Proceedings of the 2020 Conference on Fairness, Accountability, and Transparency (FAT\*)*, 2020.
+7.  R. Agerri and A. García-Serrano. Multimodal deep learning: a review of the state of the art. arXiv:2111.04138, 2021 (as listed on the course page).
+8.  P. W. Koh, T. Nguyen, Y. S. Tang, S. Mussmann, E. Pierson, B. Kim and P. Liang. Concept bottleneck models. *International Conference on Machine Learning (ICML)*, PMLR, 2020.
+9.  R. Kazmierczak, E. Berthier, G. Frehse and G. Franchi. CLIP-QDA: an explainable concept bottleneck model. arXiv:2312.00110, 2023.
+10. J. Parekh, P. Khayatan, M. Shukor, A. Newson and M. Cord. A concept-based explainability framework for large multimodal models. *Advances in Neural Information Processing Systems*, 37:135783–135818, 2024.
+11. J. Donnelly, A. J. Barnett and C. Chen. Deformable ProtoPNet: an interpretable image classifier using deformable prototypes. *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2022.
+12. A. Saparov and H. He. Language models are greedy reasoners: a systematic formal analysis of chain-of-thought. arXiv:2210.01240, 2022.
+13. I. Tiddi and S. Schlobach. Knowledge graphs as tools for explainable machine learning: a survey. *Artificial Intelligence*, 302:103627, 2022.
+14. C. Molnar. *Interpretable Machine Learning: A Guide for Making Black Box Models Explainable*. Online book, <https://christophm.github.io/interpretable-ml-book/>.
+
+### Foundations and interpretable models (ch. 0–1, 12)
+
+-   L. Breiman. Statistical modeling: the two cultures. *Statistical Science*, 16(3):199–231, 2001.
+-   R. Caruana, Y. Lou, J. Gehrke, P. Koch, M. Sturm and N. Elhadad. Intelligible models for healthcare: predicting pneumonia risk and hospital 30-day readmission. *Proceedings of ACM SIGKDD*, 2015.
+-   F. Doshi-Velez and B. Kim. Towards a rigorous science of interpretable machine learning. arXiv:1702.08608, 2017.
+-   S. Lapuschkin, S. Wäldchen, A. Binder, G. Montavon, W. Samek and K.-R. Müller. Unmasking Clever Hans predictors and assessing what machines really learn. *Nature Communications*, 10:1096, 2019.
+-   Z. C. Lipton. The mythos of model interpretability. *Communications of the ACM*, 61(10):36–43, 2018.
+-   Y. Lou, R. Caruana and J. Gehrke. Intelligible models for classification and regression. *Proceedings of ACM SIGKDD*, 2012.
+-   Y. Lou, R. Caruana, J. Gehrke and G. Hooker. Accurate intelligible models with pairwise interactions. *Proceedings of ACM SIGKDD*, 2013.
+-   H. Nori, S. Jenkins, P. Koch and R. Caruana. InterpretML: a unified framework for machine learning interpretability. arXiv:1909.09223, 2019.
+-   A. Radford, J. W. Kim, C. Hallacy, A. Ramesh, G. Goh, S. Agarwal, G. Sastry, A. Askell, P. Mishkin, J. Clark, G. Krueger and I. Sutskever. Learning transferable visual models from natural language supervision. *International Conference on Machine Learning (ICML)*, 2021.
+-   Regulation (EU) 2024/1689 of the European Parliament and of the Council laying down harmonised rules on artificial intelligence (Artificial Intelligence Act). *Official Journal of the European Union*, 2024.
+-   C. Rudin. Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead. *Nature Machine Intelligence*, 1:206–215, 2019.
+-   L. Semenova, C. Rudin and R. Parr. On the existence of simpler machine learning models. *ACM Conference on Fairness, Accountability, and Transparency (FAccT)*, 2022.
+
+### Attribution and sensitivity analysis (ch. 2–4, 12)
+
+-   D. Alvarez-Melis and T. S. Jaakkola. On the robustness of interpretability methods. *ICML Workshop on Human Interpretability in Machine Learning*, arXiv:1806.08049, 2018.
+-   S. Bach, A. Binder, G. Montavon, F. Klauschen, K.-R. Müller and W. Samek. On pixel-wise explanations for non-linear classifier decisions by layer-wise relevance propagation. *PLoS ONE*, 10(7):e0130140, 2015.
+-   J. Castro, D. Gómez and J. Tejada. Polynomial calculation of the Shapley value based on sampling. *Computers & Operations Research*, 36(5):1726–1730, 2009.
+-   H. Chen, I. C. Covert, S. M. Lundberg and S.-I. Lee. Algorithms to estimate Shapley value feature attributions. *Nature Machine Intelligence*, 5:590–601, 2023.
+-   I. Covert, S. Lundberg and S.-I. Lee. Explaining by removing: a unified framework for model explanation. *Journal of Machine Learning Research*, 22(209):1–90, 2021.
+-   M. Grabisch and M. Roubens. An axiomatic approach to the concept of interaction among players in cooperative games. *International Journal of Game Theory*, 28:547–565, 1999.
+-   M. J. W. Jansen. Analysis of variance designs for model output. *Computer Physics Communications*, 117(1–2):35–43, 1999.
+-   D. Janzing, L. Minorics and P. Blöbaum. Feature relevance quantification in explainable AI: a causal problem. *International Conference on Artificial Intelligence and Statistics (AISTATS)*, 2020.
+-   I. E. Kumar, S. Venkatasubramanian, C. Scheidegger and S. Friedler. Problems with Shapley-value-based explanations as feature importance measures. *International Conference on Machine Learning (ICML)*, 2020.
+-   S. M. Lundberg, G. Erion, H. Chen, A. DeGrave, J. M. Prutkin, B. Nair, R. Katz, J. Himmelfarb, N. Bansal and S.-I. Lee. From local explanations to global understanding with explainable AI for trees. *Nature Machine Intelligence*, 2:56–67, 2020.
+-   M. D. Morris. Factorial sampling plans for preliminary computational experiments. *Technometrics*, 33(2):161–174, 1991.
+-   V. Petsiuk, A. Das and K. Saenko. RISE: randomized input sampling for explanation of black-box models. *British Machine Vision Conference (BMVC)*, 2018.
+-   A. Saltelli, P. Annoni, I. Azzini, F. Campolongo, M. Ratto and S. Tarantola. Variance based sensitivity analysis of model output: design and estimator for the total sensitivity index. *Computer Physics Communications*, 181(2):259–270, 2010.
+-   R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh and D. Batra. Grad-CAM: visual explanations from deep networks via gradient-based localization. *IEEE International Conference on Computer Vision (ICCV)*, 2017.
+-   L. S. Shapley. A value for n-person games. In *Contributions to the Theory of Games II*, Annals of Mathematics Studies 28, Princeton University Press, 1953.
+-   A. Shrikumar, P. Greenside and A. Kundaje. Learning important features through propagating activation differences. *International Conference on Machine Learning (ICML)*, 2017.
+-   K. Simonyan, A. Vedaldi and A. Zisserman. Deep inside convolutional networks: visualising image classification models and saliency maps. *ICLR Workshop*, 2014.
+-   D. Smilkov, N. Thorat, B. Kim, F. Viégas and M. Wattenberg. SmoothGrad: removing noise by adding noise. arXiv:1706.03825, 2017.
+-   M. Sundararajan, A. Taly and Q. Yan. Axiomatic attribution for deep networks. *International Conference on Machine Learning (ICML)*, 2017.
+-   M. D. Zeiler and R. Fergus. Visualizing and understanding convolutional networks. *European Conference on Computer Vision (ECCV)*, 2014.
+-   B. Zhou, A. Khosla, A. Lapedriza, A. Oliva and A. Torralba. Learning deep features for discriminative localization. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2016.
+
+### Counterfactuals and recourse (ch. 5, 12)
+
+-   A.-H. Karimi, B. Schölkopf and I. Valera. Algorithmic recourse: from counterfactual explanations to interventions. *ACM Conference on Fairness, Accountability, and Transparency (FAccT)*, 2021.
+-   B. Ustun, A. Spangher and Y. Liu. Actionable recourse in linear classification. *Conference on Fairness, Accountability, and Transparency (FAT\*)*, 2019.
+-   S. Wachter, B. Mittelstadt and C. Russell. Counterfactual explanations without opening the black box: automated decisions and the GDPR. *Harvard Journal of Law & Technology*, 31(2):841–887, 2018.
+
+### Concepts and prototypes (ch. 6–8)
+
+-   C. Chen, O. Li, D. Tao, A. Barnett, C. Rudin and J. K. Su. This looks like that: deep learning for interpretable image recognition. *Advances in Neural Information Processing Systems*, 2019.
+-   J. Dai, H. Qi, Y. Xiong, Y. Li, G. Zhang, H. Hu and Y. Wei. Deformable convolutional networks. *IEEE International Conference on Computer Vision (ICCV)*, 2017.
+-   T. Fel, A. Picard, L. Béthune, T. Boissin, D. Vigouroux, J. Colin, R. Cadène and T. Serre. CRAFT: concept recursive activation factorization for explainability. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2023.
+-   A. Ghorbani, J. Wexler, J. Zou and B. Kim. Towards automatic concept-based explanations. *Advances in Neural Information Processing Systems*, 2019.
+-   A. Hoffmann, C. Fanconi, R. Rade and J. Kohler. This looks like that... does it? Shortcomings of latent space prototype interpretability in deep networks. *ICML Workshop on Theoretic Foundation, Criticism, and Application Trend of Explainable AI*, arXiv:2105.02968, 2021.
+-   B. Kim, M. Wattenberg, J. Gilmer, C. Cai, J. Wexler, F. Viégas and R. Sayres. Interpretability beyond feature attribution: quantitative testing with concept activation vectors (TCAV). *International Conference on Machine Learning (ICML)*, 2018.
+-   A. Mahinpei, J. Clark, I. Lage, F. Doshi-Velez and W. Pan. Promises and pitfalls of black-box concept learning models. arXiv:2106.13314, 2021.
+-   A. Margeloiu, M. Ashman, U. Bhatt, Y. Chen, M. Jamnik and A. Weller. Do concept bottleneck models learn as intended? arXiv:2105.04289, 2021.
+-   T. Oikarinen, S. Das, L. M. Nguyen and T.-W. Weng. Label-free concept bottleneck models. *International Conference on Learning Representations (ICLR)*, 2023.
+-   J. Snell, K. Swersky and R. Zemel. Prototypical networks for few-shot learning. *Advances in Neural Information Processing Systems*, 2017.
+-   Y. Yang, A. Panagopoulou, S. Zhou, D. Jin, C. Callison-Burch and M. Yatskar. Language in a bottle: language model guided concept bottlenecks for interpretable image classification. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2023.
+-   M. Yuksekgonul, M. Wang and J. Zou. Post-hoc concept bottleneck models. *International Conference on Learning Representations (ICLR)*, 2023.
+
+### Reasoning chains and knowledge graphs (ch. 9–10)
+
+-   A. Bordes, N. Usunier, A. Garcia-Durán, J. Weston and O. Yakhnenko. Translating embeddings for modeling multi-relational data. *Advances in Neural Information Processing Systems*, 2013.
+-   L. Galárraga, C. Teflioudi, K. Hose and F. Suchanek. AMIE: association rule mining under incomplete evidence in ontological knowledge bases. *Proceedings of the World Wide Web Conference (WWW)*, 2013.
+-   T. Kojima, S. S. Gu, M. Reid, Y. Matsuo and Y. Iwasawa. Large language models are zero-shot reasoners. *Advances in Neural Information Processing Systems*, 2022.
+-   T. Lanham et al. Measuring faithfulness in chain-of-thought reasoning. arXiv:2307.13702, 2023.
+-   B. Y. Lin, X. Chen, J. Chen and X. Ren. KagNet: knowledge-aware graph networks for commonsense reasoning. *Conference on Empirical Methods in Natural Language Processing (EMNLP)*, 2019.
+-   X. V. Lin, R. Socher and C. Xiong. Multi-hop knowledge graph reasoning with reward shaping. *Conference on Empirical Methods in Natural Language Processing (EMNLP)*, 2018.
+-   M. Turpin, J. Michael, E. Perez and S. R. Bowman. Language models don't always say what they think: unfaithful explanations in chain-of-thought prompting. *Advances in Neural Information Processing Systems*, 2023.
+-   D. Vrandečić and M. Krötzsch. Wikidata: a free collaborative knowledgebase. *Communications of the ACM*, 57(10):78–85, 2014.
+-   X. Wang, J. Wei, D. Schuurmans, Q. Le, E. Chi, S. Narang, A. Chowdhery and D. Zhou. Self-consistency improves chain of thought reasoning in language models. *International Conference on Learning Representations (ICLR)*, 2023.
+-   J. Wei, X. Wang, D. Schuurmans, M. Bosma, B. Ichter, F. Xia, E. Chi, Q. Le and D. Zhou. Chain-of-thought prompting elicits reasoning in large language models. *Advances in Neural Information Processing Systems*, 2022.
+-   Y. Xian, Z. Fu, S. Muthukrishnan, G. de Melo and Y. Zhang. Reinforcement knowledge graph reasoning for explainable recommendation. *ACM SIGIR Conference*, 2019.
+-   M. Yasunaga, H. Ren, A. Bosselut, P. Liang and J. Leskovec. QA-GNN: reasoning with language models and knowledge graphs for question answering. *Conference of the North American Chapter of the ACL (NAACL)*, 2021.
+-   Z. Zhang, X. Han, Z. Liu, X. Jiang, M. Sun and Q. Liu. ERNIE: enhanced language representation with informative entities. *Annual Meeting of the Association for Computational Linguistics (ACL)*, 2019.
+
+### Evaluation, multimodality and research directions (ch. 11–13)
+
+-   S. Abnar and W. Zuidema. Quantifying attention flow in transformers. *Annual Meeting of the Association for Computational Linguistics (ACL)*, 2020.
+-   J. Adebayo, J. Gilmer, M. Muelly, I. Goodfellow, M. Hardt and B. Kim. Sanity checks for saliency maps. *Advances in Neural Information Processing Systems*, 2018.
+-   B. Bilodeau, N. Jaques, P. W. Koh and B. Kim. Impossibility theorems for feature attribution. *Proceedings of the National Academy of Sciences*, 121(2):e2304406120, 2024.
+-   H. Cunningham, A. Ewart, L. Riggs, R. Huben and L. Sharkey. Sparse autoencoders find highly interpretable features in language models. *International Conference on Learning Representations (ICLR)*, 2024.
+-   N. Elhage et al. Toy models of superposition. *Transformer Circuits Thread*, 2022.
+-   T. Fel et al. A holistic approach to unifying automatic concept extraction and concept importance estimation. *Advances in Neural Information Processing Systems*, 2023.
+-   Y. Gandelsman, A. A. Efros and J. Steinhardt. Interpreting CLIP's image representation via text-based decomposition. *International Conference on Learning Representations (ICLR)*, 2024.
+-   P. Hase and M. Bansal. Evaluating explainable AI: which algorithmic explanations help users predict model behavior? *Annual Meeting of the Association for Computational Linguistics (ACL)*, 2020.
+-   S. Hooker, D. Erhan, P.-J. Kindermans and B. Kim. A benchmark for interpretability methods in deep neural networks. *Advances in Neural Information Processing Systems*, 2019.
+-   A. Jacovi and Y. Goldberg. Towards faithfully interpretable NLP systems: how should we define and evaluate faithfulness? *Annual Meeting of the Association for Computational Linguistics (ACL)*, 2020.
+-   S. Jain and B. C. Wallace. Attention is not explanation. *Conference of the North American Chapter of the ACL (NAACL)*, 2019.
+-   S. Krishna, T. Han, A. Gu, J. Pombra, S. Jabbari, S. Wu and H. Lakkaraju. The disagreement problem in explainable machine learning: a practitioner's perspective. arXiv:2202.01602, 2022.
+-   H. Lightman, V. Kosaraju, Y. Burda, H. Edwards, B. Baker, T. Lee, J. Leike, J. Schulman, I. Sutskever and K. Cobbe. Let's verify step by step. *International Conference on Learning Representations (ICLR)*, 2024.
+-   L. Parcalabescu and A. Frank. MM-SHAP: a performance-agnostic metric for measuring multimodal contributions in vision and language models and tasks. *Annual Meeting of the Association for Computational Linguistics (ACL)*, 2023.
+-   S. Wiegreffe and Y. Pinter. Attention is not not explanation. *Conference on Empirical Methods in Natural Language Processing (EMNLP)*, 2019.
+
+### Data sets used in the projects
+
+-   K. J. Piczak. ESC: dataset for environmental sound classification. *Proceedings of the 23rd ACM International Conference on Multimedia*, 2015.
+-   C. Wah, S. Branson, P. Welinder, P. Perona and S. Belongie. The Caltech-UCSD Birds-200-2011 dataset. Technical report CNS-TR-2011-001, California Institute of Technology, 2011.
+-   Z. Jackson and contributors. Free Spoken Digit Dataset (FSDD). Public data set, <https://github.com/Jakobovski/free-spoken-digit-dataset>.

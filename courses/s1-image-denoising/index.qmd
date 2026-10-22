@@ -40,32 +40,2476 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: probability, linear algebra and calculus](#ch0)
+-   [1. Image sampling and the discrete Fourier transform](#ch1)
+-   [2. A fast tutorial on Gaussian vectors](#ch2)
+-   [3. Noise](#ch3)
+-   [4. Multiscale DCT denoising](#ch4)
+-   [5. Image self-similarity and denoising](#ch5)
+-   [6. Bayesian patch-based methods](#ch6)
+-   [7. A crash course on deep learning](#ch7)
+-   [8. Deep and shallow CNN denoisers: a comparative study](#ch8)
+-   [9. Comparison of all denoising methods](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
-  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  -------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   Module               Image Denoising: the Human–Machine Competition
   Official title       Image denoising : the human machine competition
   Instructors          G.FACCIOLO, J.M. MOREL, P.ARIAS (master-mva.com, 2026–2027)
   Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
   Credits and volume   5 ECTS · 30 h (lectures 20 h, tutorials 10 h) per the Université Paris-Saclay programme table
   Label                [Modelling]{.badge .label} · domains on master-mva.com: Image processing
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
-  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Organisation         10 courses, ending in the first week of December; each session combines a course and online experiments with IPOL (Image Processing On Line, www.ipol.im); open to external auditors, without grade, assessment or certificate (master-mva.com)
+  Language             not displayed as such; the course description is in English and the material provided is “lecture notes in English with exercises” (master-mva.com)
+  Assessment           (1) simple mathematical exercises on the subject of the course and an experimental report on image-processing experiments made online (no programming required), both delivered each week, plus exercises on Colab notebooks (not evaluated); (2) an intermediate written exam; (3) a final oral examination (or written if the number of students is too large) — master-mva.com; weights not displayed · Université Paris-Saclay: “Evaluation Continue non Intégrale” (continuous assessment that is not the whole grade)
+  Prerequisites        elementary probability, Fourier analysis, differential calculus; deep learning will be introduced from scratch (master-mva.com)
+  -------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+
+**Audience**: a student with a good M1 in mathematics, computer science or physics who knows elementary probability and Fourier analysis, has perhaps never trained a neural network, and wants to understand why a modern camera can photograph a dark room.
+
+**Empirical first**: add Gaussian noise of standard deviation 20 to a 256 × 256 grey crop of the `china.jpg` image shipped with scikit-learn, and the PSNR falls to 22.1 dB; the best Gaussian blur recovers only 24.6 dB, while sliding-window DCT thresholding reaches 26.8 dB, non-local means 27.0 dB and a two-step NL-Bayes 27.8 dB (code in ch. 4–6). Why do these principles rank this way, and what does a trained network add?
+
+The course studies one of the oldest problems of signal processing: separating a signal from its noise. It follows the history of the solutions — Fourier and Gaussian models, transform thresholding, self-similarity, Bayesian patch models — and then trains neural denoisers and compares both families on the same images. The common object is the image *patch*. Related MVA pages: [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) shares the sampling theory, [Mathematical Models for Digital Photography](../s1-digital-photography/index.html) the camera noise, and [Deep Learning](../s1-deep-learning/index.html) the networks.
+
+### What you will be able to do
+
+-   Explain how an image is sampled, what aliasing is, and compute with the 2D discrete Fourier and cosine transforms.
+-   Manipulate Gaussian vectors: affine images, conditioning, the norm of white noise, Stein's lemma.
+-   Model the noise of a camera (Gaussian, Poisson, signal dependent), stabilise its variance and estimate its level from a single image.
+-   Derive the Wiener filter and the MMSE estimator, and state when a linear filter is optimal.
+-   Implement and analyse thresholding in an orthonormal basis, sliding-window DCT denoising and its multiscale version.
+-   Implement non-local means and explain the statistics of patch distances and the structure of the space of patches.
+-   Derive NL-Bayes and BM3D as empirical Wiener filters on groups of similar patches.
+-   Build, train and evaluate a convolutional denoiser in PyTorch, knowing why the L2 loss learns the conditional expectation.
+-   Prove that a sliding-window transform-thresholding denoiser is a shallow convolutional network, and read a bias-free network as an adaptive linear filter.
+-   Design a fair comparison of denoisers: metrics, paired statistics, noise mismatch, real noise.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com states three objectives: explore the structure of images at the level of *patches* — small image extracts, processed both by neural networks and by recent image processing, whose currently understood size ranges from about 8 × 8 = 64 to 60 × 60 = 3600 pixels; apply this structure to a fundamental problem that requires understanding it, image denoising; and compare image processing designed by humans with image processing learned by deep neural networks.
+
+The description recalls that the separation of noise and signal was already the key problem of Shannon's *Mathematical Theory of Communication*, that denoising approaches identified since the 1970s group into a handful of "denoising principles", and that since 2016 neural denoisers have started to outperform, slightly, the human-made algorithms, with inner workings not yet fully understood. Each session combines a course and online experiments on IPOL.
+
+| Official topic (master-mva.com, 2026–2027) | Course section |
+|---|---|
+| Theme: the separation of noise and signal, key problem of Shannon's *Mathematical Theory of Communication* | ch. 3.1 (Definition 3.1, Theorem 3.3 on the Gaussian channel); Gaussian tools of ch. 2 |
+| Theme: applications to image formation, post-production and feature detection; a handful of "denoising principles" identified since the 1970s | ch. 3.2 (camera noise), ch. 3.6 (Table of the denoising principles), developed in ch. 4–6 |
+| Theme: neural denoisers outperforming human-made algorithms since 2016; mathematical principles versus joint learning of noise and image structure; inner workings not fully understood | ch. 7.2 (Theorem 7.4), ch. 8 (DnCNN, FFDNet, bias-free networks), ch. 9, ch. 10.5 (open problems) |
+| Theme: classical theories, neural devices and their cross-fertilisation; both process image patches | ch. 8.3 (Proposition 8.2: DCT denoising is a two-layer CNN), ch. 8.4 (Proposition 8.4), ch. 9.4 |
+| Theme: patch structure and the structure of the global ensemble of patches | ch. 5.4 (the space of patches, Proposition 5.6), ch. 6.1 and 6.4 (Gaussian and GMM patch models) |
+| Objective 1: explore the structure of images at patch level (8 × 8 to 60 × 60) | ch. 5.4, ch. 6.1, ch. 7.5 (receptive field as patch size) |
+| Objective 2: apply it to image denoising | ch. 4, 5, 6 and 8 |
+| Objective 3: compare human-designed and learned image processing | ch. 8 and ch. 9 |
+| Organisation: each session combines a course and online experiments with IPOL | "IPOL experiment" notes in ch. 1, 3, 4, 5 and 6, and runnable Python experiments in every chapter; [How to study this module](#study) |
+| Plan: Image sampling and discrete Fourier transform | ch. 1 |
+| Plan: A fast tutorial on Gaussian vectors | ch. 2 |
+| Plan: Noise | ch. 3 |
+| Plan: Multiscale DCT denoising | ch. 4 |
+| Plan: Image self-similarity and denoising | ch. 5 |
+| Plan: Bayesian patch-based methods | ch. 6 |
+| Plan: A crash course on deep learning (I and II) | ch. 7.1–7.4 (I) and ch. 7.5–7.7 (II) |
+| Plan: A comparative study of deep and shallow CNN denoisers | ch. 8 |
+| Plan: Comparison of all denoising methods | ch. 9 |
+
+Every official topic is taught on this page. Its extensions beyond the syllabus are the review chapter 0, Stein's unbiased risk estimate (ch. 2 and 4), Gaussian-mixture patch priors (ch. 6.4), and the research chapter 10 on self-supervised denoising, denoisers as priors and video.
+
+### Where this course fits in the programme
+
+Official prerequisites: elementary probability, Fourier analysis and differential calculus; deep learning is introduced from scratch. It is a **Modelling** course of semester 1, with 5 ECTS and 30 h (20 h of lectures and 10 h of tutorials).
+
+-   **Preparation** — the refreshers [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, conditional expectation), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (spectral theorem, gradients) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the code of every chapter).
+-   **Related courses of semester 1** — [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (sampling and interpolation), [Mathematical Models for Digital Photography](../s1-digital-photography/index.html) (camera pipeline and noise), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html), [Deep Learning](../s1-deep-learning/index.html), [Computational Statistics](../s1-computational-statistics/index.html) and [Convex Optimization](../s1-convex-optimization/index.html).
+-   **Courses of semester 2 that build on it** — [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Generative Models for Images](../s2-generative-models-images/index.html), [Diffusion and Multiscale Models in AI](../s2-diffusion-multiscale/index.html) (denoisers are the engine of diffusion models), [Remote Sensing Data](../s2-remote-sensing/index.html) and [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html).
+
+### Course outline
+
+-   **Review: probability, linear algebra and calculus** — covariance, the bias–variance split of the error, the conditional expectation as best estimator, orthonormal bases.
+-   **Image sampling and the discrete Fourier transform** — the Shannon–Whittaker theorem, aliasing, the 2D DFT and DCT, the spectrum of natural images.
+-   **A fast tutorial on Gaussian vectors** — definition, independence, invariance of white noise, conditioning and Stein's lemma.
+-   **Noise** — Shannon's channel, camera noise, variance stabilisation, noise estimation, the Wiener filter and the denoising principles.
+-   **Multiscale DCT denoising** — thresholding in an orthonormal basis, its oracle risk, sliding-window DCT and the multiscale fix of low-frequency noise.
+-   **Image self-similarity and denoising** — neighbourhood filters, non-local means, method noise and the space of patches.
+-   **Bayesian patch-based methods** — Gaussian patch models, NL-Bayes, BM3D, Gaussian mixtures and EPLL.
+-   **A crash course on deep learning** — networks, the L2 loss and the MMSE estimator, backpropagation, SGD, convolutions, residual learning.
+-   **Deep and shallow CNN denoisers** — MLP, DnCNN and FFDNet, the shallow network hidden in DCT denoising, bias-free networks.
+-   **Comparison of all denoising methods** — protocols, inherent bounds and what each family teaches the other.
+-   **Research directions and open problems** — self-supervision, denoisers as priors and diffusion, video and real noise (self-study).
+
+### Session plan {#sessions}
+
+**30 h in class = 10 sessions of 3 h.** The volume is the Université Paris-Saclay programme table (20 h of lectures and 10 h of tutorials); master-mva.com announces 10 courses ending in the first week of December, each combining a course and online IPOL experiments. The plan follows the official order, one plan item per session (the crash course on deep learning takes two); the split of each session into 2 h of lecture and 1 h of exercises is a proposal.
+
+Level 1 = foundations (reviews, definitions, first worked examples), 2 = core results and algorithms, 3 = advanced comparisons and recent research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review; ch. 1 Image sampling, Shannon–Whittaker, aliasing, DFT, DCT, spectrum of natural images | Ex. 1–2; IPOL: aliasing and zoom |
+| 2 | 3 h | 1 | ch. 2 Gaussian vectors: independence, invariance of white noise, norm of the noise, conditioning, Stein's lemma | Ex. 3, 6 |
+| 3 | 3 h | 2 | ch. 3 Noise: Shannon's channel, camera noise, Anscombe, noise estimation, Wiener filter, denoising principles | Ex. 4–5; IPOL: noise estimation |
+| 4 | 3 h | 2 | ch. 4 Multiscale DCT denoising: thresholding, oracle and universal threshold, SURE, sliding DCT, two-scale recomposition | Ex. 7, 9; IPOL: DCT denoising |
+| 5 | 3 h | 2 | ch. 5 Image self-similarity: neighbourhood filters, NL-means, method noise, the space of patches | Ex. 8; IPOL: NL-means |
+| 6 | 3 h | 2 | ch. 6 Bayesian patch-based methods: Gaussian patch model, NL-Bayes, BM3D, GMM and EPLL | Ex. 10; IPOL: NL-Bayes and BM3D |
+| 7 | 3 h | 2 | ch. 7.1–7.4 Crash course on deep learning I: networks, L2 loss and MMSE, backpropagation, gradient descent | Ex. 11 |
+| 8 | 3 h | 2 | ch. 7.5–7.7 Crash course on deep learning II: convolutions, receptive fields, residual learning, training a denoiser | Ex. 12 |
+| 9 | 3 h | 3 | ch. 8 Deep and shallow CNN denoisers: MLP, DnCNN, FFDNet, DCT as a two-layer CNN, bias-free networks | Ex. 13 |
+| 10 | 3 h | 3 | ch. 9 Comparison of all denoising methods: protocol, inherent bounds, the landscape, lessons | Ex. 14 |
+
+**Self-study, outside the 30 h** (about 4 h in total): ch. 10 Research directions and open problems — self-supervised denoising, Tweedie's formula and diffusion, plug-and-play priors, video and real noise (≈ 4 h, with Ex. 15).
+
+The official assessment includes an intermediate written exam; on this plan it fits naturally after session 6, when the classical half of the course is complete.
+
+### How to study this module {#study}
+
+-   Read the chapters in order: each chapter uses only the earlier ones, and ch. 2 (Gaussian vectors) is used everywhere afterwards.
+-   After each session, do the exercises listed in its row, then run the code of the chapter and change one parameter (noise level, patch size, threshold) to see its effect.
+-   Reproduce the IPOL experiments named in the "IPOL experiment" notes on www.ipol.im: the official weekly report is about such online experiments and needs no programming.
+-   The Python blocks use NumPy, SciPy, scikit-learn (for its two bundled sample images, `china.jpg` and `flower.jpg`) and PyTorch on CPU; every block runs in less than half a minute on a laptop.
+-   Keep a table of PSNR values for the same noisy image across chapters: it becomes the comparison of ch. 9.
+
+## 0. Review: probability, linear algebra and calculus {#ch0}
+
+Every chapter of the course measures an error, averages noisy values or changes basis. This review fixes the notation and proves the three facts used everywhere: covariances transform simply, the error of an estimator splits into bias and variance, and the conditional expectation is the best possible estimator.
+
+::: def
+[Definition 0.1 — Mean and covariance of a random vector]{.tag} Let $X$ be a random vector of $\mathbb{R}^d$ with finite second moment. Its mean is $m = \mathbb{E}[X]$ and its covariance matrix is
+
+$$
+C = \mathbb{E}\big[(X - m)(X - m)^\top\big].
+$$
+
+The matrix $C$ is symmetric and positive semi-definite, because for every vector $a$ the number $a^\top C a$ equals the variance of $\langle a, X\rangle$.
+:::
+
+:::: prop
+[Proposition 0.2 — Affine maps]{.tag} If $Y = AX + b$ with $A \in \mathbb{R}^{k \times d}$ and $b \in \mathbb{R}^k$, then
+
+$$
+\mathbb{E}[Y] = Am + b, \qquad \mathrm{Cov}(Y) = A\, C\, A^\top .
+$$
+
+In particular, the average of $K$ uncorrelated values of variance $\sigma^2$ has variance $\sigma^2 / K$.
+
+::: proof
+The mean is linear. Then $Y - \mathbb{E}[Y] = A(X - m)$, so the covariance is the expectation of $A (X - m)(X - m)^\top A^\top$, which is $A C A^\top$. For the average, take $A = (1/K, \dots, 1/K)$ and $C = \sigma^2 I$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 0.3 — Bias–variance decomposition]{.tag} Let $\hat X$ be a random estimator of a fixed vector $x$. Then
+
+$$
+\mathbb{E}\|\hat X - x\|^2 = \|\mathbb{E}\hat X - x\|^2 + \mathbb{E}\|\hat X - \mathbb{E}\hat X\|^2 .
+$$
+
+::: proof
+Write
+
+$$
+\hat X - x = (\hat X - \mathbb{E}\hat X) + (\mathbb{E}\hat X - x)
+$$
+
+and expand the square. The cross term is the expectation of a centred vector against a constant vector, hence zero. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 0.4 — Averaging three pixels]{.tag} A 1D signal is a step from 0 to 60, observed with noise of standard deviation $\sigma = 20$. Replace each sample by the mean of itself and its two neighbours.
+
+-   Far from the step, the bias is zero and the variance is $400/3 \approx 133.3$.
+-   On the two samples next to the step, the mean is off by $60/3 = 20$, a squared bias of 400.
+
+The same filter that divides the noise variance by 3 in flat regions triples the error at the edge. Every denoising method of this course is a way out of this dilemma.
+:::
+
+:::: thm
+[Theorem 0.5 — The conditional expectation is the best estimator]{.tag} Let $X$ and $Y$ be random vectors with $\mathbb{E}\|X\|^2 < \infty$, and write $g(Y) = \mathbb{E}[X \mid Y]$. For every measurable $f$ with $\mathbb{E}\|f(Y)\|^2 < \infty$,
+
+$$
+\mathbb{E}\|X - f(Y)\|^2 = \mathbb{E}\|X - g(Y)\|^2 + \mathbb{E}\|g(Y) - f(Y)\|^2 .
+$$
+
+::: proof
+Write $X - f(Y) = (X - g(Y)) + (g(Y) - f(Y))$ and expand.
+
+The cross term is the expectation of $\langle X - g(Y), g(Y) - f(Y)\rangle$. Conditioning on $Y$, the second factor is fixed and the first has conditional mean zero, so the tower property makes the cross term vanish. [∎]{.qed}
+:::
+
+::: key
+[Key result — the minimum mean square error (MMSE) estimator]{.tag}
+
+$$
+\arg\min_f \ \mathbb{E}\|X - f(Y)\|^2 = \mathbb{E}[X \mid Y]
+$$
+:::
+
+With $X$ the clean image and $Y$ the noisy one, the ideal denoiser is the posterior mean. Chapter 2 computes it for Gaussian images, and ch. 7 shows that a network trained with the square loss approximates it.
+::::
+
+::: def
+[Definition 0.6 — Orthonormal basis, Parseval identity]{.tag} Vectors $e_1, \dots, e_d$ of $\mathbb{R}^d$ form an orthonormal basis if $\langle e_k, e_l\rangle = \delta_{kl}$. Then every $x$ decomposes as $x = \sum_k \langle x, e_k\rangle e_k$, and
+
+$$
+\|x\|^2 = \sum_{k=1}^d \langle x, e_k\rangle^2 .
+$$
+
+The matrix $U$ whose columns are the $e_k$ is orthogonal: $U^\top U = I$. The same holds in $\mathbb{C}^d$ with a unitary matrix.
+:::
+
+::: thm
+[Theorem 0.7 — Spectral theorem]{.tag} Every real symmetric matrix factors as $C = U \Lambda U^\top$, with $U$ orthogonal and $\Lambda$ diagonal and real. If $C$ is a covariance matrix, its eigenvalues are non-negative: they are the variances of $X$ along the orthonormal principal axes (principal component analysis, PCA).
+:::
+
+::: note
+[Differential calculus used later]{.tag} For a function $u$ of class $C^2$ on $\mathbb{R}^2$, the second-order Taylor formula reads
+
+$$
+u(x + y) = u(x) + \nabla u(x) \cdot y + \tfrac12\, y^\top D^2u(x)\, y + o(|y|^2).
+$$
+
+It gives the method noise of the Gaussian filter (Proposition 3.9). The chain rule $D(g \circ f)(x) = Dg(f(x))\, Df(x)$ is backpropagation (ch. 7.3).
+:::
+
+The following Monte Carlo experiment checks Example 0.4.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+x = np.r_[np.zeros(10), 60 * np.ones(10)]                # a step of height 60
+sigma, trials = 20.0, 20000
+Y = x + sigma * rng.standard_normal((trials, x.size))  # noisy realisations
+Xh = (np.roll(Y, 1, 1) + Y + np.roll(Y, -1, 1)) / 3    # 3-pixel moving average
+bias2 = (Xh.mean(0) - x) ** 2
+var = Xh.var(0)
+print("squared bias, samples 8-11:", np.round(bias2[8:12], 1))
+print("variance,     samples 8-11:", np.round(var[8:12], 1))
+```
+
+The output shows squared biases close to 0, 400, 400, 0 and variances close to 133 on the four samples around the step.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   Covariances transform as $A C A^\top$; averaging $K$ uncorrelated values divides the variance by $K$.
+-   Mean square error = squared bias + variance: smoothing trades one for the other.
+-   The best estimator in mean square is the conditional expectation $\mathbb{E}[X \mid Y]$.
+-   Orthonormal bases preserve norms; symmetric matrices diagonalise in such a basis.
+::::
+
+## 1. Image sampling and the discrete Fourier transform {#ch1}
+
+A digital image is a finite array of samples of a continuous light field. This chapter says what sampling preserves and what it destroys (aliasing), and builds the two orthonormal bases — the discrete Fourier and cosine transforms — in which signal and noise will be separated.
+
+### 1.1 Band-limited images and the sampling theorem
+
+We use the Fourier transform $\hat u(\xi) = \int u(x)\, e^{-i x \xi}\, dx$ on $\mathbb{R}$; the 2D statements follow by tensor products. A function is *band-limited* to $[-\pi, \pi]$ when $\hat u$ vanishes outside this interval. Sampling means keeping the values $u(k)$, $k \in \mathbb{Z}$.
+
+:::: prop
+[Proposition 1.1 — Poisson formula and aliasing]{.tag} Let $u$ be continuous with $u$ and $\hat u$ integrable and decaying fast enough for the series below to converge absolutely. Then, for every $\xi$,
+
+$$
+\sum_{n \in \mathbb{Z}} \hat u(\xi + 2\pi n) = \sum_{k \in \mathbb{Z}} u(k)\, e^{-i k \xi}.
+$$
+
+The right-hand side is the spectrum of the samples. It is the *periodisation* of $\hat u$: the frequencies $\xi + 2\pi n$ fold onto $\xi$.
+
+::: proof
+The left-hand side $F(\xi)$ is $2\pi$-periodic. Its Fourier coefficients are
+
+$$
+\frac{1}{2\pi}\int_{-\pi}^{\pi} F(\xi)\, e^{i k \xi}\, d\xi = \frac{1}{2\pi}\int_{\mathbb{R}} \hat u(\xi)\, e^{i k \xi}\, d\xi = u(k),
+$$
+
+by gluing the translated intervals and by Fourier inversion. A continuous periodic function with absolutely summable coefficients equals its Fourier series. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 1.2 — Shannon–Whittaker sampling theorem]{.tag} If $u$ satisfies the assumptions of Proposition 1.1 and is band-limited to $[-\pi, \pi]$, then $u$ is determined by its samples:
+
+$$
+u(x) = \sum_{k \in \mathbb{Z}} u(k)\, \mathrm{sinc}(x - k), \qquad \mathrm{sinc}(t) = \frac{\sin \pi t}{\pi t}.
+$$
+
+::: proof
+On $[-\pi, \pi]$ only the term $n = 0$ of the periodisation is non-zero, so
+
+$$
+\hat u(\xi) = \mathbf{1}_{[-\pi,\pi]}(\xi) \sum_k u(k)\, e^{-ik\xi}.
+$$
+
+The inverse Fourier transform of $\mathbf{1}_{[-\pi,\pi]}(\xi)\, e^{-ik\xi}$ is $\mathrm{sinc}(x - k)$. Summing term by term gives the formula. [∎]{.qed}
+:::
+::::
+
+When $\hat u$ does not vanish outside $[-\pi, \pi]$, the sampled spectrum mixes several frequencies: this is **aliasing**. In a camera, the blur of the optics and of the sensor area acts as the low-pass filter that limits it.
+
+::: ex
+[Example 1.3 — A stripe pattern seen at the wrong frequency]{.tag} For every integer $k$,
+
+$$
+\cos(2\pi \cdot 0.7\, k) = \cos(2\pi \cdot 0.3\, k),
+$$
+
+because $0.7 = 1 - 0.3$. Stripes of 0.7 cycle per pixel (period 1.43 pixels) are recorded as stripes of 0.3 cycle per pixel (period 3.33 pixels). In 2D this produces the moiré patterns of fabrics and roof tiles.
+:::
+
+### 1.2 The 2D discrete Fourier transform
+
+::: def
+[Definition 1.4 — Discrete Fourier transform (DFT)]{.tag} For an image $u$ on the grid $\Omega = \{0, \dots, M-1\} \times \{0, \dots, N-1\}$,
+
+$$
+\hat u(p, q) = \sum_{k=0}^{M-1} \sum_{l=0}^{N-1} u(k, l)\, e^{-2i\pi \left(\frac{pk}{M} + \frac{ql}{N}\right)} .
+$$
+
+The *normalised* DFT divides by $\sqrt{MN}$; it is a unitary map of $\mathbb{C}^{\Omega}$.
+:::
+
+:::: prop
+[Proposition 1.5 — Properties of the DFT]{.tag} With $|\Omega| = MN$:
+
+1.  inversion:
+    $$
+    u(k,l) = \frac{1}{MN}\sum_{p,q} \hat u(p,q)\, e^{2i\pi (pk/M + ql/N)};
+    $$
+2.  Parseval:
+    $$
+    \sum_{\Omega} |u|^2 = \frac{1}{MN} \sum_{\Omega} |\hat u|^2;
+    $$
+3.  convolution: the circular convolution $u \circledast v$ satisfies $\widehat{u \circledast v} = \hat u\, \hat v$;
+4.  translation: a circular shift by $(a, b)$ multiplies $\hat u(p,q)$ by $e^{-2i\pi(pa/M + qb/N)}$.
+
+::: proof
+All four follow from the orthogonality relation, a geometric sum:
+
+$$
+\sum_{k=0}^{M-1} e^{2i\pi k (p - p')/M} = M\, \mathbf{1}[p = p' \bmod M].
+$$
+
+For the convolution, substitute $(u \circledast v)(k) = \sum_j u(j)\, v(k - j)$ in the definition and change the index $k - j \to k'$; the sum factors. [∎]{.qed}
+:::
+::::
+
+The DFT treats the image as periodic. The jump between opposite borders creates artificial high frequencies — the bright cross visible in the spectrum of most photographs. Symmetrising the image before the transform removes this jump; this is the cosine transform of Section 1.4.
+
+### 1.3 Trigonometric interpolation and zoom
+
+For an $N$-periodic discrete signal with $N$ odd, the *DFT interpolate* is the trigonometric polynomial
+
+$$
+\bar u(x) = \frac{1}{N}\sum_{|p| \le (N-1)/2} \hat u(p)\, e^{2i\pi p x / N}.
+$$
+
+It is the only trigonometric polynomial of degree at most $(N-1)/2$ that matches the samples. It gives exact sub-pixel translations — multiply $\hat u(p)$ by $e^{-2i\pi p \tau / N}$ — and zooms by zero-padding the spectrum. Its price is ringing (Gibbs oscillations) near sharp edges.
+
+::: note
+[IPOL experiment — zoom and aliasing]{.tag} With an image-interpolation demo on www.ipol.im, or in a few lines of NumPy, zoom an image by zero-padding its DFT and by a local interpolation, then subsample it by 2 without filtering. Look for ringing near edges in the first case and for moiré in the last.
+:::
+
+### 1.4 The discrete cosine transform
+
+::: def
+[Definition 1.6 — Discrete cosine transform (DCT-II)]{.tag} The vectors $c_0, \dots, c_{n-1}$ of $\mathbb{R}^n$ are
+
+$$
+c_k(j) = \alpha_k \cos\Big(\frac{\pi k\, (j + 1/2)}{n}\Big), \qquad \alpha_0 = \sqrt{1/n}, \quad \alpha_k = \sqrt{2/n} \ (k \ge 1).
+$$
+
+In 2D, the $n^2$ products $c_k(i)\, c_l(j)$ are the atoms of the separable DCT; for $8 \times 8$ patches there are 64.
+:::
+
+:::: prop
+[Proposition 1.7 — The DCT is the eigenbasis of a symmetric matrix]{.tag} Let $L$ be the Laplacian matrix of the path with $n$ vertices: diagonal $(1, 2, \dots, 2, 1)$ and $-1$ on the two neighbouring diagonals. Then
+
+$$
+L\, c_k = \big(2 - 2\cos(\pi k / n)\big)\, c_k .
+$$
+
+The $n$ eigenvalues are distinct, so the $c_k$ are pairwise orthogonal; with the constants $\alpha_k$, they form an orthonormal basis.
+
+::: proof
+Write $\theta = \pi k / n$ and $c(j) = \cos(\theta (j + 1/2))$. For $0 < j < n-1$, the identity $\cos(a + \theta) + \cos(a - \theta) = 2\cos\theta \cos a$ gives
+
+$$
+2c(j) - c(j-1) - c(j+1) = (2 - 2\cos\theta)\, c(j).
+$$
+
+At $j = 0$ the matrix row reads $c(0) - c(1)$. It equals the same expression because $c(-1) = c(0)$, by parity of the cosine. The case $j = n - 1$ is symmetric.
+
+Eigenvectors of a symmetric matrix for distinct eigenvalues are orthogonal (Theorem 0.7), and the constants $\alpha_k$ normalise them. [∎]{.qed}
+:::
+::::
+
+The DCT is the DFT of the image reflected across its borders. There is no artificial jump, so the energy of smooth patches concentrates in few low-frequency coefficients. This *energy compaction* explains its use in JPEG and in the denoisers of ch. 4.
+
+### 1.5 The spectrum of natural images
+
+Measured on large collections, the power spectrum of natural images decays roughly like $|\xi|^{-2}$ (Field, 1987; Ruderman and Bialek, 1994). White noise has a flat spectrum, equal to $\sigma^2$ for the normalised DFT. The signal-to-noise ratio per frequency therefore decreases with $|\xi|$.
+
+::: ex
+[Example 1.8 — Where noise wins]{.tag} Model the spectrum by $S(\xi) = A / |\xi|^2$. The signal-to-noise ratio $S(\xi) / \sigma^2$ equals 1 at
+
+$$
+|\xi_c| = \sqrt{A} / \sigma .
+$$
+
+Doubling $\sigma$ halves the cut-off frequency. Beyond $|\xi_c|$ noise dominates on average — but edges and textures also live there, which is why a fixed low-pass filter cannot be a good denoiser.
+:::
+
+The code below builds the $8 \times 8$ DCT, checks its orthonormality, and compares the energy compaction of image patches and of noise patches.
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+n = 8
+j = np.arange(n)
+D = np.sqrt(2 / n) * np.cos(np.pi * np.outer(j, j + 0.5) / n)   # rows = DCT-II atoms
+D[0] /= np.sqrt(2)
+print("orthonormal:", np.allclose(D @ D.T, np.eye(n)))
+
+u = load_sample_image("china.jpg").mean(axis=2)
+H, W = (s - s % n for s in u.shape)
+P = u[:H, :W].reshape(H // n, n, W // n, n).transpose(0, 2, 1, 3).reshape(-1, n, n)
+rng = np.random.default_rng(0)
+N = 20 * rng.standard_normal(P.shape)                         # white noise, sigma = 20
+
+def energy_in_top6(patches):
+    """Mean fraction of the energy carried by the 6 largest of the 64 DCT coefficients."""
+    C = np.einsum("ki,pij,lj->pkl", D, patches, D).reshape(len(patches), -1) ** 2
+    C.sort(axis=1)
+    return (C[:, -6:].sum(1) / C.sum(1)).mean()
+
+print(f"image patches: {energy_in_top6(P - P.mean((1, 2), keepdims=True)):.2f}")
+print(f"noise patches: {energy_in_top6(N):.2f}")
+print(f"noise variance per DCT coefficient: {np.einsum('ki,pij,lj->pkl', D, N, D).var():.1f}")
+```
+
+With their mean removed, image patches put 69 % of their energy in their 6 largest coefficients, against 41 % for noise. The noise variance per coefficient stays 400: an orthonormal transform keeps white noise white (Theorem 2.4).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   Sampling periodises the spectrum; a band-limited image is recovered exactly by sinc interpolation (Theorem 1.2), otherwise aliasing folds frequencies.
+-   The DFT diagonalises circular convolution and translations; it treats the image as periodic.
+-   The DCT is the eigenbasis of the path Laplacian, an orthonormal basis without border jumps, with strong energy compaction on image patches.
+-   Natural images have a power spectrum decaying like $|\xi|^{-2}$; white noise is flat.
+::::
+
+## 2. A fast tutorial on Gaussian vectors {#ch2}
+
+White Gaussian noise is the reference model of the course, and Gaussian models of patches are the core of ch. 6. This chapter collects what we need: the definition, independence, the invariance of white noise under orthonormal transforms, the size of a noise vector, conditioning, and Stein's lemma.
+
+### 2.1 Definition and first properties
+
+::: def
+[Definition 2.1 — Gaussian vector]{.tag} A random vector $X$ of $\mathbb{R}^d$ is *Gaussian* if every linear combination $\langle a, X\rangle$ is a real Gaussian variable, possibly constant. We write $X \sim \mathcal{N}(m, C)$ with $m$ its mean and $C$ its covariance.
+:::
+
+:::: prop
+[Proposition 2.2 — Characteristic function, affine images, density]{.tag} If $X \sim \mathcal{N}(m, C)$, then for every $t \in \mathbb{R}^d$
+
+$$
+\mathbb{E}\, e^{i\langle t, X\rangle} = \exp\big(i\langle t, m\rangle - \tfrac12\, t^\top C\, t\big).
+$$
+
+Consequently the law depends only on $(m, C)$, and $AX + b \sim \mathcal{N}(Am + b, A C A^\top)$. If $C$ is invertible, $X$ has the density
+
+$$
+p(x) = (2\pi)^{-d/2} \det(C)^{-1/2} \exp\big(-\tfrac12 (x - m)^\top C^{-1} (x - m)\big).
+$$
+
+::: proof
+The variable $\langle t, X\rangle$ is Gaussian with mean $\langle t, m\rangle$ and variance $t^\top C t$ (Proposition 0.2). Its characteristic function at 1 gives the formula. A characteristic function determines the law.
+
+For the affine image, every linear combination of $AX + b$ is a linear combination of $X$ plus a constant, hence Gaussian. The density follows by the change of variables $X = m + C^{1/2} Z$ with $Z \sim \mathcal{N}(0, I)$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 2.3 — Independence equals decorrelation]{.tag} The components of a Gaussian vector are independent if and only if its covariance matrix is diagonal.
+
+::: proof
+If $C$ is diagonal, the characteristic function of Proposition 2.2 is a product of functions of each $t_i$, which characterises independence. The converse holds for any random vector. [∎]{.qed}
+:::
+
+The hypothesis is that the vector is *jointly* Gaussian. If $Z \sim \mathcal{N}(0,1)$ and $\varepsilon = \pm 1$ is an independent fair sign, then $Z$ and $\varepsilon Z$ are Gaussian and uncorrelated, but $|Z| = |\varepsilon Z|$: they are not independent.
+::::
+
+### 2.2 White noise in an orthonormal basis
+
+:::: thm
+[Theorem 2.4 — White noise stays white]{.tag} Let $N \sim \mathcal{N}(0, \sigma^2 I_d)$ and let $U$ be an orthogonal matrix. Then
+
+$$
+U N \sim \mathcal{N}(0, \sigma^2 I_d).
+$$
+
+The coefficients of white noise in any orthonormal basis are independent $\mathcal{N}(0, \sigma^2)$ variables.
+
+::: proof
+By Proposition 2.2, $UN$ is Gaussian, centred, with covariance $U (\sigma^2 I) U^\top = \sigma^2 I$. Independence follows from Proposition 2.3. [∎]{.qed}
+:::
+::::
+
+This is why every transform method of ch. 4–6 — DCT, wavelets, the PCA of a group of patches — can treat its coefficients one by one with the same noise level $\sigma$. For the normalised DFT of real white noise, every coefficient $\hat n(p)$ satisfies $\mathbb{E}|\hat n(p)|^2 = \sigma^2$, with the conjugate symmetry $\hat n(-p) = \overline{\hat n(p)}$.
+
+### 2.3 The norm of a noise vector
+
+:::: prop
+[Proposition 2.5 — Concentration of the noise norm]{.tag} If $N \sim \mathcal{N}(0, \sigma^2 I_d)$, then $\|N\|^2 / \sigma^2$ follows a $\chi^2_d$ law, with mean $d$ and variance $2d$. Hence
+
+$$
+\frac{\|N\|^2}{d\,\sigma^2} \ \text{has mean } 1 \text{ and standard deviation } \sqrt{2/d}.
+$$
+
+::: proof
+$\|N\|^2 / \sigma^2$ is a sum of $d$ independent squares $Z_i^2$ of standard Gaussians. Since $\mathbb{E}Z^2 = 1$ and $\mathbb{E}Z^4 = 3$, each square has variance 2, and variances of independent terms add. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.6 — Small and large patches]{.tag} For an $8 \times 8$ patch, $d = 64$ and the relative fluctuation of $\|N\|^2$ is $\sqrt{2/64} = 0.177$. For a $60 \times 60$ patch, $d = 3600$ and it is
+
+$$
+\sqrt{2/3600} = 0.024 .
+$$
+
+A large patch measures the noise energy almost exactly. This concentration drives the patch comparisons of ch. 5.
+:::
+
+### 2.4 Conditioning: the Gaussian denoiser
+
+:::: thm
+[Theorem 2.7 — Gaussian conditioning]{.tag} Let $X \sim \mathcal{N}(m, C)$ and $N \sim \mathcal{N}(0, \sigma^2 I)$ be independent, and $Y = X + N$. Write $K = C (C + \sigma^2 I)^{-1}$. Given $Y = y$, the law of $X$ is Gaussian:
+
+$$
+X \mid Y = y \ \sim\ \mathcal{N}\big(m + K (y - m),\ C - K C\big).
+$$
+
+::: proof
+The pair $(X, Y)$ is an affine image of $(X, N)$, which is Gaussian by independence; so $(X, Y)$ is a Gaussian vector.
+
+Let $Z = X - m - K(Y - m)$. Its cross-covariance with $Y$ is
+
+$$
+\mathrm{Cov}(Z, Y) = C - K (C + \sigma^2 I) = 0 .
+$$
+
+The vector $(Z, Y)$ is Gaussian and uncorrelated, hence independent (Proposition 2.3). So $X = m + K(Y - m) + Z$, where $Z$ is centred and independent of $Y$.
+
+Its covariance is $C - KC - CK^\top + K(C + \sigma^2 I)K^\top$. Since $K(C + \sigma^2 I) = C$, the last term is $CK^\top$, leaving $C - KC$. Fixing $Y = y$ gives the conditional law. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the Wiener estimator of a Gaussian signal]{.tag}
+
+$$
+\mathbb{E}[X \mid Y] = m + C\,(C + \sigma^2 I)^{-1}\,(Y - m)
+$$
+:::
+
+:::: prop
+[Corollary 2.8 — Shrinkage in the principal axes]{.tag} Write $C = U \mathrm{diag}(\lambda_i) U^\top$. In the basis $U$, the MMSE estimator multiplies the $i$-th coefficient of $Y - m$ by
+
+$$
+\frac{\lambda_i}{\lambda_i + \sigma^2},
+$$
+
+and its mean square error is $\sum_i \lambda_i \sigma^2 / (\lambda_i + \sigma^2)$.
+
+::: proof
+In the basis $U$, the gain is diagonal:
+
+$$
+K = U\, \mathrm{diag}\Big(\frac{\lambda_i}{\lambda_i + \sigma^2}\Big)\, U^\top .
+$$
+
+The error covariance $C - KC$ has the eigenvalues $\lambda_i - \lambda_i^2/(\lambda_i + \sigma^2)$, whose sum is the trace. [∎]{.qed}
+:::
+::::
+
+The estimator keeps the directions where the signal variance dominates the noise and kills the others. All the patch methods of ch. 6 apply this rule with estimated $\lambda_i$.
+
+::: ex
+[Example 2.9 — Three principal axes]{.tag} Take $\lambda = (100, 25, 1)$ and $\sigma^2 = 25$.
+
+-   The shrinkage factors are $0.8$, $0.5$ and $1/26 \approx 0.0385$.
+-   The error is $20 + 12.5 + 0.96 = 33.46$.
+-   The noisy observation itself has error $3 \sigma^2 = 75$.
+
+The Wiener estimator more than halves the error.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+lam, sigma2, n = np.array([100.0, 25.0, 1.0]), 25.0, 200_000
+U, _ = np.linalg.qr(rng.standard_normal((3, 3)))          # a random orthonormal basis
+C = U @ np.diag(lam) @ U.T                                # prior covariance of X
+X = rng.multivariate_normal(np.zeros(3), C, size=n)
+Y = X + np.sqrt(sigma2) * rng.standard_normal((n, 3))
+K = C @ np.linalg.inv(C + sigma2 * np.eye(3))             # Wiener gain (Theorem 2.7)
+print("shrinkage factors:", np.round(np.linalg.eigvalsh(K), 4))
+print(f"MSE of Y:        {((Y - X) ** 2).sum(1).mean():.2f}  (theory 75)")
+print(f"MSE of K Y:      {((Y @ K.T - X) ** 2).sum(1).mean():.2f}  (theory {np.sum(lam * sigma2 / (lam + sigma2)):.2f})")
+```
+
+The simulation returns the factors 0.0385, 0.5, 0.8 and errors of 74.87 and 33.53, against 75 and 33.46 in theory.
+
+### 2.5 Stein's lemma and an unbiased estimate of the risk
+
+:::: prop
+[Lemma 2.10 — Gaussian integration by parts (Stein)]{.tag} If $Z \sim \mathcal{N}(0, \sigma^2)$ and $g$ is absolutely continuous with $\mathbb{E}|g'(Z)| < \infty$, then
+
+$$
+\mathbb{E}[Z\, g(Z)] = \sigma^2\, \mathbb{E}[g'(Z)] .
+$$
+
+::: proof
+The density $\varphi$ of $Z$ satisfies $\varphi'(z) = -z \varphi(z) / \sigma^2$. Integrate $g'(z)\varphi(z)$ by parts; the boundary terms vanish under the integrability assumption. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 2.11 — Stein's unbiased risk estimate (SURE; Stein, 1981)]{.tag} Let $Y = x + N$ with $N \sim \mathcal{N}(0, \sigma^2 I_d)$, and let $f : \mathbb{R}^d \to \mathbb{R}^d$ be weakly differentiable with integrable partial derivatives. Then
+
+$$
+\mathbb{E}\|f(Y) - x\|^2 = \mathbb{E}\Big[\|f(Y) - Y\|^2 - d\sigma^2 + 2\sigma^2 \operatorname{div} f(Y)\Big].
+$$
+
+::: proof
+Expand $\|f(Y) - x\|^2 = \|f(Y) - Y + N\|^2$:
+
+$$
+\|f(Y) - Y\|^2 + 2\langle f(Y), N\rangle - 2\langle Y, N\rangle + \|N\|^2 .
+$$
+
+Here $\mathbb{E}\|N\|^2 = d\sigma^2$, and $\mathbb{E}\langle Y, N\rangle = d\sigma^2$ as well, because $Y = x + N$.
+
+For the remaining term, apply Lemma 2.10 to each coordinate, conditionally on the other coordinates of $N$:
+
+$$
+\mathbb{E}[N_i\, f_i(Y)] = \sigma^2\, \mathbb{E}[\partial_i f_i(Y)].
+$$
+
+Summing over $i$ gives $2\sigma^2 \mathbb{E}\operatorname{div} f(Y)$. [∎]{.qed}
+:::
+::::
+
+The right-hand side involves only $Y$: it estimates the error of a denoiser *without knowing the clean image*. Chapter 4 uses it to choose a threshold, and ch. 8 reads $\operatorname{div} f$ as the trace of a network Jacobian.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   A Gaussian vector is fixed by its mean and covariance; inside it, uncorrelated means independent.
+-   White noise has independent $\mathcal{N}(0, \sigma^2)$ coefficients in every orthonormal basis.
+-   The squared norm of a $d$-pixel noise patch is $d\sigma^2$ up to a relative error $\sqrt{2/d}$.
+-   The posterior mean of a Gaussian signal is the Wiener estimator: shrink each principal coefficient by $\lambda_i / (\lambda_i + \sigma^2)$.
+-   SURE estimates the risk of a denoiser from the noisy data alone.
+::::
+
+## 3. Noise {#ch3}
+
+Before removing noise we must say what it is. This chapter starts from Shannon's formulation of the problem, follows the noise through a camera, shows how to make it Gaussian and how to measure its level, and ends with the optimal *linear* denoiser and the map of the classical denoising principles.
+
+### 3.1 Signal plus noise: Shannon's problem
+
+::: def
+[Definition 3.1 — The denoising problem and its metrics]{.tag} An image $u$ on a grid $\Omega$ is observed as
+
+$$
+\tilde u = u + n, \qquad n(i) \ \text{independent}\ \mathcal{N}(0, \sigma^2).
+$$
+
+A denoiser $D$ returns $D(\tilde u)$. Its quality is the mean square error
+
+$$
+\mathrm{MSE} = \frac{1}{|\Omega|}\sum_{i \in \Omega} \big(D(\tilde u)(i) - u(i)\big)^2,
+$$
+
+reported for 8-bit images as
+
+$$
+\mathrm{PSNR} = 10 \log_{10} \frac{255^2}{\mathrm{MSE}} \ \text{dB}.
+$$
+:::
+
+::: ex
+[Example 3.2 — PSNR arithmetic]{.tag} The noisy image itself has $\mathrm{MSE} = \sigma^2$. For $\sigma = 20$:
+
+$$
+\mathrm{PSNR} = 10 \log_{10}(65025 / 400) = 22.11 \ \text{dB}.
+$$
+
+For $\sigma = 25$ it is 20.17 dB. Halving the root mean square error adds $20 \log_{10} 2 = 6.02$ dB, so a gain of 0.3 dB is a reduction of the RMSE by about 3.4 %.
+:::
+
+Shannon's *Mathematical Theory of Communication* (1948) treats a message corrupted by a noisy channel. Its Gaussian case gives the amount of information that noise leaves in each sample.
+
+:::: thm
+[Theorem 3.3 — Capacity of the Gaussian channel (Shannon, 1948)]{.tag} A channel that adds independent $\mathcal{N}(0, \sigma^2)$ noise to inputs of mean power at most $P$ transmits reliably at most
+
+$$
+C = \tfrac12 \log_2\Big(1 + \frac{P}{\sigma^2}\Big) \ \text{bits per sample},
+$$
+
+and every rate below $C$ is achievable with an error probability tending to zero.
+
+::: proof
+*Key step of the converse.* For one use of the channel, the information is $I(X; Y) = h(Y) - h(N)$, where $h$ is the differential entropy. At fixed variance the Gaussian maximises $h$, so $h(Y) \le \frac12 \log_2(2\pi e (P + \sigma^2))$, while $h(N) = \frac12 \log_2(2\pi e \sigma^2)$. Achievability uses random codes; see Cover and Thomas (2006, ch. 9). [∎]{.qed}
+:::
+::::
+
+For an image whose grey levels have standard deviation 50, observed with $\sigma = 20$, the bound is $\frac12 \log_2(1 + 6.25) = 1.43$ bit per pixel. A denoiser cannot create this missing information. It can only exploit the *redundancy* of images — smoothness, sparsity, self-similarity — exactly as Shannon's codes exploit redundancy to correct errors. Each denoising principle of Section 3.6 is a hypothesis on this redundancy.
+
+### 3.2 Noise in a camera
+
+A pixel counts photons during the exposure. Three sources dominate.
+
+-   **Photon (shot) noise.** The count follows a Poisson law $\mathcal{P}(\lambda)$, with mean and variance $\lambda$. Its signal-to-noise ratio is $\sqrt{\lambda}$: 10 for 100 photons, 100 for 10 000. A dark scene collects few photons and is noisy.
+-   **Read-out and thermal noise.** The electronics add a signal-independent, nearly Gaussian noise.
+-   **Quantisation.** Rounding to a step $\Delta$ adds an error that is close to uniform.
+
+:::: prop
+[Proposition 3.4 — Quantisation noise]{.tag} An error uniform on $[-\Delta/2, \Delta/2]$ has variance
+
+$$
+\frac{1}{\Delta}\int_{-\Delta/2}^{\Delta/2} t^2\, dt = \frac{\Delta^2}{12}.
+$$
+
+::: proof
+The integral of $t^2$ over $[-\Delta/2, \Delta/2]$ is $\frac{2}{3}(\Delta/2)^3 = \Delta^3/12$; divide by $\Delta$. [∎]{.qed}
+:::
+
+For 8-bit values with $\Delta = 1$, the standard deviation is 0.29 grey level, negligible against $\sigma = 20$.
+::::
+
+::: def
+[Definition 3.5 — Poisson–Gaussian model and noise curve]{.tag} A raw value is modelled as $z = a\, \mathcal{P}(u / a) + \mathcal{N}(0, b)$, with a gain $a$ and a read-out variance $b$ (Foi, Trimeche, Katkovnik and Egiazarian, 2008). Its conditional variance is affine in the signal:
+
+$$
+\mathrm{Var}(z \mid u) = a\, u + b .
+$$
+
+The function $u \mapsto \mathrm{Var}(z \mid u)$ is the *noise curve* of the sensor.
+:::
+
+The camera pipeline then demosaics, white-balances, applies a tone curve and compresses. After these steps the noise is correlated between neighbouring pixels and colour channels, and its variance depends on intensity and frequency. Removing such noise blindly, from a single JPEG image, is the problem addressed by the *Noise Clinic* of Lebrun, Colom and Morel (2015).
+
+### 3.3 Variance stabilisation
+
+:::: prop
+[Proposition 3.6 — Delta method and the Anscombe transform]{.tag} Let $X$ have mean $\mu$ and variance $v(\mu)$, concentrated around $\mu$. For a smooth $f$,
+
+$$
+\mathrm{Var} f(X) \approx f'(\mu)^2\, v(\mu).
+$$
+
+Choosing $f' = 1/\sqrt{v}$ makes the variance close to 1. For Poisson counts, $v(\mu) = \mu$ and Anscombe (1948) uses $f(x) = 2\sqrt{x + 3/8}$, whose shift improves the approximation at small counts.
+
+::: proof
+Expand $f(X) = f(\mu) + f'(\mu)(X - \mu) + O((X - \mu)^2)$ and take the variance of the first-order term. With $v(\mu) = \mu$, $f'(\mu) = 1/\sqrt{\mu}$ integrates to $2\sqrt{\mu}$. [∎]{.qed}
+:::
+::::
+
+The same computation for the affine noise curve gives the *generalised Anscombe transform* $f(z) = \frac{2}{a}\sqrt{a z + \frac38 a^2 + b}$. The usual pipeline stabilises, denoises as if the noise were Gaussian with $\sigma = 1$, and inverts; at low counts, the inverse must be unbiased rather than algebraic (Mäkitalo and Foi, 2011).
+
+### 3.4 Estimating the noise level from one image
+
+:::: prop
+[Proposition 3.7 — Median absolute deviation (MAD)]{.tag} If $Z \sim \mathcal{N}(0, \sigma^2)$, the median of $|Z|$ is $c\,\sigma$ with $c = \Phi^{-1}(3/4) \approx 0.6745$, where $\Phi$ is the standard normal distribution function. Hence the estimator
+
+$$
+\hat\sigma = \frac{\mathrm{median}_i\, |d_i|}{0.6745}
+$$
+
+computed on high-pass coefficients $d_i$ of the noisy image.
+
+::: proof
+$\mathbb{P}(|Z| \le c\sigma) = 2\Phi(c) - 1$, which equals $1/2$ when $\Phi(c) = 3/4$. [∎]{.qed}
+:::
+::::
+
+Take for $d$ the finest diagonal Haar coefficient,
+
+$$
+d(k,l) = \tfrac12\big(\tilde u(k,l) - \tilde u(k+1,l) - \tilde u(k,l+1) + \tilde u(k+1,l+1)\big).
+$$
+
+Its noise part is $\mathcal{N}(0, \sigma^2)$ by Proposition 0.2, and its signal part vanishes on smooth regions. Edges and textures occupy a minority of pixels, which the median ignores — up to a point.
+
+More accurate methods select the blocks of lowest variance and measure their high-frequency DCT energy, intensity by intensity, which yields a whole noise curve (Colom and Buades, 2013).
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+# 1) Anscombe: the variance of 2 sqrt(k + 3/8) for Poisson counts k
+for lam in [1, 4, 10, 50, 200]:
+    k = rng.poisson(lam, 200_000)
+    print(f"lambda = {lam:3d}: Var(k) = {k.var():7.2f}, Var(Anscombe) = {(2 * np.sqrt(k + 3 / 8)).var():.3f}")
+
+# 2) MAD estimate of sigma from the finest diagonal Haar coefficients
+for name in ["flower.jpg", "china.jpg"]:
+    u = load_sample_image(name).mean(axis=2)
+    for sigma in [5, 20, 40]:
+        f = u + sigma * rng.standard_normal(u.shape)
+        d = (f[:-1, :-1] - f[1:, :-1] - f[:-1, 1:] + f[1:, 1:]) / 2   # noise part ~ N(0, sigma^2)
+        print(f"{name:10s} sigma = {sigma:2d}: estimate {np.median(np.abs(d)) / 0.6745:5.2f}")
+```
+
+The Anscombe variance is 0.72 for $\lambda = 1$ and within 0.4 % of 1 from $\lambda = 4$ on. On the smooth `flower.jpg` the MAD estimates are 5.39, 20.23 and 40.23. On the textured `china.jpg` they are 8.32, 23.26 and 42.47: texture leaks into the high-pass coefficients and biases the estimate upwards, most visibly at low noise.
+
+::: note
+[IPOL experiment — noise estimation]{.tag} Run a noise-curve estimator on IPOL on a JPEG photograph and on its raw counterpart if available. Compare the estimated curves for dark and bright intensities with the affine model of Definition 3.5.
+:::
+
+### 3.5 Linear filtering, method noise and the Wiener filter
+
+A linear filter $w$ applied to white noise gives a noise of variance $\sigma^2 \|w\|_2^2$ per pixel (Proposition 0.2). A $k \times k$ box filter divides the variance by $k^2$. What it removes from the image is measured by the method noise.
+
+::: def
+[Definition 3.8 — Method noise (Buades, Coll and Morel, 2005)]{.tag} The method noise of a denoiser $D_h$ with parameter $h$ is the difference $u - D_h(u)$. A good denoiser has a method noise that looks like noise and contains no structure of the image.
+:::
+
+:::: prop
+[Proposition 3.9 — Method noise of the Gaussian filter]{.tag} Let $u$ be of class $C^2$ on $\mathbb{R}^2$ with bounded second derivatives, and $G_h$ the Gaussian kernel with standard deviation $h$ on each axis. Then
+
+$$
+u - G_h * u = -\frac{h^2}{2}\, \Delta u + o(h^2).
+$$
+
+::: proof
+$G_h * u(x) = \mathbb{E}[u(x - Y)]$ with $Y \sim \mathcal{N}(0, h^2 I_2)$. By the Taylor formula of ch. 0,
+
+$$
+u(x - Y) = u(x) - \nabla u(x) \cdot Y + \tfrac12\, Y^\top D^2 u(x)\, Y + o(|Y|^2).
+$$
+
+The first-order term has mean zero, and $\mathbb{E}[Y_i Y_j] = h^2 \delta_{ij}$ makes the second-order term $\frac{h^2}{2}\Delta u(x)$. [∎]{.qed}
+:::
+::::
+
+The Gaussian filter removes the Laplacian of the image: edges, corners and textures. No choice of $h$ escapes the bias–variance dilemma of Example 0.4.
+
+:::: thm
+[Theorem 3.10 — Wiener filter]{.tag} Let $F$ be the normalised 2D DFT. Assume $u$ is a periodic stationary Gaussian field with mean $m$ and covariance $F^* \mathrm{diag}(S) F$, where $S(p,q) \ge 0$ is its power spectrum, and let $n$ be white Gaussian noise. Then the MMSE estimate is
+
+$$
+\mathbb{E}[u \mid \tilde u] = m + F^* \mathrm{diag}\Big(\frac{S}{S + \sigma^2}\Big) F\, (\tilde u - m).
+$$
+
+::: proof
+Apply Theorem 2.7 with $C = F^* \mathrm{diag}(S) F$. Since $F$ is unitary, $C + \sigma^2 I = F^* \mathrm{diag}(S + \sigma^2) F$, and the gain $K$ is diagonal in the Fourier basis, as in Corollary 2.8. [∎]{.qed}
+:::
+::::
+
+The Wiener filter is optimal among all estimators when the image is Gaussian and stationary — which a photograph is not. One spectrum cannot describe both a flat sky and a textured roof: the global filter blurs the textures or leaves noise in the sky. Restricting the Gaussian model to small regions, the *patches*, is the step taken in ch. 4–6.
+
+### 3.6 A handful of denoising principles
+
+The course description groups the methods found since the 1970s into a few principles. Each one is a hypothesis on the redundancy of images.
+
+| Principle | Representative methods | Hypothesis on the image |
+|---|---|---|
+| Local linear filtering | Gaussian filter; Wiener filter (Wiener, 1949) | smooth, or stationary Gaussian |
+| Neighbourhood filters | Yaroslavsky (1985); bilateral filter (Tomasi and Manduchi, 1998) | nearby pixels of similar grey level share the same value |
+| Variational and PDE methods | anisotropic diffusion (Perona and Malik, 1990); total variation (Rudin, Osher and Fatemi, 1992) | piecewise smooth, small total variation |
+| Transform thresholding | wavelet shrinkage (Donoho and Johnstone, 1994); sliding DCT (Yu and Sapiro, 2011) | sparse in a fixed orthonormal basis |
+| Non-local self-similarity | NL-means (Buades, Coll and Morel, 2005) | every patch has similar copies in the image |
+| Bayesian patch models, collaborative filtering | BM3D (Dabov et al., 2007); EPLL (Zoran and Weiss, 2011); NL-Bayes (Lebrun, Buades and Morel, 2013) | groups of similar patches are Gaussian, or sparse in a 3D transform |
+| Learned denoisers | MLP (Burger, Schuler and Harmeling, 2012); DnCNN (Zhang et al., 2017) | whatever is regular in a training set |
+
+The survey by Lebrun, Colom, Buades and Morel (2012) analyses the classical methods as combinations of a few ingredients shared across principles. Three of them return in every later chapter: the *aggregation* of overlapping estimates, a second pass guided by a first *oracle* estimate, and the choice of a *patch model*.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   PSNR is $10\log_{10}(255^2/\mathrm{MSE})$; the noisy image at $\sigma = 20$ scores 22.11 dB.
+-   Noise limits the information per pixel (Shannon); denoising exploits the redundancy of images.
+-   Camera noise is Poisson–Gaussian with an affine noise curve; the Anscombe transform makes it nearly Gaussian with unit variance.
+-   The MAD of fine high-pass coefficients estimates $\sigma$; texture biases it upwards.
+-   Gaussian filtering removes $\frac{h^2}{2}\Delta u$; the Wiener filter is optimal only for stationary Gaussian images.
+::::
+
+## 4. Multiscale DCT denoising {#ch4}
+
+If the clean image is *sparse* in an orthonormal basis — few large coefficients — and the noise is spread evenly over all coefficients (Theorem 2.4), then keeping the large coefficients and killing the small ones separates the two. This chapter makes the idea quantitative, applies it to sliding DCT patches, and repairs its main defect with a multiscale scheme.
+
+### 4.1 Thresholding in an orthonormal basis
+
+In an orthonormal basis, the observation becomes $y_k = x_k + n_k$, $k = 1, \dots, d$, with independent $n_k \sim \mathcal{N}(0, \sigma^2)$ and unknown coefficients $x_k$ of the clean image.
+
+::: def
+[Definition 4.1 — Hard and soft thresholding]{.tag} For a threshold $\tau > 0$,
+
+$$
+\eta_H(y) = y\, \mathbf{1}[|y| > \tau], \qquad \eta_S(y) = \mathrm{sign}(y)\, (|y| - \tau)_+ .
+$$
+
+Hard thresholding keeps or kills; soft thresholding also shrinks the survivors by $\tau$.
+:::
+
+:::: prop
+[Proposition 4.2 — Two oracles]{.tag} Suppose an oracle reveals the $|x_k|$.
+
+-   The best *keep-or-kill* estimator keeps $y_k$ exactly when $x_k^2 > \sigma^2$; its risk is $R_P = \sum_k \min(x_k^2, \sigma^2)$.
+-   The best *attenuation* $a_k y_k$ uses $a_k = x_k^2/(x_k^2 + \sigma^2)$; its risk is $R_A = \sum_k \frac{x_k^2 \sigma^2}{x_k^2 + \sigma^2}$.
+
+Moreover
+
+$$
+\tfrac12 R_P \ \le\ R_A \ \le\ R_P .
+$$
+
+::: proof
+The risk of $a\, y_k$ is $(1 - a)^2 x_k^2 + a^2 \sigma^2$. Over $a \in \{0, 1\}$ the minimum is $\min(x_k^2, \sigma^2)$.
+
+Over $a \in \mathbb{R}$, the minimum is attained at $a_k$ and equals $x_k^2\sigma^2/(x_k^2 + \sigma^2)$.
+
+The right inequality holds because $\{0, 1\} \subset \mathbb{R}$. For the left one, write $x_k^2 \sigma^2 = \min \cdot \max$ and use $x_k^2 + \sigma^2 \le 2 \max$. [∎]{.qed}
+:::
+::::
+
+The oracle risk counts the coefficients above the noise level. It is small exactly when the image is sparse in the basis: the choice of the basis is the hypothesis on the image.
+
+:::: prop
+[Proposition 4.3 — The maximum of the noise]{.tag} Let $\tau_d = \sigma\sqrt{2 \log d}$, the *universal threshold*. Then
+
+$$
+\mathbb{P}\Big(\max_{k \le d} |n_k| > \tau_d\Big) \le \frac{1}{\sqrt{\pi \log d}} .
+$$
+
+::: proof
+For $Z \sim \mathcal{N}(0,1)$ and $t > 0$, the Mills inequality gives
+
+$$
+\mathbb{P}(|Z| > t) \le \frac{2}{t\sqrt{2\pi}}\, e^{-t^2/2}.
+$$
+
+A union bound over $d$ coefficients with $t = \sqrt{2 \log d}$ gives
+
+$$
+d \cdot \frac{2}{\sqrt{2\pi}\sqrt{2\log d}} \cdot \frac{1}{d} = \frac{1}{\sqrt{\pi \log d}}.
+$$
+
+[∎]{.qed}
+:::
+::::
+
+With $\tau_d$, all pure-noise coefficients die with high probability, but slowly: for $d = 64$, $\tau_d = 2.88\sigma$ and the bound is 0.28.
+
+:::: thm
+[Theorem 4.4 — Donoho–Johnstone (1994)]{.tag} Soft thresholding at the universal threshold $\tau_d$ satisfies
+
+$$
+\mathbb{E}\|\eta_S(y) - x\|^2 \ \le\ (2 \log d + 1)\Big(\sigma^2 + \sum_k \min(x_k^2, \sigma^2)\Big).
+$$
+
+::: proof
+*Sketch*, with $\sigma = 1$. The scalar risk of soft thresholding satisfies $r(\tau, \mu) \le e^{-\tau^2/2} + \min(\mu^2, 1 + \tau^2)$; see Donoho and Johnstone (1994) or Mallat (2009, ch. 11).
+
+With $\tau^2 = 2 \log d$ the first term is $1/d$. Summing over $k$ and using $\min(\mu^2, 1 + \tau^2) \le (1 + \tau^2) \min(\mu^2, 1)$ gives the bound. [∎]{.qed}
+:::
+::::
+
+Up to a factor $2\log d$, a simple rule matches the keep-or-kill oracle, and Donoho and Johnstone show that this factor cannot be improved asymptotically, uniformly over all signals. In practice the universal threshold is too high for the mean square error, and $\tau$ is tuned on the data.
+
+:::: prop
+[Proposition 4.5 — SURE for soft thresholding]{.tag} The quantity
+
+$$
+\mathrm{SURE}(\tau) = -d\sigma^2 + \sum_k \min(y_k^2, \tau^2) + 2\sigma^2\, \#\{k : |y_k| > \tau\}
+$$
+
+is an unbiased estimate of the risk $\mathbb{E}\|\eta_S(y) - x\|^2$.
+
+::: proof
+Apply Theorem 2.11 to $f = \eta_S$ coordinatewise. Here $|f(y_k) - y_k| = \min(|y_k|, \tau)$, and $f'(y_k) = \mathbf{1}[|y_k| > \tau]$ almost everywhere. [∎]{.qed}
+:::
+::::
+
+Minimising SURE over $\tau$ chooses the threshold from the noisy data alone (the *SureShrink* rule of Donoho and Johnstone, 1995). The code applies it to the global DCT of a $256 \times 256$ crop of `flower.jpg` with $\sigma = 20$.
+
+```python
+import numpy as np
+from scipy.fft import dctn
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("flower.jpg").mean(axis=2)[:256, :256]
+sigma = 20.0
+x = dctn(u, norm="ortho").ravel()                        # clean coefficients
+y = x + sigma * rng.standard_normal(x.size)              # noisy coefficients (Theorem 2.4)
+d = y.size
+
+def sure(t):    # Proposition 4.5, divided by d
+    return (np.minimum(y**2, t**2).sum() - d * sigma**2 + 2 * sigma**2 * (np.abs(y) > t).sum()) / d
+
+def true_mse(t):
+    return ((np.sign(y) * np.maximum(np.abs(y) - t, 0) - x) ** 2).mean()
+
+grid = sigma * np.array([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, np.sqrt(2 * np.log(d))])
+for t in grid:
+    print(f"tau = {t / sigma:4.2f} sigma: SURE {sure(t):6.1f}   true MSE {true_mse(t):6.1f}")
+```
+
+SURE follows the true error within 3 units on the whole grid. Both are minimal at $\tau = 1.5\sigma$ (MSE 70.2, i.e. 29.7 dB), while the universal threshold $4.71\sigma$ gives 131.6.
+
+### 4.2 Sliding-window DCT denoising
+
+A global basis adapts poorly to an image whose content changes from place to place. The DCT of *small* patches adapts to local content, and processing every patch position removes the dependence on a grid.
+
+::: thm
+[Algorithm 4.6 — Sliding-window DCT denoising (Yu and Sapiro, 2011)]{.tag}
+
+1.  For every position, extract the $s \times s$ patch of $\tilde u$ ($s = 8$ or 16).
+2.  Compute its 2D DCT and set to zero the coefficients with $|y| < 3\sigma$.
+3.  Invert the DCT: this gives an estimate of the patch.
+4.  Each pixel belongs to $s^2$ patches: *aggregate* by averaging its $s^2$ estimates.
+:::
+
+A pure-noise coefficient survives the threshold $3\sigma$ with probability 0.0027, about 0.17 coefficient per $8 \times 8$ patch.
+
+:::: prop
+[Proposition 4.7 — Aggregation never hurts]{.tag} If $\hat x_1, \dots, \hat x_K$ are estimates of the same value $x$, then
+
+$$
+\Big(\frac1K \sum_j \hat x_j - x\Big)^2 \le \frac1K \sum_j (\hat x_j - x)^2 .
+$$
+
+::: proof
+Convexity of the square (Jensen's inequality) applied to the errors $\hat x_j - x$. [∎]{.qed}
+:::
+::::
+
+When the errors of overlapping patches are weakly correlated, the gain approaches a division by $K$. Averaging over all translations is the *cycle spinning* of Coifman and Donoho (1995).
+
+### 4.3 Why one scale is not enough
+
+:::: prop
+[Proposition 4.8 — Residual low-frequency noise]{.tag} In a patch of $d$ pixels, the noise of the constant (DC) coefficient is $\mathcal{N}(0, \sigma^2)$ and this coefficient is almost always kept. It adds to every pixel of the patch an error of variance
+
+$$
+\sigma^2 / d .
+$$
+
+::: proof
+The DC atom is the constant $1/\sqrt{d}$; its coefficient times the atom contributes (coefficient)$/\sqrt{d}$ to each pixel. Theorem 2.4 gives the law of the noise part. [∎]{.qed}
+:::
+::::
+
+The same holds for the few lowest frequencies, which survive in most patches. After aggregation these errors are smooth over about $s$ pixels: faint blotches, visible in flat regions although small in MSE. For $\sigma = 40$ and $8 \times 8$ patches, the DC error alone has standard deviation 5 grey levels.
+
+:::: prop
+[Proposition 4.9 — A coarse scale is less noisy]{.tag} Keep the $\frac N2 \times \frac N2$ lowest coefficients of the orthonormal global DCT of an $N \times N$ image, invert at size $\frac N2$ and divide by 2. The result is a half-size version of the image whose noise is white with variance
+
+$$
+\sigma^2 / 4 .
+$$
+
+::: proof
+The kept noise coefficients are independent $\mathcal{N}(0, \sigma^2)$ (Theorem 2.4). The orthonormal inverse at half size gives white noise of variance $\sigma^2$ again, and the division by 2 divides the variance by 4. The factor 2 preserves grey levels: a constant image $c$ has DC coefficient $cN$, which becomes the constant $2c$ at half size. [∎]{.qed}
+:::
+::::
+
+### 4.4 The multiscale DCT
+
+At the coarse scale, the slow variations of the image become fast, and the patches of the same size see them at a lower noise level. This motivates the following scheme, in the spirit of the *Multi-Scale DCT Denoising* of Pierazzo, Morel and Facciolo (2017); the code is a simplified version.
+
+::: thm
+[Algorithm 4.10 — Two-scale DCT denoising]{.tag}
+
+1.  Build the coarse image $c$ of Proposition 4.9 (noise $\sigma/2$).
+2.  Denoise $c$ and $\tilde u$ with Algorithm 4.6, at levels $\sigma/2$ and $\sigma$.
+3.  In the global DCT of the fine estimate, replace the lowest frequencies — a fraction $r$ of the coarse band on each axis — by those of the coarse estimate.
+4.  Invert. Applied recursively to $c$, the scheme gives a pyramid.
+:::
+
+The fraction $r$ trades the cleaner low frequencies of the coarse scale against the band-limiting artefacts of the half-size image; the code uses $r = 1/4$.
+
+```python
+import numpy as np
+from scipy.fft import dctn, idctn
+from sklearn.datasets import load_sample_image
+
+def dct_denoise(f, sigma, s=8, thr=3.0):
+    """Sliding-window DCT: hard thresholding at thr * sigma, uniform aggregation."""
+    P = np.lib.stride_tricks.sliding_window_view(f, (s, s))   # every s x s patch
+    C = dctn(P, axes=(-2, -1), norm="ortho")
+    C[np.abs(C) < thr * sigma] = 0.0
+    Q = idctn(C, axes=(-2, -1), norm="ortho")
+    out, cnt = np.zeros_like(f), np.zeros_like(f)
+    h, w = Q.shape[:2]
+    for i in range(s):                                       # put every estimate back
+        for j in range(s):
+            out[i:i + h, j:j + w] += Q[:, :, i, j]
+            cnt[i:i + h, j:j + w] += 1
+    return out / cnt
+
+def two_scale(f, sigma, r=0.25):
+    """Coarse scale = low-frequency quarter of the global DCT, with noise sigma / 2."""
+    F = dctn(f, norm="ortho")
+    n = f.shape[0] // 2
+    coarse = idctn(F[:n, :n], norm="ortho") / 2
+    c_hat = dct_denoise(coarse, sigma / 2)
+    G = dctn(dct_denoise(f, sigma), norm="ortho")
+    k = int(r * n)
+    G[:k, :k] = dctn(2 * c_hat, norm="ortho")[:k, :k]        # replace the lowest frequencies
+    return idctn(G, norm="ortho")
+
+rng = np.random.default_rng(0)
+crops = {"china.jpg": (slice(100, 356), slice(200, 456)), "flower.jpg": (slice(0, 256), slice(0, 256))}
+for name, sigma in [("china.jpg", 20.0), ("china.jpg", 40.0), ("flower.jpg", 20.0), ("flower.jpg", 40.0)]:
+    u = load_sample_image(name).mean(axis=2)[crops[name]]
+    f = u + sigma * rng.standard_normal(u.shape)
+    psnr = lambda a: 10 * np.log10(255**2 / np.mean((a - u) ** 2))
+    print(f"{name:10s} sigma {sigma:2.0f}: noisy {psnr(f):5.2f} | DCT {psnr(dct_denoise(f, sigma)):5.2f}"
+          f" | two scales {psnr(two_scale(f, sigma)):5.2f} dB")
+```
+
+| Image, noise | Noisy | Sliding DCT | Two scales |
+|---|---|---|---|
+| `china.jpg` crop, $\sigma = 20$ | 22.12 | 26.78 | 26.81 |
+| `china.jpg` crop, $\sigma = 40$ | 16.06 | 23.31 | 23.37 |
+| `flower.jpg` crop, $\sigma = 20$ | 22.09 | 35.62 | 35.74 |
+| `flower.jpg` crop, $\sigma = 40$ | 16.09 | 30.97 | 31.78 |
+
+The local DCT beats the global SURE-tuned thresholding by 6 dB on the flower crop (35.62 against 29.7 dB). The second scale gains 0.8 dB where it matters — a smooth image at high noise — and almost nothing on the textured crop, as Proposition 4.8 predicts.
+
+::: note
+[IPOL experiment — DCT denoising]{.tag} Run the DCT denoising demo on IPOL on an image with large flat regions at $\sigma = 40$. Inspect the flat regions of the result: the low-frequency blotches of Proposition 4.8 are visible. Then compare with the multiscale DCT demo.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   Thresholding works when the image is sparse and the noise spread evenly; the oracle risk counts the coefficients above $\sigma$.
+-   The universal threshold $\sigma\sqrt{2\log d}$ kills all noise coefficients with high probability; SURE tunes $\tau$ from the noisy data.
+-   Sliding-window DCT adapts to local content; aggregation of overlapping estimates never increases the error.
+-   Patch methods leave low-frequency noise of variance $\sigma^2/d$; a coarse scale with noise $\sigma/2$ removes it.
+::::
+
+## 5. Image self-similarity and denoising {#ch5}
+
+Transform thresholding assumes that each patch is sparse in a fixed basis. Self-similarity makes a different bet: most patches of an image have near copies elsewhere in the same image, and averaging these copies removes the noise without blurring. This chapter builds non-local means on this bet and studies the space of patches that makes it work.
+
+### 5.1 From local to non-local averaging
+
+::: def
+[Definition 5.1 — Neighbourhood filters]{.tag} The Yaroslavsky filter (1985) averages the pixels of a spatial neighbourhood $B(i, \rho)$ whose grey level is close to that of $i$:
+
+$$
+\mathrm{YNF}(\tilde u)(i) = \frac{1}{C(i)} \sum_{j \in B(i, \rho)} e^{-|\tilde u(i) - \tilde u(j)|^2 / h^2}\, \tilde u(j),
+$$
+
+where $C(i)$ normalises the weights. The bilateral filter (Tomasi and Manduchi, 1998) replaces the ball by a Gaussian spatial weight.
+:::
+
+The comparison of two single noisy grey levels is unreliable. The expected value of $|\tilde u(i) - \tilde u(j)|^2$ is $|u(i) - u(j)|^2 + 2\sigma^2$, with fluctuations of the same order as $2\sigma^2$. At $\sigma = 20$, two pixels that differ by 20 grey levels cannot be told apart. Comparing whole patches fixes this, thanks to the concentration of Proposition 2.5.
+
+### 5.2 Non-local means
+
+::: def
+[Definition 5.2 — Non-local means (Buades, Coll and Morel, 2005)]{.tag} Let $\tilde P_i$ be the $s \times s$ noisy patch centred at $i$, with $d = s^2$ pixels, and
+
+$$
+\delta^2(i, j) = \frac1d \|\tilde P_i - \tilde P_j\|^2 .
+$$
+
+NL-means replaces $\tilde u(i)$ by a weighted average over a search window $W(i)$:
+
+$$
+\mathrm{NL}(\tilde u)(i) = \frac{\sum_{j \in W(i)} w(i,j)\, \tilde u(j)}{\sum_{j \in W(i)} w(i,j)}, \qquad w(i,j) = \exp\Big(-\frac{\max(\delta^2(i,j) - 2\sigma^2,\, 0)}{h^2}\Big).
+$$
+:::
+
+The subtraction of $2\sigma^2$ and the parameter $h$ come from the statistics of the patch distance.
+
+:::: prop
+[Proposition 5.3 — Distance between noisy patches]{.tag} Let two non-overlapping patches differ by $\Delta = P_i - P_j$, with independent white noise. Then
+
+$$
+\mathbb{E}\,\|\tilde P_i - \tilde P_j\|^2 = \|\Delta\|^2 + 2d\sigma^2, \qquad \mathrm{Var}\,\|\tilde P_i - \tilde P_j\|^2 = 8\sigma^2 \|\Delta\|^2 + 8 d\sigma^4 .
+$$
+
+For identical patches, $\delta^2$ has mean $2\sigma^2$ and standard deviation $2\sqrt2\, \sigma^2 / \sqrt d$.
+
+::: proof
+$\tilde P_i - \tilde P_j = \Delta + M$ with $M \sim \mathcal{N}(0, 2\sigma^2 I_d)$. The mean of $\|\Delta + M\|^2$ is $\|\Delta\|^2 + 2d\sigma^2$.
+
+For the variance, write the centred distance as
+
+$$
+\|\Delta + M\|^2 - \|\Delta\|^2 - 2d\sigma^2 = 2\langle \Delta, M\rangle + \big(\|M\|^2 - 2d\sigma^2\big).
+$$
+
+The two terms are uncorrelated, since odd moments of $M$ vanish. Their variances are $4 \cdot 2\sigma^2\|\Delta\|^2$ and $2d(2\sigma^2)^2$ (Proposition 2.5). Divide by $d$ for $\delta^2$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.4 — Choosing $h$]{.tag} Take $\sigma = 20$ and $5 \times 5$ patches ($d = 25$). Identical patches have $\delta^2 = 800$ on average, with standard deviation
+
+$$
+2\sqrt2 \times 400 / 5 = 226 .
+$$
+
+Subtracting $2\sigma^2$ centres the distance of true copies at zero. A filtering parameter $h = 0.7\sigma$ gives $h^2 = 196$, about one standard deviation: true copies keep weights near 1, while patches that differ by more than a few standard deviations get negligible weights.
+:::
+
+::: thm
+[Theorem 5.5 — NL-means estimates a conditional expectation (sketch)]{.tag} Model the noisy image as a stationary random field with a mixing condition (distant regions nearly independent). Buades, Coll and Morel (2005) show that, as the image size grows and $h \to 0$ suitably, the NL-means value at $i$ converges to the conditional expectation of the noisy centre $\tilde u(i)$ given the noisy neighbourhood $\tilde u(N_i)$, with the centre excluded from $N_i$.
+
+*Why this is the right target.* The noise $n(i)$ is independent of $\tilde u(N_i)$ and centred, so
+
+$$
+\mathbb{E}[\tilde u(i) \mid \tilde u(N_i)] = \mathbb{E}[u(i) \mid \tilde u(N_i)] .
+$$
+
+The limit is the MMSE estimate of the clean pixel from its noisy surroundings (Theorem 0.5).
+
+*Key step of the proof.* NL-means is a Nadaraya–Watson kernel regression of $\tilde u(i)$ on the neighbourhoods, and kernel regression is consistent for stationary mixing data.
+:::
+
+The identity above — a noisy value is an unbiased target for a predictor that does not see it — reappears in the self-supervised denoisers of ch. 10.
+
+The code implements Definition 5.2 with $5 \times 5$ patches, a $21 \times 21$ window and $h = 0.7\sigma$, on the crop of ch. 4.
+
+```python
+import numpy as np
+from scipy.ndimage import uniform_filter, gaussian_filter
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg").mean(axis=2)[100:356, 200:456]
+sigma = 20.0
+f = u + sigma * rng.standard_normal(u.shape)
+psnr = lambda a: 10 * np.log10(255**2 / np.mean((a - u) ** 2))
+
+def nl_means(f, sigma, half_patch=2, half_win=10, h=0.7):
+    """Pixelwise NL-means (Definition 5.2), vectorised over the offsets of the window."""
+    r = half_win
+    g = np.pad(f, r, mode="reflect")
+    num, den = np.zeros_like(f), np.zeros_like(f)
+    for dx in range(-r, r + 1):
+        for dy in range(-r, r + 1):
+            shifted = g[r + dx: r + dx + f.shape[0], r + dy: r + dy + f.shape[1]]
+            # mean squared distance between the patches centred at i and at i + (dx, dy)
+            d2 = uniform_filter((f - shifted) ** 2, size=2 * half_patch + 1, mode="reflect")
+            w = np.exp(-np.maximum(d2 - 2 * sigma**2, 0.0) / (h * sigma) ** 2)
+            num += w * shifted
+            den += w
+    return num / den
+
+best = max((psnr(gaussian_filter(f, s)), s) for s in [0.3, 0.4, 0.5, 0.6, 0.7, 1.0])
+print(f"noisy {psnr(f):.2f} dB | best Gaussian {best[0]:.2f} dB (h = {best[1]})"
+      f" | NL-means 5x5 / 21x21 {psnr(nl_means(f, sigma)):.2f} dB")
+```
+
+NL-means reaches 27.01 dB against 24.59 dB for the best Gaussian filter and 26.78 dB for the sliding DCT of ch. 4. The weights adapt to the image: on a straight edge, the similar patches lie along the edge, and the average does not cross it.
+
+### 5.3 Method noise and parameters
+
+The method noise of NL-means (Definition 3.8) is close to white noise on textured and periodic images, where many exact copies exist. Its parameters act as follows.
+
+-   **$h$ too small**: only the central patch has a large weight, and noise remains.
+-   **$h$ too large**: dissimilar patches enter the average, and details blur.
+-   **Window size**: a larger window finds more copies but also more false matches, and costs more.
+-   **Rare patches** — corners, ends of lines, unique details — have few copies. They are barely denoised: this is the *rare patch effect*, and the main residual defect of the method.
+
+::: note
+[IPOL experiment — NL-means]{.tag} Run the NL-means demo on IPOL at $\sigma = 10, 30, 60$. Look at the method noise $\tilde u - \mathrm{NL}(\tilde u)$: where does it contain structure? Relate the answer to the rare patch effect.
+:::
+
+### 5.4 The space of patches
+
+The objectives of the course single out patches from $8 \times 8$ to $60 \times 60$ pixels. Two facts govern their use: larger patches are compared more reliably, and larger patches have fewer copies.
+
+:::: prop
+[Proposition 5.6 — Patch size and discrimination]{.tag} Declare two noisy patches different when $\delta^2 - 2\sigma^2$ exceeds $k$ standard deviations of its value for identical patches. Two patches with mean squared difference $\bar\Delta^2 = \|\Delta\|^2 / d$ are separated, on average, when
+
+$$
+\bar\Delta^2 \ \ge\ \frac{2\sqrt2\, k\, \sigma^2}{\sqrt d}.
+$$
+
+::: proof
+By Proposition 5.3, $\delta^2 - 2\sigma^2$ has mean $\bar\Delta^2$, and for identical patches its standard deviation is $2\sqrt2\sigma^2 / \sqrt d$. [∎]{.qed}
+:::
+::::
+
+For $\sigma = 20$ and $k = 3$, an $8 \times 8$ patch separates differences of root mean square $\bar\Delta \approx 20.6$ grey levels, and a $60 \times 60$ patch separates $\bar\Delta \approx 7.5$.
+
+But a $60 \times 60$ region rarely has a copy in the same image. Every patch method chooses a size between these two constraints, and deep networks face the same trade-off with their receptive field (ch. 7.5).
+
+The global ensemble of patches is far from filling its space. Natural $3 \times 3$ patches of high contrast concentrate near a two-dimensional manifold of edges (Lee, Pedersen and Mumford, 2003), whose topology is that of a Klein bottle (Carlsson, Ishkhanov, de Silva and Zomorodian, 2008). Small patches recur within the same image, at the same and at other scales (Zontak and Irani, 2011).
+
+The PCA of all the patches of an image gives a first, linear, picture of this structure. The number of principal variances above $\sigma^2$ is the number of directions that a Wiener filter keeps (Corollary 2.8).
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+u = load_sample_image("china.jpg").mean(axis=2)
+for s in [4, 8, 16]:
+    P = np.lib.stride_tricks.sliding_window_view(u, (s, s))[::2, ::2].reshape(-1, s * s)
+    lam = np.linalg.eigvalsh(np.cov(P, rowvar=False))[::-1]       # patch PCA spectrum
+    above = [int((lam > sig**2).sum()) for sig in (5, 20, 40)]
+    print(f"{s:2d}x{s:<2d} (d = {s*s:3d}): top eigenvalues {np.round(lam[:3]).astype(int)},"
+          f" eigenvalues above sigma^2 for sigma = 5, 20, 40: {above}")
+```
+
+| Patch size | $d$ | Eigenvalues above $\sigma^2$: $\sigma = 5$ | $\sigma = 20$ | $\sigma = 40$ |
+|---|---|---|---|---|
+| $4 \times 4$ | 16 | 16 | 7 | 1 |
+| $8 \times 8$ | 64 | 64 | 30 | 7 |
+| $16 \times 16$ | 256 | 256 | 116 | 24 |
+
+At $\sigma = 40$ a global Gaussian model keeps only 7 of the 64 directions of an $8 \times 8$ patch, the same for every patch. Groups of *similar* patches have a much lower dimension and their own principal axes: ch. 6 builds one Gaussian model per group.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   Neighbourhood filters compare single grey levels and fail at moderate noise; NL-means compares patches.
+-   The squared distance of noisy patches is biased by $2d\sigma^2$ and fluctuates by $2\sqrt2\sigma^2/\sqrt d$ per pixel: subtract the bias, set $h$ near the fluctuation.
+-   NL-means is a kernel regression that converges to the MMSE estimate of a pixel given its noisy neighbourhood.
+-   Large patches discriminate better but have fewer copies; rare patches are poorly denoised.
+-   Patches of natural images occupy a small part of their space: few principal directions survive the noise.
+::::
+
+## 6. Bayesian patch-based methods {#ch6}
+
+NL-means averages similar patches with scalar weights. A group of similar patches carries more information: its mean and its covariance. This chapter models each group as a Gaussian vector and applies the Wiener estimator of ch. 2 to it. The result, NL-Bayes, and its sibling BM3D are among the best classical denoisers.
+
+### 6.1 A Gaussian model for groups of similar patches
+
+Collect $K$ noisy patches $\tilde P_1, \dots, \tilde P_K$ similar to a reference patch, with $d$ pixels each. Model the clean patches as independent draws of $\mathcal{N}(m, C)$ and the noise as white.
+
+:::: prop
+[Proposition 6.1 — Moments of a noisy group]{.tag} With $\tilde m$ the sample mean and $\tilde C$ the unbiased sample covariance of the noisy group,
+
+$$
+\mathbb{E}[\tilde m] = m, \qquad \mathbb{E}[\tilde C] = C + \sigma^2 I .
+$$
+
+::: proof
+The noisy patches are independent with mean $m$ and covariance $C + \sigma^2 I$, since signal and noise are independent (Proposition 0.2). The sample mean and the unbiased sample covariance of independent draws are unbiased. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 6.2 — The empirical Bayes patch estimator]{.tag} Replace $m$ by $\tilde m$ and $C$ by $\tilde C - \sigma^2 I$ in the Wiener estimator of Theorem 2.7. If $\tilde C - \sigma^2 I$ is positive semi-definite, the estimate of each patch of the group is
+
+::: key
+[Key result — NL-Bayes, first step]{.tag}
+
+$$
+\hat P = \tilde P - \sigma^2\, \tilde C^{-1} (\tilde P - \tilde m)
+$$
+:::
+
+In the eigenbasis of $\tilde C$, with eigenvalues $\mu_i$, it multiplies the $i$-th coefficient of $\tilde P - \tilde m$ by $1 - \sigma^2/\mu_i$.
+
+In practice the factor is clipped to $(1 - \sigma^2/\mu_i)_+$, which handles the directions where $\mu_i < \sigma^2$.
+
+::: proof
+With $C = \tilde C - \sigma^2 I$, we have $C + \sigma^2 I = \tilde C$, hence
+
+$$
+C(C + \sigma^2 I)^{-1} = I - \sigma^2 \tilde C^{-1} .
+$$
+
+Substituting in $\tilde m + C(C + \sigma^2 I)^{-1}(\tilde P - \tilde m)$ gives the formula. The eigenvalues of $I - \sigma^2\tilde C^{-1}$ are $1 - \sigma^2/\mu_i$. [∎]{.qed}
+:::
+::::
+
+The estimator is a PCA of the group followed by a Wiener shrinkage: directions where the group varies more than the noise are kept, the others are attenuated. Unlike the DCT, the basis is *adapted* to each group.
+
+When $K$ is not much larger than $d$, the sample eigenvalues are noisy. For pure noise, as $d, K \to \infty$ with $d/K \to \gamma < 1$, the eigenvalues of $\tilde C$ spread over the interval of Marchenko and Pastur (1967):
+
+$$
+\big[\sigma^2 (1 - \sqrt\gamma)^2,\ \sigma^2 (1 + \sqrt\gamma)^2\big].
+$$
+
+::: ex
+[Example 6.3 — Noise that looks like signal]{.tag} With $5 \times 5$ patches ($d = 25$) and $K = 60$ similar patches, $\gamma = 0.42$ and the interval is $[0.13\sigma^2, 2.71\sigma^2]$. A pure-noise direction can show $\mu_i = 2.7\sigma^2$, and its shrinkage factor is then
+
+$$
+1 - 1/2.7 = 0.63 :
+$$
+
+63 % of the noise in that direction survives. A second step with a better covariance estimate is needed.
+:::
+
+### 6.2 NL-Bayes
+
+::: thm
+[Algorithm 6.4 — NL-Bayes (Lebrun, Buades and Morel, 2013), simplified]{.tag}
+
+1.  **Step 1.** For each reference patch (on a grid of step $p$), find the $K$ most similar patches in a search window. Estimate $\tilde m$ and $\tilde C$, apply Theorem 6.2 with clipped factors to *every* patch of the group, and aggregate all the estimates by averaging. This gives a basic estimate $\hat u_1$.
+2.  **Step 2 (oracle).** Redo the grouping on $\hat u_1$, whose patch distances are far less noisy. Estimate the covariance $C_1$ from the basic patches, and apply the Wiener estimate with $C = C_1$ to the *noisy* patches. Aggregate.
+:::
+
+The full algorithm adds a test for flat groups — if the group variance is close to $\sigma^2$, every patch is replaced by the mean — and works on colour patches. The code below keeps the two steps.
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg").mean(axis=2)[100:356, 200:456]
+sigma = 20.0
+f = u + sigma * rng.standard_normal(u.shape)
+psnr = lambda a: 10 * np.log10(255**2 / np.mean((a - u) ** 2))
+
+def nl_bayes_step(f, guide, sigma, s=5, K=60, win=10, stride=4, oracle=False):
+    """One step of a simplified NL-Bayes: group, Gaussian (Wiener) estimate, aggregate."""
+    H, W = f.shape
+    view = lambda a: np.lib.stride_tricks.sliding_window_view(a, (s, s)).reshape(H - s + 1, W - s + 1, -1)
+    Pf, Pg = view(f), view(guide)
+    off = (np.arange(s)[:, None] * W + np.arange(s)[None, :]).ravel()   # pixel offsets in a patch
+    out, cnt = np.zeros(H * W), np.zeros(H * W)
+    rows = sorted(set(range(0, H - s + 1, stride)) | {H - s})
+    cols = sorted(set(range(0, W - s + 1, stride)) | {W - s})
+    for i in rows:
+        for j in cols:
+            i0, i1 = max(i - win, 0), min(i + win, H - s) + 1
+            j0, j1 = max(j - win, 0), min(j + win, W - s) + 1
+            d2 = ((Pg[i0:i1, j0:j1] - Pg[i, j]) ** 2).sum(-1).ravel()
+            idx = np.argpartition(d2, K)[:K]                  # the K most similar patches
+            ii, jj = np.unravel_index(idx, (i1 - i0, j1 - j0))
+            ii, jj = ii + i0, jj + j0
+            Y, m = Pf[ii, jj], Pf[ii, jj].mean(0)               # noisy group (K x d) and its mean
+            if oracle:   # step 2: covariance of the basic estimate
+                C = np.cov(Pg[ii, jj], rowvar=False)
+            else:        # step 1: Cov(noisy) - sigma^2 I, eigenvalues clipped at 0
+                lam, U = np.linalg.eigh(np.cov(Y, rowvar=False))
+                C = (U * np.maximum(lam - sigma**2, 0)) @ U.T
+            Wf = C @ np.linalg.inv(C + sigma**2 * np.eye(s * s))  # Wiener matrix
+            est = m + (Y - m) @ Wf.T
+            pix = ((ii * W + jj)[:, None] + off[None, :]).ravel()
+            np.add.at(out, pix, est.ravel())                  # aggregate every estimated patch
+            np.add.at(cnt, pix, 1.0)
+    return (out / cnt).reshape(H, W)
+
+basic = nl_bayes_step(f, f, sigma)
+final = nl_bayes_step(f, basic, sigma, oracle=True)
+print(f"noisy {psnr(f):.2f} dB | step 1 {psnr(basic):.2f} dB | step 2 {psnr(final):.2f} dB")
+```
+
+The first step reaches 27.33 dB on the crop of ch. 4 ($\sigma = 20$), and the oracle step 27.75 dB, above NL-means (27.01 dB) and the sliding DCT (26.78 dB). The second step gains 0.4 dB because the covariance of the basic estimate is no longer inflated by noise eigenvalues (Example 6.3).
+
+::: note
+[IPOL experiment — NL-Bayes and BM3D]{.tag} Run the IPOL implementations of NL-Bayes and BM3D on the same noisy image at $\sigma = 20$ and $\sigma = 50$. Compare the basic and final estimates when the demo displays both, and look for residual low-frequency noise (Proposition 4.8) in flat regions.
+:::
+
+### 6.3 BM3D as a collaborative Wiener filter
+
+::: def
+[Definition 6.5 — BM3D (Dabov, Foi, Katkovnik and Egiazarian, 2007)]{.tag} For each reference patch:
+
+1.  *block matching*: stack the most similar patches into a 3D group;
+2.  apply a fixed separable 3D transform — a 2D transform on each patch, then a 1D transform across the group;
+3.  step 1: hard-threshold the 3D coefficients; step 2: multiply each noisy coefficient $y_k$ by the empirical Wiener factor $\hat b_k^2 / (\hat b_k^2 + \sigma^2)$, where $\hat b_k$ is the coefficient of the step-1 estimate;
+4.  invert and aggregate all the patch estimates, with weights that favour sparse groups.
+:::
+
+Step 2 is the oracle attenuation of Proposition 4.2, with the unknown coefficients $x_k$ replaced by the pilot estimate $\hat b_k$. NL-Bayes and BM3D share the same skeleton — group, estimate jointly, aggregate, repeat with an oracle. They differ in the basis: fixed for BM3D, the PCA of the group for NL-Bayes. The *collaborative* filtering of BM3D thus exploits both sparsity (ch. 4) and self-similarity (ch. 5).
+
+### 6.4 Learned patch priors: Gaussian mixtures and EPLL
+
+NL-Bayes learns one Gaussian per group from the noisy image itself: an *internal* prior. One can instead learn a prior on patches from a database of clean images: an *external* prior.
+
+:::: prop
+[Proposition 6.6 — MMSE estimate under a Gaussian mixture]{.tag} Let the prior be $p(P) = \sum_k \pi_k\, \mathcal{N}(P; m_k, C_k)$ and $\tilde P = P + N$ with white noise. Then
+
+$$
+\mathbb{E}[P \mid \tilde P] = \sum_k \gamma_k(\tilde P)\, \Big(m_k + C_k (C_k + \sigma^2 I)^{-1} (\tilde P - m_k)\Big),
+$$
+
+with responsibilities summing to 1,
+
+$$
+\gamma_k(\tilde P) \propto \pi_k\, \mathcal{N}(\tilde P;\, m_k,\, C_k + \sigma^2 I).
+$$
+
+::: proof
+Introduce the hidden component label $Z$. Given $Z = k$, $(P, \tilde P)$ is Gaussian, and Theorem 2.7 gives the inner Wiener estimate.
+
+The marginal of $\tilde P$ given $Z = k$ is $\mathcal{N}(m_k, C_k + \sigma^2 I)$, so Bayes' rule gives $\mathbb{P}(Z = k \mid \tilde P) = \gamma_k(\tilde P)$. The tower property averages over $Z$. [∎]{.qed}
+:::
+::::
+
+The MMSE estimate is a *mixture of Wiener filters*, each selected softly by how well its component explains the noisy patch. Keeping only the most likely component gives a piecewise linear estimator (Yu, Sapiro and Mallat, 2012).
+
+The EPLL method of Zoran and Weiss (2011) learns a Gaussian mixture with about two hundred components on $8 \times 8$ patches of natural images. It then computes a whole image $\hat u$ by approximately solving
+
+$$
+\min_u\ \frac{\lambda}{2}\|u - \tilde u\|^2 - \sum_i \log p(R_i u),
+$$
+
+where $R_i$ extracts the patch at $i$. The solver alternates a patch step (the Wiener filter of the most likely component) and an image step (a closed-form aggregation), while the weight of the patch term grows.
+
+A Gaussian mixture learned on a database is a small statistical model trained on examples. The networks of ch. 7–8 take the same path with millions of parameters.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   A group of similar noisy patches gives estimates of a local mean and of $C + \sigma^2 I$.
+-   The empirical Wiener estimate $\tilde P - \sigma^2\tilde C^{-1}(\tilde P - \tilde m)$ is a PCA of the group with shrinkage $(1 - \sigma^2/\mu_i)_+$.
+-   Sample eigenvalues of noise spread up to $\sigma^2(1 + \sqrt{d/K})^2$: a second, oracle step fixes the covariance.
+-   BM3D uses a fixed 3D transform where NL-Bayes uses the group PCA; both group, estimate, aggregate and iterate.
+-   Under a Gaussian-mixture prior, the MMSE estimate is a mixture of Wiener filters; EPLL learns such a prior from data.
+::::
+
+## 7. A crash course on deep learning {#ch7}
+
+Since 2016, the best denoisers have been neural networks trained on examples. This chapter introduces them from scratch, as the official course does. Part I (ch. 7.1–7.4) covers networks, losses, gradients and optimisation; part II (ch. 7.5–7.7) covers convolutional networks and the training of a denoiser.
+
+### 7.1 Neurons, layers and networks
+
+::: def
+[Definition 7.1 — Multilayer perceptron]{.tag} With weight matrices $W_\ell$, biases $b_\ell$ and the rectified linear unit $\rho(t) = \max(t, 0)$ applied coordinatewise, a network of depth $L$ computes
+
+$$
+f_\theta(y) = W_L\, \rho\big(W_{L-1}\, \rho(\cdots \rho(W_1 y + b_1) \cdots) + b_{L-1}\big) + b_L .
+$$
+
+The parameters $\theta$ are all the $W_\ell$ and $b_\ell$; the intermediate vectors are the *hidden layers*.
+:::
+
+:::: prop
+[Proposition 7.2 — ReLU networks are piecewise linear, and conversely in 1D]{.tag} Every ReLU network is a continuous piecewise linear function. Conversely, every continuous piecewise linear $g : \mathbb{R} \to \mathbb{R}$ with breakpoints $x_1 < \dots < x_n$ is a network with one hidden layer of $n + 2$ units.
+
+::: proof
+Affine maps and $\rho$ are continuous and piecewise linear, and so are their compositions.
+
+For the converse, let $s_0$ be the slope of $g$ left of $x_1$ and $s_k$ its slope on $(x_k, x_{k+1})$. Then
+
+$$
+g(x) = g(x_1) + s_0\big(\rho(x - x_1) - \rho(x_1 - x)\big) + \sum_{k=1}^n (s_k - s_{k-1})\, \rho(x - x_k).
+$$
+
+Both sides are continuous, agree at $x_1$ and have the same slope on every interval, so they coincide. [∎]{.qed}
+:::
+::::
+
+Continuous functions on an interval are uniform limits of piecewise linear interpolants, so one hidden layer approximates any of them. This is the 1D case of the *universal approximation theorem* (Cybenko, 1989, for sigmoids; Leshno, Lin, Pinkus and Schocken, 1993, for every non-polynomial activation). The theorem says nothing about the size needed, nor about learning the weights from data.
+
+### 7.2 Learning: the L2 loss estimates the MMSE denoiser
+
+::: def
+[Definition 7.3 — Supervised training of a denoiser]{.tag} Given clean images $x_1, \dots, x_K$ and noisy versions $y_k = x_k + n_k$, training minimises the empirical risk
+
+$$
+\mathcal{L}(\theta) = \frac{1}{K}\sum_{k=1}^K \|f_\theta(y_k) - x_k\|^2 .
+$$
+:::
+
+:::: thm
+[Theorem 7.4 — What a denoiser trained with the square loss learns]{.tag} Over all measurable functions, the population risk $\mathbb{E}\|f(Y) - X\|^2$ is minimised by
+
+$$
+f^\star(y) = \mathbb{E}[X \mid Y = y],
+$$
+
+where $(X, Y)$ follows the distribution of the training pairs. With the absolute loss, the minimiser is the coordinatewise conditional median.
+
+::: proof
+The first statement is Theorem 0.5. For the absolute loss, each coordinate is minimised separately, and for a fixed $y$ the number $a$ minimising $\mathbb{E}[|X_i - a| \mid Y = y]$ is a conditional median. [∎]{.qed}
+:::
+::::
+
+A trained network is therefore an approximation of the MMSE denoiser *for the distribution of its training pairs*: both the images and the noise model. This is the precise meaning of the course description's remark that neural algorithms "learn jointly noise and image structure". A change of either distribution at test time breaks the guarantee (ch. 8.5).
+
+### 7.3 Backpropagation
+
+:::: prop
+[Proposition 7.5 — Gradients of one layer]{.tag} For a layer $z = W a + b$, $a' = \rho(z)$, and a loss $\ell$ that depends on $a'$, write $g_v = \partial \ell / \partial v$. Then
+
+$$
+g_z = \rho'(z) \odot g_{a'}, \qquad g_W = g_z\, a^\top, \qquad g_b = g_z, \qquad g_a = W^\top g_z .
+$$
+
+::: proof
+By the chain rule (ch. 0),
+
+$$
+\frac{\partial \ell}{\partial W_{ij}} = \sum_k g_{z_k}\, \frac{\partial z_k}{\partial W_{ij}} = g_{z_i}\, a_j,
+$$
+
+since $z_k$ depends on $W_{ij}$ only for $k = i$. Similarly $\partial z_k / \partial a_j = W_{kj}$ gives $g_a = W^\top g_z$, and $\rho$ acts coordinatewise. [∎]{.qed}
+:::
+::::
+
+Applied from the last layer to the first, these formulas compute all the gradients for about twice the cost of one forward pass. This is *backpropagation* (Rumelhart, Hinton and Williams, 1986); libraries such as PyTorch build it automatically.
+
+::: ex
+[Example 7.6 — Backpropagation by hand]{.tag} Take $y = 1$, one hidden unit with $w_1 = 2$, $b_1 = -1$, output weight $w_2 = 3$, target $x = 1$ and loss $(f - x)^2$.
+
+-   Forward: $z = 1$, $a = \rho(z) = 1$, $f = 3$, loss $= 4$.
+-   Backward: $g_f = 2(f - x) = 4$, $g_{w_2} = 4 a = 4$, $g_a = 4 w_2 = 12$.
+-   Since $z > 0$, $g_z = 12$, hence $g_{w_1} = 12\, y = 12$ and $g_{b_1} = 12$.
+
+A finite difference on $w_1$ confirms the value: with $w_1 = 2.001$ the loss becomes $(3.003 - 1)^2 = 4.012$, a slope of 12.
+:::
+
+### 7.4 Gradient descent and its stochastic version
+
+:::: prop
+[Proposition 7.7 — Descent lemma]{.tag} Let $\mathcal{L}$ be bounded below, differentiable, with an $L$-Lipschitz gradient. Gradient descent with step $\eta \le 1/L$,
+
+$$
+\theta_{t+1} = \theta_t - \eta\, \nabla \mathcal{L}(\theta_t),
+$$
+
+satisfies
+
+$$
+\min_{t < T} \|\nabla \mathcal{L}(\theta_t)\|^2 \le \frac{2\,(\mathcal{L}(\theta_0) - \inf \mathcal{L})}{\eta\, T}.
+$$
+
+::: proof
+The Lipschitz gradient gives, for all $\theta, \theta'$,
+
+$$
+\mathcal{L}(\theta') \le \mathcal{L}(\theta) + \langle \nabla \mathcal{L}(\theta), \theta' - \theta\rangle + \frac L2 \|\theta' - \theta\|^2 .
+$$
+
+With $\theta' = \theta_{t+1}$ and $\eta L \le 1$:
+
+$$
+\mathcal{L}(\theta_{t+1}) \le \mathcal{L}(\theta_t) - \frac{\eta}{2}\|\nabla \mathcal{L}(\theta_t)\|^2 .
+$$
+
+Summing over $t < T$ telescopes the losses; the minimum is at most the average. [∎]{.qed}
+:::
+::::
+
+The loss of a network is not convex, so this guarantees a small gradient, not a global minimum. In practice the gradient is computed on a random *mini-batch* of training pairs: an unbiased but noisy estimate (stochastic gradient descent, SGD). The Adam method (Kingma and Ba, 2015) rescales each coordinate by running averages of the gradient $g_t$ and of its square:
+
+$$
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2, \qquad \theta_{t+1} = \theta_t - \eta\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon},
+$$
+
+where $\hat m_t$ and $\hat v_t$ are the averages corrected for their initialisation at zero.
+
+### 7.5 Convolutional layers and receptive fields
+
+::: def
+[Definition 7.8 — Convolutional layer]{.tag} A convolutional layer maps $C_{\mathrm{in}}$ input channels $a_c$ to $C_{\mathrm{out}}$ output channels by
+
+$$
+z_{c'} = \sum_{c=1}^{C_{\mathrm{in}}} w_{c', c} \star a_c + b_{c'},
+$$
+
+with small kernels $w_{c', c}$, typically $3 \times 3$, and the cross-correlation $\star$. Its parameter count is $C_{\mathrm{out}}(9\, C_{\mathrm{in}} + 1)$ for $3 \times 3$ kernels, independent of the image size.
+:::
+
+:::: prop
+[Proposition 7.9 — Translation equivariance and receptive field]{.tag} With circular boundary conditions, convolutional layers and coordinatewise non-linearities commute with translations: $f(\tau_v y) = \tau_v f(y)$. A stack of $L$ layers with $3 \times 3$ kernels gives each output pixel a receptive field of
+
+$$
+(2L + 1) \times (2L + 1) \ \text{pixels}.
+$$
+
+::: proof
+With $\tau_v a(i) = a(i - v)$,
+
+$$
+(w \star \tau_v a)(i) = \sum_j w(j)\, a(i + j - v) = \tau_v (w \star a)(i),
+$$
+
+and coordinatewise maps commute with translations. Each $3 \times 3$ layer extends the dependence by one pixel in every direction, starting from one pixel. [∎]{.qed}
+:::
+::::
+
+A network with $L = 17$ layers sees $35 \times 35$ pixels, inside the range of patch sizes named by the course objectives. A convolutional denoiser is thus a *patch-based* method: each output pixel is a non-linear function of one patch of the input, and the same function is applied everywhere. One $3 \times 3$ layer from 64 to 64 channels has $64 \times (9 \times 64 + 1) = 36\,928$ parameters.
+
+### 7.6 Residual learning and normalisation
+
+A *residual* denoiser predicts the noise rather than the image:
+
+$$
+\hat x = y - R_\theta(y).
+$$
+
+The identity, which already scores the PSNR of the input, is then the network $R_\theta = 0$, and training only learns a correction. Residual connections inside deep networks (He, Zhang, Ren and Sun, 2016) play the same role between layers and ease the optimisation of deep stacks.
+
+*Batch normalisation* (Ioffe and Szegedy, 2015) standardises each channel over a mini-batch,
+
+$$
+\hat z = \gamma\, \frac{z - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}} + \beta,
+$$
+
+with learned $\gamma$ and $\beta$; at test time running averages replace $\mu_B$ and $\sigma_B^2$. It speeds up training; ch. 8.4 shows that its additive constants matter for generalisation across noise levels.
+
+### 7.7 Training a denoiser in practice
+
+The standard recipe has five ingredients.
+
+-   *Data*: random crops of clean images, flipped and rotated, with synthetic noise drawn afresh at every step.
+-   *Noise*: a fixed $\sigma$ (non-blind) or a range of levels (blind).
+-   *Loss and optimiser*: mean square error and Adam, with a decreasing learning rate.
+-   *Validation*: PSNR on held-out images, never on training crops.
+-   *Budget*: real denoisers train on hundreds of images for hours on a GPU.
+
+The code trains a four-layer residual CNN with 19 105 parameters for 300 Adam steps on the parts of `china.jpg` outside the test crop, then tests it on the crop of ch. 4–6.
+
+```python
+import numpy as np, torch, torch.nn as nn
+from sklearn.datasets import load_sample_image
+
+torch.manual_seed(0); torch.set_num_threads(1)     # small convolutions: one thread is fastest
+rng = np.random.default_rng(0)
+sigma = 20.0
+img = load_sample_image("china.jpg").mean(axis=2)
+test = img[100:356, 200:456] / 255                                 # the crop used since ch. 4
+train = torch.tensor(np.concatenate([img[:, :200], img[:, 456:]], axis=1) / 255, dtype=torch.float32)
+
+class SmallDnCNN(nn.Module):
+    """Residual CNN x_hat = y - R(y): four 3x3 convolutions, receptive field 9 x 9."""
+    def __init__(self, depth=4, ch=32):
+        super().__init__()
+        layers = [nn.Conv2d(1, ch, 3, padding=1), nn.ReLU()]
+        for _ in range(depth - 2):
+            layers += [nn.Conv2d(ch, ch, 3, padding=1), nn.ReLU()]
+        layers += [nn.Conv2d(ch, 1, 3, padding=1)]
+        self.R = nn.Sequential(*layers)
+
+    def forward(self, y):
+        return y - self.R(y)
+
+net = SmallDnCNN()
+opt = torch.optim.Adam(net.parameters(), lr=2e-3)
+H, W = train.shape
+for step in range(300):
+    i = torch.randint(0, H - 32, (16,)); j = torch.randint(0, W - 32, (16,))
+    x = torch.stack([train[a:a + 32, b:b + 32] for a, b in zip(i, j)])[:, None]
+    y = x + sigma / 255 * torch.randn_like(x)                      # clean / noisy pairs
+    loss = ((net(y) - x) ** 2).mean()                              # L2 loss: learns E[X | Y]
+    opt.zero_grad(); loss.backward(); opt.step()
+
+y_test = test + sigma / 255 * rng.standard_normal(test.shape)
+with torch.no_grad():
+    x_hat = net(torch.tensor(y_test, dtype=torch.float32)[None, None])[0, 0].numpy()
+psnr = lambda a: 10 * np.log10(1 / np.mean((a - test) ** 2))
+n_par = sum(p.numel() for p in net.parameters())
+print(f"noisy {psnr(y_test):.2f} dB | CNN {psnr(x_hat):.2f} dB | {n_par} parameters")
+```
+
+After about twenty seconds of CPU training, the network reaches 27.00 dB: as good as NL-means (27.01 dB), better than the sliding DCT (26.78 dB), below NL-Bayes (27.75 dB). Trained the same way on `flower.jpg` instead — a smooth image with little texture — it reaches only about 25.4 dB on the same test crop. The network has learned the image statistics of its training set, as Theorem 7.4 predicts.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   ReLU networks are piecewise linear functions; one hidden layer approximates any continuous function, without saying how large or how to learn it.
+-   Training with the square loss approximates $\mathbb{E}[X \mid Y]$ for the training distribution of images and noise.
+-   Backpropagation is the chain rule applied layer by layer; SGD and Adam use mini-batch gradients.
+-   Convolutions are translation equivariant; $L$ layers of $3 \times 3$ kernels see a $(2L+1)^2$ patch.
+-   A residual denoiser predicts the noise; a small CNN trained in seconds already rivals NL-means on in-distribution images.
+::::
+
+## 8. Deep and shallow CNN denoisers: a comparative study {#ch8}
+
+This chapter compares learned denoisers with each other and with the classical ones. It shows that the classical transform denoisers *are* shallow convolutional networks with hand-chosen weights, and that a deep network without biases *is* an adaptive linear filter. These two facts make the human–machine comparison precise.
+
+### 8.1 The first competitive neural denoiser: a plain MLP
+
+Burger, Schuler and Harmeling (2012) trained a plain multilayer perceptron to map noisy patches to clean patches. The training set contained a very large number of patch pairs drawn from natural images. The network matched BM3D at several noise levels, which showed that a generic learned function could rival the best hand-designed principle — given enough data and computation. Their experiments also showed that larger input patches and larger training sets kept improving the results.
+
+### 8.2 DnCNN and FFDNet
+
+::: def
+[Definition 8.1 — DnCNN (Zhang, Zuo, Chen, Meng and Zhang, 2017)]{.tag} A residual denoiser $\hat x = y - R_\theta(y)$ where $R_\theta$ is a stack of $3 \times 3$ convolutions with 64 channels, ReLU activations and batch normalisation, about twenty layers deep. A version is trained for a single $\sigma$; a *blind* version is trained on a range of noise levels.
+:::
+
+With 17 layers, the receptive field is $35 \times 35$ pixels (Proposition 7.9). DnCNN was among the first deep networks to clearly outperform BM3D on Gaussian noise, by a margin of a fraction of a dB — the "slight" advantage mentioned in the course description.
+
+FFDNet (Zhang, Zuo and Zhang, 2018) changes two things. It takes a *noise-level map* as an extra input, so one network handles a range of levels and even spatially varying noise. It also rearranges the image into four half-resolution sub-images before the convolutions, which enlarges the receptive field and cuts the cost. This is a multiscale idea, as in ch. 4.4.
+
+### 8.3 Shallow networks hidden in the classical algorithms
+
+:::: prop
+[Proposition 8.2 — Sliding DCT denoising is a two-layer CNN]{.tag} Algorithm 4.6 with $s \times s$ patches equals the network
+
+1.  a convolutional layer with $s^2$ filters, the DCT atoms, without padding;
+2.  the hard-threshold non-linearity $t \mapsto t\, \mathbf{1}[|t| \ge \tau]$ on each channel;
+3.  a transposed convolution with the same $s^2$ atoms, summed over channels;
+4.  a division by the number of patches covering each pixel ($s^2$ in the interior).
+
+::: proof
+The cross-correlation of $\tilde u$ with the atom $c_k$ at position $p$ is $\langle \tilde P_p, c_k \rangle$, the $k$-th DCT coefficient of the patch at $p$. So layer 1 computes all coefficients of all patches, and the non-linearity thresholds them.
+
+For a fixed $p$, $\sum_k \alpha_k(p)\, c_k$ placed on the support of the patch is the inverse DCT of the thresholded coefficients, since the atoms are orthonormal. Summing these placed patches over $p$ is exactly a transposed convolution. Step 4 is the uniform aggregation. [∎]{.qed}
+:::
+::::
+
+Soft thresholding fits the same frame with ReLUs, since
+
+$$
+\eta_S(t) = \rho(t - \tau) - \rho(-t - \tau) .
+$$
+
+A sliding-DCT soft-thresholding denoiser is therefore a ReLU network with $2 s^2$ hidden channels, biases $\mp\tau$ and fixed weights.
+
+The comparison becomes concrete. The human algorithm fixes the filters (DCT atoms), the non-linearity (a threshold at $3\sigma$) and the depth (two layers). Learning these filters and shrinkage functions, layer after layer, gives the *shrinkage fields* of Schmidt and Roth (2014) and the trainable reaction–diffusion of Chen and Pock (2017): shallow learned networks. Deep CNNs replace the explicit transform by twenty learned layers.
+
+NL-means does not fit this frame. Its weights depend on the content of the image, through patch distances. Such content-dependent averaging is an *attention* mechanism; non-local and attention layers bring it back into networks (ch. 9.4).
+
+The code checks Proposition 8.2 numerically, and the two identities of Proposition 8.4 below.
+
+```python
+import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
+from scipy.fft import dctn, idctn
+from sklearn.datasets import load_sample_image
+
+torch.manual_seed(0); rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg").mean(axis=2)[100:228, 200:328]      # 128 x 128 crop
+sigma, s = 20.0, 8
+f = u + sigma * rng.standard_normal(u.shape)
+
+# 1) Algorithm 4.6 written with NumPy
+P = np.lib.stride_tricks.sliding_window_view(f, (s, s))
+C = dctn(P, axes=(-2, -1), norm="ortho"); C[np.abs(C) < 3 * sigma] = 0
+Q = idctn(C, axes=(-2, -1), norm="ortho")
+out, cnt = np.zeros_like(f), np.zeros_like(f)
+for i in range(s):
+    for j in range(s):
+        out[i:i + Q.shape[0], j:j + Q.shape[1]] += Q[:, :, i, j]
+        cnt[i:i + Q.shape[0], j:j + Q.shape[1]] += 1
+numpy_result = out / cnt
+
+# 2) The same algorithm as a two-layer CNN (Proposition 8.2)
+atoms = idctn(np.eye(s * s).reshape(s * s, s, s), axes=(-2, -1), norm="ortho")  # 64 DCT atoms
+w = torch.tensor(atoms[:, None], dtype=torch.float64)                # 64 filters of size 8 x 8
+y = torch.tensor(f[None, None])
+alpha = F.conv2d(y, w)                                               # layer 1: DCT of every patch
+alpha = alpha * (alpha.abs() >= 3 * sigma)                           # hard-threshold non-linearity
+z = F.conv_transpose2d(alpha, w)                                     # layer 2: inverse DCT + sum
+count = F.conv_transpose2d(torch.ones_like(alpha[:, :1]), torch.ones(1, 1, s, s, dtype=torch.float64))
+cnn_result = (z / count)[0, 0].numpy()
+print("max |NumPy - CNN| =", np.abs(numpy_result - cnn_result).max())
+
+# 3) A bias-free ReLU CNN is positively homogeneous and equals its Jacobian times y (Prop. 8.4)
+net = nn.Sequential(nn.Conv2d(1, 16, 3, padding=1, bias=False), nn.ReLU(),
+                    nn.Conv2d(16, 16, 3, padding=1, bias=False), nn.ReLU(),
+                    nn.Conv2d(16, 1, 3, padding=1, bias=False)).double()
+y = torch.randn(1, 1, 32, 32, dtype=torch.float64)
+fy, jvp = torch.autograd.functional.jvp(net, y, y)                # f(y) and J_f(y) y
+print("f(3.7 y) - 3.7 f(y):", (net(3.7 * y) - 3.7 * fy).abs().max().item())
+print("f(y) - J_f(y) y:    ", (fy - jvp).abs().max().item())
+```
+
+The two implementations agree to $2 \times 10^{-13}$, and the identities of Proposition 8.4 hold to machine precision.
+
+### 8.4 Bias-free networks are adaptive linear filters
+
+:::: prop
+[Proposition 8.4 — Homogeneity and the Jacobian form]{.tag} Let $f$ be a ReLU network built from convolutions *without additive constants* (no biases, and normalisations without additive shifts). Then for every $\alpha \ge 0$ and almost every $y$,
+
+$$
+f(\alpha y) = \alpha f(y), \qquad f(y) = J_f(y)\, y,
+$$
+
+where $J_f(y)$ is the Jacobian matrix of $f$ at $y$.
+
+::: proof
+Linear maps and $\rho$ satisfy $\rho(\alpha t) = \alpha\rho(t)$ for $\alpha \ge 0$, and a composition of positively homogeneous maps is positively homogeneous.
+
+Differentiate $f(\alpha y) = \alpha f(y)$ with respect to $\alpha$ at $\alpha = 1$.
+
+The chain rule gives $J_f(y)\, y = f(y)$, at every $y$ where $f$ is differentiable — almost everywhere, since $f$ is piecewise linear (Proposition 7.2). [∎]{.qed}
+:::
+::::
+
+Read row $i$ of $f(y) = J_f(y) y$:
+
+$$
+\hat x(i) = \sum_j J_f(y)_{ij}\, y(j) .
+$$
+
+The network computes a weighted average of the noisy pixels, with weights chosen by the image itself — exactly the form of NL-means, with learned instead of hand-designed weights. Mohan, Kadkhodaie, Simoncelli and Fernandez-Granda (2020) removed the biases of DnCNN-type networks. They observed that bias-free networks generalise to noise levels far outside their training range, where ordinary networks fail, and used the rows of the Jacobian to visualise the adaptive filters.
+
+The Jacobian also gives SURE (Theorem 2.11) for a network: $\operatorname{div} f(y) = \mathrm{tr}\, J_f(y)$. It is the effective number of degrees of freedom the denoiser keeps, which can be estimated with random probes $\mathbb{E}[v^\top J_f v]$ for $v \sim \mathcal{N}(0, I)$.
+
+### 8.5 Generalisation: noise level and real noise
+
+By Theorem 7.4, a network trained at one noise level approximates $\mathbb{E}[X \mid X + N_\sigma]$ for that $\sigma$ only. Three remedies exist:
+
+-   train blindly over a range of levels, as the blind DnCNN;
+-   give the level as input, as FFDNet;
+-   constrain the architecture, as the bias-free networks of Proposition 8.4.
+
+Real camera noise is neither white nor Gaussian (ch. 3.2). Plötz and Roth (2017) built a benchmark of real photographs with nearly noise-free references. On it, several methods that excelled on synthetic Gaussian noise lost their advantage over BM3D. Real-noise datasets (Abdelhamed, Lin and Brown, 2018) and the synthesis of realistic raw noise by inverting the camera pipeline (Brooks et al., 2019) answer this mismatch.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   A plain MLP on patches matched BM3D (2012); deep residual CNNs (DnCNN, 2017) passed it slightly; FFDNet adds a noise map and a multiscale input.
+-   Sliding DCT thresholding is a two-layer CNN with fixed DCT filters and a threshold non-linearity; learned shallow networks generalise it.
+-   A bias-free ReLU network satisfies $f(y) = J_f(y)\, y$: an adaptive weighted average, like NL-means.
+-   A trained denoiser is tied to its training noise; blind training, noise maps or bias-free architectures extend it, and real noise needs real data.
+::::
+
+## 9. Comparison of all denoising methods {#ch9}
+
+Every chapter so far produced a number for the same noisy crop. This chapter turns such numbers into a fair comparison, asks how far any method can go, and draws the lessons of the human–machine competition.
+
+### 9.1 How to compare denoisers
+
+A sound protocol fixes the test images, the noise realisations and the metrics *before* tuning anything. Its main rules are the following.
+
+-   Tune parameters on images that are not in the test set.
+-   Use the same noise realisation for all methods, so that differences are *paired*.
+-   Report per-image results, not only the mean, and test several noise levels.
+-   Look at the method noise $\tilde u - D(\tilde u)$ and at details: PSNR does not see textures that are smoothed away or invented.
+
+::: def
+[Definition 9.1 — Structural similarity (SSIM; Wang, Bovik, Sheikh and Simoncelli, 2004)]{.tag} On local windows, with local means $\mu$, variances $s^2$ and covariance $s_{xy}$ of the two images, and small constants $c_1, c_2$,
+
+$$
+\mathrm{SSIM}(x, y) = \frac{(2\mu_x\mu_y + c_1)(2 s_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(s_x^2 + s_y^2 + c_2)},
+$$
+
+averaged over the windows. It compares luminance, contrast and structure, and equals 1 for identical images.
+:::
+
+:::: prop
+[Proposition 9.2 — Paired comparison]{.tag} Let $\Delta_1, \dots, \Delta_n$ be the per-image PSNR differences between two methods, with mean $\bar\Delta$ and sample standard deviation $s$. If the images are independent draws from a population of images, the standard error of $\bar\Delta$ is $s/\sqrt n$, and
+
+$$
+t = \frac{\bar\Delta}{s / \sqrt n}
+$$
+
+follows approximately a Student law with $n - 1$ degrees of freedom when the mean difference is zero.
+
+::: proof
+The $\Delta_k$ are independent with a common variance $v$, so $\mathrm{Var}\,\bar\Delta = v/n$ (Proposition 0.2), estimated by $s^2/n$. The Student approximation follows from the central limit theorem, or exactly for Gaussian differences. [∎]{.qed}
+:::
+::::
+
+Pairing removes the variability *between* images, which is much larger than the differences between methods. The code compares three methods on 18 crops of the two scikit-learn images at $\sigma = 25$.
+
+```python
+import numpy as np
+from scipy.fft import dctn, idctn
+from scipy.ndimage import uniform_filter, gaussian_filter
+from sklearn.datasets import load_sample_image
+
+def dct_denoise(f, sigma, s=8):                      # Algorithm 4.6
+    C = dctn(np.lib.stride_tricks.sliding_window_view(f, (s, s)), axes=(-2, -1), norm="ortho")
+    C[np.abs(C) < 3 * sigma] = 0
+    Q = idctn(C, axes=(-2, -1), norm="ortho")
+    out, cnt = np.zeros_like(f), np.zeros_like(f)
+    for i in range(s):
+        for j in range(s):
+            out[i:i + Q.shape[0], j:j + Q.shape[1]] += Q[:, :, i, j]
+            cnt[i:i + Q.shape[0], j:j + Q.shape[1]] += 1
+    return out / cnt
+
+def nl_means(f, sigma, hp=2, r=10, h=0.7):           # Definition 5.2
+    g = np.pad(f, r, mode="reflect"); num = np.zeros_like(f); den = np.zeros_like(f)
+    for dx in range(-r, r + 1):
+        for dy in range(-r, r + 1):
+            sh = g[r + dx: r + dx + f.shape[0], r + dy: r + dy + f.shape[1]]
+            d2 = uniform_filter((f - sh) ** 2, size=2 * hp + 1, mode="reflect")
+            w = np.exp(-np.maximum(d2 - 2 * sigma**2, 0) / (h * sigma) ** 2)
+            num += w * sh; den += w
+    return num / den
+
+rng = np.random.default_rng(1)
+images = [load_sample_image(n).mean(axis=2) for n in ("china.jpg", "flower.jpg")]
+crops = [img[i:i + 128, j:j + 128] for img in images for i in (0, 150, 290) for j in (0, 250, 500)]
+sigma, rows = 25.0, []
+for u in crops:
+    f = u + sigma * rng.standard_normal(u.shape)
+    p = lambda a: 10 * np.log10(255**2 / np.mean((a - u) ** 2))
+    rows.append([p(gaussian_filter(f, 0.8)), p(dct_denoise(f, sigma)), p(nl_means(f, sigma))])
+R = np.array(rows)
+print("mean PSNR  Gaussian / DCT / NL-means:", np.round(R.mean(0), 2))
+diff = R[:, 2] - R[:, 1]                             # paired differences NL-means - DCT
+se = diff.std(ddof=1) / np.sqrt(len(diff))
+print(f"NL-means - DCT: mean {diff.mean():+.2f} dB, standard error {se:.2f}, t = {diff.mean() / se:.1f},"
+      f" NL-means better on {(diff > 0).sum()} of {len(diff)} crops")
+```
+
+The mean PSNR is 26.27 dB for a fixed Gaussian filter, 31.43 dB for the sliding DCT and 31.86 dB for NL-means. NL-means wins on 15 of the 18 crops, by 0.43 dB on average with a standard error of 0.12 dB ($t = 3.5$). The 18 crops come from two images only, so they are not independent draws: the conclusion holds for these images, not for natural images in general.
+
+Standard test sets are `Set12`, `Kodak24` and `BSD68`, a subset of the Berkeley segmentation dataset (Martin, Fowlkes, Tal and Malik, 2001). Real-noise benchmarks are discussed in ch. 8.5.
+
+### 9.2 Inherent bounds
+
+How much better can any denoiser get? Restrict the denoiser of pixel $i$ to a window $W$ of the noisy image around $i$.
+
+:::: prop
+[Proposition 9.3 — Larger windows can only help]{.tag} Let
+
+$$
+\mathrm{MMSE}(W) = \mathbb{E}\big[(X_i - \mathbb{E}[X_i \mid \tilde u_W])^2\big].
+$$
+
+If $W \subset W'$, then
+
+$$
+\mathrm{MMSE}(W') \le \mathrm{MMSE}(W).
+$$
+
+::: proof
+$\mathbb{E}[X_i \mid \tilde u_W]$ is a function of $\tilde u_{W'}$, so Theorem 0.5 applied with $Y = \tilde u_{W'}$ shows that it cannot beat $\mathbb{E}[X_i \mid \tilde u_{W'}]$. [∎]{.qed}
+:::
+::::
+
+Two studies made such bounds quantitative. Chatterjee and Milanfar (2010) derived lower bounds on the error of patch-based denoisers and concluded that, for many images, some room for improvement remained. Levin and Nadler (2011) estimated the MMSE of denoising from a small window with a very large collection of natural patches. For small windows, the best methods of the time were already close to the bound: further progress requires larger supports — which deep networks provide through their receptive field.
+
+### 9.3 The landscape
+
+| Method (chapter) | Principle | What is learned | External data | Noise level | Interpretable as |
+|---|---|---|---|---|---|
+| Gaussian, Wiener (ch. 3) | smoothness, stationarity | nothing | none | parameter | fixed linear filter |
+| Sliding DCT, multiscale DCT (ch. 4) | sparsity | nothing | none | parameter | two-layer CNN with fixed filters |
+| NL-means (ch. 5) | self-similarity | nothing | none | parameter | content-adaptive average |
+| NL-Bayes, BM3D (ch. 6) | Gaussian or sparse groups of patches | local mean and covariance, from the noisy image | none | parameter | local PCA and Wiener shrinkage |
+| EPLL (ch. 6) | external Gaussian-mixture prior | mixture of Gaussians | clean patches | parameter | mixture of Wiener filters |
+| MLP, DnCNN, FFDNet (ch. 8) | learned MMSE estimate | all weights | clean images | fixed, range or input map | adaptive linear filter $J_f(y)$ if bias-free |
+
+The classical methods carry their hypothesis openly and need no training data; their parameters are few and readable. The learned ones absorb the image statistics of their training set and win when test images resemble it, and lose that edge when the noise or the content changes.
+
+### 9.4 What each side teaches the other
+
+-   **Networks rediscovered the classical ingredients.** A convolutional layer is a bank of patch transforms (Proposition 8.2), its non-linearity a shrinkage, the sum of overlapping outputs an aggregation, the downsampling of FFDNet or of encoder–decoder networks such as U-Net (Ronneberger, Fischer and Brox, 2015) a multiscale scheme.
+-   **Classical methods explain what networks compute.** A bias-free denoiser is an adaptive weighted average (Proposition 8.4), the object NL-means made explicit.
+-   **Hybrids combine both.** Non-local operations inside networks bring self-similarity back (Lefkimmiatis, 2017). Learned priors replace the hand-made Gaussian models of ch. 6.
+-   **Denoisers became modules.** A good denoiser serves as the prior of other inverse problems and as the engine of generative models (ch. 10).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Compare denoisers on the same noise realisations, with per-image paired differences and their standard error.
+-   PSNR, SSIM and the method noise see different defects; report several.
+-   The MMSE from a window decreases with the window: small-window methods were near their bound, large supports leave room.
+-   Classical methods state their hypothesis and need no data; learned ones absorb the statistics of their training set and depend on it.
+::::
+
+## 10. Research directions and open problems {#ch10}
+
+This chapter is for self-study. It shows where the tools of the course lead in current research: training without clean images, denoisers used as priors and as generative models, video, real noise, and the questions that remain open.
+
+### 10.1 Learning to denoise without clean images
+
+Clean references are often unavailable: in microscopy, astronomy or medical imaging, every image is noisy. Two observations make supervised training possible anyway.
+
+:::: prop
+[Proposition 10.1 — Noisy targets and blind spots]{.tag} Let $X$ be the clean image and $N, N'$ centred noises.
+
+1.  *Noise2Noise.* If $Y = X + N$ and $Y' = X + N'$ with $N'$ independent of $(X, N)$, then for every $f$
+    $$
+    \mathbb{E}\|f(Y) - Y'\|^2 = \mathbb{E}\|f(Y) - X\|^2 + \mathbb{E}\|N'\|^2 .
+    $$
+2.  *Blind spot.* If the coordinates of $N$ are independent and each output $f_i(Y)$ does not depend on $Y_i$, then
+    $$
+    \mathbb{E}\|f(Y) - Y\|^2 = \mathbb{E}\|f(Y) - X\|^2 + \mathbb{E}\|N\|^2 .
+    $$
+
+Minimising the left-hand side, computable from noisy data only, minimises the true risk.
+
+::: proof
+In both cases, expand the square around $X$. The cross term is $\mathbb{E}\langle f(Y) - X, N'\rangle$ in case 1, which vanishes because $N'$ is centred and independent of $f(Y) - X$.
+
+In case 2 it is $\sum_i \mathbb{E}[(f_i(Y) - X_i) N_i]$. The factor $f_i(Y) - X_i$ depends only on $X$ and $N_j$, $j \ne i$, which are independent of the centred $N_i$, so every term vanishes. [∎]{.qed}
+:::
+::::
+
+Case 1 is Noise2Noise (Lehtinen et al., 2018): train on pairs of independent noisy shots of the same scene. Case 2 underlies Noise2Void (Krull, Buchholz and Jug, 2019) and Noise2Self (Batson and Royer, 2019), which train on single noisy images with masked pixels. It is the identity already met in Theorem 5.5: a noisy value is an unbiased target for a predictor that does not see it. Theorem 2.11 gives a third route — minimising SURE needs no clean image when the noise is Gaussian with known $\sigma$.
+
+### 10.2 Denoisers as priors: Tweedie's formula and diffusion
+
+:::: prop
+[Proposition 10.2 — Tweedie's formula (Miyasawa, 1961; Efron, 2011)]{.tag} If $Y = X + N$ with $N \sim \mathcal{N}(0, \sigma^2 I)$ independent of $X$, and $p_Y$ is the density of $Y$, then
+
+$$
+\mathbb{E}[X \mid Y = y] = y + \sigma^2\, \nabla \log p_Y(y).
+$$
+
+::: proof
+$p_Y(y) = \int p_X(x)\, \varphi_\sigma(y - x)\, dx$, with $\varphi_\sigma$ the Gaussian density, whose gradient is
+
+$$
+\nabla_y \varphi_\sigma(y - x) = \frac{x - y}{\sigma^2}\, \varphi_\sigma(y - x).
+$$
+
+Differentiating under the integral,
+
+$$
+\sigma^2\, \nabla p_Y(y) = \int (x - y)\, p_X(x)\, \varphi_\sigma(y - x)\, dx = p_Y(y)\, \big(\mathbb{E}[X \mid Y = y] - y\big).
+$$
+
+Divide by $p_Y(y)$. [∎]{.qed}
+:::
+::::
+
+An MMSE denoiser, and hence a well-trained network (Theorem 7.4), gives the *score* $\nabla \log p_Y$ of the noisy image distribution. This is the engine of diffusion models, which generate images by denoising pure noise in many small steps (Ho, Jain and Abbeel, 2020; Song et al., 2021). Kadkhodaie and Simoncelli (2021) used a bias-free denoiser in the same way to sample from the prior implicit in it and to solve linear inverse problems.
+
+The code checks Proposition 10.2 on a one-dimensional Gaussian mixture, where both sides can be computed.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+sigma = 0.5
+pi, mu, s = np.array([0.3, 0.7]), np.array([-2.0, 1.0]), np.array([0.3, 0.8])  # 1D Gaussian mixture prior
+
+def p_y(y):                     # density of Y = X + N, again a Gaussian mixture
+    v = s**2 + sigma**2
+    return (pi * np.exp(-(y[:, None] - mu) ** 2 / (2 * v)) / np.sqrt(2 * np.pi * v)).sum(1)
+
+y = np.linspace(-3, 3, 7)
+eps = 1e-5
+score = (np.log(p_y(y + eps)) - np.log(p_y(y - eps))) / (2 * eps)   # d/dy log p_Y
+tweedie = y + sigma**2 * score                                     # Proposition 10.2
+
+# Monte Carlo posterior mean: sample (X, Y), average X over a small bin around each y
+k = rng.choice(2, size=4_000_000, p=pi)
+X = mu[k] + s[k] * rng.standard_normal(k.size)
+Y = X + sigma * rng.standard_normal(k.size)
+mc = np.array([X[np.abs(Y - t) < 0.01].mean() for t in y])
+for t, a, b in zip(y, tweedie, mc):
+    print(f"y = {t:+.1f}: Tweedie {a:+.3f}   Monte Carlo {b:+.3f}")
+```
+
+The formula and the Monte Carlo posterior mean agree to about 0.004 at all seven points.
+
+Denoisers are also used as priors without a probabilistic model. *Plug-and-play* methods split an inverse problem — deblurring, super-resolution, tomography — and replace the proximal step of the prior by a denoiser (Venkatakrishnan, Bouman and Wohlberg, 2013). *Regularisation by denoising* defines an explicit regulariser from a denoiser (Romano, Elad and Milanfar, 2017). The [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html) and [Diffusion and Multiscale Models in AI](../s2-diffusion-multiscale/index.html) courses of semester 2 develop both directions.
+
+### 10.3 Video and burst denoising
+
+Consecutive video frames show the same scene, so space-time patches have many more copies than spatial ones. VBM4D extends BM3D to space-time volumes (Maggioni, Boracchi, Foi and Egiazarian, 2012). Arias and Morel (2018) extend the empirical Bayesian estimation of ch. 6 to space-time patches. On the learned side, Ehret, Davy, Morel, Facciolo and Arias (2019) fine-tune a pre-trained network on the video to denoise itself, with frame-to-frame training in the spirit of Noise2Noise. FastDVDnet (Tassano, Delon and Veit, 2020) denoises video without explicit motion estimation.
+
+### 10.4 Real noise and raw images
+
+Most of this course assumes white Gaussian noise of known level. Real images break all three assumptions (ch. 3.2). Current work models the noise of the raw sensor (Foi, Trimeche, Katkovnik and Egiazarian, 2008), synthesises realistic training data by inverting the camera pipeline (Brooks et al., 2019), collects real noisy–clean pairs (Plötz and Roth, 2017; Abdelhamed, Lin and Brown, 2018), and denoises blindly from a single image (Lebrun, Colom and Morel, 2015).
+
+### 10.5 Open problems
+
+-   **Understanding learned denoisers.** The course description notes that their inner workings are not fully understood. Jacobian analyses of bias-free networks (Proposition 8.4) are one entry point; a theory that predicts what a network learns from a given training set is missing.
+-   **Bounds for large supports.** The bounds of ch. 9.2 are tight for small windows. How close current networks are to the MMSE for large receptive fields is unknown.
+-   **Guarantees under distribution shift.** Theorem 7.4 holds for the training distribution only. Certifying a denoiser on new noise or new content remains open.
+-   **Hallucination.** A denoiser trained on natural images may invent plausible details. In medical and scientific imaging this is a failure, and quantifying it is an active subject.
+-   **Architectures.** Transformer-based restoration networks such as SwinIR (Liang et al., 2021) and Restormer (Zamir et al., 2022) bring attention, a learned form of non-local averaging, into the competition.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 10
+:::
+
+-   Noisy targets (Noise2Noise) and blind-spot predictors (Noise2Void, Noise2Self) give the true risk up to a constant, without clean images.
+-   Tweedie's formula turns an MMSE denoiser into the score of the noisy distribution: the basis of diffusion models.
+-   Denoisers serve as priors for inverse problems (plug-and-play, RED).
+-   Video, raw data and real noise are where the classical and learned principles meet today.
+::::
 
 ## Exercises {#ex}
 
-TODO
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 5, 9, 11, 14 and 15 are computational.
+
+1.  **★ Aliasing by hand.** A camera without optical blur samples the stripe pattern $\cos(2\pi(0.6\, k + 0.2\, l))$ on the integer grid. Which pattern is recorded, and in which direction do its stripes run? Which band-limiting condition of Theorem 1.2 is violated?
+
+    *Solution*: for integers $k, l$, $\cos(2\pi(0.6k + 0.2l)) = \cos(2\pi(-0.4k + 0.2l))$, because $0.6 = 1 - 0.4$. The recorded frequency is $(-0.4, 0.2)$ cycle per pixel instead of $(0.6, 0.2)$: a coarser pattern, with stripes in a different direction.
+
+    The frequency $0.6$ cycle per pixel, i.e. $1.2\pi$ radians per pixel, lies outside $[-\pi, \pi]$, so the periodisation of Proposition 1.1 folds it.
+
+2.  **★ A 2 × 2 DFT.** Compute the DFT of the image $u = \begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}$ and check the Parseval identity of Proposition 1.5.
+
+    *Solution*: for $M = N = 2$, $e^{-2i\pi pk/2} = (-1)^{pk}$. Hence $\hat u(0,0) = 10$, $\hat u(1,0) = (1 + 2) - (3 + 4) = -4$, $\hat u(0,1) = (1 + 3) - (2 + 4) = -2$ and $\hat u(1,1) = 1 - 2 - 3 + 4 = 0$.
+
+    Parseval: $\sum |u|^2 = 30$ and $\frac14(100 + 16 + 4 + 0) = 30$.
+
+3.  **★ The energy of a noise patch.** For $\sigma = 10$ and $7 \times 7$ patches, give the mean and the standard deviation of $\|N\|^2$. Estimate the probability that $\|N\|^2$ exceeds 1.5 times its mean.
+
+    *Solution*: $d = 49$, so the mean is $49 \times 100 = 4900$ and the standard deviation is $\sigma^2\sqrt{2d} = 100\sqrt{98} \approx 990$ (Proposition 2.5).
+
+    The threshold $7350$ is $2450/990 \approx 2.47$ standard deviations above the mean: the normal approximation gives 0.007. The exact $\chi^2_{49}$ tail at $73.5$ is 0.013 — the $\chi^2$ law is skewed to the right.
+
+4.  **★ Box filters and PSNR.** An image is corrupted by noise with $\sigma = 30$. Compute the PSNR of the noisy image, then of a $3 \times 3$ and a $5 \times 5$ box filter on a flat region. What happens next to a vertical step of height 90?
+
+    *Solution*: noisy: $10\log_{10}(65025/900) = 18.59$ dB. A $k \times k$ box divides the variance by $k^2$: $3 \times 3$ gives MSE 100, i.e. 28.13 dB; $5 \times 5$ gives MSE 36, i.e. 32.57 dB.
+
+    Next to the step, a $3 \times 3$ box mixes one column of the other side: the bias is $90/3 = 30$, a squared bias of 900 — the error of the noisy image itself. The $5 \times 5$ box spreads such errors over four columns (Example 0.4).
+
+5.  **★ Anscombe at low counts (Python).** For Poisson counts with $\lambda \in \{0.5, 1, 2, 5, 20\}$, compute $\mathbb{E}[2\sqrt{k + 3/8}]$ with `scipy.stats.poisson.pmf`, then apply the algebraic inverse $a \mapsto (a/2)^2 - 3/8$ to this mean. Compare with $\lambda$ and conclude.
+
+    *Hints and expected result*: the means are 1.742, 2.187, 2.928, 4.527 and 8.972. The algebraic inverse returns 0.383, 0.821, 1.769, 4.749 and 19.75 instead of 0.5, 1, 2, 5 and 20.
+
+    Even a perfect denoiser in the stabilised domain, which returns the mean, would bias the result downwards by about 20 % at low counts. This is why an exact unbiased inverse is used (Mäkitalo and Foi, 2011).
+
+6.  **★★ Gaussian conditioning in two dimensions.** Let $X \sim \mathcal{N}(0, C)$ with $C = \begin{pmatrix} 4 & 2 \\ 2 & 2 \end{pmatrix}$, and $Y = X + N$ with $\sigma^2 = 1$. Compute the gain $K$, the posterior covariance and the MMSE. Then prove that $C - KC = \sigma^2 K$ in general.
+
+    *Solution*: $C + I = \begin{pmatrix} 5 & 2 \\ 2 & 3 \end{pmatrix}$ has determinant 11, so
+
+    $$
+    K = C(C + I)^{-1} = \frac{1}{11}\begin{pmatrix} 8 & 2 \\ 2 & 6 \end{pmatrix}.
+    $$
+
+    A direct product gives the posterior covariance
+
+    $$
+    C - KC = \frac{1}{11}\begin{pmatrix} 8 & 2 \\ 2 & 6 \end{pmatrix},
+    $$
+
+    so the MMSE is $14/11 \approx 1.27$, against 2 for $Y$ itself. In general, since $C$ and $(C + \sigma^2 I)^{-1}$ commute,
+
+    $$
+    C - KC = C(C + \sigma^2 I)^{-1}\big((C + \sigma^2 I) - C\big) = \sigma^2 K .
+    $$
+
+7.  **★★ Two oracles.** For $x = (10, 3, 1, 0.5)$ and $\sigma = 2$, compute the keep-or-kill risk $R_P$ and the attenuation risk $R_A$ of Proposition 4.2. Then show that the lower bound $R_A = R_P/2$ is attained for a single coefficient with $x_k^2 = \sigma^2$.
+
+    *Solution*: $R_P = 4 + 4 + 1 + 0.25 = 9.25$, and
+
+    $$
+    R_A = \frac{400}{104} + \frac{36}{13} + \frac{4}{5} + \frac{1}{4.25} = 3.85 + 2.77 + 0.80 + 0.24 = 7.65,
+    $$
+
+    a ratio of 0.83.
+
+    For one coefficient with $x_k^2 = \sigma^2$, $R_P = \sigma^2$ and $R_A = \sigma^4/(2\sigma^2) = \sigma^2/2$: the lower bound of Proposition 4.2 is attained.
+
+8.  **★★ How often does NL-means reject a true copy?** Take $7 \times 7$ patches, $\sigma = 30$ and $h = 0.7\sigma$. For two noisy versions of the *same* patch, give the law of $\delta^2$ and the probability that their weight falls below $e^{-1}$.
+
+    *Solution*: the difference of the two noisy patches is $\mathcal{N}(0, 2\sigma^2 I_{49})$, so $\delta^2 = \frac{2\sigma^2}{49}\chi^2_{49}$, with mean $2\sigma^2 = 1800$ and standard deviation $2\sqrt2 \times 900/7 \approx 364$ (Proposition 5.3).
+
+    The weight is below $e^{-1}$ when $\delta^2 - 2\sigma^2 > h^2 = 441$, i.e. $\chi^2_{49} > 2241 \times 49/1800 = 61.0$. The exact tail is 0.117, the normal approximation 0.113: about one true copy in nine is down-weighted.
+
+9.  **★★ SURE inside each patch (Python).** In Algorithm 4.6, keep the DC coefficient, replace the hard threshold of the 63 others by a soft threshold, and choose $\tau$ separately in each patch by minimising SURE (Proposition 4.5) over $\tau \in \sigma \cdot \{0.5, 0.75, \dots, 3.5\}$. Test on the `flower.jpg` crop of ch. 4 at $\sigma = 20$ against the hard threshold $3\sigma$ and a fixed soft threshold $1.5\sigma$. Why does SURE not apply to hard thresholding?
+
+    *Hints and expected result*: about 35.5 dB for the hard threshold, 34.6 dB for the per-patch SURE soft threshold (median $\tau = 2\sigma$), 33.8 dB for the fixed soft threshold.
+
+    SURE improves soft thresholding, but soft thresholding shrinks the large coefficients and blurs, while aggregation already reduces the variance of hard thresholding. Hard thresholding is discontinuous, so Theorem 2.11 does not apply: its divergence has Dirac masses at $\pm\tau$.
+
+10. **★★ The empirical Wiener filter of NL-Bayes.** (a) Compute the clipped factor of Theorem 6.2 for $\mu_i \le \sigma^2$, for $\mu_i = 1.2\sigma^2$ and for $\mu_i = 2\sigma^2$. (b) Why is $\tilde C$ singular when the group has $K \le d$ patches? (c) Why does the second step of Algorithm 6.4 use the basic estimate for the covariance but the noisy patches as input?
+
+    *Solution*: (a) The factor $(1 - \sigma^2/\mu_i)_+$ equals $0$, then $1 - 1/1.2 = 1/6$, then $1/2$.
+
+    (b) The centred patches $\tilde P_k - \tilde m$ sum to zero, so they span at most $K - 1$ dimensions, and $\tilde C$ has rank at most $K - 1 < d$.
+
+    (c) The covariance of the basic estimate is no longer inflated by noise eigenvalues (Example 6.3), but the basic estimate is biased (it is already smoothed). The Wiener formula needs an unbiased observation $X + N$ with known noise, which only the noisy patches provide.
+
+11. **★★ Backpropagation through a convolution (Python).** For $z = w \star a$ (cross-correlation, no padding) and a loss with gradient $g = \partial\ell/\partial z$, prove that $\partial \ell / \partial w(q) = \sum_p g(p)\, a(p + q)$, i.e. the cross-correlation of $a$ with $g$. Check it with PyTorch.
+
+    *Solution*: $z(p) = \sum_q w(q)\, a(p + q)$, so $\partial z(p)/\partial w(q) = a(p + q)$ and the chain rule gives the formula, as in Proposition 7.5.
+
+    ```python
+    import torch, torch.nn.functional as F
+
+    torch.manual_seed(0)
+    a = torch.randn(1, 1, 6, 6, dtype=torch.float64)                    # input channel
+    w = torch.randn(1, 1, 3, 3, dtype=torch.float64, requires_grad=True)
+    z = F.conv2d(a, w)                       # 4 x 4 output: z(p) = sum_q w(q) a(p + q)
+    g = torch.randn_like(z)                  # upstream gradient dl/dz
+    (z * g).sum().backward()                 # loss l = <g, z>, so dl/dz = g
+    manual = F.conv2d(a, g)                  # dl/dw(q) = sum_p g(p) a(p + q)
+    print("autograd = cross-correlation of a with g:", torch.allclose(w.grad, manual))
+    ```
+
+    The script prints `True`.
+
+12. **★★ Receptive field and parameter count.** A DnCNN-type network has 17 layers of $3 \times 3$ convolutions with biases: $1 \to 64$, then fifteen $64 \to 64$, then $64 \to 1$. Count its parameters, ignoring batch normalisation, and give its receptive field. How many layers would a $60 \times 60$ receptive field need, and how does the downsampling of FFDNet change the answer?
+
+    *Solution*: $64 \times 10 = 640$, plus $15 \times 64 \times 577 = 553\,920$, plus $577$: in total $555\,137$ parameters. The receptive field is $35 \times 35$ (Proposition 7.9).
+
+    A $61 \times 61$ field needs $L = 30$ layers. After a $2 \times$ downsampling into four sub-images, each layer covers twice as many original pixels: about 15 layers suffice, plus the rearrangement.
+
+13. **★★ Homogeneous classical denoisers.** (a) Prove $\eta_S(t) = \rho(t - \tau) - \rho(-t - \tau)$. (b) Show that the sliding DCT denoiser with a fixed $\tau$ is not positively homogeneous. (c) Show that it becomes homogeneous of degree 1 if $\tau = 3\hat\sigma(\tilde u)$ with the MAD estimator of Proposition 3.7, and relate this to Proposition 8.4.
+
+    *Solution*: (a) Check the three cases $t > \tau$, $|t| \le \tau$ and $t < -\tau$.
+
+    (b) For a small $\alpha$ all coefficients of $\alpha\tilde u$ fall below $\tau$ except the large ones, so $D(\alpha \tilde u) \neq \alpha D(\tilde u)$ in general.
+
+    (c) The MAD estimate scales with the image: multiplying $\tilde u$ by $\alpha > 0$ multiplies every high-pass coefficient, hence their median and $\hat\sigma$, by $\alpha$.
+
+    Then every coefficient and the threshold scale together, so the kept set is unchanged and the output scales by $\alpha$. Like a bias-free network, this denoiser has no fixed intensity scale and adapts to the noise level.
+
+14. **★★★ Noise-level mismatch (Python).** Train the network of ch. 7.7 at $\sigma = 20$, once with biases and once with `bias=False` in every convolution. Test both on the crop of ch. 4 at $\sigma = 5, 10, 20, 40$, with the same noise realisations, and compare with the PSNR of the noisy input. Explain the results with Theorem 7.4 and Proposition 8.4.
+
+    *Hints and expected result*: the noisy inputs score 34.2, 28.1, 22.1 and 16.1 dB. With 300 steps as in ch. 7.7, the network with biases gives about 29.1, 28.7, 26.9 and 20.3 dB. At $\sigma = 5$ it is *worse than its input*: it removes noise of the training level from an image that has much less.
+
+    The bias-free network gives about 29.8, 29.1, 26.7 and 21.5 dB. It loses 0.2 dB at the training level and gains 1.2 dB at $\sigma = 40$, but does not fix the failure at low noise. Proposition 8.4 only makes the network consistent under contrast scaling: denoising at $\sigma = 5$ is like denoising at $\sigma = 20$ an image of four times the contrast, outside the training distribution. Retrain both networks with $\sigma$ drawn uniformly in $[0, 25]$ for each patch, as Mohan et al. (2020) train over a range starting at zero, and compare again.
+
+    Theorem 7.4 explains the failure: the trained function approximates $\mathbb{E}[X \mid X + N_{20}]$, not the denoiser for other levels.
+
+15. **★★★ Choosing a parameter without clean images (Python).** Take two independent noisy shots $y_1, y_2$ of the `flower.jpg` crop at $\sigma = 20$. For a Gaussian filter of width $h \in \{0.5, 1, \dots, 3\}$, compare the Noise2Noise loss $\frac{1}{|\Omega|}\|G_h * y_1 - y_2\|^2$ with $\mathrm{MSE}(G_h * y_1) + \sigma^2$. Which $h$ does each criterion select? Then design a blind-spot version of NL-means and explain which pixels must be excluded from the patch distances.
+
+    *Hints and expected result*: the two columns differ by less than 5 at every $h$ and are both minimal at $h = 1.5$ (Noise2Noise loss 440.8, true MSE plus $\sigma^2$ 437.4), as Proposition 10.1 predicts.
+
+    For NL-means, the value at $i$ must not depend on $\tilde u(i)$. Exclude $j = i$ from the average, and remove the pixel $i$ from both patches in every distance $\delta^2(i, j)$.
+
+    The pixel $i$ appears in $\tilde P_i$ at the centre, and in $\tilde P_j$ whenever $j$ is within the patch radius of $i$.
 
 ## Projects and assessment {#projects}
 
-TODO
+The official assessment (master-mva.com) has three parts: simple mathematical exercises and an experimental report on online image-processing experiments, both delivered each week and requiring no programming, plus Colab notebook exercises that are not evaluated; an intermediate written exam; and a final oral examination, written if the number of students is too large. The weights are not displayed. The official assessment contains no project. The subjects below are proposals for practice, for a research-oriented extension of the course, or for preparing the oral examination; the exam proposal mirrors the intermediate written exam.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: NL-Bayes.** Reproduce the two-step algorithm of Lebrun, Buades and Morel (2013, *SIAM Journal on Imaging Sciences*, and its IPOL implementation) on grey images.
+    -   Implement both steps, the flat-area test and the aggregation; vary the patch size and $K$.
+    -   Data: five public test images at $\sigma = 10, 20, 40$, with the same noise realisations given to the IPOL demo.
+    -   Success criterion: within 0.3 dB of the IPOL results, and a measured gain of the second step.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 2, 5 and 6.
+2.  **[Solo · ≈ 20 h] Multiscale DCT and low-frequency noise.** Measure the residual noise of Algorithm 4.6 and how Algorithm 4.10 removes it.
+    -   Estimate the power spectrum of the error $\hat u - u$ on flat images, then with two and three scales and several recomposition fractions $r$.
+    -   Compare with the analysis of Pierazzo, Morel and Facciolo (2017).
+    -   Success criterion: a figure showing the low-frequency excess predicted by Proposition 4.8 and its removal, with PSNR gains on smooth images.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 1, 2 and 4.
+3.  **[Solo · ≈ 20 h] Estimating a noise curve.** Recover the parameters $(a, b)$ of the Poisson–Gaussian model of Definition 3.5 from a single image.
+    -   Generate raw-like images with known $(a, b)$ from the scikit-learn sample images; implement the MAD estimator per intensity bin and a low-variance-block DCT estimator.
+    -   Success criterion: relative error below 10 % on $a$ and $b$ for at least three settings.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 2 and 3.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Paper study: bias-free denoisers.** Reproduce the main experiment of Mohan, Kadkhodaie, Simoncelli and Fernandez-Granda (2020): networks trained on a limited range of noise levels, tested far outside it.
+    -   Data: a public set of natural images such as the Berkeley segmentation dataset; a free GPU tier suffices for DnCNN-size networks.
+    -   Split: one member builds the data pipeline and trains the networks with biases; one trains the bias-free versions; one evaluates with paired statistics and computes Jacobian rows (Proposition 8.4).
+    -   Success criterion: the curve of PSNR against test $\sigma$ shows the generalisation gap reported in the paper.
+    -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 7, 8 and 9.
+2.  **[Group of 2–3 · ≈ 30 h each] The human–machine benchmark.** Compare sliding DCT, multiscale DCT, NL-means, NL-Bayes, BM3D (a public implementation) and a DnCNN-type network trained by the group.
+    -   Protocol of ch. 9.1: Kodak24 or Set12, $\sigma = 15, 25, 50$, paired differences with standard errors, SSIM, method noise, run time.
+    -   Two stress tests: a noise level not seen in training, and correlated noise obtained by blurring white noise.
+    -   Split: classical methods; network training; evaluation and statistics.
+    -   Success criterion: a complete table with standard errors and an explanation of each ranking change by a principle of the course.
+    -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 4–9.
+3.  **[Group of 2–3 · ≈ 30 h each] Denoising without clean images.** Compare Noise2Noise and a blind-spot method (Proposition 10.1) with supervised training and NL-Bayes on synthetic fluorescence-like images with Poisson–Gaussian noise.
+    -   Use the generalised Anscombe transform of ch. 3.3 for the classical baseline.
+    -   Split: data simulation and variance stabilisation; self-supervised training; evaluation.
+    -   Success criterion: self-supervised results within 0.5 dB of supervised training at equal architecture.
+    -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 3, 6, 7 and 10.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no calculator needed; four exercises.
+
+1.  **Question (4 points).** State the Shannon–Whittaker theorem and explain aliasing with a numerical example. Why are image patches transformed with the DCT rather than the DFT? *Expected*: Theorem 1.2 with the band-limiting hypothesis; the periodisation of Proposition 1.1 and a folded frequency such as $0.7 \to 0.3$ cycle per pixel; the border jump of the periodic DFT against the symmetric extension of the DCT (Proposition 1.7) and the resulting energy compaction.
+2.  **Question (6 points).** A patch model has principal variances $\lambda = (9, 4, 1)$ and the noise has $\sigma^2 = 4$. Give the MMSE estimator in the principal basis, its error, the error of the noisy observation, and the risks of the two oracles of Proposition 4.2 for a patch whose coefficients are $x = (3, 2, 1)$.
+
+    *Expected*: shrinkage factors $9/13$, $1/2$ and $1/5$ (Corollary 2.8); MMSE $36/13 + 2 + 0.8 \approx 5.57$, against 12 for the observation.
+
+    For $x$, $R_P = 4 + 4 + 1 = 9$ and $R_A = 36/13 + 2 + 0.8 \approx 5.57$, the same value as the MMSE because $x_k^2 = \lambda_k$.
+3.  **Question (5 points).** Prove Proposition 5.3 on the distance between noisy patches. Deduce why NL-means subtracts $2\sigma^2$, and how the reliability of the comparison depends on the patch size.
+
+    *Expected*: the decomposition $\Delta + M$ with $M \sim \mathcal{N}(0, 2\sigma^2 I)$ and the mean and variance computed from the $\chi^2$ moments. Then the bias $2\sigma^2$ per pixel, and the fluctuation $2\sqrt2\sigma^2/\sqrt d$ that shrinks with $d$ (Proposition 5.6).
+4.  **Question (5 points).** Show that sliding-window DCT hard thresholding is a two-layer convolutional network, and that a ReLU network without biases satisfies $f(y) = J_f(y)\, y$. Use both facts to compare the DCT denoiser, NL-means and DnCNN. *Expected*: the proof of Proposition 8.2 (filters = atoms, threshold non-linearity, transposed convolution, aggregation); homogeneity and Euler's identity (Proposition 8.4); fixed filters versus content-adaptive weights versus learned adaptive filters.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness | 30 % | Code that runs and matches the mathematics; derivations without gaps |
+| Experimental protocol | 25 % | Held-out images, fixed noise realisations, several noise levels, paired differences with standard errors |
+| Analysis | 20 % | Each observed effect explained by a principle or a result of the course |
+| Report | 15 % | 4–8 clear pages, figures with units and captions, honest limits |
+| Talk and questions | 10 % | A clear 10–20 minute talk; precise answers on the methods used |
 
 ## References {#refs}
 
-TODO
+**Official material of the course (master-mva.com, 2026–2027)**
+
+-   Lecture notes in English with exercises, provided to the students of the course (“Material provided”).
+-   IPOL — Image Processing On Line, [www.ipol.im](https://www.ipol.im): the online workshops used in every session.
+
+**IPOL articles with online demos used in the notes**
+
+-   A. Buades, B. Coll, J.-M. Morel, “Non-Local Means Denoising”, *Image Processing On Line*, 2011.
+-   G. Yu, G. Sapiro, “DCT Image Denoising: a Simple and Effective Image Denoising Algorithm”, *Image Processing On Line*, 2011.
+-   M. Lebrun, “An Analysis and Implementation of the BM3D Image Denoising Method”, *Image Processing On Line*, 2012.
+-   M. Lebrun, A. Buades, J.-M. Morel, “Implementation of the ‘Non-Local Bayes’ (NL-Bayes) Image Denoising Algorithm”, *Image Processing On Line*, 2013.
+-   M. Colom, A. Buades, “Analysis and Extension of the Ponomarenko et al. Method, Estimating a Noise Curve from a Single Image”, *Image Processing On Line*, 2013.
+-   M. Lebrun, M. Colom, J.-M. Morel, “The Noise Clinic: a Blind Image Denoising Algorithm”, *Image Processing On Line*, 2015.
+-   N. Pierazzo, J.-M. Morel, G. Facciolo, “Multi-Scale DCT Denoising”, *Image Processing On Line*, 2017.
+
+**Textbooks and surveys**
+
+-   S. Mallat, *A Wavelet Tour of Signal Processing: The Sparse Way*, 3rd ed., Academic Press, 2009 — Fourier, sampling, thresholding estimators (ch. 1, 4).
+-   T. M. Cover, J. A. Thomas, *Elements of Information Theory*, 2nd ed., Wiley, 2006 — the Gaussian channel (ch. 3).
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016 — ch. 7.
+-   M. Lebrun, M. Colom, A. Buades, J.-M. Morel, “Secrets of image denoising cuisine”, *Acta Numerica* 21, 2012.
+-   A. Buades, B. Coll, J.-M. Morel, “A review of image denoising algorithms, with a new one”, *Multiscale Modeling and Simulation* 4(2), 2005.
+-   P. Milanfar, “A tour of modern image filtering”, *IEEE Signal Processing Magazine* 30(1), 2013.
+
+**Sampling, noise and statistics (ch. 1–3)**
+
+-   C. E. Shannon, “A mathematical theory of communication”, *Bell System Technical Journal* 27, 1948; “Communication in the presence of noise”, *Proceedings of the IRE* 37(1), 1949.
+-   N. Wiener, *Extrapolation, Interpolation, and Smoothing of Stationary Time Series*, MIT Press and Wiley, 1949.
+-   D. J. Field, “Relations between the statistics of natural images and the response properties of cortical cells”, *Journal of the Optical Society of America A* 4(12), 1987; D. L. Ruderman, W. Bialek, “Statistics of natural images: scaling in the woods”, *Physical Review Letters* 73, 1994.
+-   C. M. Stein, “Estimation of the mean of a multivariate normal distribution”, *Annals of Statistics* 9(6), 1981.
+-   F. J. Anscombe, “The transformation of Poisson, binomial and negative-binomial data”, *Biometrika* 35, 1948; M. Mäkitalo, A. Foi, “Optimal inversion of the Anscombe transformation in low-count Poisson image denoising”, *IEEE Transactions on Image Processing* 20(1), 2011.
+-   A. Foi, M. Trimeche, V. Katkovnik, K. Egiazarian, “Practical Poissonian-Gaussian noise modeling and fitting for single-image raw-data”, *IEEE Transactions on Image Processing* 17(10), 2008.
+-   V. A. Marchenko, L. A. Pastur, “Distribution of eigenvalues for some sets of random matrices”, *Mathematics of the USSR-Sbornik* 1(4), 1967.
+
+**Classical denoising principles (ch. 3–6)**
+
+-   L. P. Yaroslavsky, *Digital Picture Processing: An Introduction*, Springer, 1985; C. Tomasi, R. Manduchi, “Bilateral filtering for gray and color images”, ICCV 1998.
+-   P. Perona, J. Malik, “Scale-space and edge detection using anisotropic diffusion”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 12(7), 1990; L. Rudin, S. Osher, E. Fatemi, “Nonlinear total variation based noise removal algorithms”, *Physica D* 60, 1992.
+-   D. L. Donoho, I. M. Johnstone, “Ideal spatial adaptation by wavelet shrinkage”, *Biometrika* 81(3), 1994; “Adapting to unknown smoothness via wavelet shrinkage”, *Journal of the American Statistical Association* 90, 1995.
+-   R. R. Coifman, D. L. Donoho, “Translation-invariant de-noising”, in *Wavelets and Statistics*, Lecture Notes in Statistics 103, Springer, 1995.
+-   A. Buades, B. Coll, J.-M. Morel, “A non-local algorithm for image denoising”, CVPR 2005.
+-   K. Dabov, A. Foi, V. Katkovnik, K. Egiazarian, “Image denoising by sparse 3-D transform-domain collaborative filtering”, *IEEE Transactions on Image Processing* 16(8), 2007.
+-   M. Lebrun, A. Buades, J.-M. Morel, “A nonlocal Bayesian image denoising algorithm”, *SIAM Journal on Imaging Sciences* 6(3), 2013.
+-   D. Zoran, Y. Weiss, “From learning models of natural image patches to whole image restoration”, ICCV 2011; G. Yu, G. Sapiro, S. Mallat, “Solving inverse problems with piecewise linear estimators: from Gaussian mixture models to structured sparsity”, *IEEE Transactions on Image Processing* 21(5), 2012.
+-   A. B. Lee, K. S. Pedersen, D. Mumford, “The nonlinear statistics of high-contrast patches in natural images”, *International Journal of Computer Vision* 54, 2003; G. Carlsson, T. Ishkhanov, V. de Silva, A. Zomorodian, “On the local behavior of spaces of natural images”, *International Journal of Computer Vision* 76, 2008; M. Zontak, M. Irani, “Internal statistics of a single natural image”, CVPR 2011.
+
+**Neural networks and learned denoisers (ch. 7–9)**
+
+-   G. Cybenko, “Approximation by superpositions of a sigmoidal function”, *Mathematics of Control, Signals and Systems* 2, 1989; M. Leshno, V. Ya. Lin, A. Pinkus, S. Schocken, “Multilayer feedforward networks with a nonpolynomial activation function can approximate any function”, *Neural Networks* 6(6), 1993.
+-   D. E. Rumelhart, G. E. Hinton, R. J. Williams, “Learning representations by back-propagating errors”, *Nature* 323, 1986; D. P. Kingma, J. Ba, “Adam: a method for stochastic optimization”, ICLR 2015.
+-   K. He, X. Zhang, S. Ren, J. Sun, “Deep residual learning for image recognition”, CVPR 2016; S. Ioffe, C. Szegedy, “Batch normalization”, ICML 2015; O. Ronneberger, P. Fischer, T. Brox, “U-Net: convolutional networks for biomedical image segmentation”, MICCAI 2015.
+-   H. C. Burger, C. J. Schuler, S. Harmeling, “Image denoising: can plain neural networks compete with BM3D?”, CVPR 2012.
+-   K. Zhang, W. Zuo, Y. Chen, D. Meng, L. Zhang, “Beyond a Gaussian denoiser: residual learning of deep CNN for image denoising”, *IEEE Transactions on Image Processing* 26(7), 2017; K. Zhang, W. Zuo, L. Zhang, “FFDNet: toward a fast and flexible solution for CNN-based image denoising”, *IEEE Transactions on Image Processing* 27(9), 2018.
+-   U. Schmidt, S. Roth, “Shrinkage fields for effective image restoration”, CVPR 2014; Y. Chen, T. Pock, “Trainable nonlinear reaction diffusion: a flexible framework for fast and effective image restoration”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 39(6), 2017.
+-   S. Mohan, Z. Kadkhodaie, E. P. Simoncelli, C. Fernandez-Granda, “Robust and interpretable blind image denoising via bias-free convolutional neural networks”, ICLR 2020.
+-   S. Lefkimmiatis, “Non-local color image denoising with convolutional neural networks”, CVPR 2017.
+-   Z. Wang, A. C. Bovik, H. R. Sheikh, E. P. Simoncelli, “Image quality assessment: from error visibility to structural similarity”, *IEEE Transactions on Image Processing* 13(4), 2004; D. Martin, C. Fowlkes, D. Tal, J. Malik, “A database of human segmented natural images and its application to evaluating segmentation algorithms and measuring ecological statistics”, ICCV 2001.
+-   P. Chatterjee, P. Milanfar, “Is denoising dead?”, *IEEE Transactions on Image Processing* 19(4), 2010; A. Levin, B. Nadler, “Natural image denoising: optimality and inherent bounds”, CVPR 2011.
+-   T. Plötz, S. Roth, “Benchmarking denoising algorithms with real photographs”, CVPR 2017; A. Abdelhamed, S. Lin, M. S. Brown, “A high-quality denoising dataset for smartphone cameras”, CVPR 2018; T. Brooks, B. Mildenhall, T. Xue, J. Chen, D. Sharlet, J. T. Barron, “Unprocessing images for learned raw denoising”, CVPR 2019.
+
+**Research directions (ch. 10)**
+
+-   J. Lehtinen, J. Munkberg, J. Hasselgren, S. Laine, T. Karras, M. Aittala, T. Aila, “Noise2Noise: learning image restoration without clean data”, ICML 2018; A. Krull, T.-O. Buchholz, F. Jug, “Noise2Void — learning denoising from single noisy images”, CVPR 2019; J. Batson, L. Royer, “Noise2Self: blind denoising by self-supervision”, ICML 2019.
+-   K. Miyasawa, “An empirical Bayes estimator of the mean of a normal population”, *Bulletin of the International Statistical Institute* 38, 1961; B. Efron, “Tweedie's formula and selection bias”, *Journal of the American Statistical Association* 106, 2011.
+-   J. Ho, A. Jain, P. Abbeel, “Denoising diffusion probabilistic models”, NeurIPS 2020; Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon, B. Poole, “Score-based generative modeling through stochastic differential equations”, ICLR 2021; Z. Kadkhodaie, E. P. Simoncelli, “Stochastic solutions for linear inverse problems using the prior implicit in a denoiser”, NeurIPS 2021.
+-   S. V. Venkatakrishnan, C. A. Bouman, B. Wohlberg, “Plug-and-play priors for model based reconstruction”, IEEE GlobalSIP 2013; Y. Romano, M. Elad, P. Milanfar, “The little engine that could: regularization by denoising (RED)”, *SIAM Journal on Imaging Sciences* 10(4), 2017.
+-   M. Maggioni, G. Boracchi, A. Foi, K. Egiazarian, “Video denoising, deblocking, and enhancement through separable 4-D nonlocal spatiotemporal transforms”, *IEEE Transactions on Image Processing* 21(9), 2012; P. Arias, J.-M. Morel, “Video denoising via empirical Bayesian estimation of space-time patches”, *Journal of Mathematical Imaging and Vision* 60(1), 2018.
+-   T. Ehret, A. Davy, J.-M. Morel, G. Facciolo, P. Arias, “Model-blind video denoising via frame-to-frame training”, CVPR 2019; M. Tassano, J. Delon, T. Veit, “FastDVDnet: towards real-time deep video denoising without flow estimation”, CVPR 2020.
+-   J. Liang, J. Cao, G. Sun, K. Zhang, L. Van Gool, R. Timofte, “SwinIR: image restoration using Swin Transformer”, ICCV Workshops 2021; S. W. Zamir, A. Arora, S. Khan, M. Hayat, F. S. Khan, M.-H. Yang, “Restormer: efficient transformer for high-resolution image restoration”, CVPR 2022.

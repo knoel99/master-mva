@@ -1,0 +1,2145 @@
+---
+title: "Large Language Models for Code and Proof"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: language models, gradients and formal languages](#ch0)
+-   [1. Transformers, attention and the KV cache](#ch1)
+-   [2. Tokenization for text and code](#ch2)
+-   [3. Pretraining code models and scaling laws](#ch3)
+-   [4. Fine-tuning and low-rank adaptation](#ch4)
+-   [5. Decoding and evaluating generated code](#ch5)
+-   [6. Structured generation](#ch6)
+-   [7. Retrieval-augmented generation for code](#ch7)
+-   [8. Formal verification and automated theorem proving](#ch8)
+-   [9. Execution feedback, repair and software-engineering agents](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Large Language Models for Code and Proof
+  Official title       LLM for code and proof
+  Instructors          M. LELARGE, G. BAUDART (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 24 h (lectures 12 h, tutorials 12 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Deep Learning, Natural Language Processing
+  Language             Not displayed; the course description on master-mva.com is written in English
+  Assessment           Homework (30%) + final exam (70%) (master-mva.com, “Mode de validation”); the Université Paris-Saclay course detail gives the nature of the assessment as “Evaluation Continue non Intégrale” (partial continuous assessment)
+  Prerequisites        Mastery of Python and PyTorch, basic knowledge of linear algebra and optimization (master-mva.com); any one of the MVA courses Deep Learning, ALTEGRAD or Theoretical Foundations of Deep Learning covers them
+  -------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student who has trained a transformer in PyTorch and wants to understand what changes when the model writes programs and formal proofs, whose output is executed or checked rather than read.
+
+**Empirical first**: sample 100 programs from a code model for one task. At low temperature they are nearly identical; at a higher temperature, at least one of them is far more likely to pass the hidden tests. Chen et al. (2021) report best temperatures of about 0.2 for pass@1 and 0.8 for pass@100 on their benchmark.
+
+A compiler, a test suite or a proof assistant then accepts or rejects each sample, with no partial credit. This course explains how such models are built, adapted, decoded, constrained, evaluated and plugged into verifiers.
+
+The course goes from the transformer and its tokenizer to the research frontier of program synthesis and machine-checked mathematics. It builds on [Deep Learning](../s1-deep-learning/index.html), [Advanced Learning for Text and Graph Data (ALTEGRAD)](../s1-altegrad/index.html), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) and [Foundations of Large Language Models](../s1-foundations-llms/index.html). It shares tools with [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html) and [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html).
+
+### What you will be able to do
+
+-   Write the equations of causal multi-head attention and prove that a KV cache returns exactly the outputs of a full recomputation.
+-   Size the KV cache of a code model and explain how grouped-query attention reduces it.
+-   Train a byte-level BPE tokenizer on source code and measure its compression on held-out files.
+-   Derive the compute-optimal split between model size and data from a parametric scaling law.
+-   Fine-tune a frozen model with LoRA, count its trainable parameters and merge the adapter.
+-   Compare greedy, beam, temperature, top-$k$ and nucleus decoding, and choose a temperature for pass@1 or pass@$k$.
+-   Compute the unbiased pass@$k$ estimator and prove that the plug-in estimator is biased.
+-   Constrain generation with a finite automaton or a grammar, and quantify the distortion that token masking introduces.
+-   Build and evaluate a retriever (BM25, dense) for code and documentation.
+-   Analyse sample-and-test, self-repair and agent loops under a fixed budget of model calls.
+-   Formulate theorem proving as a search problem over tactic states and run a best-first prover whose output is checked.
+-   Check candidate loop invariants against the verification conditions of Hoare logic.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from the observation that recent advances in large language models (LLMs) have enabled remarkable progress in program synthesis and code generation. It explores the foundations and methods of modern neural code generation, with a focus on Transformer-based architectures and LLM techniques.
+
+The description sets two objectives. The first is a deep understanding of the core techniques for training and fine-tuning neural models for code generation, including inference strategies and evaluation metrics specific to code. The second is an introduction to current research in neural program synthesis, with applications in software engineering, reasoning and formal verification.
+
+By the end of the course, students are expected to gain both theoretical insights and hands-on experience in building and evaluating neural models for code generation. The description refers to the course page <https://llm.labri.fr/> for the organisation of the sessions; the course can accommodate up to 90 students and is not open to external auditors.
+
+| Official topic | Course section |
+|---|---|
+| Theme: Transformer architectures, attention mechanisms, and KV-cache for efficient inference | [ch. 1](#ch1): attention (1.1), the decoder-only block and positions (1.2), the KV cache (1.3), grouped-query attention and memory-bound decoding (1.4) |
+| Theme: Tokenization strategies for linguistic and code-based datasets | [ch. 2](#ch2): byte-level BPE (2.2), unigram tokenization and SentencePiece (2.3), whitespace, identifiers, digits and token boundaries in code (2.4) |
+| Theme: Fine-tuning techniques such as LoRA for task-specific adaptation | [ch. 4](#ch4): supervised and instruction fine-tuning (4.1), LoRA with its gradients and expressivity (4.2), QLoRA and other parameter-efficient methods (4.3), instruction data for code (4.4) |
+| Theme: Scaling laws for optimizing LLM performance | [ch. 3](#ch3): the $6ND$ cost model and the compute-optimal allocation (3.3), data-constrained regimes (3.4); inference-aware scaling in [ch. 10](#ch10) |
+| Theme: Decoding strategies for code generation, including sampling-based and greedy methods | [ch. 5](#ch5): greedy and beam search (5.1), temperature, top-$k$ and nucleus sampling (5.2), the temperature–pass@$k$ trade-off and sample selection (5.4–5.5) |
+| Theme: Retrieval-augmented generation (RAG) for incorporating external knowledge | [ch. 7](#ch7): sparse and dense retrievers (7.1), RAG models and their gradient (7.2), repository and documentation retrieval (7.3); premise retrieval in [ch. 8](#ch8) |
+| Theme: Structured generation techniques for syntax-constrained outputs | [ch. 6](#ch6): constrained decoding (6.1), automata (6.2), grammars (6.3), distortion and its correction (6.4) |
+| Theme: Applications of LLMs in formal verification and automated theorem proving | [ch. 8](#ch8): proof assistants and Curry–Howard (8.1), proof search (8.2), learning to prove, premise retrieval and benchmarks (8.3), autoformalization (8.4), loop invariants and program verification (8.5) |
+| Theme (outcome): theoretical insights and hands-on experience in building and evaluating neural models for code generation | Theorems with proofs in every chapter; runnable code in ch. 0–9; [Exercises](#ex) and [Projects](#projects) |
+| Objective 1: training and fine-tuning neural models for code generation, inference strategies and evaluation metrics specific to code | [ch. 3](#ch3)–[ch. 5](#ch5), with execution-based evaluation and pass@$k$ in 5.3 |
+| Objective 2: current research in neural program synthesis, with applications in software engineering, reasoning and formal verification | [ch. 8](#ch8) (formal verification), [ch. 9](#ch9) (tests, self-repair, software-engineering agents, learning from execution; self-study), [ch. 10](#ch10) (self-study) |
+| Organisation of the sessions (course page <https://llm.labri.fr/>) | The [session plan](#sessions) below is a proposal |
+| Université Paris-Saclay course detail: “Nature de l'évaluation: Evaluation Continue non Intégrale” (no programme displayed) | Fiche above (Assessment row) and [Projects and assessment](#projects) |
+
+Extensions beyond the syllabus: the review [ch. 0](#ch0), near-duplicate detection and fill-in-the-middle training in [ch. 3](#ch3), and the self-study research [ch. 10](#ch10).
+
+### Where this course fits in the programme
+
+Official prerequisites: mastery of Python and PyTorch, and basic knowledge of linear algebra and optimization. The course description adds that any one of three MVA courses is enough to be up to speed: Deep Learning, Advanced Learning for Text and Graph Data, and Theoretical Foundations of Deep Learning. The instructors are Marc Lelarge (INRIA & ENS) and Guillaume Baudart (INRIA – Irif), as listed on master-mva.com.
+
+-   **Refreshers** — [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for the code, [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for ch. 1, 3 and 4, and [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for ch. 0, 5 and 6.
+-   **First-semester courses that prepare it** — the three named by the description, [Deep Learning](../s1-deep-learning/index.html), [ALTEGRAD](../s1-altegrad/index.html) and [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html); also [Foundations of Large Language Models](../s1-foundations-llms/index.html) and [Fundamentals of Reproducible Research and Free Software](../s1-reproducible-research/index.html).
+-   **Related second-semester courses** — [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html) (serving, LoRA, post-training at scale), [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html) (tokenization, decoding), [Reinforcement Learning](../s2-reinforcement-learning/index.html) (learning from test rewards, ch. 9) and [Responsible Machine Learning](../s2-responsible-ml/index.html).
+-   **After the course** — the [Research Internship](../s3-research-internship/index.html), for which ch. 10 lists open questions.
+
+### Course outline
+
+-   **Review: language models, gradients and formal languages** — the chain rule of probability, cross-entropy and perplexity, the softmax gradient, automata and grammars.
+-   **Transformers, attention and the KV cache** — attention and its invariances, the decoder-only block, rotary positions, the KV cache and its memory.
+-   **Tokenization for text and code** — byte-level BPE, unigram tokenization, and what is special about source code.
+-   **Pretraining code models and scaling laws** — code corpora and deduplication, fill-in-the-middle, compute-optimal scaling.
+-   **Fine-tuning and low-rank adaptation** — supervised fine-tuning, LoRA and its analysis, instruction data for code.
+-   **Decoding and evaluating generated code** — search and sampling, pass@$k$ and its estimator, choosing among samples.
+-   **Structured generation** — masking with automata and grammars, and the distortion it creates.
+-   **Retrieval-augmented generation for code** — retrievers, RAG models, retrieval in repositories.
+-   **Formal verification and automated theorem proving** — proof assistants, proof search, autoformalization, invariants.
+-   **Execution feedback, repair and software-engineering agents** — filtering with tests, self-repair, agents, learning from execution (self-study).
+-   **Research directions and open problems** — verifiable rewards, test-time compute, benchmarks, formal mathematics (self-study).
+
+### Session plan {#sessions}
+
+**24 h in class = 8 sessions of 3 h.**
+
+The volume is the Université Paris-Saclay programme table (lectures 12 h, tutorials 12 h). master-mva.com refers to the course page for the organisation of the sessions; the split below is a proposal, with about 1.5 h of lecture and 1.5 h of tutorial in each session.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced or research-level material; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review (language models, softmax, automata, grammars); ch. 1.1–1.2 attention, the decoder-only block, rotary positions | Ex. 7; Code 0.3 |
+| 2 | 3 h | 1 | ch. 1.3–1.4 the KV cache, grouped-query attention; ch. 2 Tokenization: BPE, unigram, code-specific issues | Ex. 1–2; Codes 1.10, 2.4 |
+| 3 | 3 h | 2 | ch. 3 Pretraining code models: corpora and deduplication, fill-in-the-middle, scaling laws, data limits | Ex. 3, 8; Codes 3.4, 3.9 |
+| 4 | 3 h | 2 | ch. 4 Fine-tuning: SFT, LoRA and its analysis, QLoRA, instruction data for code | Ex. 4; Code 4.6 |
+| 5 | 3 h | 2 | ch. 5 Decoding and evaluation: search, sampling, pass@$k$, temperature, selection | Ex. 5–6, 9, 11; Codes 5.8, 5.10 |
+| 6 | 3 h | 2 | ch. 6 Structured generation: masking, automata, grammars, distortion | Ex. 10; Code 6.7 |
+| 7 | 3 h | 3 | ch. 7 Retrieval-augmented generation; ch. 8.1–8.2 proof assistants and model-guided proof search | Ex. 12; Codes 7.5, 8.6 |
+| 8 | 3 h | 3 | ch. 8.3–8.5 learning to prove, autoformalization, program verification | Ex. 13, 16; Code 8.9 |
+
+**Self-study, outside the 24 h** (about 7 h in total): ch. 9 Execution feedback, repair and software-engineering agents (≈ 3 h, with Ex. 14) · ch. 10 Research directions and open problems (≈ 3 h, with Ex. 15 and 17) · the written-exam proposal of [Projects and assessment](#projects-exam) as a self-test (≈ 1 h).
+
+### How to study this module
+
+-   Read ch. 0 first even if language models are familiar: the softmax gradient, the automata and the grammars it fixes are used without warning in ch. 5 and 6.
+-   Run every code block. They need NumPy, SciPy and PyTorch on a CPU, use fixed seeds or the Python standard library as data, and finish in a few seconds.
+-   After each session, solve the exercises of the *Practice* column; the ★★★ exercises are good starting points for a project.
+-   Read ch. 9 after session 8: it applies the generate-and-check pattern of ch. 8 to tests, repairs and agents, with the tools of ch. 5.
+-   Keep a small open code model at hand (a free GPU tier is enough for models up to about 1.5 billion parameters) to try every decoding, constraining and retrieval method on real samples.
+-   Follow the course page announced on master-mva.com, <https://llm.labri.fr/>, for the official homework and schedule; the subjects on this page are proposals, not the official ones.
+
+## 0. Review: language models, gradients and formal languages {#ch0}
+
+Every later chapter manipulates a probability distribution over token sequences, a softmax over a vocabulary, and a formal language that the output must belong to. This chapter fixes these three M1-level tools and the notation of the page.
+
+### 0.1 Autoregressive language models
+
+::: def
+[Definition 0.1 — Autoregressive language model]{.tag} Let $\mathcal{V}$ be a finite vocabulary that contains an end-of-sequence token $\langle\mathrm{eos}\rangle$. A language model with parameters $\theta$ gives, for every prefix $x_{<t}$, a distribution $p_\theta(\cdot \mid x_{<t})$ on $\mathcal{V}$. The probability of a sequence ending with $\langle\mathrm{eos}\rangle$ is the chain rule
+
+$$
+p_\theta(x_1, \dots, x_T) = \prod_{t=1}^{T} p_\theta(x_t \mid x_{<t}).
+$$
+
+The training loss on a corpus is the average negative log-likelihood per token, and the **perplexity** is its exponential:
+
+$$
+\mathcal{L}(\theta) = -\frac{1}{T} \sum_{t=1}^{T} \log p_\theta(x_t \mid x_{<t}), \qquad \mathrm{PPL} = e^{\mathcal{L}(\theta)}.
+$$
+:::
+
+With base-2 logarithms the loss is in bits per token. A perplexity of 13 means the model is, on average, as uncertain as a uniform choice among 13 tokens.
+
+:::: prop
+[Proposition 0.2 — Cross-entropy is minimized by the true distribution]{.tag} For distributions $p$ and $q$ on a finite set, with $q > 0$ where $p > 0$,
+
+$$
+\mathbb{E}_{x \sim p}[-\log q(x)] = H(p) + \mathrm{KL}(p \,\|\, q) \ \ge\ H(p),
+$$
+
+with equality if and only if $q = p$.
+
+::: proof
+Expand $-\log q = -\log p + \log(p/q)$ and take the expectation under $p$: this gives the identity.
+
+For the inequality, $-\log$ is strictly convex, so Jensen's inequality gives
+
+$$
+\mathrm{KL}(p \,\|\, q) = \mathbb{E}_p\Big[-\log \frac{q(x)}{p(x)}\Big] \ \ge\ -\log \mathbb{E}_p\Big[\frac{q(x)}{p(x)}\Big] = -\log \sum_{x : p(x) > 0} q(x) \ \ge\ 0.
+$$
+
+Equality forces the ratio $q/p$ to be constant on the support of $p$ and $q$ to put no mass outside it, hence $q = p$. [∎]{.qed}
+:::
+::::
+
+Minimizing the next-token loss on a corpus therefore pushes the model towards the conditional distributions of the data. The loss can never go below the entropy of the source, which is why scaling laws (ch. 3) have an irreducible term.
+
+::: ex
+[Code 0.3 — A bigram model of Python source code]{.tag} The data are the source of the module `json.decoder` of the Python standard library (Python 3.13), split 80/20 into training and test text.
+
+```python
+import inspect, json.decoder, math
+from collections import Counter
+
+text = inspect.getsource(json.decoder)          # real Python code, shipped with Python
+split = int(0.8 * len(text))
+train, test = text[:split], text[split:]
+V = len(set(text))
+
+pairs = Counter(zip(train, train[1:]))           # bigram counts
+first = Counter(train[:-1])
+
+def logp(a, b):                                   # add-one smoothing
+    return math.log2((pairs[(a, b)] + 1) / (first[a] + V))
+
+nll = -sum(logp(a, b) for a, b in zip(test, test[1:])) / (len(test) - 1)
+print(f"{V} distinct characters, uniform model: {math.log2(V):.2f} bits/char")
+print(f"bigram model: {nll:.2f} bits/char, perplexity {2 ** nll:.1f}")
+```
+
+It prints 86 distinct characters, a uniform cost of 6.43 bits per character, and
+
+$$
+3.75 \text{ bits per character, perplexity } 13.4 .
+$$
+:::
+
+### 0.2 Softmax, temperature and the gradient
+
+::: def
+[Definition 0.4 — Softmax with temperature]{.tag} For logits $z \in \mathbb{R}^{|\mathcal{V}|}$ and a temperature $\tau > 0$,
+
+$$
+\mathrm{softmax}_\tau(z)_i = \frac{e^{z_i/\tau}}{\sum_{j} e^{z_j/\tau}} .
+$$
+
+The model outputs $p_\theta(\cdot \mid x_{<t}) = \mathrm{softmax}_1(z)$, where $z$ is computed from the prefix.
+:::
+
+As $\tau \to 0$, the distribution concentrates on the largest logit when it is unique; as $\tau \to \infty$, it tends to the uniform distribution. Adding the same constant to every logit changes nothing.
+
+:::: prop
+[Proposition 0.5 — Gradient of the cross-entropy]{.tag} Let $p = \mathrm{softmax}_1(z)$ and let $e_y$ be the indicator vector of the observed token $y$. Then
+
+$$
+\nabla_z \big(-\log p_y\big) = p - e_y .
+$$
+
+::: proof
+Write the loss as $-z_y + \log \sum_j e^{z_j}$. The derivative of the first term is $-\mathbb{1}[i = y]$, and the derivative of the second with respect to $z_i$ is $e^{z_i} / \sum_j e^{z_j} = p_i$. [∎]{.qed}
+:::
+::::
+
+Each training step therefore raises the logit of the observed token and lowers every other logit in proportion to its probability. The gradient vanishes only when the model puts all its mass on the observed token.
+
+### 0.3 Automata and grammars
+
+Programs, JSON documents and proofs must belong to a formal language. Two classes of languages are used in ch. 2 and ch. 6.
+
+::: def
+[Definition 0.6 — Deterministic finite automaton]{.tag} A DFA is a tuple $(Q, \Sigma, \delta, q_0, F)$: a finite set of states, an alphabet, a transition function $\delta : Q \times \Sigma \to Q$, an initial state and a set of accepting states. Extend $\delta$ to strings letter by letter. The language of the DFA is
+
+$$
+L = \{ s \in \Sigma^* : \delta(q_0, s) \in F \}.
+$$
+
+Languages recognized by DFAs are exactly those described by regular expressions (Kleene's theorem).
+:::
+
+::: def
+[Definition 0.7 — Context-free grammar]{.tag} A context-free grammar is a tuple $(N, \Sigma, R, S)$: non-terminal symbols, terminal symbols, rules $A \to \alpha$ with $A \in N$ and $\alpha$ a string over $N \cup \Sigma$, and a start symbol $S$. Its language is the set of terminal strings derivable from $S$.
+
+For example, the rules $S \to (S)S$ and $S \to \varepsilon$ generate the balanced strings of parentheses.
+:::
+
+:::: prop
+[Proposition 0.8 — Nesting is not regular]{.tag} No DFA recognizes the language of balanced parentheses.
+
+::: proof
+Suppose a DFA with $n$ states recognizes it. Among the $n + 1$ prefixes $(^0, (^1, \dots, (^n$, two of them, $(^i$ and $(^j$ with $i < j$, lead to the same state.
+
+The string $(^i\, )^i$ is balanced, so it is accepted. Since $(^j$ reaches the same state as $(^i$, the string $(^j\, )^i$ is accepted too. It is not balanced, a contradiction. [∎]{.qed}
+:::
+::::
+
+Brackets in code and nested JSON objects therefore need grammars, and checking a prefix needs a stack: this is the difference between the two constraint engines of ch. 6.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   A language model factorizes a sequence probability by the chain rule; its loss is the average negative log-likelihood, and the perplexity is its exponential.
+-   Cross-entropy is at least the entropy of the source, with equality only for the true distribution.
+-   The gradient of the cross-entropy with respect to the logits is $p - e_y$.
+-   Temperature interpolates between the most likely token and the uniform distribution.
+-   Regular languages are recognized by finite automata; nested structures such as brackets need context-free grammars.
+::::
+
+## 1. Transformers, attention and the KV cache {#ch1}
+
+Almost every code and proof model in use is a decoder-only transformer. This chapter defines attention, explains how the model knows the order of the tokens, and shows why generation reuses past keys and values instead of recomputing them.
+
+### 1.1 Scaled dot-product attention
+
+::: def
+[Definition 1.1 — Causal attention head]{.tag} A sequence of $T$ token embeddings is a matrix $X \in \mathbb{R}^{T \times d}$. A head with matrices $W_Q, W_K \in \mathbb{R}^{d \times d_k}$ and $W_V \in \mathbb{R}^{d \times d_v}$ computes $Q = XW_Q$, $K = XW_K$, $V = XW_V$ and
+
+$$
+\mathrm{Attn}(X) = \mathrm{softmax}\Big(\frac{QK^\top}{\sqrt{d_k}} + M\Big)\, V ,
+$$
+
+where the softmax acts on each row and the **causal mask** $M$ is $0$ on and below the diagonal and $-\infty$ above it. Row $t$ of the output is an average of the values $v_1, \dots, v_t$, weighted by the similarity of the query $q_t$ with the keys.
+:::
+
+:::: prop
+[Proposition 1.2 — Attention without positions ignores order]{.tag} Without the mask, attention is permutation-equivariant: for every permutation matrix $P$,
+
+$$
+\mathrm{Attn}(PX) = P\, \mathrm{Attn}(X).
+$$
+
+::: proof
+Replacing $X$ by $PX$ replaces $Q, K, V$ by $PQ, PK, PV$, and the score matrix $S = QK^\top/\sqrt{d_k}$ by $PSP^\top$.
+
+A row-wise softmax commutes with permuting rows and with permuting columns, so it maps $PSP^\top$ to $P\,\mathrm{softmax}(S)\,P^\top$. Multiplying by $PV$ and using $P^\top P = I$ gives $P\,\mathrm{softmax}(S)\,V$. [∎]{.qed}
+:::
+::::
+
+Without position information, `a - b` and `b - a` would get the same multiset of representations. Positions must therefore be injected, which is the role of Definition 1.6.
+
+:::: prop
+[Proposition 1.3 — Why divide by the square root of the dimension]{.tag} If $q, k \in \mathbb{R}^{d_k}$ are independent with independent coordinates of mean 0 and variance 1, then $\mathbb{E}[q^\top k] = 0$ and
+
+$$
+\mathrm{Var}(q^\top k) = d_k .
+$$
+
+::: proof
+The products $q_i k_i$ are independent, with mean $\mathbb{E}[q_i]\mathbb{E}[k_i] = 0$ and variance $\mathbb{E}[q_i^2]\,\mathbb{E}[k_i^2] = 1$. The variance of the sum of $d_k$ of them is $d_k$. [∎]{.qed}
+:::
+::::
+
+Dividing the scores by $\sqrt{d_k}$ keeps their variance near 1 at initialization. Otherwise, with $d_k = 128$ the scores would have a standard deviation of about 11, the softmax would be almost one-hot, and its gradient (Proposition 0.5) almost zero.
+
+### 1.2 The decoder-only block and positions
+
+::: def
+[Definition 1.4 — Decoder-only transformer]{.tag} The model embeds the tokens into $X \in \mathbb{R}^{T \times d}$ and applies $L$ blocks, each made of two residual sub-layers preceded by a normalization:
+
+$$
+X \leftarrow X + \mathrm{MHA}(\mathrm{LN}(X)), \qquad X \leftarrow X + \mathrm{MLP}(\mathrm{LN}(X)).
+$$
+
+Multi-head attention runs $H$ heads of dimension $d_h = d/H$ in parallel, concatenates them and multiplies by $W_O \in \mathbb{R}^{d \times d}$. The MLP is $x \mapsto W_2\, \phi(W_1 x)$ with hidden width $4d$. A final linear layer gives the logits of the next token at every position.
+:::
+
+:::: prop
+[Proposition 1.5 — Parameter count]{.tag} Ignoring biases and normalization gains, a model with vocabulary size $|\mathcal{V}|$ has about
+
+$$
+N \approx 12\, L\, d^2 + |\mathcal{V}|\, d \ \text{ parameters.}
+$$
+
+::: proof
+Attention has four $d \times d$ matrices, $4d^2$ parameters. The MLP has two matrices of sizes $4d \times d$ and $d \times 4d$, $8d^2$ parameters. The embedding table adds $|\mathcal{V}| d$ when it is shared with the output layer. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 1.6 — Rotary position embedding (RoPE)]{.tag} Su et al. (2024) rotate queries and keys according to their position. Split $q \in \mathbb{R}^{d_k}$ into $d_k/2$ pairs of coordinates and let $R(\alpha)$ be the rotation of the plane by angle $\alpha$. At position $m$, pair $i$ is multiplied by $R(m\theta_i)$, with $\theta_i = 10000^{-2i/d_k}$. Call $R_m$ the resulting block-diagonal orthogonal matrix.
+
+The score between a query at position $m$ and a key at position $n$ is $(R_m q)^\top (R_n k)$.
+:::
+
+:::: prop
+[Proposition 1.7 — RoPE scores depend on relative positions]{.tag} For all $q, k$ and all positions $m, n$,
+
+$$
+(R_m q)^\top (R_n k) = q^\top R_{n-m}\, k .
+$$
+
+::: proof
+Plane rotations satisfy $R(\alpha)^\top = R(-\alpha)$ and $R(\alpha)R(\beta) = R(\alpha + \beta)$. Block by block, $R_m^\top R_n$ is therefore the rotation of angle $(n - m)\theta_i$ on pair $i$, which is $R_{n-m}$. [∎]{.qed}
+:::
+::::
+
+A pattern such as "the closing bracket three tokens later" is thus scored identically at every position of a file.
+
+### 1.3 The KV cache
+
+Generation produces one token per forward pass. A naive loop would recompute the whole prefix at every step.
+
+:::: prop
+[Proposition 1.8 — Causality]{.tag} In a decoder-only transformer with causal masks, the hidden state at position $s$ in every layer depends only on the tokens $x_1, \dots, x_s$. In particular, appending tokens does not change the keys and values of earlier positions.
+
+::: proof
+By induction on the layers. The embeddings at position $s$ depend on $x_s$ and $s$ only. If all states of layer $\ell$ at positions $\le s$ depend only on $x_{\le s}$, then the attention output at $s$ in layer $\ell + 1$ uses the query at $s$ and the keys and values at positions $\le s$, because the mask sets the other weights to zero. The normalization, MLP and residual act position by position. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 1.9 — Cost of generation with and without cache]{.tag} Generating $T$ tokens with $L$ layers of width $d$ costs, up to constants,
+
+$$
+\text{without cache: } L\,(T^2 d^2 + T^3 d), \qquad \text{with cache: } L\,(T d^2 + T^2 d)
+$$
+
+operations. The cache stores one key and one value vector per layer, per key-value head and per past token.
+
+::: key
+[Key result — size of the KV cache]{.tag} With $n_{kv}$ key-value heads of dimension $d_h$, stored on $e$ bytes per number, a sequence of $T$ tokens takes
+$$
+2 \cdot L \cdot n_{kv} \cdot d_h \cdot e \cdot T \ \text{ bytes.}
+$$
+:::
+
+::: proof
+Without cache, step $t$ processes $t$ positions: projections and MLP cost $O(t d^2)$ and attention $O(t^2 d)$. Summing over $t \le T$ gives the first bound.
+
+With cache, step $t$ processes the new position only, $O(d^2)$, and its attention reads $t$ cached keys and values, $O(td)$; by Proposition 1.8 the cached entries are exactly those a full recomputation would produce. The memory count is direct. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 1.10 — Cached decoding equals full recomputation]{.tag} One causal head, processed all at once and then one token at a time.
+
+```python
+import torch
+torch.manual_seed(0)
+d, T = 16, 10
+Wq, Wk, Wv = (torch.randn(d, d) / d ** 0.5 for _ in range(3))
+X = torch.randn(T, d)                       # embeddings of T tokens
+
+def causal_attention(X):                    # full recomputation, O(T^2 d)
+    Q, K, V = X @ Wq, X @ Wk, X @ Wv
+    S = Q @ K.T / d ** 0.5
+    mask = torch.triu(torch.ones(len(X), len(X), dtype=torch.bool), 1)
+    return torch.softmax(S.masked_fill(mask, float("-inf")), dim=-1) @ V
+
+K_cache, V_cache, outs = [], [], []
+for t in range(T):                          # one token at a time, O(t d) per step
+    x = X[t]
+    K_cache.append(x @ Wk); V_cache.append(x @ Wv)
+    K, V = torch.stack(K_cache), torch.stack(V_cache)
+    a = torch.softmax(K @ (x @ Wq) / d ** 0.5, dim=0)
+    outs.append(a @ V)
+
+err = (torch.stack(outs) - causal_attention(X)).abs().max().item()
+print(f"max difference cached vs full: {err:.1e}")    # 6.0e-07: rounding only
+```
+:::
+
+### 1.4 Grouped-query attention and memory-bound decoding
+
+::: def
+[Definition 1.11 — Multi-query and grouped-query attention]{.tag} In multi-query attention (Shazeer, 2019), all $H$ query heads share one key head and one value head. In grouped-query attention (Ainslie et al., 2023), the query heads are split into $n_{kv}$ groups that each share a key and a value head, with $1 \le n_{kv} \le H$.
+:::
+
+::: ex
+[Example 1.12 — The cache of a repository-sized prompt]{.tag} Take a 7-billion-parameter code model with $L = 32$, $H = 32$ heads of dimension $d_h = 128$, and a bf16 cache ($e = 2$).
+
+-   With $n_{kv} = 32$, one token costs $2 \times 32 \times 32 \times 128 \times 2 = 524\,288$ bytes, 0.5 MiB.
+-   A prompt of 16 384 tokens, a few source files, therefore costs 8 GiB, more than half of the 13 GiB of weights.
+-   With grouped-query attention and $n_{kv} = 8$, it costs 2 GiB.
+:::
+
+Each decoding step reads all the weights and the whole cache to produce one token per sequence, so decoding is limited by memory bandwidth, not arithmetic. Larger batches, smaller caches and fewer bytes per number are the remedies; serving is studied in [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   Attention is a softmax-weighted average of values; without positions it is blind to token order.
+-   The $1/\sqrt{d_k}$ factor keeps the scores of order 1 at initialization.
+-   A decoder-only transformer has about $12Ld^2$ parameters plus the embeddings.
+-   RoPE makes attention scores depend on relative positions only.
+-   Causality makes past keys and values reusable: the KV cache turns a cubic generation cost into a quadratic one, at a memory cost linear in the context length.
+-   Grouped-query attention divides the cache by $H / n_{kv}$.
+::::
+
+## 2. Tokenization for text and code {#ch2}
+
+A model never sees characters: it sees integers from a fixed vocabulary. This chapter explains how that vocabulary is learnt, why its choice changes the cost and the behaviour of a code model, and where tokens and syntax disagree.
+
+### 2.1 What a tokenizer must do
+
+::: def
+[Definition 2.1 — Tokenizer]{.tag} A tokenizer is a vocabulary $\mathcal{V}$ with an encoder $\mathrm{enc} : \Sigma^* \to \mathcal{V}^*$ and a decoder $\mathrm{dec} : \mathcal{V}^* \to \Sigma^*$ such that every string is recovered:
+
+$$
+\mathrm{dec}(\mathrm{enc}(s)) = s \quad \text{for all } s \in \Sigma^* .
+$$
+
+Its **compression** on a text is the number of bytes per token.
+:::
+
+Characters give short vocabularies but long sequences; whole words give short sequences but an open vocabulary with unknown words. Since attention costs grow with the square of the length (Proposition 1.9), every factor gained in compression is a large saving.
+
+Unicode text is first encoded in UTF-8, where each code point takes 1 to 4 bytes. Starting from the 256 byte values guarantees that every string, in any language or programming language, can be encoded.
+
+### 2.2 Byte-pair encoding
+
+::: def
+[Algorithm 2.2 — Byte-pair encoding (Sennrich, Haddow and Birch, 2016)]{.tag} Start from the corpus as a sequence of bytes and a vocabulary of the 256 bytes. Repeat $m$ times:
+
+1.  count every pair of adjacent symbols;
+2.  pick the most frequent pair $(a, b)$, add a new symbol $ab$ to the vocabulary and record the merge;
+3.  replace the occurrences of $(a, b)$ by $ab$, scanning from left to right without overlaps.
+
+A new text is encoded by applying the recorded merges in the order they were learnt.
+:::
+
+The idea comes from a compression algorithm of Gage (1994); GPT-2 (Radford et al., 2019) popularized the byte-level version.
+
+:::: prop
+[Proposition 2.3 — BPE is greedy compression]{.tag} A merge that replaces $c$ occurrences shortens the corpus by exactly $c$ symbols and grows the vocabulary by one. After merges replacing $c_1, \dots, c_m$ occurrences, a corpus of $n$ bytes has length
+
+$$
+n - \sum_{j=1}^{m} c_j ,
+$$
+
+and the decoder, which expands each symbol into its bytes, recovers the corpus exactly.
+
+::: proof
+Each replacement turns two symbols into one. Decoding is well defined because each merged symbol stands for the concatenation of the two symbols it replaced, by induction on the order of the merges; replacing the symbols by their expansions undoes each merge. [∎]{.qed}
+:::
+::::
+
+Each step makes the locally best choice, so BPE does not minimize the final length over all vocabularies of the same size. It is a greedy heuristic, and the merges learnt on one corpus can transfer poorly to another.
+
+::: ex
+[Code 2.4 — Training BPE on Python source]{.tag} The merges are learnt on `json.decoder` and evaluated on `json.encoder`, a held-out file of the same library.
+
+```python
+import inspect, json.decoder, json.encoder
+from collections import Counter
+
+def merge(ids, pair, new_id):                # replace left to right, no overlaps
+    out, i = [], 0
+    while i < len(ids):
+        if i + 1 < len(ids) and (ids[i], ids[i + 1]) == pair:
+            out.append(new_id); i += 2
+        else:
+            out.append(ids[i]); i += 1
+    return out
+
+def train_bpe(data: bytes, n_merges: int):
+    ids, merges = list(data), {}
+    for new_id in range(256, 256 + n_merges):
+        pair = Counter(zip(ids, ids[1:])).most_common(1)[0][0]
+        merges[pair] = new_id
+        ids = merge(ids, pair, new_id)
+    return merges
+
+def encode(data: bytes, merges):             # apply the merges in the order learnt
+    ids = list(data)
+    for pair, new_id in merges.items():
+        ids = merge(ids, pair, new_id)
+    return ids
+
+def show(t, merges):
+    inv = {v: k for k, v in merges.items()}
+    return bytes([t]) if t < 256 else show(inv[t][0], merges) + show(inv[t][1], merges)
+
+train = inspect.getsource(json.decoder).encode()
+test = inspect.getsource(json.encoder).encode()
+for n in (0, 50, 200, 500):
+    merges = train_bpe(train, n)
+    print(f"{n:3d} merges: {len(train) / len(encode(train, merges)):.2f} bytes/token on "
+          f"json.decoder, {len(test) / len(encode(test, merges)):.2f} on json.encoder")
+print([show(t, merges).decode() for t in list(merges.values())[:10]])
+```
+
+With 500 merges, the compression is 4.37 bytes per token on the training file but 2.62 on the held-out one. The first merges learnt are runs of 2, 4 and 8 spaces and a newline followed by 8 spaces: indentation.
+:::
+
+### 2.3 Unigram tokenization and SentencePiece
+
+::: def
+[Definition 2.5 — Unigram language-model tokenization (Kudo, 2018)]{.tag} Each token $v$ of a candidate vocabulary has a probability $\pi_v$. A string is encoded by its most probable segmentation:
+
+$$
+\mathrm{enc}(s) = \arg\max_{v_1 \cdots v_k = s} \ \sum_{j=1}^{k} \log \pi_{v_j} .
+$$
+
+The maximum is found by dynamic programming over the end positions of the tokens (the Viterbi algorithm). Training alternates EM updates of $\pi$ with the removal of the tokens whose loss hurts the corpus likelihood least, until the target size is reached.
+:::
+
+SentencePiece (Kudo and Richardson, 2018) implements BPE and unigram tokenization on raw text, with the space treated as an ordinary symbol, so that decoding is exact.
+
+### 2.4 What is special about code
+
+-   **Whitespace.** Indentation is syntax in Python, and runs of spaces are frequent. Chen et al. (2021) added tokens for whitespace runs to the GPT-3 tokenizer and report about 30 % fewer tokens for code.
+-   **Identifiers.** Names such as `parse_json_file` or `parseJsonFile` are split into frequent pieces; a split that respects the word boundaries helps the model reuse what it knows about each word.
+-   **Numbers.** LLaMA (Touvron et al., 2023) splits every number into single digits, so that all numbers share a small and regular set of tokens.
+-   **Boundaries.** A token may straddle a syntactic boundary, for example `):` or `\n    return`. Constraints written at the level of characters must then be translated to tokens (ch. 6).
+
+:::: prop
+[Proposition 2.6 — A string has many tokenizations]{.tag} A language model over tokens defines a probability on strings by summing over all token sequences that decode to the string:
+
+$$
+p(s) = \sum_{t \,:\, \mathrm{dec}(t) = s} p(t) .
+$$
+
+::: proof
+The event "the generated text is $s$" is the disjoint union, over token sequences $t$ with $\mathrm{dec}(t) = s$, of the events "the generated token sequence is $t$". [∎]{.qed}
+:::
+::::
+
+The model sees only canonical tokenizations during training, so most terms of the sum are tiny. A prompt that ends in the middle of a canonical token forces a non-canonical continuation.
+
+::: ex
+[Example 2.7 — A trailing space in a prompt]{.tag} With a GPT-2-style tokenizer, a space is attached to the word that follows it: `return x` is encoded as `return` and ` x`.
+
+-   A prompt ending with `return` and a space ends with a lone space token, rarely seen before a word in training.
+-   The natural continuation, a token starting with a space, can no longer appear.
+
+*Token healing* removes the last prompt token and constrains the first generated token to start with its text: a small instance of the constrained decoding of ch. 6.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   A tokenizer must be lossless; byte-level vocabularies make every string encodable.
+-   BPE greedily merges the most frequent pair; each merge shortens the corpus by its number of replacements.
+-   Unigram tokenization chooses the most probable segmentation by dynamic programming.
+-   In code, whitespace, identifiers and digits deserve dedicated treatment, and compression measured on the training corpus overestimates held-out compression.
+-   The probability of a string sums over its tokenizations; prompts that end inside a token push the model off its training distribution.
+::::
+
+## 3. Pretraining code models and scaling laws {#ch3}
+
+A code model is first pretrained on a large corpus of source code and text. This chapter covers the three decisions made before training starts: which data to keep, which objective to train on, and how to split a compute budget between model size and data.
+
+### 3.1 Code corpora and near-duplicates
+
+Public code corpora are built from software repositories, filtered by licence and file type. The Stack (Kocetkov et al., 2022) gathers 3.1 TB of permissively licensed source code in 30 programming languages.
+
+Repositories copy files, forks and generated code massively. Duplicates waste compute, encourage memorization, and inflate benchmark scores when test problems leak into the training data (Allamanis, 2019; Lee et al., 2022).
+
+::: def
+[Definition 3.1 — Jaccard similarity and MinHash (Broder, 1997)]{.tag} Represent a file by the set $A$ of its shingles, for example its sequences of 5 consecutive tokens. The Jaccard similarity of two files is
+
+$$
+J(A, B) = \frac{|A \cap B|}{|A \cup B|} .
+$$
+
+For a random injective hash $h$ of the shingles, the MinHash of $A$ is the shingle of $A$ with the smallest hash value.
+:::
+
+:::: prop
+[Proposition 3.2 — MinHash estimates the Jaccard similarity]{.tag} If $h$ orders the elements of $A \cup B$ uniformly at random, then
+
+$$
+\mathbb{P}\big[\mathrm{MinHash}(A) = \mathrm{MinHash}(B)\big] = J(A, B).
+$$
+
+::: proof
+Let $x$ be the element of $A \cup B$ with the smallest hash; by symmetry it is uniform on $A \cup B$. Both MinHashes are equal if and only if $x \in A \cap B$: if $x$ is in both sets, it is the minimum of each; if it is only in $A$, the minimum of $B$ is another element. The probability is $|A \cap B| / |A \cup B|$. [∎]{.qed}
+:::
+::::
+
+With $k$ independent hashes, the fraction of agreements estimates $J$ with variance $J(1 - J)/k$. Locality-sensitive hashing groups the $k$ values into bands, so that only pairs agreeing on a whole band are compared, and near-duplicates are found without comparing all pairs of files.
+
+### 3.2 Training objectives: left-to-right and fill-in-the-middle
+
+Causal language modelling (Definition 0.1) trains the model to continue a file. An editor, however, needs to insert code between a prefix and a suffix, for example the body of a function whose callers are already written.
+
+::: def
+[Definition 3.3 — Fill-in-the-middle (Bavarian et al., 2022)]{.tag} Cut a document at two random positions into a prefix, a middle and a suffix. With probability $r$, the FIM rate, train on the rearranged sequence
+
+$$
+\langle\mathrm{PRE}\rangle\, \text{prefix}\ \langle\mathrm{SUF}\rangle\, \text{suffix}\ \langle\mathrm{MID}\rangle\, \text{middle}\ \langle\mathrm{EOT}\rangle ,
+$$
+
+and otherwise on the plain document. At inference, the prompt is the rearranged prefix and suffix, and the model generates the middle.
+:::
+
+The sentinel tokens make the transformation invertible, so no information is lost; by the chain rule, the model learns the distribution of the middle given both sides. Bavarian et al. (2022) report that FIM rates up to 90 % leave the left-to-right perplexity essentially unchanged, a property they call *FIM for free*.
+
+::: ex
+[Code 3.4 — The FIM transformation and its inverse]{.tag}
+
+```python
+import random
+
+def fim(doc: str, rng: random.Random, rate=0.5):
+    """Fill-in-the-middle transformation, prefix-suffix-middle order."""
+    if rng.random() > rate:
+        return doc                                   # keep some plain left-to-right data
+    i, j = sorted(rng.sample(range(len(doc) + 1), 2))
+    prefix, middle, suffix = doc[:i], doc[i:j], doc[j:]
+    return f"<PRE>{prefix}<SUF>{suffix}<MID>{middle}<EOT>"
+
+def undo(sample: str) -> str:                        # sentinels make it invertible
+    if not sample.startswith("<PRE>"):
+        return sample
+    prefix, rest = sample[5:].split("<SUF>")
+    suffix, middle = rest.split("<MID>")
+    return prefix + middle.removesuffix("<EOT>") + suffix
+
+doc = "def area(r):\n    return 3.14159 * r ** 2\n"
+s = fim(doc, random.Random(3), rate=1.0)
+print(repr(s))
+print(undo(s) == doc)                                 # True
+```
+:::
+
+### 3.3 Scaling laws and the compute-optimal model
+
+:::: prop
+[Proposition 3.5 — Training compute]{.tag} Training a dense transformer with $N$ parameters on $D$ tokens costs about
+
+$$
+C \approx 6\, N D \ \text{ floating-point operations.}
+$$
+
+::: proof
+In the forward pass, each parameter takes part in one multiply-add per token, 2 FLOPs. The backward pass computes the gradients with respect to the activations and to the weights, two products of the same size as the forward one, 4 FLOPs. Attention scores add a term proportional to the context length, small when it is below about $6d$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 3.6 — Parametric scaling law (Hoffmann et al., 2022)]{.tag} The final loss of a well-tuned training run is modelled as
+
+$$
+L(N, D) = E + \frac{A}{N^{\alpha}} + \frac{B}{D^{\beta}} ,
+$$
+
+where $E$ is the irreducible loss of Proposition 0.2 and the two other terms are the excess due to the finite model and to the finite data. Fitting hundreds of runs gave $E = 1.69$, $A = 406.4$, $B = 410.7$, $\alpha = 0.34$ and $\beta = 0.28$.
+:::
+
+:::: thm
+[Theorem 3.7 — Compute-optimal allocation]{.tag} Minimize $L(N, D)$ under the budget $6ND = C$. The unique minimizer is
+
+::: key
+[Key result — compute-optimal model and data sizes]{.tag}
+$$
+N^\star = G \Big(\frac{C}{6}\Big)^{\frac{\beta}{\alpha+\beta}}, \qquad D^\star = \frac{1}{G} \Big(\frac{C}{6}\Big)^{\frac{\alpha}{\alpha+\beta}}, \qquad G = \Big(\frac{\alpha A}{\beta B}\Big)^{\frac{1}{\alpha+\beta}} .
+$$
+:::
+
+::: proof
+Substitute $D = C/(6N)$ and set $u = C/6$. The loss becomes $f(N) = E + A N^{-\alpha} + B u^{-\beta} N^{\beta}$, and
+
+$$
+f'(N) = -\alpha A N^{-\alpha - 1} + \beta B u^{-\beta} N^{\beta - 1} .
+$$
+
+The derivative is negative for small $N$, positive for large $N$, and vanishes once, where $N^{\alpha + \beta} = \frac{\alpha A}{\beta B}\, u^{\beta}$. This gives $N^\star$, and $D^\star = u / N^\star$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.8 — Spending $10^{21}$ FLOPs]{.tag} With the constants of Definition 3.6, $\beta/(\alpha + \beta) = 0.45$, so the optimal model grows like $C^{0.45}$ and the data like $C^{0.55}$. For $C = 10^{21}$:
+
+$$
+N^\star \approx 1.8 \times 10^{9}, \qquad D^\star \approx 9.1 \times 10^{10} \ \text{ tokens}, \qquad L \approx 2.33 .
+$$
+
+The two other estimation methods of the same paper give exponents close to 0.5 for both, and about 20 tokens per parameter.
+:::
+
+::: ex
+[Code 3.9 — The optimum, checked and re-fitted]{.tag}
+
+```python
+import numpy as np
+from scipy.optimize import curve_fit
+
+E, A, B, a, b = 1.69, 406.4, 410.7, 0.34, 0.28       # fit of Hoffmann et al. (2022)
+def loss(N, D):
+    return E + A / N ** a + B / D ** b
+
+def optimum(C):                                       # Theorem 3.7
+    G = (a * A / (b * B)) ** (1 / (a + b))
+    N = G * (C / 6) ** (b / (a + b))
+    return N, C / (6 * N)
+
+for C in (1e21, 1e23):
+    N, D = optimum(C)
+    grid = np.logspace(np.log10(N) - 1, np.log10(N) + 1, 2001)
+    N_num = grid[np.argmin(loss(grid, C / (6 * grid)))]   # brute-force check
+    print(f"C = {C:.0e}: N* = {N:.2e} (grid {N_num:.2e}), D* = {D:.2e}, loss {loss(N, D):.3f}")
+
+rng = np.random.default_rng(0)                        # noisy synthetic runs
+N = rng.uniform(7, 10, 40); D = rng.uniform(9, 12, 40)        # log10 of the sizes
+L = loss(10 ** N, 10 ** D) + 0.01 * rng.standard_normal(40)
+f = lambda X, E, A, B, a, b: E + A / 10 ** (a * X[0]) + B / 10 ** (b * X[1])
+p, _ = curve_fit(f, (N, D), L, p0=(2, 300, 300, 0.3, 0.3), maxfev=20000)
+print("fitted alpha = %.3f, beta = %.3f, E = %.2f" % (p[3], p[4], p[0]))
+```
+:::
+
+Kaplan et al. (2020) had recommended growing the model much faster than the data. Hoffmann et al. (2022) attribute most of the difference to the learning-rate schedule, which Kaplan et al. kept fixed across run lengths.
+
+### 3.4 When data run out
+
+Public code is finite, and a large code model can see all of it. Muennighoff et al. (2023) fit scaling laws with repeated data: up to about 4 epochs, repeated tokens are worth almost as much as new ones, and their value then decays quickly. Mixing in natural language and mathematics extends the budget.
+
+The compute-optimal model is not the cheapest to serve. A model used for billions of completions is better trained longer and kept smaller, beyond the Chinchilla ratio, a trade-off studied in Exercise 17 and ch. 10.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   Near-duplicates are found with MinHash, whose collision probability equals the Jaccard similarity.
+-   Fill-in-the-middle rearranges documents with sentinel tokens and teaches infilling at almost no cost to left-to-right modelling.
+-   Training costs about $6ND$ FLOPs.
+-   Under a parametric loss $E + A/N^\alpha + B/D^\beta$, the compute-optimal model size grows like $C^{\beta/(\alpha+\beta)}$.
+-   Repeated data keep most of their value for a few epochs only.
+::::
+
+## 4. Fine-tuning and low-rank adaptation {#ch4}
+
+A pretrained model continues files; a useful assistant follows instructions, and a specialized one masters a library, a language or a proof assistant. Fine-tuning adapts the model on a small data set, and low-rank adaptation does it while training a tiny fraction of the parameters.
+
+### 4.1 Supervised fine-tuning
+
+::: def
+[Definition 4.1 — Supervised fine-tuning (SFT)]{.tag} Given pairs $(x, y)$ of a prompt and a target answer, SFT minimizes the cross-entropy of the answer tokens only:
+
+$$
+\mathcal{L}_{\mathrm{SFT}}(\theta) = -\,\mathbb{E}_{(x, y)} \sum_{t=1}^{|y|} \log p_\theta(y_t \mid x, y_{<t}) .
+$$
+
+The prompt is fed to the model but masked out of the loss. Conversations are serialized with a fixed template of special tokens that mark the roles.
+:::
+
+Full fine-tuning updates all $N$ parameters and needs their gradients and optimizer states: with Adam in mixed precision, about 16 bytes per parameter, 112 GB for a 7-billion-parameter model. It can also degrade abilities that the small data set does not exercise.
+
+### 4.2 Low-rank adaptation
+
+::: def
+[Definition 4.2 — LoRA (Hu et al., 2022)]{.tag} Freeze a pretrained weight $W_0 \in \mathbb{R}^{d \times k}$ and train only a low-rank correction:
+
+$$
+W = W_0 + \frac{\alpha}{r}\, B A, \qquad B \in \mathbb{R}^{d \times r}, \ A \in \mathbb{R}^{r \times k}, \ r \ll \min(d, k).
+$$
+
+$A$ is initialized at random, $B$ at zero, and $\alpha$ is a fixed scale. Adapters are usually placed on the attention projections, often also on the MLP.
+:::
+
+:::: prop
+[Proposition 4.3 — Properties of LoRA]{.tag}
+
+1.  At initialization, the adapted model computes exactly the pretrained function.
+2.  The adapter has $r(d + k)$ trainable parameters instead of $dk$.
+3.  After training, $W_0 + \frac{\alpha}{r}BA$ is merged into one matrix, so inference costs nothing extra.
+
+::: proof
+$B = 0$ gives $W = W_0$. $B$ has $dr$ entries and $A$ has $rk$. A sum of two $d \times k$ matrices is a $d \times k$ matrix. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 4.4 — Gradients of the adapter]{.tag} Let $G = \partial \mathcal{L} / \partial W$ be the gradient with respect to the full weight and $s = \alpha / r$. Then
+
+$$
+\frac{\partial \mathcal{L}}{\partial B} = s\, G A^\top, \qquad \frac{\partial \mathcal{L}}{\partial A} = s\, B^\top G .
+$$
+
+At initialization $B = 0$, so the first step moves $B$ only, along $G$ projected on the row space of $A$.
+
+::: proof
+$W$ depends on $B$ through $sBA$, which is linear in $B$. For a perturbation $\delta B$, the loss changes by $\langle G, s\,\delta B\, A \rangle = \langle s\,G A^\top, \delta B \rangle$ for the Frobenius inner product; the computation for $A$ is the same. [∎]{.qed}
+:::
+::::
+
+How much can a rank-$r$ update express? The answer is given by the singular value decomposition.
+
+:::: thm
+[Theorem 4.5 — Best low-rank approximation (Eckart and Young, 1936)]{.tag} Let $\Delta = \sum_i \sigma_i u_i v_i^\top$ be the SVD of a target update, with $\sigma_1 \ge \sigma_2 \ge \cdots$. Among all matrices of rank at most $r$, the truncation $\Delta_r = \sum_{i \le r} \sigma_i u_i v_i^\top$ minimizes the Frobenius error, and
+
+$$
+\min_{\mathrm{rank}(M) \le r} \| \Delta - M \|_F^2 = \sum_{i > r} \sigma_i^2 .
+$$
+
+::: proof
+*Sketch.* Weyl's inequality for singular values gives $\sigma_{i+r}(\Delta) \le \sigma_i(\Delta - M) + \sigma_{r+1}(M)$, and $\sigma_{r+1}(M) = 0$ for $\mathrm{rank}(M) \le r$. Summing the squares over $i$ gives the lower bound, which $\Delta_r$ attains. [∎]{.qed}
+:::
+::::
+
+LoRA works when the useful update has a fast-decaying spectrum. Aghajanyan et al. (2021) measured that fine-tuning succeeds within random subspaces of surprisingly low dimension, which motivated the low-rank hypothesis.
+
+::: ex
+[Code 4.6 — A rank-4 adapter learns a rank-2 change]{.tag}
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)              # tiny tensors: one thread
+d, k, r, alpha = 64, 64, 4, 4.0
+
+class LoRALinear(torch.nn.Module):
+    def __init__(self, W0):
+        super().__init__()
+        self.W0 = W0                                        # frozen, not a Parameter
+        self.A = torch.nn.Parameter(torch.randn(r, W0.shape[1]) / W0.shape[1] ** 0.5)
+        self.B = torch.nn.Parameter(torch.zeros(W0.shape[0], r))
+    def forward(self, x):
+        return x @ self.W0.T + (alpha / r) * (x @ self.A.T) @ self.B.T
+
+W0 = torch.randn(d, k) / k ** 0.5                           # "pretrained" weight
+delta = torch.randn(d, 2) @ torch.randn(2, k) / k           # the task needs a rank-2 change
+X = torch.randn(512, k); Y = X @ (W0 + delta).T
+
+layer = LoRALinear(W0)
+print("output unchanged at init:", torch.allclose(layer(X), X @ W0.T))
+opt = torch.optim.Adam(layer.parameters(), lr=1e-2)
+for step in range(500):
+    opt.zero_grad()
+    loss = ((layer(X) - Y) ** 2).mean()
+    loss.backward(); opt.step()
+merged = W0 + (alpha / r) * layer.B.detach() @ layer.A.detach()
+print(f"trainable: {r * (d + k)} instead of {d * k}; final loss {loss.item():.1e}")
+print(f"relative error of the merged weight: {((merged - W0 - delta).norm() / delta.norm()).item():.1e}")
+```
+
+It trains 512 parameters instead of 4096 and recovers the change with a relative error of about $3 \times 10^{-3}$.
+:::
+
+### 4.3 QLoRA and other parameter-efficient methods
+
+QLoRA (Dettmers et al., 2023) stores the frozen weights in 4 bits and trains LoRA adapters in 16 bits on top of them; it fine-tunes a 65-billion-parameter model on a single 48 GB GPU. Earlier parameter-efficient methods insert small bottleneck layers, called adapters (Houlsby et al., 2019), or learn continuous prefixes prepended to the keys and values of every layer (Li and Liang, 2021).
+
+### 4.4 Instruction data for code
+
+Instruction pairs for code are expensive to write by hand, so most are generated by models. Self-Instruct (Wang et al., 2023) bootstraps tasks from a few seeds. Evol-Instruct, used for WizardCoder (Luo et al., 2024), rewrites tasks into harder ones. OSS-Instruct, used for Magicoder (Wei et al., 2024), starts from real open-source snippets.
+
+Generated answers can be wrong. Code has an advantage over text here: candidate answers can be run against tests and filtered before training, the idea that ch. 9 turns into a learning loop.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   SFT is next-token training on the answer tokens of prompt–answer pairs.
+-   LoRA trains $r(d+k)$ parameters per matrix, starts from the exact pretrained function and merges for free.
+-   The adapter gradients are the full gradient multiplied by the other factor; at initialization only $B$ moves.
+-   The best rank-$r$ update leaves the error $\sum_{i>r}\sigma_i^2$: LoRA suits updates with a fast-decaying spectrum.
+-   For code, instruction data can be generated and then filtered by execution.
+::::
+
+## 5. Decoding and evaluating generated code {#ch5}
+
+The same model can be an excellent or a poor programmer depending on how its outputs are chosen. This chapter compares search and sampling, defines the execution-based metric pass@$k$ with its unbiased estimator, and explains why the best temperature depends on $k$.
+
+### 5.1 Search: greedy and beam decoding
+
+::: def
+[Definition 5.1 — Greedy and beam search]{.tag} **Greedy decoding** appends, at each step, the most probable next token. **Beam search** with width $b$ keeps the $b$ prefixes of highest probability; at each step it extends each of them by every token and keeps the best $b$ extensions. Both stop at $\langle\mathrm{eos}\rangle$.
+:::
+
+::: ex
+[Example 5.2 — Greedy decoding misses the most probable program]{.tag} At the first step, $p(a) = 0.6$ and $p(b) = 0.4$. After $a$, the best next token has probability 0.5; after $b$, it has probability 0.9.
+
+-   Greedy chooses $a$ and returns a sequence of probability $0.6 \times 0.5 = 0.30$.
+-   The sequence starting with $b$ has probability $0.4 \times 0.9 = 0.36$, and a beam of width 2 finds it.
+:::
+
+In code, greedy decoding is nevertheless a strong baseline for pass@1, because next-token distributions are often sharply peaked.
+
+### 5.2 Sampling: temperature, top-$k$ and nucleus
+
+::: def
+[Definition 5.3 — Sampling rules]{.tag} Given next-token probabilities $p$ obtained from logits $z$:
+
+-   **temperature sampling** draws from $\mathrm{softmax}_\tau(z)$ (Definition 0.4);
+-   **top-$k$ sampling** keeps the $k$ most probable tokens and renormalizes;
+-   **nucleus sampling** (Holtzman et al., 2020) keeps the smallest set $S$ of most probable tokens whose total probability reaches a threshold $p_{\mathrm{nuc}}$, and renormalizes on $S$.
+:::
+
+Truncation removes the long tail of individually unlikely tokens, which together carry much probability and produce incoherent text. Temperature controls the diversity of what remains.
+
+:::: prop
+[Proposition 5.4 — Temperature raises entropy]{.tag} For fixed logits $z$, the entropy of $\mathrm{softmax}_\tau(z)$ is a non-decreasing function of $\tau > 0$, increasing unless all logits are equal.
+
+::: proof
+Set $\beta = 1/\tau$ and $p_i \propto e^{\beta z_i}$, with normalizer $Z(\beta)$. Then $H(\beta) = \log Z(\beta) - \beta\, \mathbb{E}_\beta[z]$.
+
+Differentiating, $(\log Z)' = \mathbb{E}_\beta[z]$ and $\mathbb{E}_\beta[z]' = \mathrm{Var}_\beta(z)$, hence
+
+$$
+\frac{dH}{d\beta} = -\,\beta\, \mathrm{Var}_\beta(z) \ \le\ 0 .
+$$
+
+The entropy decreases in $\beta$, so it increases in $\tau$; the variance is zero only when all logits are equal. [∎]{.qed}
+:::
+::::
+
+### 5.3 Execution-based evaluation and pass@$k$
+
+Text metrics such as BLEU (Papineni et al., 2002) compare tokens with a reference, but two programs can differ in every token and behave identically, or differ in one character and fail. Code is therefore evaluated by running it.
+
+HumanEval (Chen et al., 2021) contains 164 hand-written Python problems, each with a signature, a docstring and unit tests. MBPP (Austin et al., 2021) contains 974 short crowd-sourced problems.
+
+::: def
+[Definition 5.5 — pass@$k$]{.tag} For one problem, let $p$ be the probability that a sample from the model passes all the tests. The pass@$k$ of the problem is the probability that at least one of $k$ independent samples passes:
+
+$$
+\text{pass@}k = 1 - (1 - p)^k .
+$$
+
+The pass@$k$ of a benchmark is the average over its problems.
+:::
+
+:::: thm
+[Theorem 5.6 — Unbiased estimator of pass@$k$ (Chen et al., 2021)]{.tag} Draw $n \ge k$ samples and let $c$ be the number that pass. Then
+
+::: key
+[Key result — the pass@k estimator]{.tag}
+$$
+\widehat{\text{pass@}k} = 1 - \frac{\binom{n - c}{k}}{\binom{n}{k}}
+$$
+:::
+
+is an unbiased estimator of pass@$k$.
+
+::: proof
+Given the $n$ samples, choose a subset of $k$ of them uniformly at random. The probability that it contains no passing sample is $\binom{n-c}{k} / \binom{n}{k}$, so the estimator is the conditional probability that the subset contains a passing sample.
+
+By the tower property, its expectation is the unconditional probability of that event. The $n$ samples are independent and identically distributed, so a uniformly chosen subset of $k$ of them is a set of $k$ independent samples, which contains a passing one with probability $1 - (1-p)^k$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 5.7 — The plug-in estimator is biased]{.tag} The estimator $1 - (1 - c/n)^k$ underestimates pass@$k$ on average, strictly when $k \ge 2$ and $0 < p < 1$.
+
+::: proof
+The function $f(x) = 1 - (1-x)^k$ is concave on $[0, 1]$, strictly when $k \ge 2$. Since $\mathbb{E}[c/n] = p$, Jensen's inequality gives $\mathbb{E}[f(c/n)] \le f(p)$, with equality only if $c/n$ is almost surely constant, which fails for $0 < p < 1$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 5.8 — Computing and testing the estimator]{.tag} The product form avoids large binomial coefficients.
+
+```python
+import numpy as np
+from math import comb
+
+def pass_at_k(n, c, k):                     # unbiased estimator (Theorem 5.6)
+    if n - c < k:
+        return 1.0
+    return 1.0 - np.prod(1.0 - k / np.arange(n - c + 1, n + 1))
+
+print(pass_at_k(200, 13, 1), pass_at_k(200, 13, 10), pass_at_k(200, 13, 100))
+print("check with binomials:", 1 - comb(187, 10) / comb(200, 10))
+
+rng = np.random.default_rng(0)              # bias of the plug-in estimator
+p, n, k = 0.05, 20, 10
+c = rng.binomial(n, p, size=200_000)
+print(f"true pass@{k} = {1 - (1 - p) ** k:.4f}")
+print(f"unbiased estimator: {np.mean([pass_at_k(n, ci, k) for ci in c]):.4f}")
+print(f"plug-in estimator:  {np.mean(1 - (1 - c / n) ** k):.4f}")
+```
+
+With 13 passing samples out of 200, pass@1, pass@10 and pass@100 are estimated at 0.065, 0.498 and 0.9999. For $p = 0.05$ and $n = 20$, the plug-in estimator averages 0.336 instead of the true 0.401.
+:::
+
+### 5.4 Temperature and $k$
+
+For a single problem, pass@$k$ grows with $p$, so the temperature that maximizes $p$ maximizes every pass@$k$. Over a benchmark, the problems differ: on some, the correct program is the mode; on others, it is a less probable sample that a cold model never draws.
+
+A low temperature maximizes the average of $p$, pass@1. A higher temperature spreads the mass, lowers $p$ on easy problems, where $1 - (1-p)^{100}$ stays close to 1 anyway, and makes the correct program reachable on hard ones. Chen et al. (2021) found optimal temperatures of about 0.2 for pass@1 and 0.8 for pass@100.
+
+::: ex
+[Code 5.10 — The trade-off on a synthetic benchmark]{.tag} Each of 500 problems has 1000 candidate programs with random logits; candidate 0 is correct and is the mode of the distribution for some problems only.
+
+```python
+import numpy as np
+rng = np.random.default_rng(1)
+P, M = 500, 1000                                # problems, candidate programs per problem
+z = rng.normal(0.0, 1.0, size=(P, M))           # model logits of the candidates
+z[:, 0] = z.max(1) + rng.normal(-1.5, 1.5, P)   # candidate 0 is correct, sometimes the mode
+
+for tau in (0.1, 0.2, 0.4, 0.6, 0.8, 1.0):
+    w = np.exp(z / tau - (z / tau).max(1, keepdims=True))
+    p = w[:, 0] / w.sum(1)                      # probability of sampling the correct one
+    print(f"tau = {tau:.1f}: pass@1 = {p.mean():.3f}, pass@100 = {(1 - (1 - p) ** 100).mean():.3f}")
+```
+
+pass@1 is best at $\tau = 0.1$ (0.139) and pass@100 at $\tau = 0.6$ (0.472).
+:::
+
+### 5.5 Choosing among samples
+
+A user wants one answer, not $k$. Selection methods turn many samples into few submissions:
+
+-   **Ranking by likelihood.** Chen et al. (2021) found that choosing the sample with the highest mean token log-probability beats a random choice.
+-   **Filtering by tests.** Samples that fail the examples of the problem statement are discarded. AlphaCode (Li et al., 2022) generated very large numbers of programs per competitive programming problem, filtered them this way, and clustered the survivors by their behaviour on generated inputs before submitting 10.
+-   **Voting.** Samples that produce the same outputs are grouped and the largest group wins, the code analogue of self-consistency (Wang et al., 2023).
+
+The metric $n$@$k$ counts a problem as solved when one of $n$ submissions, selected from $k$ samples, is correct. Filtering is studied as a probabilistic procedure in ch. 9.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   Greedy decoding is not the most probable sequence; beam search approximates the mode.
+-   Temperature, top-$k$ and nucleus sampling trade quality for diversity; entropy grows with the temperature.
+-   Code is evaluated by execution: pass@$k$ is the probability that one of $k$ samples passes the tests.
+-   $1 - \binom{n-c}{k}/\binom{n}{k}$ is unbiased; the plug-in $1 - (1 - c/n)^k$ is biased downward.
+-   Low temperatures maximize pass@1, higher ones pass@$k$ for large $k$; selection by likelihood, tests or voting recovers part of the gap.
+::::
+
+## 6. Structured generation {#ch6}
+
+A program that does not parse, a JSON object with a missing brace or a SQL query with a stray token is useless, however likely it was. Structured generation forbids such outputs during decoding. This chapter shows how to do it efficiently with automata and grammars, and proves that the naive method changes the distribution it samples from.
+
+### 6.1 Constrained decoding
+
+::: def
+[Definition 6.1 — Viable prefix and constrained decoding]{.tag} Let $L \subseteq \Sigma^*$ be the target language. A string $u$ is a **viable prefix** if $uw \in L$ for some string $w$.
+
+**Constrained decoding** samples token by token from the model, after setting to zero the probability of every token $v$ such that $\mathrm{dec}(y_{<t}\,v)$ is not a viable prefix, and of $\langle\mathrm{eos}\rangle$ unless $\mathrm{dec}(y_{<t}) \in L$; the remaining probabilities are renormalized.
+:::
+
+:::: prop
+[Proposition 6.2 — Soundness and progress]{.tag} Suppose the vocabulary contains a token for every character of $\Sigma$. Then constrained decoding never blocks: at every step at least one token is allowed. Every output that ends with $\langle\mathrm{eos}\rangle$ belongs to $L$.
+
+::: proof
+The empty prefix is viable if $L$ is non-empty, and each step keeps the prefix viable. If $u$ is viable, either $u \in L$ and $\langle\mathrm{eos}\rangle$ is allowed, or $uw \in L$ with $w \ne \varepsilon$, and the token of the first character of $w$ is allowed. The end token is only allowed on strings of $L$. [∎]{.qed}
+:::
+::::
+
+Termination is not guaranteed: a model may keep extending a viable prefix forever. A maximum length is handled by requiring that $L$ be reachable within the remaining budget, as in Code 6.7.
+
+### 6.2 Regular constraints
+
+Many formats are regular: numbers, identifiers, dates, and JSON objects with a fixed schema and bounded nesting. For a DFA, a state is **live** if an accepting state can be reached from it, and a prefix is viable exactly when it leads to a live state.
+
+:::: prop
+[Proposition 6.3 — Token-level index of a DFA (Willard and Louf, 2023)]{.tag} For a DFA with states $Q$ and a vocabulary $\mathcal{V}$, precompute for every state $q$ the set of tokens allowed in $q$:
+
+$$
+\mathcal{A}(q) = \{ v \in \mathcal{V} : \delta(q, \mathrm{dec}(v)) \text{ is live} \}.
+$$
+
+Constrained decoding then costs one table lookup per step to find the mask, plus one transition to update the state. The precomputation reads each token once per state.
+
+::: proof
+The state after the prefix $y_{<t}$ is $q_t = \delta(q_0, \mathrm{dec}(y_{<t}))$, and $\delta$ extended to strings satisfies $\delta(q, uv) = \delta(\delta(q, u), v)$. So $v$ is allowed after $y_{<t}$ if and only if $v \in \mathcal{A}(q_t)$, and the next state is $\delta(q_t, \mathrm{dec}(v))$. Liveness is computed once by a backward graph search from the accepting states. [∎]{.qed}
+:::
+::::
+
+The index is computed once per constraint, not once per step. Because the automaton reads characters, tokens such as `":` or `),` that straddle syntactic boundaries are handled correctly.
+
+### 6.3 Grammar constraints
+
+Programming languages need context-free grammars (Proposition 0.8). The viable-prefix test then needs a parser that works on prefixes.
+
+:::: prop
+[Proposition 6.4 — Viable prefixes of a context-free language]{.tag} Assume every non-terminal of the grammar derives at least one terminal string. Earley's parser, run on a prefix $u$, ends with a non-empty set of items if and only if $u$ is a viable prefix, and it processes a prefix of length $n$ in $O(n^3)$ time, $O(n)$ per character for unambiguous LR grammars run with an LR parser.
+
+::: proof
+*Sketch.* An Earley item records a rule, a position in it and a start index; the parser keeps exactly the items consistent with some derivation whose yield begins with the input read so far. If the set is non-empty, completing the pending rules with terminal strings, which exist by assumption, yields a word of $L$ extending $u$; conversely, a word of $L$ extending $u$ gives a derivation whose items are all generated. See Earley (1970) for the complexity. [∎]{.qed}
+:::
+::::
+
+PICARD (Scholak et al., 2021) rejects inadmissible SQL tokens with an incremental parser; Synchromesh (Poesia et al., 2022) constrains generation with completion engines; Geng et al. (2023) apply grammar-constrained decoding to structured prediction without fine-tuning.
+
+### 6.4 Masking distorts the distribution
+
+What should constrained decoding sample? The natural target is the model's distribution conditioned on validity, $p(y \mid y \in L) = p(y)\, \mathbb{1}[y \in L] / p(L)$.
+
+:::: thm
+[Theorem 6.5 — Exact conditional and the distortion of masking]{.tag} For a prefix $u$, let $w(u) = \mathbb{P}(Y \in L \mid Y \text{ starts with } u)$ under the model. The exact conditional distribution of the next token is
+
+$$
+p(y_t \mid y_{<t},\, Y \in L) = p(y_t \mid y_{<t})\, \frac{w(y_{\le t})}{w(y_{<t})} .
+$$
+
+Constrained decoding replaces $w(y_{\le t})$ by the indicator that $y_{\le t}$ is viable. The two coincide when every viable prefix is completed into $L$ with probability one, and differ in general.
+
+::: proof
+By Bayes' rule, $p(y_t \mid y_{<t}, L) = p(y_t \mid y_{<t})\, \mathbb{P}(L \mid y_{\le t}) / \mathbb{P}(L \mid y_{<t})$, which is the formula. If $w$ takes only the values 0 and 1, then $w$ is the viability indicator, the ratio $w(y_{\le t}) / w(y_{<t})$ is that indicator, and renormalization changes nothing. Example 6.6 shows a difference. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 6.6 — Masking over-represents unlikely prefixes]{.tag} The valid strings are `1` and `-1`. The model first emits `1` or `-` with probability 0.5 each. After `1`, it ends correctly with probability 0.9; after `-`, it emits `1` with probability 0.1 and an invalid letter otherwise.
+
+-   Exact conditional: $p(L) = 0.45 + 0.05 = 0.5$, so $p(\texttt{1} \mid L) = 0.9$ and $p(\texttt{-1} \mid L) = 0.1$.
+-   Masking: the first step keeps both tokens at 0.5; after `-`, only `1` is allowed and gets probability 1.
+
+Masking returns `-1` with probability 0.5 instead of 0.1: it commits to prefixes the model itself considered hopeless.
+:::
+
+::: ex
+[Code 6.7 — Measuring the distortion exactly]{.tag} A random bigram model over 7 tokens is constrained to the regular language `-?1[01]*` with at most 3 tokens. All token sequences are enumerated, so both distributions are exact.
+
+```python
+import itertools
+import numpy as np
+
+def step(q, ch):                       # DFA of -?1[01]*: 0 start, 1 after '-', 2 accept
+    if q in (0, 1) and ch == "1": return 2
+    if q == 0 and ch == "-": return 1
+    if q == 2 and ch in "01": return 2
+    return None                        # dead state
+
+def run(q, token):
+    for ch in token:
+        q = None if q is None else step(q, ch)
+    return q
+
+tokens = ["0", "1", "-", "10", "01", "-1", "<eos>"]
+EOS, T = len(tokens) - 1, 3            # at most 3 tokens, then <eos> is forced
+rng = np.random.default_rng(2)
+logits = rng.normal(0, 1.5, size=(len(tokens) + 1, len(tokens)))   # last row: <bos>
+def p_next(prev):
+    e = np.exp(logits[prev]); return e / e.sum()
+
+def viable(q, m):                      # can q reach acceptance within m more tokens?
+    return q == 2 or (m > 0 and any(run(q, t) is not None and viable(run(q, t), m - 1)
+                                    for t in tokens[:-1]))
+
+def allowed(q, m):                     # the mask of constrained decoding
+    mask = [run(q, t) is not None and viable(run(q, t), m - 1) for t in tokens[:-1]]
+    return np.array(mask + [q == 2])
+
+exact, local = {}, {}
+for n in range(1, T + 1):
+    for seq in itertools.product(range(EOS), repeat=n):
+        prev, q, p, ql = -1, 0, 1.0, 1.0
+        for i, t in enumerate(seq + (EOS,)):
+            probs = p_next(prev) if i < T else np.eye(len(tokens))[EOS]
+            m = probs * allowed(q, T - i) if i < T else probs
+            p, ql = p * probs[t], ql * (m[t] / m.sum() if m.sum() > 0 else 0.0)
+            if t != EOS: q = run(q, tokens[t])
+            prev = t
+        if q == 2:
+            exact[seq], local[seq] = p, ql
+
+Z = sum(exact.values())
+print(f"P(unconstrained sample is valid) = {Z:.3f}")
+print(f"total variation: {0.5 * sum(abs(exact[s] / Z - local[s]) for s in exact):.3f}")
+for s in sorted(exact, key=lambda s: -exact[s])[:4]:
+    print("|".join(tokens[t] for t in s).ljust(8), f"p(.|L) = {exact[s] / Z:.3f}  masked = {local[s]:.3f}")
+```
+
+Only 14 % of unconstrained samples are valid, and the masked sampler is at total variation distance 0.296 from the exact conditional: the sequence `1|0|01` has conditional probability 0.262 but is produced with probability 0.179.
+:::
+
+Sampling from the exact conditional is as hard as computing $w$, a sum over all continuations. Sequential Monte Carlo (Lew et al., 2023) corrects the distortion with importance weights over many particles, and grammar-aligned decoding (Park et al., 2024) learns estimates of $w$ from samples; Exercise 15 builds the simplest such correction.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   Constrained decoding masks every token that makes the prefix non-viable; with a character-complete vocabulary it never blocks, and finished outputs are valid.
+-   For regular constraints, a precomputed index maps each automaton state to its allowed tokens.
+-   Context-free constraints need a parser with the viable-prefix property, such as Earley's.
+-   The exact conditional reweights each token by the probability that its prefix can still be completed; masking replaces it by a 0/1 indicator and distorts the distribution.
+::::
+
+## 7. Retrieval-augmented generation for code {#ch7}
+
+A model knows only what was in its training data, up to a cut-off date. Private repositories, new library versions and project conventions are missing. Retrieval-augmented generation (RAG) fetches relevant documents at inference time and puts them in the context. This chapter covers retrievers, the probabilistic RAG model and the specifics of code.
+
+### 7.1 Retrievers
+
+::: def
+[Definition 7.1 — Retrieval]{.tag} A corpus is cut into chunks $d_1, \dots, d_M$: functions, files, documentation pages or lemmas. A retriever assigns a score $s(q, d)$ to a query and a chunk and returns the $k$ chunks of highest score. It is evaluated by **recall@$k$**, the fraction of queries whose relevant chunk is among the $k$ returned, and by the **mean reciprocal rank** (MRR), the average of $1/\mathrm{rank}$ of the relevant chunk.
+:::
+
+::: def
+[Definition 7.2 — BM25 (Robertson and Zaragoza, 2009)]{.tag} Let $\mathrm{tf}(w, d)$ be the number of occurrences of the word $w$ in $d$, $|d|$ the length of $d$, $\bar\ell$ the average length, and $\mathrm{df}(w)$ the number of chunks containing $w$. With $\mathrm{idf}(w) = \log\big(1 + \frac{M - \mathrm{df}(w) + 0.5}{\mathrm{df}(w) + 0.5}\big)$,
+
+$$
+s(q, d) = \sum_{w \in q} \mathrm{idf}(w)\, \frac{\mathrm{tf}(w, d)\,(k_1 + 1)}{\mathrm{tf}(w, d) + k_1 \big(1 - b + b\, |d| / \bar\ell\big)} ,
+$$
+
+with typical constants $k_1 = 1.2$ and $b = 0.75$.
+:::
+
+Rare words weigh more, repeated words saturate, and long chunks are penalized. Sparse scores need exact word matches, so a query about a "checksum" misses a function documented as a "hash".
+
+::: def
+[Definition 7.3 — Dense bi-encoder retrieval]{.tag} Two networks embed queries and chunks into unit vectors $E_q(q)$ and $E_d(d)$, and $s(q, d) = \langle E_q(q), E_d(d) \rangle$. Given a batch of pairs $(q_i, d_i^+)$, they are trained with the in-batch contrastive loss of DPR (Karpukhin et al., 2020):
+
+$$
+\mathcal{L} = -\frac{1}{B} \sum_{i=1}^{B} \log \frac{e^{s(q_i, d_i^+)}}{\sum_{j=1}^{B} e^{s(q_i, d_j^+)}} .
+$$
+:::
+
+:::: prop
+[Proposition 7.4 — Inner product search is nearest-neighbour search]{.tag} For unit vectors $x$ and $y$,
+
+$$
+\|x - y\|^2 = 2 - 2\, \langle x, y \rangle ,
+$$
+
+so the chunks of largest score are the nearest neighbours of the query embedding.
+
+::: proof
+Expand $\|x - y\|^2 = \|x\|^2 + \|y\|^2 - 2\langle x, y \rangle$ and use $\|x\| = \|y\| = 1$. [∎]{.qed}
+:::
+::::
+
+Approximate nearest-neighbour indices therefore scale dense retrieval to millions of chunks.
+
+::: ex
+[Code 7.5 — BM25 over a small library]{.tag} Identifiers are split at underscores, a simple code-aware tokenization.
+
+```python
+import math, re
+from collections import Counter
+
+corpus = {
+    "read_json":   "def read_json(path): load a JSON file and return a dict",
+    "write_csv":   "def write_csv(rows, path): write rows to a CSV file",
+    "parse_date":  "def parse_date(s): parse an ISO date string into a datetime",
+    "http_get":    "def http_get(url, timeout): send a GET request and return the body",
+    "retry":       "def retry(fn, attempts): call fn again until it succeeds",
+    "lru_cache":   "def lru_cache(maxsize): memoize a function, evicting the least recently used",
+    "sha256_file": "def sha256_file(path): hash a file with SHA-256 in chunks",
+    "flatten":     "def flatten(nested): turn a list of lists into a flat list",
+    "chunked":     "def chunked(xs, n): split a list into chunks of size n",
+    "slugify":     "def slugify(title): lowercase a title and replace spaces by hyphens",
+}
+queries = {"how do I load a json config file": "read_json",
+           "split list into batches of fixed size": "chunked",
+           "compute the checksum of a large file": "sha256_file",
+           "download a web page with a timeout": "http_get",
+           "cache results of an expensive function": "lru_cache"}
+
+def tok(s):                                   # split snake_case identifiers, lowercase
+    return re.findall(r"[a-z0-9]+", s.lower().replace("_", " "))
+
+docs = {k: tok(v) for k, v in corpus.items()}
+M, avgdl = len(docs), sum(map(len, docs.values())) / len(docs)
+df = Counter(w for d in docs.values() for w in set(d))
+
+def bm25(query, doc, k1=1.2, b=0.75):         # Definition 7.2
+    tf, s = Counter(doc), 0.0
+    for w in tok(query):
+        if w in tf:
+            idf = math.log(1 + (M - df[w] + 0.5) / (df[w] + 0.5))
+            s += idf * tf[w] * (k1 + 1) / (tf[w] + k1 * (1 - b + b * len(doc) / avgdl))
+    return s
+
+rr = []
+for q, gold in queries.items():
+    ranking = sorted(docs, key=lambda d: -bm25(q, docs[d]))
+    rr.append(1 / (ranking.index(gold) + 1))
+    print(f"{q[:38]:38s} -> {ranking[:2]}")
+print(f"recall@1 = {sum(r == 1 for r in rr) / len(rr):.1f}, MRR = {sum(rr) / len(rr):.2f}")
+```
+
+Recall@1 is 0.8 and the MRR 0.90. The failure is instructive: "download a web page" shares no word with "send a GET request", and the common word "with" makes `sha256_file` win.
+:::
+
+### 7.2 Retrieval-augmented models
+
+::: def
+[Definition 7.6 — RAG-sequence (Lewis et al., 2020)]{.tag} A retriever $p_\eta(z \mid x)$, a softmax of the scores over the top-$k$ chunks, and a generator $p_\theta(y \mid x, z)$ define
+
+$$
+p(y \mid x) = \sum_{z \in \mathrm{top}\text{-}k(x)} p_\eta(z \mid x)\, p_\theta(y \mid x, z) .
+$$
+:::
+
+:::: prop
+[Proposition 7.7 — The gradient weights chunks by their posterior]{.tag} With the posterior $p(z \mid x, y) \propto p_\eta(z \mid x)\, p_\theta(y \mid x, z)$,
+
+$$
+\nabla \log p(y \mid x) = \sum_{z} p(z \mid x, y)\, \nabla \log\big[ p_\eta(z \mid x)\, p_\theta(y \mid x, z) \big] .
+$$
+
+::: proof
+Write $a_z = p_\eta(z \mid x)\, p_\theta(y \mid x, z)$, so $p(y \mid x) = \sum_z a_z$. Then $\nabla \log \sum_z a_z = \sum_z \nabla a_z / \sum_{z'} a_{z'}$, and $\nabla a_z = a_z \nabla \log a_z$. [∎]{.qed}
+:::
+::::
+
+The retriever is thus trained, without relevance labels, to raise the chunks that best explain the target. Most systems in use skip this joint training and simply concatenate the retrieved chunks to the prompt. Their position matters: Liu et al. (2024) observe that models use information at the start or end of a long context better than in the middle.
+
+### 7.3 Retrieval for code
+
+-   **Repository context.** Completing a function often needs the definitions of classes and helpers in other files. RepoCoder (Zhang et al., 2023) retrieves with the unfinished code, generates a draft, then retrieves again with the draft as query.
+-   **Documentation.** DocPrompting (Zhou et al., 2023) retrieves documentation pages before generating, which helps with functions that are absent or rare in the training data.
+-   **Premises.** In theorem proving, the chunks are the lemmas of a library; premise retrieval is the subject of ch. 8.
+-   **Chunking.** Cutting files along the syntax tree (functions, classes) keeps chunks meaningful, and the context budget of Example 1.12 limits how many fit.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   A retriever scores chunks against a query; recall@$k$ and MRR measure it.
+-   BM25 rewards rare, matching words with saturation and length normalization; it fails on synonyms.
+-   Dense retrievers are trained contrastively; for unit vectors, top inner products are nearest neighbours.
+-   The gradient of the RAG likelihood weights each chunk by its posterior, which trains the retriever without labels.
+-   For code, retrieval targets repository files, documentation and lemmas, and must fit the context budget.
+::::
+
+## 8. Formal verification and automated theorem proving {#ch8}
+
+A proof assistant accepts a proof only if every step checks. Pairing it with a language model gives a generator whose mistakes cost time but never correctness. This chapter formalizes proof search, studies how models guide it, and applies the same pattern to program verification.
+
+### 8.1 Proof assistants and the Curry–Howard correspondence
+
+::: def
+[Definition 8.1 — Propositions as types]{.tag} In a proof assistant based on type theory, such as Lean 4 (de Moura and Ullrich, 2021) or Coq, a proposition is a type and a proof is a term of that type. An implication $A \to B$ is the type of functions from proofs of $A$ to proofs of $B$, and a conjunction $A \wedge B$ is the type of pairs.
+
+A proof is valid exactly when its term type-checks, which a small trusted kernel decides.
+:::
+
+The same statement can be proved by writing the term directly or by **tactics**, commands that transform the current goals and build the term behind the scenes:
+
+```lean
+theorem and_swap (p q : Prop) (h : p ∧ q) : q ∧ p :=
+  ⟨h.2, h.1⟩                    -- a term: the pair (proof of q, proof of p)
+
+theorem and_swap' (p q : Prop) (h : p ∧ q) : q ∧ p := by
+  constructor                   -- two goals: q, then p
+  · exact h.2
+  · exact h.1
+```
+
+Tactic proofs suit language models: each step is a short string chosen from the visible goal, and the assistant reports the new goals or an error.
+
+### 8.2 Proof search guided by a model
+
+::: def
+[Definition 8.2 — Proof search problem]{.tag} A **state** is a list of goals, each a context of hypotheses and a target. A **tactic** applied to the first goal either fails or replaces it by finitely many new goals. A proof of a statement is a sequence of tactics leading from the initial state to the empty list of goals.
+
+A **policy** $p_\theta(a \mid g)$ gives a probability to each tactic $a$ in goal $g$; GPT-f (Polu and Sutskever, 2020) trains a language model for this role.
+:::
+
+::: def
+[Algorithm 8.3 — Best-first proof search]{.tag} Give each state the cost $\sum_j -\log p_\theta(a_j \mid g_j)$ of the tactics that led to it. Keep a priority queue of states, initially the statement. Repeatedly remove the state of lowest cost; if it has no goal, return its tactics; otherwise sample or enumerate tactics for its first goal, run them in the assistant, and insert the successful results. Stop after a fixed number of expansions.
+:::
+
+:::: prop
+[Proposition 8.4 — Soundness and optimality of best-first search]{.tag}
+
+1.  Every returned proof is valid, whatever the policy.
+2.  With an unlimited budget and finitely many tactics per state, the first proof returned has the highest probability $\prod_j p_\theta(a_j \mid g_j)$ among all proofs.
+
+::: proof
+1.  Every transition was executed by the proof assistant, so the final empty state certifies the tactic sequence.
+2.  Costs are non-negative and add along a path, as in Dijkstra's algorithm. When a goal-free state of cost $c$ is removed, every state in the queue costs at least $c$. Any other proof passes through a state of the queue or a descendant of one, and descendants never cost less, so its cost is at least $c$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 8.6 — A best-first prover for implicational logic]{.tag} Goals are sequents of the intuitionistic logic of implication; the tactics are `intro`, `assumption` and `apply`; a fixed prior stands in for the language model, and `check` replays the proof as a kernel would.
+
+```python
+import heapq, math, itertools
+
+def parse(s):                                  # right-associative implication
+    toks = s.replace("(", " ( ").replace(")", " ) ").split()
+    def expr(i):
+        left, i = atom(i)
+        if i < len(toks) and toks[i] == "->":
+            right, i = expr(i + 1)
+            return ("->", left, right), i
+        return left, i
+    def atom(i):
+        if toks[i] == "(":
+            e, i = expr(i + 1)
+            return e, i + 1
+        return toks[i], i + 1
+    return expr(0)[0]
+
+def premises(h, goal):                         # is h = A1 -> ... -> An -> goal ?
+    out = []
+    while isinstance(h, tuple):
+        out.append(h[1]); h = h[2]
+        if h == goal:
+            return list(out)
+    return None
+
+def show(f):
+    return f if isinstance(f, str) else f"({show(f[1])} -> {show(f[2])})"
+
+def tactics(goal):                             # legal tactics on one goal
+    hyps, f = goal
+    if f in hyps: yield "assumption", []
+    if isinstance(f, tuple): yield "intro", [(hyps | {f[1]}, f[2])]
+    for h in sorted(hyps, key=str):
+        ps = premises(h, f)
+        if ps: yield f"apply {show(h)}", [(hyps, p) for p in ps]
+
+PRIOR = {"assumption": 0.6, "intro": 0.3, "apply": 0.1}  # stand-in for a language model
+def prove(formula, budget=1000):
+    tie = itertools.count()
+    frontier = [(0.0, next(tie), ((frozenset(), parse(formula)),), [])]
+    while frontier and budget > 0:
+        cost, _, goals, script = heapq.heappop(frontier); budget -= 1
+        if not goals:
+            return script                      # no goal left: proof found
+        moves = list(tactics(goals[0]))
+        z = sum(PRIOR[m.split()[0]] for m, _ in moves)
+        for move, new in moves:
+            p = PRIOR[move.split()[0]] / z
+            heapq.heappush(frontier, (cost - math.log(p), next(tie), tuple(new) + goals[1:], script + [move]))
+    return None
+
+def check(formula, script):                    # the "kernel": replay every step
+    goals = ((frozenset(), parse(formula)),)
+    for move in script:
+        new = dict(tactics(goals[0])).get(move) if goals else None
+        if new is None:
+            return False
+        goals = tuple(new) + goals[1:]
+    return not goals
+
+for thm in ["(A -> B) -> (B -> C) -> A -> C", "((A -> B) -> A) -> A"]:
+    script = prove(thm)
+    print(thm, "|", "; ".join(script) if script else "no proof within budget")
+    print("  checked:", script is not None and check(thm, script))
+```
+
+The first statement is proved by `intro` three times, `apply (B -> C)`, `apply (A -> B)` and `assumption`. The second, Peirce's law, is a classical tautology without intuitionistic proof, and the search reports failure: it never claims a false proof.
+:::
+
+### 8.3 Learning to prove
+
+-   **Data.** Libraries such as Lean's Mathlib (The mathlib Community, 2020) provide human proofs, extracted as (goal, tactic) pairs.
+-   **Expert iteration.** Polu et al. (2023) alternate proof search on a curriculum of statements and fine-tuning on the proofs found, turning compute into verified training data.
+-   **Premise retrieval.** ReProver (Yang et al., 2023) retrieves lemmas from the library with a dense retriever (Definition 7.3) before generating each tactic.
+-   **Benchmarks.** miniF2F (Zheng et al., 2022) formalizes 488 problems from AMC, AIME, IMO and courses; results are the fraction proved within a budget of attempts, a pass@$k$ (Definition 5.5).
+
+### 8.4 Autoformalization
+
+Most mathematics is written informally. Wu et al. (2022) show that large language models can translate a sizeable fraction of competition statements into Isabelle/HOL. Draft, Sketch, and Prove (Jiang et al., 2023) generates an informal proof, turns it into a formal sketch with gaps, and closes the gaps with automated provers.
+
+The checker guarantees that the formal proof proves the formal statement, not that the formal statement means the informal one. A mistranslated hypothesis can make a theorem trivially true, and only a human or a cross-check catches it.
+
+### 8.5 Program verification and loop invariants
+
+The same generate-and-check pattern verifies programs. The specification is a logical formula, the proof obligations are discharged by a solver, and the model supplies the creative part: the invariants.
+
+::: def
+[Definition 8.7 — Hoare triple (Hoare, 1969)]{.tag} For a precondition $P$, a program $c$ and a postcondition $Q$, the triple $\{P\}\ c\ \{Q\}$ states that every terminating run of $c$ from a state satisfying $P$ ends in a state satisfying $Q$.
+:::
+
+:::: thm
+[Theorem 8.8 — The loop rule]{.tag} Let $I$ be a formula, called the invariant, such that
+
+-   *initiation*: $P$ implies $I$;
+-   *consecution*: $\{I \wedge b\}\ c\ \{I\}$;
+-   *exit*: $I \wedge \neg b$ implies $Q$.
+
+Then
+
+$$
+\{P\}\ \mathtt{while}\ b\ \mathtt{do}\ c\ \{Q\} .
+$$
+
+::: proof
+Take a terminating run from a state satisfying $P$, with $n$ iterations. By initiation, $I$ holds before the first test of $b$. If $I$ holds before an iteration, $b$ holds since the loop continues, and consecution gives $I$ after it; by induction, $I$ holds after every iteration. At exit, $b$ is false, so $I \wedge \neg b$ holds and implies $Q$. [∎]{.qed}
+:::
+::::
+
+Checking the three conditions is mechanical: tools such as Dafny (Leino, 2010) generate them as formulas and send them to an SMT solver such as Z3 (de Moura and Bjørner, 2008). Finding $I$ is the creative step, and language models are good at proposing candidates.
+
+::: ex
+[Code 8.9 — Checking candidate invariants]{.tag} The loop computes $s = 0 + 1 + \dots + (n-1)$. The conditions of Theorem 8.8 are checked on every state of a bounded box: a bounded check, which an SMT solver would replace by a proof for all integers.
+
+```python
+# Program:  i, s = 0, 0;  while i < n: s, i = s + i, i + 1     Post: s == n(n-1)/2
+pre  = lambda n, i, s: n >= 0 and i == 0 and s == 0
+post = lambda n, i, s: 2 * s == n * (n - 1)
+candidates = {                                   # invariants a model might propose
+    "2s = i(i-1) and i <= n": lambda n, i, s: 2 * s == i * (i - 1) and i <= n,
+    "2s = i(i-1)":            lambda n, i, s: 2 * s == i * (i - 1),
+    "s >= 0":                 lambda n, i, s: s >= 0,
+    "2s = i*i":               lambda n, i, s: 2 * s == i * i,
+}
+states = [(n, i, s) for n in range(12) for i in range(-3, 15) for s in range(-5, 80)]
+for name, I in candidates.items():
+    vcs = {
+        "initiation":  all(I(*x) for x in states if pre(*x)),
+        "consecution": all(I(n, i + 1, s + i) for n, i, s in states if I(n, i, s) and i < n),
+        "exit":        all(post(n, i, s) for n, i, s in states if I(n, i, s) and not i < n),
+    }
+    print(f"{name:24s}", vcs)
+```
+
+Only the first candidate passes all three. Without $i \le n$, exit fails; `s >= 0` holds on every reachable state but is not inductive, because the check allows negative $i$; `2s = i*i` is false after one step.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   In a proof assistant, a proof is a term and checking it is type-checking by a small kernel.
+-   Theorem proving is a search over tactic states; best-first search with costs $-\log p_\theta$ returns the most probable proof first and is sound whatever the policy.
+-   Provers improve by expert iteration and premise retrieval; benchmarks report pass@$k$ within a budget.
+-   Autoformalization is checked for consistency, not for faithfulness to the informal statement.
+-   Program verification reduces to verification conditions; the model proposes invariants, a solver checks them.
+::::
+
+## 9. Execution feedback, repair and software-engineering agents {#ch9}
+
+This self-study chapter treats the second objective of the course description, applications in software engineering, as probabilistic procedures. A code model can run what it writes: tests filter samples, error messages guide repairs, and agents act on whole repositories. Each loop spends model calls, and each can be analysed with the tools of ch. 5.
+
+### 9.1 Sample and test
+
+Most tasks come with a few visible tests, such as the examples of a docstring, while correctness is judged by hidden ones. Sampling until a program passes the visible tests is a rejection sampler.
+
+:::: prop
+[Proposition 9.1 — Filtering by visible tests]{.tag} Suppose each sample passes the visible tests with probability $q > 0$, and a sample that passes them is correct with probability $\rho$. Sampling until the first pass uses on average $1/q$ samples and returns a correct program with probability $\rho$. With a budget of $n$ samples, the probability of returning a correct program is
+
+$$
+\big(1 - (1 - q)^n\big)\, \rho .
+$$
+
+::: proof
+The number of samples until the first pass is geometric with parameter $q$, of mean $1/q$. The first passing sample is distributed as a sample conditioned on passing, so it is correct with probability $\rho$. With $n$ samples, a pass occurs with probability $1 - (1-q)^n$, independently of which passing program is drawn first. [∎]{.qed}
+:::
+::::
+
+The precision $\rho$ depends entirely on the quality of the visible tests. The same holds for benchmarks: EvalPlus (Liu et al., 2023) extended the tests of HumanEval automatically and found many wrong solutions that the original tests accepted, so the measured pass@$k$ of the evaluated models dropped markedly.
+
+::: ex
+[Code 9.2 — Weak tests filter nothing]{.tag} A model's samples for "return the second largest distinct value of `xs`" are simulated by five candidate bodies with sampling probabilities. Hidden tests are 200 random lists.
+
+```python
+import random
+
+candidates = {
+    "return sorted(set(xs))[-2]": 0.25,                       # correct
+    "return max(x for x in xs if x != max(xs))": 0.10,        # correct
+    "return sorted(xs)[-2]": 0.30,                            # ignores duplicates
+    "return sorted(xs, reverse=True)[1]": 0.20,               # ignores duplicates
+    "return sorted(set(xs))[1]": 0.15,                        # second smallest
+}
+def compile_candidate(body):          # our own strings here; real samples need a sandbox
+    env = {}
+    exec("def f(xs):\n    " + body, env)
+    return env["f"]
+
+rng = random.Random(0)
+hidden = []
+for _ in range(200):
+    xs = [rng.randint(0, 9) for _ in range(rng.randint(2, 8))]
+    if len(set(xs)) >= 2:
+        hidden.append((xs, sorted(set(xs))[-2]))
+
+def passes(f, tests):
+    return all(f(list(xs)) == y for xs, y in tests)
+
+weak = [([1, 2, 3], 2), ([5, 1, 4], 4)]
+strong = weak + [([7, 7, 3], 3)]                              # one test with a duplicate
+correct = {b for b in candidates if passes(compile_candidate(b), hidden)}
+print(f"pass@1 = {sum(candidates[b] for b in correct):.2f}")
+for name, visible in (("weak", weak), ("strong", strong)):
+    ok = {b for b in candidates if passes(compile_candidate(b), visible)}
+    q = sum(candidates[b] for b in ok)
+    rho = sum(candidates[b] for b in ok & correct) / q
+    print(f"{name} visible tests: P(pass) = {q:.2f}, P(correct | pass) = {rho:.2f}")
+```
+
+With the two weak tests, every candidate passes and $\rho = 0.35$, the raw pass@1. One test with a duplicate value brings $\rho$ to 1.
+:::
+
+Generated code must never run unconfined: evaluation harnesses execute it in a separate process or container, without network access, with time and memory limits.
+
+### 9.2 Self-repair
+
+Instead of a fresh sample, the model can receive its failed program and the error message and propose a fix. Self-Debugging (Chen et al., 2024) and Reflexion (Shinn et al., 2023) build such loops. Olausson et al. (2024) compare them with resampling at an equal budget and find the gains modest, limited mainly by the quality of the feedback the model writes about its own code.
+
+:::: prop
+[Proposition 9.3 — Repair or resample?]{.tag} Let a fresh sample be correct with probability $p$, and a repair of a failed program be correct with probability $r$. With a budget of two model calls,
+
+$$
+\mathbb{P}(\text{success} \mid \text{resample}) = p + (1-p)\,p, \qquad \mathbb{P}(\text{success} \mid \text{repair}) = p + (1-p)\,r ,
+$$
+
+so repairing is better if and only if $r > p$.
+
+::: proof
+In both strategies the first call succeeds with probability $p$. Otherwise, the second call succeeds with probability $p$ for an independent sample and $r$ for a repair. [∎]{.qed}
+:::
+::::
+
+The comparison must be made at equal cost: a repair call reads a longer prompt (the program and the feedback), and on hard problems $r$ can be smaller than $p$ because the failed program anchors the model on a wrong idea.
+
+### 9.3 Agents for software engineering
+
+An **agent** alternates between generating an action (read a file, run a command, edit code, run the tests) and reading its result, in the reason-then-act format of ReAct (Yao et al., 2023). SWE-bench (Jimenez et al., 2024) evaluates such systems on 2 294 real GitHub issues from 12 Python repositories. An issue counts as resolved when, after the generated patch, the tests that the reference fix made pass now pass and the other tests still pass.
+
+::: ex
+[Example 9.4 — Reliability over long trajectories]{.tag} If an agent must take 20 steps and each succeeds independently with probability 0.95, the whole task succeeds with probability
+
+$$
+0.95^{20} \approx 0.36 .
+$$
+
+Raising the step reliability to 0.99 gives $0.99^{20} \approx 0.82$. The design of the interface between the agent and the computer, studied by SWE-agent (Yang et al., 2024), aims at exactly this: fewer, more reliable steps.
+:::
+
+### 9.4 Learning from execution
+
+Tests are a reward. Let $R(x, y) \in \{0, 1\}$ indicate that program $y$ passes the tests of task $x$, and $J(\theta) = \mathbb{E}_{y \sim p_\theta(\cdot \mid x)}[R(x, y)]$ the pass rate.
+
+:::: prop
+[Proposition 9.5 — Policy gradient and rejection-sampling fine-tuning]{.tag} The pass rate has gradient
+
+$$
+\nabla J(\theta) = \mathbb{E}_{y \sim p_\theta}\big[ R(x, y)\, \nabla \log p_\theta(y \mid x) \big],
+$$
+
+and the average log-likelihood gradient of the *passing* samples is the gradient of $\log J$:
+
+$$
+\mathbb{E}_{y \sim p_\theta}\big[ \nabla \log p_\theta(y \mid x) \ \big|\ R = 1 \big] = \nabla \log J(\theta) .
+$$
+
+::: proof
+Differentiate $J = \sum_y p_\theta(y \mid x) R(x, y)$ and use $\nabla p_\theta = p_\theta \nabla \log p_\theta$: this is the first formula (REINFORCE). For the second, the conditional expectation given $R = 1$ is $\mathbb{E}[R\, \nabla \log p_\theta] / \mathbb{P}(R = 1) = \nabla J / J$. [∎]{.qed}
+:::
+::::
+
+Fine-tuning on the samples that pass the tests, as in STaR (Zelikman et al., 2022) or in the expert iteration of ch. 8, is therefore stochastic gradient ascent on the log pass rate. CodeRL (Le et al., 2022) uses the policy gradient directly, with a learned critic. Subtracting a baseline from $R$, such as the average reward of other samples for the same task, keeps the first gradient unbiased and reduces its variance.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Filtering by visible tests is rejection sampling: its precision is only as good as the tests.
+-   At a fixed budget, repairing beats resampling only when a repair succeeds more often than a fresh sample.
+-   Agents multiply step reliabilities; long trajectories need very reliable steps.
+-   Fine-tuning on passing samples ascends the log pass rate; policy gradients optimize the pass rate itself.
+-   Generated code is executed only in a sandbox.
+::::
+
+## 10. Research directions and open problems {#ch10}
+
+This self-study chapter surveys active questions around the course, with entry points into the literature. It reports published results in a neutral voice; the field moves quickly, and the papers below are starting points, not a ranking.
+
+### 10.1 Reinforcement learning from verifiable rewards
+
+Code and formal proofs come with automatic checkers, which makes them natural targets for reinforcement learning. Shao et al. (2024) introduced group relative policy optimization (GRPO), which replaces a learned critic by the average reward of a group of samples for the same prompt, the baseline of Proposition 9.5. DeepSeek-AI (2025) reports that reinforcement learning with rule-based rewards on mathematics and code makes long chains of reasoning emerge in a pretrained model.
+
+Open questions include reward hacking when tests are weak (Proposition 9.1 with small $\rho$), credit assignment over outputs of thousands of tokens, and how far gains on verifiable domains transfer to others.
+
+### 10.2 Test-time compute
+
+Brown et al. (2024) observe that the fraction of problems solved by at least one of $k$ samples, the coverage, keeps growing over several orders of magnitude of $k$. The bottleneck then moves to selection: without hidden tests, how is the right sample recognized? Snell et al. (2024) study how to allocate inference compute between sampling, search against learned verifiers and sequential revision.
+
+On the training side, Sardana et al. (2024) extend the compute-optimal analysis of ch. 3 to include inference costs, which favours smaller models trained on more tokens (Exercise 17). Besiroglu et al. (2024) attempt to replicate the fit of Definition 3.6 and report re-estimated parameters consistent with the two other approaches of Hoffmann et al. (2022).
+
+### 10.3 Evaluation and contamination
+
+Public benchmarks leak into web-scale training data. LiveCodeBench (Jain et al., 2024) collects contest problems over time and evaluates each model only on problems published after its training cut-off. Repository-level benchmarks such as SWE-bench (ch. 9) measure tasks closer to real work but are costly to run and to keep uncontaminated.
+
+Functional correctness is also not the only criterion. Pearce et al. (2022) built 89 security-relevant scenarios for GitHub Copilot and found about 40 % of the 1 689 generated programs vulnerable. Measuring security, maintainability and faithfulness to a specification remains largely open.
+
+### 10.4 Formal mathematics
+
+AlphaGeometry (Trinh et al., 2024) combines a language model with a symbolic deduction engine and solves olympiad geometry problems, trained on synthetic data only. DeepSeek-Prover (Xin et al., 2024) autoformalizes informal problems into Lean 4 to generate large synthetic training sets of statements and proofs, verified by the assistant.
+
+Three questions recur: the faithfulness of autoformalized statements (ch. 8.4), premise selection in libraries that keep growing, and the gap between informal reasoning, where models are fluent, and formal proofs, where every step must check.
+
+### 10.5 Verified code generation
+
+The generate-and-check pattern of ch. 8.5 extends to whole programs annotated with specifications in verification-aware languages such as Dafny. The model writes the code, the invariants and the auxiliary lemmas, and the verifier either accepts or returns a precise error. The hard part moves to the specification: who writes it, and how is a specification itself validated?
+
+### 10.6 Exact constrained sampling and tokenization
+
+Theorem 6.5 shows that masking does not sample from the conditional distribution. Sequential Monte Carlo (Lew et al., 2023) and grammar-aligned decoding (Park et al., 2024) approximate the exact conditional, at a cost in samples that is not yet well understood. Tokenization interacts with constraints and prompts (Proposition 2.6), which motivates byte-level models such as ByT5 (Xue et al., 2022), whose longer sequences make attention more expensive.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 10
+:::
+
+-   Verifiable rewards make code and proofs the testing ground of reinforcement learning for reasoning.
+-   Sampling more raises coverage; selecting the right sample without hidden tests is the open problem.
+-   Benchmarks must be refreshed against contamination and should measure more than functional correctness.
+-   Formal mathematics combines language models with checkers; autoformalization fidelity and premise selection are open.
+-   Exact conditional sampling under constraints and the role of tokenization remain active topics.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. The *Practice* column of the [session plan](#sessions) says when to attempt each one.
+
+1.  **★ The KV cache of a code model.** A model has $L = 40$ layers, $H = 40$ query heads of dimension $d_h = 128$ and grouped-query attention with $n_{kv} = 8$, with a bf16 cache. (a) What is the cache size per token? (b) How many prompts of 32 768 tokens fit in 40 GB left free after loading the weights? (c) What would (b) be without grouped-query attention?
+
+    *Solution*: (a) By Proposition 1.9, $2 \times 40 \times 8 \times 128 \times 2 = 163\,840$ bytes, 160 KiB per token. (b) One prompt takes $163\,840 \times 32\,768 \approx 5.37$ GB, so 7 prompts fit. (c) With $n_{kv} = 40$ each prompt takes five times more, 26.8 GB, so only one fits.
+
+2.  **★ BPE by hand.** Run three merges of Algorithm 2.2 on the string `aaabdaaabac`, starting from its 11 characters. Give the merges, the final sequence and its length, and check Proposition 2.3.
+
+    *Solution*: The adjacent pair `aa` is counted 4 times, twice in each `aaa`, but only 2 non-overlapping replacements are made.
+
+    -   Merge 1: `aa` → `Z`, giving `Z a b d Z a b a c` (length 9).
+    -   Merge 2: `ab` and `Za` tie with 2 occurrences; choosing `ab` → `Y` gives `Z Y d Z Y a c` (length 7).
+    -   Merge 3: `ZY` → `X` (2 occurrences), giving `X d X a c` (length 5).
+
+    The length drops from 11 to $11 - 2 - 2 - 2 = 5$, as Proposition 2.3 states. Choosing `Za` at the second merge also ends with 5 symbols.
+
+3.  **★ A compute-optimal budget.** With the constants of Definition 3.6, compute $N^\star$, $D^\star$ and the predicted loss for $C = 10^{23}$ FLOPs, and the number of tokens per parameter. How does it compare with $C = 10^{21}$?
+
+    *Solution*: Theorem 3.7 gives $N^\star \approx 1.46 \times 10^{10}$ parameters, $D^\star \approx 1.14 \times 10^{12}$ tokens and $L \approx 2.005$ (Code 3.9 prints them). The ratio is about 78 tokens per parameter, against 50 at $10^{21}$: with $\beta < \alpha$, data grow faster than parameters.
+
+4.  **★ The size of a LoRA adapter.** A 7-billion-parameter model has $L = 32$ blocks of width $d = 4096$. LoRA of rank $r = 16$ is applied to $W_Q$, $W_K$, $W_V$ and $W_O$ in every block. (a) Count the trainable parameters. (b) What fraction of the model is it? (c) How much memory do their Adam states take in fp32?
+
+    *Solution*: (a) Each $4096 \times 4096$ matrix gets $16 \times (4096 + 4096) = 131\,072$ parameters, so $4 \times 32 \times 131\,072 = 16\,777\,216$ in total, about $1.7 \times 10^7$. (b) About 0.24 % of $7 \times 10^9$. (c) Two fp32 states of 4 bytes per parameter: 134 MB.
+
+5.  **★ pass@k by hand.** For one problem, 10 samples are drawn and 3 pass. Compute the unbiased estimates of pass@1, pass@3 and pass@5, and the plug-in estimates for $k = 3$ and $k = 5$.
+
+    *Solution*: pass@1 $= 3/10 = 0.3$. pass@3 $= 1 - \binom{7}{3}/\binom{10}{3} = 1 - 35/120 \approx 0.708$. pass@5 $= 1 - \binom{7}{5}/\binom{10}{5} = 1 - 21/252 \approx 0.917$. The plug-in values are $1 - 0.7^3 = 0.657$ and $1 - 0.7^5 \approx 0.832$, lower, as Proposition 5.7 predicts.
+
+6.  **★ A nucleus by hand.** The next-token probabilities are 0.45, 0.25, 0.12, 0.08, 0.05, 0.03, 0.02. Give the distribution used by top-3 sampling and by nucleus sampling with threshold 0.85.
+
+    *Solution*: Top-3 keeps the first three tokens, of total 0.82, and renormalizes them to 0.549, 0.305 and 0.146. The nucleus is the smallest prefix of total at least 0.85: the first four tokens, of total 0.90, renormalized to 0.5, 0.278, 0.133 and 0.089.
+
+7.  **★★ Shifting positions in RoPE.** (a) Show with Proposition 1.7 that RoPE attention scores, and hence the attention weights, are unchanged if every position is shifted by the same integer. (b) For $d_k = 2$, $\theta_1 = 1$ and $q = k = (1, 0)$, compute the score as a function of $n - m$.
+
+    *Solution*: (a) The score between positions $m + c$ and $n + c$ is $q^\top R_{(n+c)-(m+c)} k = q^\top R_{n-m} k$. Each score is unchanged, and so is each softmax row. (b) $R_{n-m} k = (\cos(n-m), \sin(n-m))$, so the score is $\cos(n - m)$. It is maximal at distance 0 but oscillates with the distance, so one frequency cannot tell distances apart: several frequencies $\theta_i$ are needed.
+
+8.  **★★ Banding for near-duplicate detection.** $k = br$ MinHash values are split into $b$ bands of $r$ values; two files become a candidate pair if they agree on all values of at least one band. (a) Show that a pair of Jaccard similarity $J$ becomes a candidate with probability $1 - (1 - J^r)^b$. (b) Compute it for $b = 20$, $r = 5$ and $J \in \{0.3, 0.8\}$.
+
+    *Solution*: (a) By Proposition 3.2 and independence of the hashes, a band agrees with probability $J^r$, and the $b$ bands are independent. (b) For $J = 0.8$: $J^5 = 0.328$ and $1 - 0.672^{20} \approx 0.9996$. For $J = 0.3$: $J^5 = 0.00243$ and $1 - 0.99757^{20} \approx 0.047$. The curve switches near $(1/b)^{1/r} \approx 0.55$.
+
+9.  **★★ When n equals k.** (a) Show that for $n = k$ the unbiased estimator of Theorem 5.6 is $\mathbb{1}[c \ge 1]$ and explain why it is unbiased. (b) For $n = k = 2$, compute the expectation of the plug-in estimator and its bias.
+
+    *Solution*: (a) If $c \ge 1$, $\binom{n-c}{n} = 0$ and the estimator is 1; if $c = 0$ it is $1 - 1 = 0$. Its expectation is the probability that one of $k$ samples passes, pass@$k$ itself.
+
+    (b) $c = 0, 1, 2$ with probabilities $(1-p)^2$, $2p(1-p)$ and $p^2$; the plug-in values are $0$, $3/4$ and $1$. The expectation is $\frac{3}{2}p(1-p) + p^2$, while pass@2 is $2p - p^2$; the bias is
+
+    $$
+    -\tfrac{1}{2}\, p(1 - p) .
+    $$
+
+10. **★★ Distortion by hand.** The valid strings are `ab` and `b`. The model emits `a` with probability 0.7 and `b` with probability 0.3; after `a` it emits `b` with probability 0.2 and an invalid token otherwise; after `b` it ends. (a) Compute $p(\cdot \mid L)$. (b) Compute the distribution of masked decoding and the total variation distance. (c) Check the formula of Theorem 6.5 at the first step.
+
+    *Solution*: (a) $p(L) = 0.7 \times 0.2 + 0.3 = 0.44$, so $p(\texttt{ab} \mid L) = 0.14 / 0.44 \approx 0.318$ and $p(\texttt{b} \mid L) \approx 0.682$.
+
+    (b) Both first tokens are viable, and after `a` only `b` is allowed: masking gives $0.7$ and $0.3$. The total variation distance is $0.7 - 0.318 = 0.382$.
+
+    (c) $w(\texttt{a}) = 0.2$, $w(\texttt{b}) = 1$ and $w(\varepsilon) = 0.44$, so the exact first step gives `a` the probability $0.7 \times 0.2 / 0.44 \approx 0.318$.
+
+11. **★★ (Python) Truncated sampling.** Implement top-$k$ and nucleus truncation, sample 100 000 tokens from the nucleus distribution of Exercise 6, and check the empirical frequencies.
+
+    *Solution*:
+
+    ```python
+    import numpy as np
+    rng = np.random.default_rng(0)
+
+    def truncate(p, top_k=None, top_p=None):
+        order = np.argsort(-p)
+        keep = np.zeros_like(p, dtype=bool)
+        if top_k is not None:
+            keep[order[:top_k]] = True
+        if top_p is not None:                       # smallest prefix reaching top_p
+            n = np.searchsorted(np.cumsum(p[order]), top_p) + 1
+            keep[order[:n]] = True
+        q = np.where(keep, p, 0.0)
+        return q / q.sum()
+
+    p = np.array([0.45, 0.25, 0.12, 0.08, 0.05, 0.03, 0.02])
+    q = truncate(p, top_p=0.85)
+    draws = rng.choice(len(p), size=100_000, p=q)
+    freq = np.bincount(draws, minlength=len(p)) / len(draws)
+    print("nucleus 0.85 keeps", np.flatnonzero(q).tolist(), "with", np.round(q, 3).tolist())
+    print("max |empirical - target| =", np.abs(freq - q).max().round(4))
+    print("top-3:", np.round(truncate(p, top_k=3), 3).tolist())
+    ```
+
+    The empirical frequencies are within 0.002 of the target, of the order of the standard deviation $\sqrt{q(1-q)/10^5} \approx 0.0016$. A threshold equal to a partial sum, such as 0.9 here, is fragile in floating point: compare with a tolerance.
+
+12. **★★ (Python) Stop words in code retrieval.** In Code 7.5, compute recall@2, then remove the stop words a, an, the, of, with, to, and, into, do, I, how, in, by and the keyword `def`. Recompute recall@1, recall@2 and the MRR, and explain the change.
+
+    *Solution*:
+
+    ```python
+    import math, re
+    from collections import Counter
+
+    corpus = {
+        "read_json":   "def read_json(path): load a JSON file and return a dict",
+        "write_csv":   "def write_csv(rows, path): write rows to a CSV file",
+        "parse_date":  "def parse_date(s): parse an ISO date string into a datetime",
+        "http_get":    "def http_get(url, timeout): send a GET request and return the body",
+        "retry":       "def retry(fn, attempts): call fn again until it succeeds",
+        "lru_cache":   "def lru_cache(maxsize): memoize a function, evicting the least recently used",
+        "sha256_file": "def sha256_file(path): hash a file with SHA-256 in chunks",
+        "flatten":     "def flatten(nested): turn a list of lists into a flat list",
+        "chunked":     "def chunked(xs, n): split a list into chunks of size n",
+        "slugify":     "def slugify(title): lowercase a title and replace spaces by hyphens",
+    }
+    queries = {"how do I load a json config file": "read_json",
+               "split list into batches of fixed size": "chunked",
+               "compute the checksum of a large file": "sha256_file",
+               "download a web page with a timeout": "http_get",
+               "cache results of an expensive function": "lru_cache"}
+    STOP = {"a", "an", "the", "of", "with", "to", "and", "into", "do", "i", "how", "in", "by", "def"}
+
+    def evaluate(stop=frozenset()):
+        tok = lambda s: [w for w in re.findall(r"[a-z0-9]+", s.lower().replace("_", " ")) if w not in stop]
+        docs = {k: tok(v) for k, v in corpus.items()}
+        M, avgdl = len(docs), sum(map(len, docs.values())) / len(docs)
+        df = Counter(w for d in docs.values() for w in set(d))
+        def bm25(q, doc, k1=1.2, b=0.75):
+            tf = Counter(doc)
+            return sum(math.log(1 + (M - df[w] + 0.5) / (df[w] + 0.5)) * tf[w] * (k1 + 1)
+                       / (tf[w] + k1 * (1 - b + b * len(doc) / avgdl)) for w in tok(q) if w in tf)
+        ranks = [sorted(docs, key=lambda d: -bm25(q, docs[d])).index(g) + 1 for q, g in queries.items()]
+        return {k: sum(r <= k for r in ranks) / len(ranks) for k in (1, 2)}, sum(1 / r for r in ranks) / len(ranks)
+
+    print("no stop words removed:", evaluate())
+    print("stop words removed:   ", evaluate(STOP))
+    ```
+
+    Before: recall@1 = 0.8, recall@2 = 1.0, MRR = 0.90. After: all three equal 1.0. The word "with" no longer favours `sha256_file`, and "timeout" decides the fourth query. The synonym problem remains: no query word matches "GET request".
+
+13. **★★ A loop invariant for multiplication.** The program `r, i = 0, 0; while i < b: r, i = r + a, i + 1` runs from a state with $b \ge 0$. Find an invariant that proves the postcondition $r = ab$, and check the three conditions of Theorem 8.8.
+
+    *Solution*: $I \equiv (r = a i) \wedge (i \le b)$.
+
+    -   Initiation: $r = 0 = a \cdot 0$ and $0 \le b$.
+    -   Consecution: if $r = ai$ and $i < b$, then $r + a = a(i + 1)$ and $i + 1 \le b$.
+    -   Exit: $I$ and $i \ge b$ give $i = b$, hence $r = ab$.
+
+    The conjunct $i \le b$ is necessary, exactly as in Code 8.9.
+
+14. **★★ Resample or repair, with three calls.** A fresh sample is correct with probability $p = 0.3$. Compare, with a budget of three calls, three independent samples and the chain sample–repair–repair, for a repair success probability $r = 0.2$ and $r = 0.45$, assuming independent attempts.
+
+    *Solution*: Resampling succeeds with probability $1 - 0.7^3 = 0.657$. The chain succeeds with probability $p + (1-p)r + (1-p)(1-r)r$: for $r = 0.45$, $0.3 + 0.315 + 0.173 = 0.788$, better; for $r = 0.2$, $0.3 + 0.14 + 0.112 = 0.552$, worse. As in Proposition 9.3, the comparison turns on $r$ against $p$.
+
+15. **★★★ Correcting the distortion.** Let $q$ be the distribution of masked decoding (Definition 6.1), and $Z_t(y_{<t})$ the total model probability of the tokens allowed at step $t$. (a) Show that for every valid $y$, $q(y) = p(y) / \prod_t Z_t(y_{<t})$. (b) Deduce that the weight $W(y) = \prod_t Z_t(y_{<t})$ satisfies $\mathbb{E}_q[f(Y) W(Y)] = \mathbb{E}_p[f(Y)\, \mathbb{1}[Y \in L]]$ for every $f$, and that $\mathbb{E}_q[W] = p(L)$. (c) Propose a self-normalized estimator of $\mathbb{E}[f(Y) \mid Y \in L]$ and discuss its variance when $p(L)$ is small.
+
+    *Hints and expected result*: (a) Each factor of $q$ is $p(y_t \mid y_{<t}) / Z_t$ for an allowed token. (b) Multiply by $W$ and sum over valid sequences; take $f = 1$ for the second identity.
+
+    (c) Draw $y^{(1)}, \dots, y^{(m)}$ from $q$ and use $\sum_i W_i f(y^{(i)}) / \sum_i W_i$. It is consistent, and its variance grows with the spread of the weights, large when masking intervenes often; sequential Monte Carlo (Lew et al., 2023) resamples particles to control it. On Code 6.7, the estimate converges to the exact conditional.
+
+16. **★★★ (Python) A prover with conjunction and a learned policy.** Extend Code 8.6 with formulas $A \wedge B$, a tactic `split` (goal $A \wedge B$ gives goals $A$ and $B$) and a tactic `cases h` (a hypothesis $A \wedge B$ is replaced by $A$ and $B$). Then replace `PRIOR` by a policy learnt by expert iteration on random formulas.
+
+    *Hints and expected result*: Extend the parser with a binary connective of higher precedence than `->`, add the two tactics in `tactics`, and keep `check` unchanged: it only replays legal moves. The formula `(A /\ B) -> (B /\ A)` is then proved by `intro`, `cases`, `split` and two `assumption` steps.
+
+    For the learning part, generate random provable formulas (for example, types of small lambda-terms), record the (goal, tactic) pairs of the proofs found, fit a classifier from goal features to tactics, and iterate (ch. 8.3). The success criterion is a larger fraction of held-out formulas proved within a fixed budget than with the fixed prior.
+
+17. **★★★ Inference-aware scaling.** A model will generate $D_{\mathrm{inf}}$ tokens over its lifetime, at about $2N$ FLOPs per token. Minimize the total cost $6ND + 2ND_{\mathrm{inf}}$ under the constraint $L(N, D) = \ell$ of Definition 3.6. (a) Write the optimality conditions. (b) Show that the optimal $N$ decreases as $D_{\mathrm{inf}}$ grows. (c) Discuss what this implies for code assistants serving many users.
+
+    *Hints and expected result*: (a) With a multiplier $\lambda$: $6D + 2D_{\mathrm{inf}} = \lambda \alpha A N^{-\alpha-1}$ and $6N = \lambda \beta B D^{-\beta-1}$.
+
+    (b) Along the constraint curve, $D$ decreases when $N$ increases. Raising $D_{\mathrm{inf}}$ raises the marginal cost of parameters only, so the optimum moves towards smaller $N$ and larger $D$. (c) Heavily used models are trained far beyond 20 tokens per parameter; Sardana et al. (2024) quantify this (ch. 10).
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com, “Mode de validation”) is homework worth 30 % and a final exam worth 70 %; the Université Paris-Saclay course detail describes it as partial continuous assessment (“Evaluation Continue non Intégrale”). The official homework is published on the course page. The subjects below are proposals in the same spirit, sized for a laptop or a free GPU tier, with public or synthetic data and a measurable success criterion; the written exam proposal shows what a final exam on this material can look like.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Temperature and pass@k, reproduced.** Paper study of Chen et al. (2021). Sample 50 programs per problem of HumanEval (164 problems, public) from a small open code model of at most 1.5 billion parameters, at temperatures 0.2 to 1.0, and run them in a sandbox.
+    -   *Success criterion*: unbiased pass@1 and pass@10 with bootstrap intervals over problems, showing the optimal temperature grow with $k$; compare random choice with mean log-probability ranking.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 5, 9. *Evaluation*: the rubric below.
+2.  **[Solo · ≈ 20 h] Tokenizers for code.** Paper study of Sennrich, Haddow and Birch (2016), with the whitespace observation of Chen et al. (2021). Train byte-level BPE and unigram tokenizers of 1 000 to 32 000 tokens on half of the CPython standard library sources, and on public-domain English books from Project Gutenberg.
+    -   *Success criterion*: held-out bytes per token against vocabulary size for code and text, and the measured gain of whitespace-run tokens and digit splitting.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 2. *Evaluation*: the rubric below.
+3.  **[Solo · ≈ 20 h] Grammar-aligned decoding on a small model.** Paper study of Park et al. (2024). Train a character-level transformer on synthetic arithmetic expressions with a fraction of corrupted ones, constrain it with the grammar of valid expressions, and compare masking with the importance-sampling correction of Exercise 15.
+    -   *Success criterion*: the total variation distance to the exact conditional, estimated by rejection sampling from the unconstrained model, is smaller with the correction for the same number of model calls.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 0, 6. *Evaluation*: the rubric below.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] A small code model with fill-in-the-middle.** Paper study of Bavarian et al. (2022). Train a GPT of 10 to 30 million parameters on the deduplicated Python sources of the CPython standard library, with FIM rates 0, 0.5 and 0.9.
+    -   *Success criterion*: reproduce "FIM for free" qualitatively: left-to-right perplexity on held-out files within a few percent across FIM rates, and infilling exact match on single-line middles that grows strongly with the rate.
+    -   *Split*: tokenizer, MinHash deduplication and data pipeline; model and training; evaluation and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 1–3.
+2.  **[Group of 2–3 · ≈ 30 h each] LoRA on MBPP.** Paper study of Hu et al. (2022). Fine-tune a small open code model of at most 1.5 billion parameters with LoRA of ranks 4 to 64 on the training split of MBPP (Austin et al., 2021), and evaluate on its test split in a sandbox.
+    -   *Success criterion*: pass@1 and pass@10 with the unbiased estimator and bootstrap intervals, a measured gain over the base model, and a rank ablation with trainable-parameter counts.
+    -   *Split*: data and training; sandboxed evaluation harness; statistical analysis and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 4, 5, 9.
+3.  **[Group of 2–3 · ≈ 30 h each] A tactic policy by expert iteration.** Paper study of Polu and Sutskever (2020) and Polu et al. (2023) in a toy domain. Extend the prover of Code 8.6 with conjunction and disjunction, generate random provable formulas, and train a small policy network on the proofs found, round after round.
+    -   *Success criterion*: within a fixed expansion budget, the fraction of held-out formulas proved rises over three rounds above the fixed-prior baseline, and every proof is replayed by the checker.
+    -   *Split*: environment, checker and formula generator; policy model and training; search, expert iteration and evaluation. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 7, 8.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic devices, four questions.
+
+1.  **Question (4 points).** Explain why a transformer decoder can cache keys and values during generation. Give the cost of generating $T$ tokens with and without the cache, the memory of the cache, and the effect of grouped-query attention.
+
+    *Expected*: causality by induction on the layers (Proposition 1.8); the costs of Proposition 1.9; the size $2 L n_{kv} d_h e T$ bytes; grouped-query attention divides it by $H / n_{kv}$, with a numerical example.
+
+2.  **Question (6 points).** (a) For a problem, 20 samples are drawn and 4 pass: estimate pass@1 and pass@5 without bias. (b) Count the parameters of a rank-8 LoRA adapter on a $2048 \times 2048$ matrix. (c) For the law of Definition 3.6 with $\alpha = \beta = 0.5$ and $A/B = 1/4$, compute $N^\star$ and $D^\star$ for $C = 6 \times 10^{20}$.
+
+    *Expected*: (a) $0.2$ and $1 - \binom{16}{5}/\binom{20}{5} = 1 - 4368/15504 \approx 0.718$. (b) $8 \times 4096 = 32\,768$. (c) $G = 1/4$ and $\sqrt{C/6} = 10^{10}$, so $N^\star = 2.5 \times 10^{9}$ and $D^\star = 4 \times 10^{10}$, 16 tokens per parameter.
+
+3.  **Question (5 points).** Prove that $1 - \binom{n-c}{k}/\binom{n}{k}$ is an unbiased estimator of pass@$k$, and that the plug-in estimator $1 - (1 - c/n)^k$ is biased downward.
+
+    *Expected*: the random-subset argument and the tower property of Theorem 5.6; concavity and Jensen's inequality of Proposition 5.7.
+
+4.  **Question (5 points).** State the exact next-token distribution of a model conditioned on producing a string of a language $L$, prove it, and show on an example that masking invalid tokens samples from a different distribution.
+
+    *Expected*: the formula of Theorem 6.5 with the completion probability $w$, by Bayes' rule; an example in the style of Example 6.6 with the two distributions computed.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 30 % | Correct code and derivations; every claim backed by a result of the course, a proof or a reference |
+| Experimental method | 25 % | Sandboxed execution, unbiased estimators, fixed seeds, several runs or bootstrap intervals, baselines and ablations |
+| Result | 20 % | The success criterion is met, or the report explains convincingly why not |
+| Report | 15 % | Clear structure and figures, honest limitations, within the page limit |
+| Talk | 10 % | One key message in the allotted time, precise answers to questions |
+
+## References {#refs}
+
+Official reference (master-mva.com):
+
+-   Course page announced on master-mva.com: <https://llm.labri.fr/> — organisation of the sessions and course material.
+
+Books:
+
+-   D. Jurafsky, J. H. Martin, *Speech and Language Processing*, 3rd edition draft, online, 2025.
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016.
+-   J. E. Hopcroft, R. Motwani, J. D. Ullman, *Introduction to Automata Theory, Languages, and Computation*, 3rd ed., Pearson, 2006.
+-   C. D. Manning, P. Raghavan, H. Schütze, *Introduction to Information Retrieval*, Cambridge University Press, 2008.
+-   B. C. Pierce, *Types and Programming Languages*, MIT Press, 2002.
+-   T. Nipkow, L. C. Paulson, M. Wenzel, *Isabelle/HOL: A Proof Assistant for Higher-Order Logic*, LNCS 2283, Springer, 2002.
+-   T. Nipkow, G. Klein, *Concrete Semantics with Isabelle/HOL*, Springer, 2014.
+
+Chapters 1–2 (transformers and tokenization):
+
+-   A. Vaswani et al., "Attention Is All You Need", NeurIPS 2017.
+-   J. Su, M. Ahmed, Y. Lu, S. Pan, W. Bo, Y. Liu, "RoFormer: Enhanced Transformer with Rotary Position Embedding", *Neurocomputing* 568, 2024.
+-   N. Shazeer, "Fast Transformer Decoding: One Write-Head is All You Need", arXiv, 2019.
+-   J. Ainslie, J. Lee-Thorp, M. de Jong, Y. Zemlyanskiy, F. Lebrón, S. Sanghai, "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints", EMNLP 2023.
+-   P. Gage, "A New Algorithm for Data Compression", *The C Users Journal* 12(2), 1994.
+-   R. Sennrich, B. Haddow, A. Birch, "Neural Machine Translation of Rare Words with Subword Units", ACL 2016.
+-   A. Radford, J. Wu, R. Child, D. Luan, D. Amodei, I. Sutskever, "Language Models are Unsupervised Multitask Learners", OpenAI technical report, 2019.
+-   T. Kudo, "Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates", ACL 2018.
+-   T. Kudo, J. Richardson, "SentencePiece: A simple and language independent subword tokenizer and detokenizer for Neural Text Processing", EMNLP 2018 (System Demonstrations).
+-   H. Touvron et al., "LLaMA: Open and Efficient Foundation Language Models", arXiv, 2023.
+
+Chapters 3–4 (pretraining, scaling, fine-tuning):
+
+-   A. Z. Broder, "On the Resemblance and Containment of Documents", Compression and Complexity of Sequences, IEEE, 1997.
+-   M. Allamanis, "The Adverse Effects of Code Duplication in Machine Learning Models of Code", Onward! 2019, ACM.
+-   K. Lee, D. Ippolito, A. Nystrom, C. Zhang, D. Eck, C. Callison-Burch, N. Carlini, "Deduplicating Training Data Makes Language Models Better", ACL 2022.
+-   D. Kocetkov et al., "The Stack: 3 TB of permissively licensed source code", arXiv, 2022.
+-   M. Bavarian, H. Jun, N. Tezak, J. Schulman, C. McLeavey, J. Tworek, M. Chen, "Efficient Training of Language Models to Fill in the Middle", arXiv, 2022.
+-   J. Kaplan et al., "Scaling Laws for Neural Language Models", arXiv, 2020.
+-   J. Hoffmann et al., "Training Compute-Optimal Large Language Models", NeurIPS 2022.
+-   N. Muennighoff, A. M. Rush, B. Barak, T. Le Scao, A. Piktus, N. Tazi, S. Pyysalo, T. Wolf, C. Raffel, "Scaling Data-Constrained Language Models", NeurIPS 2023.
+-   E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen, "LoRA: Low-Rank Adaptation of Large Language Models", ICLR 2022.
+-   C. Eckart, G. Young, "The Approximation of One Matrix by Another of Lower Rank", *Psychometrika* 1(3), 1936.
+-   A. Aghajanyan, L. Zettlemoyer, S. Gupta, "Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning", ACL 2021.
+-   T. Dettmers, A. Pagnoni, A. Holtzman, L. Zettlemoyer, "QLoRA: Efficient Finetuning of Quantized LLMs", NeurIPS 2023.
+-   N. Houlsby et al., "Parameter-Efficient Transfer Learning for NLP", ICML 2019.
+-   X. L. Li, P. Liang, "Prefix-Tuning: Optimizing Continuous Prompts for Generation", ACL 2021.
+-   Y. Wang et al., "Self-Instruct: Aligning Language Models with Self-Generated Instructions", ACL 2023.
+-   Z. Luo et al., "WizardCoder: Empowering Code Large Language Models with Evol-Instruct", ICLR 2024.
+-   Y. Wei, Z. Wang, J. Liu, Y. Ding, L. Zhang, "Magicoder: Empowering Code Generation with OSS-Instruct", ICML 2024.
+
+Chapters 5–7 (decoding, evaluation, structured generation, retrieval):
+
+-   M. Chen et al., "Evaluating Large Language Models Trained on Code", arXiv, 2021.
+-   J. Austin et al., "Program Synthesis with Large Language Models", arXiv, 2021.
+-   A. Holtzman, J. Buys, L. Du, M. Forbes, Y. Choi, "The Curious Case of Neural Text Degeneration", ICLR 2020.
+-   K. Papineni, S. Roukos, T. Ward, W.-J. Zhu, "BLEU: a Method for Automatic Evaluation of Machine Translation", ACL 2002.
+-   Y. Li et al., "Competition-Level Code Generation with AlphaCode", *Science* 378, 2022.
+-   X. Wang et al., "Self-Consistency Improves Chain of Thought Reasoning in Language Models", ICLR 2023.
+-   B. T. Willard, R. Louf, "Efficient Guided Generation for Large Language Models", arXiv, 2023.
+-   J. Earley, "An Efficient Context-Free Parsing Algorithm", *Communications of the ACM* 13(2), 1970.
+-   T. Scholak, N. Schucher, D. Bahdanau, "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models", EMNLP 2021.
+-   G. Poesia, O. Polozov, V. Le, A. Tiwari, G. Soares, C. Meek, S. Gulwani, "Synchromesh: Reliable Code Generation from Pre-trained Language Models", ICLR 2022.
+-   S. Geng, M. Josifoski, M. Peyrard, R. West, "Grammar-Constrained Decoding for Structured NLP Tasks without Finetuning", EMNLP 2023.
+-   A. K. Lew, T. Zhi-Xuan, G. Grand, V. K. Mansinghka, "Sequential Monte Carlo Steering of Large Language Models using Probabilistic Programs", arXiv, 2023.
+-   K. Park, J. Wang, T. Berg-Kirkpatrick, N. Polikarpova, L. D'Antoni, "Grammar-Aligned Decoding", NeurIPS 2024.
+-   S. Robertson, H. Zaragoza, "The Probabilistic Relevance Framework: BM25 and Beyond", *Foundations and Trends in Information Retrieval* 3(4), 2009.
+-   V. Karpukhin et al., "Dense Passage Retrieval for Open-Domain Question Answering", EMNLP 2020.
+-   P. Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks", NeurIPS 2020.
+-   N. F. Liu et al., "Lost in the Middle: How Language Models Use Long Contexts", *Transactions of the ACL* 12, 2024.
+-   F. Zhang et al., "RepoCoder: Repository-Level Code Completion Through Iterative Retrieval and Generation", EMNLP 2023.
+-   S. Zhou, U. Alon, F. F. Xu, Z. Wang, Z. Jiang, G. Neubig, "DocPrompting: Generating Code by Retrieving the Docs", ICLR 2023.
+
+Chapters 8–9 (proof, verification, execution feedback):
+
+-   L. de Moura, S. Ullrich, "The Lean 4 Theorem Prover and Programming Language", CADE-28, 2021.
+-   The mathlib Community, "The Lean Mathematical Library", CPP 2020.
+-   S. Polu, I. Sutskever, "Generative Language Modeling for Automated Theorem Proving", arXiv, 2020.
+-   S. Polu, J. M. Han, K. Zheng, M. Baksys, I. Babuschkin, I. Sutskever, "Formal Mathematics Statement Curriculum Learning", ICLR 2023.
+-   K. Yang et al., "LeanDojo: Theorem Proving with Retrieval-Augmented Language Models", NeurIPS 2023 (Datasets and Benchmarks).
+-   K. Zheng, J. M. Han, S. Polu, "miniF2F: a cross-system benchmark for formal Olympiad-level mathematics", ICLR 2022.
+-   Y. Wu, A. Q. Jiang, W. Li, M. N. Rabe, C. Staats, M. Jamnik, C. Szegedy, "Autoformalization with Large Language Models", NeurIPS 2022.
+-   A. Q. Jiang et al., "Draft, Sketch, and Prove: Guiding Formal Theorem Provers with Informal Proofs", ICLR 2023.
+-   C. A. R. Hoare, "An Axiomatic Basis for Computer Programming", *Communications of the ACM* 12(10), 1969.
+-   K. R. M. Leino, "Dafny: An Automatic Program Verifier for Functional Correctness", LPAR-16, Springer, 2010.
+-   L. de Moura, N. Bjørner, "Z3: An Efficient SMT Solver", TACAS 2008.
+-   J. Liu, C. S. Xia, Y. Wang, L. Zhang, "Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation", NeurIPS 2023.
+-   X. Chen, M. Lin, N. Schärli, D. Zhou, "Teaching Large Language Models to Self-Debug", ICLR 2024.
+-   N. Shinn, F. Cassano, A. Gopinath, K. Narasimhan, S. Yao, "Reflexion: Language Agents with Verbal Reinforcement Learning", NeurIPS 2023.
+-   T. X. Olausson, J. P. Inala, C. Wang, J. Gao, A. Solar-Lezama, "Is Self-Repair a Silver Bullet for Code Generation?", ICLR 2024.
+-   S. Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models", ICLR 2023.
+-   C. E. Jimenez, J. Yang, A. Wettig, S. Yao, K. Pei, O. Press, K. Narasimhan, "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?", ICLR 2024.
+-   J. Yang et al., "SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering", NeurIPS 2024.
+-   R. J. Williams, "Simple Statistical Gradient-Following Algorithms for Connectionist Reinforcement Learning", *Machine Learning* 8, 1992.
+-   H. Le, Y. Wang, A. D. Gotmare, S. Savarese, S. C. H. Hoi, "CodeRL: Mastering Code Generation through Pretrained Models and Deep Reinforcement Learning", NeurIPS 2022.
+-   E. Zelikman, Y. Wu, J. Mu, N. D. Goodman, "STaR: Bootstrapping Reasoning With Reasoning", NeurIPS 2022.
+
+Chapter 10 (research directions):
+
+-   Z. Shao et al., "DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models", arXiv, 2024.
+-   DeepSeek-AI, "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning", arXiv, 2025.
+-   B. Brown et al., "Large Language Monkeys: Scaling Inference Compute with Repeated Sampling", arXiv, 2024.
+-   C. Snell, J. Lee, K. Xu, A. Kumar, "Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters", arXiv, 2024.
+-   N. Sardana, J. Portes, S. Doubov, J. Frankle, "Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws", ICML 2024.
+-   T. Besiroglu, E. Erdil, M. Barnett, J. You, "Chinchilla Scaling: A replication attempt", arXiv, 2024.
+-   N. Jain et al., "LiveCodeBench: Holistic and Contamination Free Evaluation of Large Language Models for Code", arXiv, 2024.
+-   H. Pearce, B. Ahmad, B. Tan, B. Dolan-Gavitt, R. Karri, "Asleep at the Keyboard? Assessing the Security of GitHub Copilot's Code Contributions", IEEE Symposium on Security and Privacy, 2022.
+-   T. H. Trinh, Y. Wu, Q. V. Le, H. He, T. Luong, "Solving Olympiad Geometry without Human Demonstrations", *Nature* 625, 2024.
+-   H. Xin et al., "DeepSeek-Prover: Advancing Theorem Proving in LLMs through Large-Scale Synthetic Data", arXiv, 2024.
+-   L. Xue et al., "ByT5: Towards a Token-Free Future with Pre-trained Byte-to-Byte Models", *Transactions of the ACL* 10, 2022.
