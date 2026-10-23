@@ -40,7 +40,19 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: next-token models and the training loop](#ch0)
+-   [1. The Transformer block](#ch1)
+-   [2. Pre-training and scaling laws](#ch2)
+-   [3. Post-training and alignment](#ch3)
+-   [4. Decoding and inference](#ch4)
+-   [5. Experts, grouped attention, and state-space steps](#ch5)
+-   [6. Agents, retrieval, and tools](#ch6)
+-   [7. Interpretability, small models, vision, and robots](#ch7)
+-   [8. Research directions and open problems](#ch8)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
@@ -51,21 +63,888 @@ TODO: one bullet per level-2 heading, in page order.
   Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
   Credits and volume   5 ECTS · 24 h (assumed: master-mva.com: 8 sessions of 3 h (“Chaque session dure 3h”); Université Paris-Saclay table does not list the course)
   Label                [Learning]{.badge .label} · domains on master-mva.com: Deep Learning, Natural Language Processing
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
+  Language             not displayed
+  Assessment           The assessment consists of several homework assignments and a final exam
+  Prerequisites        The course requires mastery of Python and the basics of linear algebra
   -------------------- ------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+**Audience**: a student with an M1 in mathematics, computer science, or physics who can write Python and multiply matrices, and who wants the architecture and the training life cycle of a large language model.
+
+**Empirical first**: on the scalar chain $h_t = 0.9 h_{t-1}$, the derivative of step 32 with respect to step 1 is $0.9^{31}$, about $0.038$. Bengio, Simard, and Frasconi (1994) showed that products of Jacobians of this kind vanish or explode. A plain recurrent language model can lose the subject of a long sentence for that reason.
+
+The course description on master-mva.com asks for the architecture, the mathematics, and the engineering of a large language model, and for the full life cycle of a model. These notes follow that description. They are study notes, not the instructors' slides. Nathanaël Fijalkow (CNRS, LaBRI) and David Louapre (HuggingFace) teach the course. It is not open to listeners from outside the programme.
+
+### What you will be able to do
+
+-   Write the next-token loss of an autoregressive model and name pre-training, post-training, and inference.
+-   Explain why a plain recurrent net loses a long-range signal, and what an LSTM cell changes in that product.
+-   Compute scaled dot-product attention with a causal mask, and say why the output is a convex combination of values.
+-   Compare post-norm and pre-norm, and evaluate an RMSNorm on a short vector.
+-   Apply a sinusoidal position and a rotary position, and say which one makes the query-key score depend on a time gap.
+-   Estimate a dense training cost as about $6ND$ FLOPs and split a budget into a parameter count and a token count.
+-   Count the parameters of a LoRA update and write the DPO loss on one preference pair.
+-   Size a KV cache, separate prefill from decode, and name FlashAttention, speculative decoding, and paged attention.
+-   Describe expert routing, grouped-query attention, and one selective state-space step.
+-   State what a retrieval index, a function call, and the Model Context Protocol each add to a frozen decoder.
+-   Read an induction pattern, a vision-Transformer patch embedding, and a 4-bit edge budget with the same tools.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com describes a deep study of the architecture, the mathematics, and the engineering of large language models. The stated objective is to understand the Transformer and to master the full life cycle of a model. The description places that life cycle beside the theory, not under it.
+
+Each session lasts 3 h. The page below assigns one chapter to each announced session. The correspondence table has one row for every item stored in the course description, including the prerequisite, the objective, the assessment sentence, and the two instructors.
+
+| Official topic | Course section |
+| --- | --- |
+| Prerequisite: mastery of Python and the basics of linear algebra | Fiche. [ch. 0](#ch0) uses only those tools. |
+| Objective: understand the Transformer and the full life cycle of a model | Introduction, then [ch. 1](#ch1) through [ch. 4](#ch4). |
+| The course is not open to listeners from outside the programme | Introduction, above. |
+| Each session lasts 3 h | [Session plan](#sessions). |
+| Session 1: language models | [ch. 0](#ch0) |
+| History: limits of RNNs and LSTMs | [ch. 0](#ch0) |
+| Encoders, decoders, and reasoning models | [ch. 0](#ch0) |
+| Life cycle: pre-training, post-training, and inference | [ch. 0](#ch0) |
+| Training loop and optimisation: SGD, AdamW, and Muon | [ch. 0](#ch0) |
+| Tokenization, conversations, and function calling | [ch. 0](#ch0). The tool loop is in [ch. 6](#ch6). |
+| Ecosystem: Hugging Face, proprietary APIs, and open-source frameworks | [ch. 0](#ch0) |
+| Session 2: the Transformer | [ch. 1](#ch1) |
+| Attention mechanisms | [ch. 1](#ch1) |
+| Stability and normalisation: pre-norm, post-norm, RMSNorm, and residuals | [ch. 1](#ch1) |
+| Position embeddings: the sinusoidal method and RoPE | [ch. 1](#ch1) |
+| Numerical precision: training in FP16 or BF16, and quantization | [ch. 1](#ch1) for training formats. Inference quantization is in [ch. 4](#ch4). |
+| Session 3: pre-training and scaling laws | [ch. 2](#ch2) |
+| Data engineering: filtering, deduplication, mixing, sources, quality classifiers, mid-training, legal aspects, and synthetic data | [ch. 2](#ch2) |
+| Accounting: forward and backward FLOPs | [ch. 2](#ch2) |
+| Chinchilla scaling laws: the ratio of parameters, tokens, and compute | [ch. 2](#ch2) |
+| Learning-rate schedulers | [ch. 2](#ch2) |
+| Choice of hyperparameters | [ch. 2](#ch2) |
+| Arithmetic precision and stability | [ch. 2](#ch2) |
+| Distributed training and parallelism | not covered: the course description assigns them to the semester 2 course Training and Deploying Large-Scale Models. |
+| Session 4: post-training and alignment | [ch. 3](#ch3) |
+| Efficient fine-tuning: PEFT, LoRA, QLoRA, and distillation | [ch. 3](#ch3) |
+| Human alignment: SFT and RLHF with PPO | [ch. 3](#ch3) |
+| DPO, GRPO, and verifiable rewards | [ch. 3](#ch3) |
+| Test-time compute | [ch. 3](#ch3) |
+| Evaluation: MMLU, HumanEval, and data contamination | [ch. 3](#ch3) |
+| Session 5: decoding and inference optimisation | [ch. 4](#ch4) |
+| Decoding strategies | [ch. 4](#ch4) |
+| Hardware: GPU VRAM, memory bandwidth, and FlashAttention | [ch. 4](#ch4) |
+| Prefill versus decode, and arithmetic intensity | [ch. 4](#ch4) |
+| Acceleration: KV cache, continuous batching, speculative decoding, PagedAttention, and vLLM | [ch. 4](#ch4) |
+| Quantization | [ch. 4](#ch4) |
+| Long context: RoPE extensions, sliding windows, YaRN, attention sinks, and ring attention | [ch. 4](#ch4) |
+| Session 6: alternative architectures and hardware efficiency | [ch. 5](#ch5) |
+| Mixture of experts: routing, load balancing, instabilities, and pathologies | [ch. 5](#ch5) |
+| Grouped-query attention and multi-query attention | [ch. 5](#ch5) |
+| Beyond the Transformer: state-space models, Mamba, and recurrent architectures | [ch. 5](#ch5) |
+| Session 7: agents | [ch. 6](#ch6) |
+| Retrieval-augmented generation and long-term memory | [ch. 6](#ch6) |
+| Tool use: function calling and external tools | [ch. 6](#ch6) |
+| The Model Context Protocol | [ch. 6](#ch6) |
+| Coding agents | [ch. 6](#ch6) |
+| Agent benchmarks | [ch. 6](#ch6) |
+| Session 8: advanced topics | [ch. 7](#ch7) |
+| Mechanistic interpretability | [ch. 7](#ch7) |
+| Small language models for edge computing | [ch. 7](#ch7) |
+| Multimodality: vision Transformers | [ch. 7](#ch7) |
+| Robotics | [ch. 7](#ch7) |
+| Assessment: several homework assignments and a final exam | [Projects and assessment](#projects). The description publishes no weights. |
+| The speakers | Fiche, Instructors. |
+| Nathanaël Fijalkow (CNRS, LaBRI) | Fiche, Instructors. |
+| David Louapre (HuggingFace) | Fiche, Instructors. |
+
+Beyond the syllabus, this page adds the short proofs, the ten graded exercises, the project briefs, and the open questions of [ch. 8](#ch8).
+
+### Where this course fits in the programme
+
+The official prerequisite is a working command of Python and the basics of linear algebra. Chapter 0 uses matrix products, a softmax, and a norm, and nothing past that list.
+
+Two refreshers run before semester 1 and prepare those tools. They are Refresher: Scientific Python, NumPy and PyTorch for MVA, and Refresher: Linear Algebra, Analysis and Optimization for MVA. Same-semester courses are related, not prerequisites. Deep Learning, Introduction to Statistical Learning, and Theoretical Foundations of Deep Learning share the language of losses and gradients with this page.
+
+Semester 2 is where the engineering continues. The course description assigns distributed training and parallelism to Training and Deploying Large-Scale Models, so this page does not teach them. Reinforcement Learning is a related course. This page uses PPO only as the policy step inside RLHF. Large Language Models for Code and Proof is a related course. Chapter 6 only defines a coding-agent loop.
+
+### Course outline
+
+-   **0. Review: next-token models and the training loop.** The loss, the recurrent bottleneck, the three families, and SGD, AdamW, and Muon.
+-   **1. The Transformer block.** Attention, pre-norm, RMSNorm, residuals, sinusoidal positions, RoPE, and training precision.
+-   **2. Pre-training and scaling laws.** Data mixtures, the $6ND$ estimate, a Chinchilla split, schedules, and stability.
+-   **3. Post-training and alignment.** LoRA, QLoRA, distillation, SFT, PPO, DPO, GRPO, test-time compute, and contamination.
+-   **4. Decoding and inference.** Sampling, bandwidth, FlashAttention, the KV cache, speculation, quantization, and long context.
+-   **5. Experts, grouped attention, and state-space steps.** Routing, GQA, MQA, and a selective recurrence.
+-   **6. Agents, retrieval, and tools.** An index, a function call, MCP, a coding loop, and SWE-bench.
+-   **7. Interpretability, small models, vision, and robots.** Induction heads, a 4-bit budget, patch embeddings, and action tokens.
+-   **8. Research directions and open problems.** Repeated data, synthetic data, the middle of a long context, and preference losses. Self-study.
+
+### Session plan {#sessions}
+
+**24 h in class (assumed) = 8 sessions of 3 h.**
+
+The split into sessions is a proposal.
+
+| Session | Hours | Level | Content | Practice |
+| --- | --- | --- | --- | --- |
+| 1 | 3 h | 1 | ch. 0 | Ex. 1, Ex. 2 |
+| 2 | 3 h | 1 | ch. 1 | Ex. 3, Ex. 4 |
+| 3 | 3 h | 2 | ch. 2 | Ex. 5 |
+| 4 | 3 h | 2 | ch. 3 | Ex. 6 |
+| 5 | 3 h | 2 | ch. 4 | Ex. 7 |
+| 6 | 3 h | 3 | ch. 5 | Ex. 8 |
+| 7 | 3 h | 3 | ch. 6 | Ex. 9 |
+| 8 | 3 h | 3 | ch. 7 | Ex. 10 |
+
+**Self-study, outside the 24 h** (about 4 h in total): ch. 8 Research directions and open problems (≈ 4 h).
+
+The bold total is the assumed volume already written in the fiche. master-mva.com states that each session lasts 3 h. The Université Paris-Saclay table does not list the course.
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before session 1. Later chapters use the next-token loss without deriving it again.
+-   After each session, do the exercises named in that row of the session plan. Session 1 is Exercises 1 and 2. Session 8 is Exercise 10.
+-   Exercises 2 and 6 are NumPy scripts. Run them with Python 3. Each script builds its generator with `numpy.random.default_rng(0)`. The solution quotes the number the script prints.
+-   The red key box in a chapter is the formula used again later. Copy it by hand once.
+-   The projects are study proposals sized like homework. The official assessment remains several homework assignments and a final exam, and the description publishes no weights.
+
+## 0. Review: next-token models and the training loop {#ch0}
+
+Session 1 asks for the next-token loss, the recurrent limit, and the optimisers SGD, AdamW, and Muon.
+
+::: def
+[Definition 0.1 — Autoregressive language model]{.tag}
+
+Let the vocabulary have size $n$. A parameter vector $\theta$ defines conditionals $p_\theta(x_t \mid x_{<t})$. On a sequence of length $T$ the model sets
+
+$$
+p_\theta(x_{1:T}) = \prod_{t=1}^{T} p_\theta(x_t \mid x_{<t}).
+$$
+
+The training loss on that sequence is the average negative log probability
+
+$$
+L(\theta) = -\frac{1}{T}\sum_{t=1}^{T} \log p_\theta(x_t \mid x_{<t}).
+$$
+:::
+
+The loss is a cross-entropy. For a fixed context, write $p$ for the true next-token distribution and $q$ for the model's distribution. The gap between them has a name, and it is the only non-negative term in the loss.
+
+:::: prop
+[Proposition 0.2 — Cross-entropy gap]{.tag}
+
+$$
+-\sum_{i=1}^{n} p_i \log q_i = H(p) + \mathrm{KL}(p \,\|\, q).
+$$
+
+The left-hand side is minimised at $q = p$, and the minimum value is the entropy $H(p)$.
+
+::: proof
+Expand the KL divergence as $\sum_i p_i \log p_i - \sum_i p_i \log q_i$. Rearrangement gives the identity. The KL divergence is non-negative, and it is zero only when $q = p$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 0.3 — Two tokens]{.tag}
+
+Take $p = (0.8, 0.2)$ and $q = (0.6, 0.4)$, with natural logs. The cross-entropy is 0.5919 nats. The entropy of $p$ is 0.5004 nats. Proposition 0.2 says the difference is the KL divergence, here 0.0915 nats.
+:::
+
+::: key
+The quantity training reduces is $L(\theta)$ in Definition 0.1. A perfect model still pays $H(p)$.
+:::
+
+On a factor 0.9, the gradient across 31 steps is about 0.038. A factor 1.1 grows to about 19.2. Bengio, Simard, and Frasconi (1994) showed that these products vanish or explode. An LSTM cell, from Hochreiter and Schmidhuber (1997), can hold a forget gate near one, so one path need not shrink. The state is still one vector.
+
+An encoder attends both ways and restores hidden tokens. A decoder is causal. An encoder-decoder lets the decoder attend to the source. A reasoning model is a decoder that may emit extra tokens before the answer.
+
+Pre-training minimises $L(\theta)$ on a large corpus. Post-training continues from those weights. Inference only chooses tokens.
+
+SGD subtracts a multiple of the gradient. AdamW, from Loshchilov and Hutter (ICLR 2019), puts weight decay outside the adaptive step:
+
+$$
+\theta \leftarrow (1-\eta\lambda)\,\theta - \eta \frac{\hat m}{\sqrt{\hat v}+\epsilon}.
+$$
+
+The decay term is not inside the square root.
+
+Muon, as named in the course description, replaces a matrix momentum by the product of the orthogonal factors in its singular value decomposition.
+
+Byte-pair encoding, from Sennrich, Haddow, and Birch (ACL 2016), merges frequent pairs into the indices of the loss. Role markers encode a conversation. A function-call span is parsed in [ch. 6](#ch6).
+
+The Hugging Face Hub stores weights and tokenizers, and the Transformers library loads them. A proprietary API does not ship the weights. Open training code runs this loop on hardware you control.
+
+::: recap
+Key takeaways — chapter 0
+
+-   The training loss is the average negative log probability of the next token. It equals entropy plus a KL gap.
+-   A scalar recurrent factor $0.9$ leaves a gradient of about $0.038$ after 31 steps. An LSTM cell can keep a path near 1. The state is still one vector.
+-   Encoders read both ways. Decoders are causal. A reasoning pass spends extra generated tokens before the answer.
+-   AdamW puts weight decay outside the adaptive denominator. Muon replaces a matrix momentum by its orthogonal factor.
+:::
+
+## 1. The Transformer block {#ch1}
+
+Session 2 asks for attention, norms, positions, and training precision. The block is the Transformer of Vaswani and coauthors (NeurIPS 2017). Attention mixes a sequence of vectors, a position-wise map changes each vector, and a residual adds the input back.
+
+::: def
+[Definition 1.1 — Scaled dot-product attention]{.tag}
+
+Let the queries, keys, and values of one head be matrices $Q$, $K$, and $V$, with head dimension $d$. Attention is
+
+$$
+\mathrm{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d}}\right) V.
+$$
+
+A causal mask replaces every score that looks at a future position by a large negative number before the softmax. Multi-head attention runs several heads of dimension $d$ and mixes their outputs with one matrix.
+:::
+
+Divide the scores by $\sqrt{d}$. An inner product of $d$ order-one coordinates has variance about $d$, and the division keeps the logits from saturating.
+
+:::: thm
+[Theorem 1.2 — Attention is a convex combination]{.tag}
+
+Fix one query and let $z_1,\ldots,z_t$ be the scores that survive the causal mask. Set
+
+$$
+s_i = \frac{e^{z_i}}{\sum_{j=1}^{t} e^{z_j}}.
+$$
+
+Each $s_i$ is positive and the coordinates of $s$ sum to 1.
+
+The attention output $\sum_i s_i v_i$ is a convex combination of the allowed value vectors.
+
+::: proof
+Each exponential is positive, so each $s_i$ is positive. The denominator is the sum of those exponentials, so the coordinates sum to 1. A weighted sum of vectors with positive weights that sum to 1 is a convex combination. The masked positions have weight 0 and do not appear. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.3 — Three scores]{.tag}
+
+Take scores 2, 0, and -2, already scaled. The exponentials are about 7.389, 1, and 0.135. Their sum is about 8.524. The weights are about 0.867, 0.117, and 0.016. They sum to 1, as Theorem 1.2 requires. The negative score keeps a small positive weight.
+:::
+
+::: key
+$$
+\mathrm{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d}}\right) V.
+$$
+:::
+
+Post-norm normalises the sum of the residual and the sublayer. Pre-norm normalises only the sublayer input, so the skip stays an identity. Xiong and coauthors (ICML 2020) found that path easier to train deep.
+
+RMSNorm, from Zhang and Sennrich (NeurIPS 2019), divides by the root mean square. On the vector (3, -4) that scale is
+
+$$
+\sqrt{(9+16)/2} = \sqrt{12.5} \approx 3.536.
+$$
+
+The direction is unchanged. A learned gain sets the outgoing scale.
+
+Sinusoidal positions add a fixed vector. Exercise 4 computes one coordinate. The code is absolute. A shift of the sentence changes the vector that was added.
+
+RoPE, from Su and coauthors (2021), rotates pairs of query and key coordinates by an angle proportional to time. The rotation at time $t$, called $R_t$, is orthogonal, and $R_t^{\top} R_s = R_{s-t}$. The score depends on the gap $s-t$ only.
+
+FP16 overflows near 65504. BF16 keeps the FP32 exponent range. Micikevicius and coauthors (ICLR 2018) keep a master copy of the weights in FP32. Storing weights as small integers is harder while gradients still flow. Chapter 4 treats the frozen case.
+
+::: recap
+Key takeaways — chapter 1
+
+-   One attention row is a softmax. After a causal mask, the output is a convex combination of the past values.
+-   Divide the scores by $\sqrt{d}$ so the logits stay order one when the head dimension grows.
+-   Pre-norm leaves an un-normalised residual. RMSNorm rescales a vector by its root mean square.
+-   Sinusoidal positions are absolute. RoPE makes the query-key score depend on the time gap. BF16 keeps the FP32 exponent range.
+:::
+
+## 2. Pre-training and scaling laws {#ch2}
+
+Session 3 asks for the data pipeline, the FLOP account, the Chinchilla split, the schedule, and stability. Distributed parallelism is sent to another course.
+
+A document enters only after a filter. Exact and near duplicates are removed, so a repeated page is not a new token. A quality classifier scores what remains. The mixture is a set of weights over sources. Mid-training is a later pass on a narrower mixture, still with the next-token loss, before chapter 3.
+
+Copyright in the source text depends on the jurisdiction. This page states no legal conclusion. A document that fails the filter should not be counted again in $D$.
+
+Synthetic data is text sampled from a model and mixed back in. Shumailov and coauthors (Nature, 2024) show that iterating that loop can thin the tails of the learned distribution. One mixture that includes some synthetic documents is a different procedure. These notes do not claim it causes the same collapse.
+
+::: def
+[Definition 2.1 — Dense training FLOPs]{.tag}
+
+Let $N$ be the number of non-embedding parameters and $D$ the number of training tokens. The usual dense estimate counts about $2ND$ FLOPs for a forward pass and about twice that for the backward pass, so
+
+$$
+C \approx 6ND.
+$$
+
+The quadratic attention term, of order the number of layers times $T^2$ times the width, is left out. It matters when the context $T$ is long. Chapter 4 is where that term dominates inference, even though it is a small share of a short-context pre-training run.
+:::
+
+:::: prop
+[Proposition 2.2 — A square-root split]{.tag}
+
+Impose the Chinchilla-style ratio $D = 20 N$ inside Definition 2.1. Then $C = 120 N^2$, so
+
+$$
+N = \sqrt{C/120}, \qquad D = 20 N.
+$$
+
+Both the parameter count and the token count grow like the square root of the budget.
+
+::: proof
+Substitute $D = 20N$ into $C = 6ND$. Then $C = 6N(20N) = 120 N^2$. The parameter count is the positive square root of $C/120$. The token count is twenty times that root. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.3 — A toy budget]{.tag}
+
+Take $C = 1\,200\,000$ FLOPs and $D = 20N$. Proposition 2.2 gives $N = 100$ and $D = 2000$. The check is $6 \times 100 \times 2000 = 1\,200\,000$.
+:::
+
+::: key
+$$
+C \approx 6ND.
+$$
+:::
+
+Hoffmann and coauthors (2022) found that a 70 billion parameter model trained on about 1.4 trillion tokens beat a 280 billion parameter model trained on fewer tokens at a similar budget. The ratio is 20 tokens per parameter. Kaplan and coauthors (2020) had spent more of the budget on parameters. Proposition 2.2 is that later fit, inside the budgets they measured.
+
+After a short linear warmup the rate follows a cosine to a small floor. With warmup length $T_w$ and total steps $T$,
+
+$$
+\eta(t) = \eta_{\min} + \tfrac{1}{2}(\eta_{\max}-\eta_{\min})\left(1+\cos\pi \frac{t-T_w}{T-T_w}\right).
+$$
+
+No warmup often spikes while the Adam second moment is still a poor scale.
+
+The description does not fix the other hyperparameters. A public AdamW recipe, not a requirement here, uses $\beta_1 = 0.9$, $\beta_2 = 0.95$, weight decay 0.1, and a clip at norm 1.
+
+Clip gradients, prefer BF16, and keep pre-norm. A spike can be skipped, or a checkpoint reloaded at a lower rate. A duplicated corpus is a data bug, not a scheduler bug.
+
+::: note
+Distributed training and parallelism are not taught here. The course description assigns them to the semester 2 course Training and Deploying Large-Scale Models.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   Filtering, deduplication, and a mixture define the token count $D$. A near-duplicate is not a new token.
+-   A dense short-context run costs about $6ND$ FLOPs. With $D = 20N$, both $N$ and $D$ scale like $\sqrt{C}$.
+-   Hoffmann and coauthors (2022) put about 20 tokens of data on each parameter at the compute-optimal point they measured.
+-   Warm up the learning rate, then cosine-decay it. Clip gradients. Do not treat a data bug as a scheduler bug.
+:::
+
+## 3. Post-training and alignment {#ch3}
+
+Session 4 starts from the pre-trained weights and spends a smaller budget on behaviour.
+
+Supervised fine-tuning uses Definition 0.1 on prompt and answer pairs. Prompt tokens are masked out of the average. This stage teaches the format. It does not rank two fluent answers.
+
+::: def
+[Definition 3.1 — LoRA]{.tag}
+
+Freeze a weight $W$ of shape $d \times k$. Learn factors of rank $r$, much smaller than $d$ and $k$. The adapted matrix is
+
+$$
+W' = W + \frac{\alpha}{r} AB.
+$$
+
+The new parameter count is $r(d+k)$ instead of $dk$. Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and Chen (ICLR 2022) introduced this update.
+:::
+
+QLoRA, from Dettmers, Pagnoni, Holtzman, and Zettlemoyer (NeurIPS 2023), stores the frozen matrix in 4-bit NormalFloat and the adapter in BF16. Distillation, from Hinton, Vinyals, and Dean (2015), trains a student on the teacher's softened softmax.
+
+RLHF trains a reward on pairs a person has ranked, then optimises the policy with PPO. Ouyang and coauthors (NeurIPS 2022) use that loop. Christiano and coauthors (NeurIPS 2017) introduced the preference reward. The objective here is expected reward minus a penalty toward the supervised reference, with coefficient $\beta$:
+
+$$
+\max_{\pi}\; \mathbb{E}[r(x,y)] - \beta\, \mathrm{KL}\!\left(\pi(\cdot\mid x)\,\|\,\pi_{\mathrm{ref}}(\cdot\mid x)\right).
+$$
+
+PPO estimates the gradient with a learned value and a clipped ratio.
+
+:::: thm
+[Theorem 3.2 — The DPO gap]{.tag}
+
+The optimal policy of the penalised objective above satisfies, at each prompt $x$,
+
+$$
+r(x,y) = \beta \log \frac{\pi^{\star}(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)} + \beta \log Z(x).
+$$
+
+Under a Bradley-Terry preference, the partition function $Z(x)$ cancels in the difference of rewards, and the preference probability is a logistic function of that difference.
+
+::: proof
+The maximiser is proportional to the reference policy times an exponential of the reward over $\beta$. Solving for the reward gives the display. The log partition depends on the prompt only, so it cancels in a difference of two completions. Bradley-Terry turns that difference into a sigmoid. [∎]{.qed}
+:::
+::::
+
+Rafailov, Sharma, Mitchell, Ermon, Manning, and Finn (NeurIPS 2023) train $\pi_\theta$ by the negative log of that sigmoid. There is no reward head. On one pair the loss is
+
+$$
+L_{\mathrm{DPO}} = -\log \sigma\!\left(
+\beta \log \frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}
+- \beta \log \frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}
+\right).
+$$
+
+::: ex
+[Example 3.3 — One preference pair]{.tag}
+
+Take beta equal to 0.1. On the preferred completion the policy probability is 0.5 and the reference is 0.2. On the rejected completion the policy is 0.1 and the reference is 0.3. The gap of log-ratios is about 2.0149. Beta times that gap is about 0.2015, and the loss is about 0.5975.
+
+If the policy equals the reference, the loss is about 0.693.
+:::
+
+::: key
+The DPO argument is $\beta$ times the gap of log-ratios between the preferred and the rejected completion. The partition function does not appear.
+:::
+
+GRPO, from Shao and coauthors in the DeepSeekMath report (2024), centres rewards inside a group of samples and drops the learned critic. A verifiable reward is 1 when a checker accepts the answer and 0 otherwise.
+
+Test-time compute is FLOPs spent after training, by extra tokens, a vote, or a search. Snell, Lee, Xu, and Kumar (2024) compare that spend with a larger model. Those tokens are not part of $D$.
+
+MMLU, from Hendrycks and coauthors (ICLR 2021), is a multiple-choice suite. HumanEval, from Chen and coauthors (2021), scores Python with hidden tests. Contamination means the items were already in pre-training. Overlap of long n-grams is the practical check.
+
+::: recap
+Key takeaways — chapter 3
+
+-   LoRA learns $r(d+k)$ coefficients on top of a frozen $W$. QLoRA stores $W$ in 4 bits.
+-   SFT is next-token loss on answers. RLHF adds a reward and a KL penalty, and optimises it with PPO.
+-   DPO writes that same penalty's optimum as a logistic loss on two log-ratios. $Z(x)$ cancels.
+-   GRPO centres rewards inside a group of samples. A verifiable reward comes from a checker, not from a person. Test items that leaked into $D$ do not measure the same skill.
+:::
+
+## 4. Decoding and inference {#ch4}
+
+Inference freezes the weights and spends compute on tokens.
+
+Greedy decoding takes the mode and can loop. Temperature divides the logits before the softmax. Top-k keeps the largest logits. Nucleus sampling, from Holtzman, Buys, Du, Forbes, and Choi (ICLR 2020), keeps the smallest set of tokens whose probabilities sum to at least $p$.
+
+::: ex
+[Example 4.1 — Temperature]{.tag}
+
+Logits 0 and 2 at temperature 1 have probabilities about 0.119 and 0.881. At temperature 2 the logits become 0 and 1, and the probabilities are about 0.269 and 0.731. Only the temperature changed.
+:::
+
+Decode reads every weight to emit one token, so it is usually bandwidth-bound. Prefill builds the cache with large products and is usually compute-bound. Intensity is FLOPs per byte moved from memory.
+
+::: def
+[Definition 4.2 — KV-cache bytes]{.tag}
+
+For $L$ layers, sequence length $T$, $n_{\mathrm{kv}}$ key-value heads, head dimension $d$, and $b$ bytes per stored number, the cache of keys and values occupies
+
+$$
+2\, L\, T\, n_{\mathrm{kv}}\, d\, b
+$$
+
+bytes. The leading 2 counts keys and values. The cache grows linearly with $T$.
+:::
+
+:::: thm
+[Theorem 4.3 — One-token speculative decoding]{.tag}
+
+Let $p$ be the target next-token law and $q$ the draft. Sample a token from $q$. Accept it with probability the minimum of 1 and the ratio $p/q$ at that token. On a rejection, sample from the residual proportional to the positive part of $p-q$. The emitted token has law $p$.
+
+::: proof
+Acceptance of a token contributes the minimum of its draft probability and its target probability.
+
+Rejection has probability equal to the excess of the draft over the target, which equals the excess of the target over the draft.
+
+The residual then fills exactly that excess, so the two paths add to $p$. [∎]{.qed}
+:::
+::::
+
+Leviathan, Kalman, and Matias (ICML 2023) extend the same rejection rule to several draft tokens checked in one target pass. A draft that matches $p$ is always accepted. A poor draft is mostly rejected, and the extra pass is then overhead.
+
+FlashAttention, from Dao, Fu, Ermon, Rudra, and Ré (NeurIPS 2022), computes Definition 1.1 exactly and keeps the running softmax on chip, so the score matrix is not written to high-bandwidth memory.
+
+Continuous batching admits a new request when another finishes. PagedAttention, from Kwon and coauthors (SOSP 2023), stores the cache in fixed-size pages. vLLM is the server that introduced that layout.
+
+Inference quantization stores frozen weights as integers with a scale. A 4-bit weight occupies half a byte, which helps a bandwidth-bound decode. The logits move by the quantization error, and there is no gradient to absorb it.
+
+Positional interpolation rescales the index fed to RoPE so a longer prompt lands in the trained range. YaRN, from Peng and coauthors (2023), leaves high-frequency dimensions, which encode short gaps, almost alone, and scales the low-frequency dimensions.
+
+A sliding window attends only to the last $w$ keys. Attention sinks, from Xiao, Tian, Chen, Han, and Lewis (ICLR 2024), are the first tokens. A window that also keeps them loses less. Ring attention, from Liu, Zaharia, and Abbeel (2023), circulates key-value blocks across devices.
+
+::: key
+Cache bytes equal $2 L T n_{\mathrm{kv}} d\, b$. Decode is usually short of bandwidth. Prefill is usually short of arithmetic throughput.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Temperature, top-$k$, and nucleus sampling change the next-token law. Greedy decoding is the limit of a small temperature.
+-   Intensity is FLOPs per byte. Prefill is usually compute-bound. Decode is usually bandwidth-bound.
+-   One speculative token, accepted with $\min(1, p/q)$ and otherwise redrawn from the residual, has law $p$.
+-   FlashAttention is exact attention with less memory traffic. Pages, windows, sinks, YaRN, and a ring are inference layouts, not new losses.
+:::
+
+## 5. Experts, grouped attention, and state-space steps {#ch5}
+
+Session 6 asks for routed experts, grouped-query attention, and a selective state-space step.
+
+A mixture of experts replaces one position-wise map by several maps and a router. Top-1 routing, as in the Switch Transformer of Fedus, Zoph, and Shazeer (JMLR 2022), sends each token to one expert. The expert that is not chosen does no work on that token.
+
+::: def
+[Definition 5.1 — Switch auxiliary loss]{.tag}
+
+Let $E$ be the number of experts, $f_e$ the fraction of tokens dispatched to expert $e$, and $P_e$ the mean router probability of expert $e$ on the same batch. The auxiliary loss used by Switch Transformers is
+
+$$
+L_{\mathrm{bal}} = E \sum_{e=1}^{E} f_e P_e.
+$$
+
+It is added to the next-token loss with a small coefficient. It is not itself a language-model loss.
+:::
+
+:::: prop
+[Proposition 5.2 — Balance versus collapse]{.tag}
+
+If $f_e = P_e = 1/E$ for every expert, then $L_{\mathrm{bal}} = 1$. If one expert receives every token and all of the router probability, then $L_{\mathrm{bal}} = E$.
+
+::: proof
+In the uniform case the sum of products is $E \times (1/E^2) = 1/E$, and the leading factor $E$ brings the loss to 1. In the collapsed case a single product equals 1 and the others equal 0, so the leading factor $E$ brings the loss to $E$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.3 — Four experts]{.tag}
+
+With $E = 4$, the balanced loss equals $1$ and the collapsed loss equals $4$. A router that sends every token to expert 1 pays four times the auxiliary loss of a router that splits the batch. The coefficient in front of $L_{\mathrm{bal}}$ decides whether that gap can outweigh the next-token loss. A tiny coefficient lets collapse through.
+:::
+
+A capacity limit drops tokens once an expert is full, so those tokens skip the map. A router can also flip after a small change in the input. The auxiliary loss targets collapse. It does not by itself stop a router that flips.
+
+Grouped-query attention, from Ainslie and coauthors (EMNLP 2023), keeps fewer key-value heads than query heads. Each key-value head is shared by a group of queries. Multi-query attention, from Shazeer (2019), uses a single key-value head. Definition 4.2 is linear in the key-value count, so the cache shrinks by the ratio of those heads to the query heads.
+
+A selective state-space step, the Mamba update of Gu and Dao (2023), keeps a hidden vector instead of a growing cache. With input $x_t$ and state $h_t$,
+
+$$
+h_t = A_t h_{t-1} + B_t x_t, \qquad y_t = C_t h_t.
+$$
+
+The coefficients depend on the current input. A fixed recurrence cannot forget a token because of what it says. A selective one can. Training uses a parallel scan. Inference is the recurrence. The state size does not grow with the length. The attention cache does.
+
+::: key
+Expert routing spends parameters only on the chosen map. Grouped-query attention spends cache only on $n_{\mathrm{kv}}$ heads. A selective recurrence spends a constant state.
+:::
+
+The course description lists these blocks as alternatives to a dense Transformer. A routed model stores more parameters than it multiplies on one token, so the $N$ in $C \approx 6ND$ must count only the parameters that token touches.
+
+::: recap
+Key takeaways — chapter 5
+
+-   Top-1 routing sends each token to one expert. The Switch auxiliary loss equals 1 when the batch is uniform and equals $E$ when it collapses.
+-   Dropped tokens and a router that flips are separate failures. The auxiliary loss targets the collapse.
+-   GQA stores $n_{\mathrm{kv}}$ key-value heads for $n_q$ query heads. MQA stores one. The KV cache shrinks by that ratio.
+-   Mamba's state is a recurrence with input-dependent coefficients. Its size does not grow with $T$.
+:::
+
+## 6. Agents, retrieval, and tools {#ch6}
+
+Session 7 puts a frozen decoder in a loop with an index or a tool. The new state is text in the prompt, not a gradient step.
+
+Retrieval-augmented generation, from Lewis and coauthors (NeurIPS 2020), writes retrieved passages into the prompt and then runs ordinary next-token prediction. The index can be edited without touching the weights. The weights change only in chapter 2 or chapter 3.
+
+::: def
+[Definition 6.1 — Cosine retrieval]{.tag}
+
+A query vector $q$ and a passage vector $u$, both nonzero, score
+
+$$
+\frac{q^{\top} u}{\|q\|\,\|u\|}.
+$$
+
+The retrieved passage is a maximiser of this score. Ties are broken by a fixed order of the collection.
+:::
+
+:::: prop
+[Proposition 6.2 — The score is a normalised inner product]{.tag}
+
+Cosine retrieval does not change if $q$ or $u$ is multiplied by a positive constant. The maximiser is unchanged if every passage vector is replaced by its normalisation to unit length, and the score is then the inner product with $q/\|q\|$.
+
+::: proof
+A positive scale cancels between the numerator and the norm in the denominator. After each $u$ is replaced by $u/\|u\|$, the denominator of the score contributes only $\|q\|$, which does not depend on the passage. Maximising the score is then the same as maximising the inner product with the unit query. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 6.3 — Three passages]{.tag}
+
+Let the query be (1, 0) and the passages be (0.9, 0.1), (0, 1), and (-1, 0). The cosines are about 0.9939, 0, and -1. Retrieval returns passage 1.
+
+The same geometry fails when the true passage is a paraphrase and the vectors only count shared tokens. The fact can sit in the collection and still lose. That failure belongs to the vectors, not to the decoder.
+:::
+
+The prompt lists each tool and the types of its arguments. The model emits a call as tokens. The runtime checks the schema, runs the tool, and appends the result. The matmul does not run the tool. A bad argument and a stale tool result both look like bad context unless the trace separates them.
+
+The Model Context Protocol, published by Anthropic in 2024, is a client-server protocol for that boundary. A server exposes tools and resources. The model asks the host to call a tool by name with JSON arguments. The protocol does not train the model. A server that is down is invisible.
+
+A coding agent reads an issue, edits files, runs the tests, and edits again until the tests pass or a step budget ends. SWE-bench, from Jimenez and coauthors (ICLR 2024), scores the resulting patch on GitHub issues. A passing test is not the same claim as the patch a maintainer would have written.
+
+::: key
+Retrieval adds passages to the prompt. A function call adds a tool result to the prompt. In both cases the decoder loss is unchanged. The context is what changed.
+:::
+
+A benchmark that scores only the final string misses a tool call the parser dropped. A benchmark that shows the tests invites the contamination pattern of chapter 3. The report should say whether the tests were visible, whether the index held the answer, and how many tool calls were allowed.
+
+::: recap
+Key takeaways — chapter 6
+
+-   RAG writes retrieved passages into the context. The index is editable without a gradient. Cosine retrieval is a normalised inner product.
+-   A function call is tokens in, a runtime check, a tool result, tokens out. The matmul does not run the tool.
+-   MCP standardises how a host discovers tools on a server. It is a protocol, not a training loss.
+-   A coding agent loops on edits and tests. SWE-bench scores patches on real issues. Report what the model was allowed to see.
+:::
+
+## 7. Interpretability, small models, vision, and robots {#ch7}
+
+Session 8 reuses the same blocks for circuits, a byte budget, images, and robot actions.
+
+The residual stream is the vector each layer reads and writes. Elhage and coauthors (2021) study that shared space. A circuit is a small set of heads that implements one pattern, checked by editing the run.
+
+::: def
+[Definition 7.1 — Induction pattern]{.tag}
+
+On a sequence that contains a bigram $ab$ and, later, the token $a$ again, the induction pattern predicts $b$ at that later $a$. The prediction is a token in the vocabulary, produced by the usual next-token head.
+:::
+
+:::: prop
+[Proposition 7.2 — Where the evidence sits]{.tag}
+
+If the earlier bigram $ab$ lies outside the attention window, an induction head that can attend only inside the window has no position at which it can read $b$ as the follower of $a$. The pattern in Definition 7.1 is then not available from attention.
+
+::: proof
+By the causal mask of Theorem 1.2, a position attends only to itself and to earlier positions, and a window cuts that set further. If the earlier $a$ is outside the window, no query at the later $a$ receives the key of that earlier $a$, nor the value that would copy $b$. No convex combination of the visible values equals a read of the missing $b$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 7.3 — A four-token string]{.tag}
+
+On the tokens $x, c, x$, the induction pattern predicts $c$. A window that keeps only the current token hides the earlier $x$, so the pattern has nothing to copy. Olsson and coauthors (2022) implement that copy with two heads in small Transformers.
+:::
+
+A 4-bit parameter occupies half a byte. One billion parameters then occupy 500 MB of weights, plus the cache of Definition 4.2.
+
+Take 24 layers, 4 key-value heads, head dimension 64, and 2 bytes per entry. The cache grows by 24576 bytes per token. At 2048 tokens it is 48 MiB. It matches the 500 MB file only near 20000 tokens. Distillation trains the small model. Quantization writes the 4-bit file. Neither shrinks the cache. Grouped-query attention does.
+
+A vision Transformer, from Dosovitskiy and coauthors (ICLR 2021), embeds patches, adds positions, and runs an encoder. The goal is a label for the whole image, so there is no causal mask. A class token or a mean of the patch states feeds the label.
+
+A 32 by 32 image with patch size 16 and three channels has four patches. Each patch has length 768. An embedding of width 8 has 6144 parameters, plus 32 position parameters. The patch size, not the position table, sets the sequence length.
+
+RT-2, from Brohan and coauthors (2023), turns a robot action into tokens and trains a vision-language model to emit them under the next-token loss. The image enters as patches and the instruction as text. These notes stop at that tokenisation.
+
+::: key
+An induction head can copy $b$ only if the earlier bigram is inside the window. A 4-bit small model spends half a byte per weight, and its cache still grows with $T$.
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   The residual stream is the vector later layers read. An induction pattern predicts the token that followed the previous copy of the current token.
+-   If that previous copy lies outside the window, attention cannot implement the pattern.
+-   A billion 4-bit parameters occupy 500 MB. A modest KV cache is 48 MiB at 2048 tokens and grows without a matching drop in weights.
+-   A vision Transformer embeds patches. RT-2 emits a discretised action as tokens under the same next-token loss.
+:::
+
+## 8. Research directions and open problems {#ch8}
+
+This chapter is self-study, outside the 24 h. It records limits of the rules in the earlier chapters. The voice is that of a reader of the papers, not of a team that owns them.
+
+The square-root split in Proposition 2.2 assumes fresh tokens. Muennighoff and coauthors (2023) study the data-constrained regime, where unique text runs out and the same documents are repeated. The loss then improves more slowly than the Chinchilla fit predicts. How many epochs a given mixture tolerates, at a given model size, is not settled by the toy identity $D = 20N$.
+
+Shumailov and coauthors (Nature, 2024) show a collapse of tails when a model is trained on samples from the previous model, and that loop is iterated. Chapter 2 already separates that loop from a single mixture that contains some synthetic documents. The open measurement is the largest synthetic share that leaves a stated tail intact, on a stated mixture. A lab note that says "synthetic data hurts" without a share and a metric has not answered it.
+
+Liu and coauthors (TACL, 2024) report a U-shaped use of long context. Facts placed at the start or the end of the prompt are used more often than facts placed in the middle. Sliding windows, attention sinks, YaRN, and ring attention change what fits in memory. They do not by themselves flatten that curve. A result that claims a long context works should say where in the prompt the evidence was planted.
+
+Theorem 3.2 derives DPO from a KL-penalised reward under Bradley-Terry preferences. GRPO with a verifiable checker optimises a different signal, on a group of samples, with no learned reward head. Whether the two procedures reach similar policies on long reasoning traces is open. A comparison that uses a different base model on each side does not answer it. Chapter 3 states both losses so that the difference is visible.
+
+Proposition 7.2 limits induction to the tokens inside the window. A circuit account of a tool-using loop, with a retrieval index and a checker, is a different scale. Elhage and coauthors (2021) and Olsson and coauthors (2022) give methods that work on small Transformers. These notes do not claim those methods have been carried out on the agents of chapter 6.
+
+::: recap
+Key takeaways — chapter 8
+
+-   Repeating data, and training on a model's own samples, both leave the $D = 20N$ rule.
+-   A long context can store a fact in the middle and still ignore it. Report the position of the evidence.
+-   DPO and verifier-based GRPO are different objectives. A fair comparison shares the base model.
+-   Induction heads are a small-model circuit. A circuit for a tool-using agent is still open in these notes.
+:::
 
 ## Exercises {#ex}
 
-TODO
+1.  **★ Two-token cross-entropy.**
+
+Let the true next-token distribution be $(0.8, 0.2)$ and let the model predict $(0.6, 0.4)$. Compute the cross-entropy, the entropy, and the KL divergence, in nats, using natural logarithms.
+
+*Solution.* The cross-entropy is $-0.8\log 0.6 - 0.2\log 0.4 = 0.5919$ nats. The entropy is $-0.8\log 0.8 - 0.2\log 0.2 = 0.5004$ nats. The KL divergence is the difference, $0.0915$ nats, which is Proposition 0.2 on this pair.
+
+2.  **★ Seeded next-token loss.**
+
+The script draws four logits with a fixed generator, treats class 1 as the observed token, and prints the cross-entropy loss. Run it and report the printed loss. Say which definition that number estimates on a single token.
+
+```python
+import numpy
+rng = numpy.random.default_rng(0)
+logits = rng.normal(size=4)
+target = 1
+z = logits - logits.max()
+prob = numpy.exp(z)
+prob = prob / prob.sum()
+loss = -numpy.log(prob[target])
+print(f"{loss:.6f}")
+```
+
+*Solution.* The script prints `1.745158`. That number is $-\log q_1$ for the softmax $q$ of the four seeded logits. It is one term of the sum in Definition 0.1, before the average over $T$.
+
+3.  **★ Three-logit softmax.**
+
+Compute the softmax of the logits $(1, 2, 3)$, in order. Check that the three weights sum to 1.
+
+*Solution.* Subtract 3 first. The shifted logits are -2, -1, and 0. The exponentials are about 0.1353, 0.3679, and 1. The sum is about 1.5032. The weights are about 0.0900, 0.2447, and 0.6652. They sum to 1. Theorem 1.2 reads the same row when these logits are the masked scores.
+
+4.  **★ One sinusoidal coordinate.**
+
+For the sinusoidal position of Vaswani and coauthors, the even coordinate $i = 0$ at time $t$ is $\sin(t / 10000^{0})$. Compute the value at $t = 1$, to four decimals.
+
+*Solution.* The power of $10000$ is 1, so the entry is $\sin 1 \approx 0.8415$ radians in the argument, and the value is $0.8415$. This coordinate is absolute. A rotary score, unlike this entry, depends on a difference of times.
+
+5.  **★★ Chinchilla split of a toy budget.**
+
+Use $C = 6ND$ and $D = 20N$. Find $N$ and $D$ when $C = 1\,200\,000$. Check the product.
+
+*Solution.* Proposition 2.2 gives $N = \sqrt{C/120} = \sqrt{10\,000} = 100$ and $D = 2000$. Then $6 \times 100 \times 2000 = 1\,200\,000$, which matches $C$. The quadratic attention term is ignored, as in Definition 2.1.
+
+6.  **★★ A seeded LoRA update.**
+
+The script draws a factor of shape 8 by 2 and a factor of shape 2 by 8, with scale 0.02, and prints the Frobenius norm of their product. Run it. Also compute the full parameter count and the low-rank count for a square matrix of side 8 and rank 2.
+
+```python
+import numpy
+rng = numpy.random.default_rng(0)
+d = 8
+r = 2
+A = rng.normal(scale=0.02, size=(d, r))
+B = rng.normal(scale=0.02, size=(r, d))
+delta = A @ B
+print(f"{numpy.linalg.norm(delta):.6f}")
+```
+
+*Solution.* The script prints `0.002770`. A full matrix of shape $8 \times 8$ has $dk = 64$ parameters. The factors have $r(d+k) = 32$ parameters. The printed norm is the size of $AB$ at this initialisation, before any gradient step. Definition 3.1 also multiplies by $\alpha/r$. This script prints the unscaled product.
+
+7.  **★★ Bytes in a KV cache.**
+
+Use Definition 4.2 with $L = 4$, $T = 128$, $n_{\mathrm{kv}} = 2$, $d = 8$, and $b = 2$. Give the cache size in bytes.
+
+*Solution.* The product is $2 \times 4 \times 128 \times 2 \times 8 \times 2 = 32768$ bytes, which is 32 KiB. Doubling the context doubles the cache. Doubling the query heads does nothing to this formula unless $n_{\mathrm{kv}}$ grows with them.
+
+8.  **★★ Grouped-query cache ratio.**
+
+A model has $n_q = 8$ query heads and $n_{\mathrm{kv}} = 2$ key-value heads, with the same head dimension and the same context. By what factor is the KV cache smaller than the cache of a multi-head model that stores keys and values for all 8 heads?
+
+*Solution.* Definition 4.2 is linear in $n_{\mathrm{kv}}$. The grouped cache is $2/8 = 1/4$ of the multi-head cache. Multi-query attention would use $n_{\mathrm{kv}} = 1$ and would be $1/8$ of that multi-head cache. The query projections are unchanged by this comparison.
+
+9.  **★★★ Retrieval with a planted passage.**
+
+Using the vectors of Example 6.3, compute the three cosines and name the retrieved passage. Then give one concrete way the same geometry returns the wrong passage when the true sentence is a paraphrase.
+
+*Hints and expected result.* The cosines are about $0.9939$, $0$, and $-1$, so passage 1 is retrieved. A wrong retrieval happens if the passage vectors are raw token-overlap counts and the true sentence shares no token with the query while a distractor shares several. State the vectors you would use for that counter-example. A full answer names both the winning index in Example 6.3 and a pair of vectors where the paraphrase loses.
+
+10. **★★★ Induction and a missing bigram.**
+
+On the tokens $x, c, x$, state the token predicted by the induction pattern, and the attention positions the second $x$ must be allowed to see. Then say what Proposition 7.2 concludes if a window drops the first $x$.
+
+*Hints and expected result.* The pattern predicts $c$. The second $x$ must be able to attend to the first $x$ and to $c$. If a window keeps only the current token, the earlier bigram is invisible and the pattern cannot be read off the visible values. A full answer cites the convex-combination constraint, not only the window length.
 
 ## Projects and assessment {#projects}
 
-TODO
+The course description states that assessment consists of several homework assignments and a final exam. It publishes no weights. The briefs and the exam below are study proposals. They are not the instructors' paper.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Low-rank adapters.** This paper study reads Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and Chen, "LoRA: Low-Rank Adaptation of Large Language Models", ICLR 2022. Use [ch. 1](#ch1) and [ch. 3](#ch3).
+
+Freeze a synthetic 256 by 256 matrix and fit a rank-4 update on a rank-4 residual. Deliver a NumPy script, a report of four to six pages, and a 10-minute talk. Success means the report states 65536 full parameters against 2048 adapter parameters, and the final loss is under one tenth of the loss at step 0. The rubric at the end evaluates the work.
+
+2.  **[Solo · ≈ 20 h] A compute-optimal split.** Read Jordan Hoffmann, Sebastian Borgeaud, Arthur Mensch, and coauthors, "Training Compute-Optimal Large Language Models", 2022. Use [ch. 2](#ch2) and [ch. 8](#ch8).
+
+For three budgets, 1.2 million, 120 million, and 12 billion FLOPs, with 20 tokens per parameter and the 6ND estimate, a script prints the parameter count and the token count. Deliver the script, a report of four to six pages, and a 10-minute talk. Success means the prints are (100, 2000), (1000, 20000), and (10000, 200000), and the report says what repeated data does to the rule. The rubric evaluates the work.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Tiled attention.** Read Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and Christopher Ré, "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", NeurIPS 2022. Use [ch. 1](#ch1) and [ch. 4](#ch4).
+
+Implement tiled softmax attention for length 64 and head dimension 32, and compare it with the full product on one seeded batch. One member owns the tiled product, one owns the byte count, and the third, if present, owns the report and the talk. Deliver the script, a report of four to six pages, and a 10-minute talk. Success means the maximum absolute error is below one part in 100000. The rubric evaluates the work.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Preference loss on synthetic pairs.** Read Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher D. Manning, and Chelsea Finn, "Direct Preference Optimization", NeurIPS 2023. Use [ch. 0](#ch0) and [ch. 3](#ch3).
+
+Build 32 preference pairs and minimise the DPO loss from a reference that starts equal to the policy. One member owns the loss, one owns the data, and the third, if present, owns the report. Deliver the script, a report of four to six pages, and a 10-minute talk. Success means the mean training loss ends below 0.5, under the 0.693 baseline of Example 3.3. The rubric evaluates the work.
+
+### Written exam (proposal) {#projects-exam}
+
+This exam is a study proposal. It is not the official paper. Two hours. No documents. Three questions, 20 points. A calculator is enough. The official assessment remains several homework assignments and a final exam, with no published weights.
+
+1.  **Encoders, decoders, and a reasoning pass (6 points).** Define an encoder, a decoder, and a reasoning model as the course uses those words. Say what a causal mask does to one attention row.
+
+*Expected.* An encoder attends in both directions and is trained by restoring hidden tokens. A decoder is causal and is trained by next-token prediction. A reasoning model is a decoder that may emit extra tokens before the answer. Those tokens are test-time compute. The causal mask sets future scores to a large negative number before the softmax, so Theorem 1.2 makes the output a convex combination of the current and earlier values only.
+
+2.  **A FLOP split (8 points).** A dense model has $N = 100$ non-embedding parameters and trains on $D = 2000$ tokens. Use $C \approx 6ND$, and take the forward pass as about $2ND$. Compute $C$, the forward cost, and the backward cost. State the term this estimate drops.
+
+*Expected.* $C = 6 \times 100 \times 2000 = 1\,200\,000$. The forward cost is $2 \times 100 \times 2000 = 400\,000$. The backward cost is $800\,000$. The dropped term is the quadratic attention cost, which grows like the context squared and is small only for short contexts.
+
+3.  **A one-line convex combination (6 points).** Let $z_i$ be finite for $i \le t$ and let later scores be $-\infty$ before the softmax. Prove that the attention output at this query is a convex combination of $v_1,\ldots,v_t$.
+
+*Expected.* For $i \le t$, the weight is $e^{z_i}$ divided by $\sum_{j \le t} e^{z_j}$, and later weights are 0. Each displayed weight is positive and the weights sum to 1. The output $\sum_i s_i v_i$ is therefore a convex combination of the allowed values. This is Theorem 1.2.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+The weights below sum to 100. They grade the study proposals. They are not official course weights.
+
+| Criterion | Weight | What earns the marks |
+| --- | --- | --- |
+| Definitions and theorems used as stated in the cited chapter | 30% | The write-up names the definition or theorem and applies its hypothesis. |
+| A computation with a stated formula and a numerical result | 25% | The arithmetic is shown, and the result matches the formula. |
+| The named paper's claim, restated accurately | 20% | Authors, year, and the claim the project uses are right. |
+| A script that runs from a fixed seed and a report that quotes it | 15% | A classmate can rerun the script and see the quoted number. |
+| Scope kept to the assigned hours, deliverables, and chapters | 10% | The work stops at the brief. |
 
 ## References {#refs}
 
-TODO
+The course description on master-mva.com publishes no reference list. The page of the course is [Foundations of Large Language Models](https://www.master-mva.com/cours/foundations-of-large-language-models/). The works below are the ones these notes cite.
+
+-   Ainslie, J., Lee-Thorp, J., de Jong, M., Zemlyanskiy, Y., Lebrón, F., and Sanghai, S. GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints. EMNLP, 2023.
+-   Bengio, Y., Simard, P., and Frasconi, P. Learning long-term dependencies with gradient descent is difficult. IEEE Transactions on Neural Networks, 1994.
+-   Brohan, A., and coauthors. RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control. arXiv:2307.15818, 2023.
+-   Chen, M., and coauthors. Evaluating Large Language Models Trained on Code. arXiv:2107.03374, 2021.
+-   Christiano, P., Leike, J., Brown, T. B., Martic, M., Legg, S., and Amodei, D. Deep reinforcement learning from human preferences. NeurIPS, 2017.
+-   Dao, T., Fu, D. Y., Ermon, S., Rudra, A., and Ré, C. FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. NeurIPS, 2022.
+-   Dettmers, T., Pagnoni, A., Holtzman, A., and Zettlemoyer, L. QLoRA: Efficient Finetuning of Quantized LLMs. NeurIPS, 2023.
+-   Dosovitskiy, A., and coauthors. An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. ICLR, 2021.
+-   Elhage, N., and coauthors. A Mathematical Framework for Transformer Circuits. Transformer Circuits Thread, 2021.
+-   Fedus, W., Zoph, B., and Shazeer, N. Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity. Journal of Machine Learning Research, 2022.
+-   Gu, A., and Dao, T. Mamba: Linear-Time Sequence Modeling with Selective State Spaces. arXiv:2312.00752, 2023.
+-   Hendrycks, D., Burns, C., Basart, S., Zou, A., Mazeika, M., Song, D., and Steinhardt, J. Measuring Massive Multitask Language Understanding. ICLR, 2021.
+-   Hinton, G., Vinyals, O., and Dean, J. Distilling the Knowledge in a Neural Network. arXiv:1503.02531, 2015.
+-   Hoffmann, J., Borgeaud, S., Mensch, A., and coauthors. Training Compute-Optimal Large Language Models. arXiv:2203.15556, 2022.
+-   Holtzman, A., Buys, J., Du, L., Forbes, M., and Choi, Y. The Curious Case of Neural Text Degeneration. ICLR, 2020.
+-   Hochreiter, S., and Schmidhuber, J. Long Short-Term Memory. Neural Computation, 1997.
+-   Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., and Chen, W. LoRA: Low-Rank Adaptation of Large Language Models. ICLR, 2022.
+-   Jimenez, C. E., Yang, J., Wettig, A., Yao, S., Pei, K., Press, O., and Narasimhan, K. SWE-bench: Can Language Models Resolve Real-World GitHub Issues? ICLR, 2024.
+-   Kaplan, J., McCandlish, S., Henighan, T., Brown, T. B., Chess, B., Child, R., Gray, S., Radford, A., Wu, J., and Amodei, D. Scaling Laws for Neural Language Models. arXiv:2001.08361, 2020.
+-   Kwon, W., Li, Z., Zhuang, S., Sheng, Y., Zheng, L., Yu, C. H., Gonzalez, J. E., Zhang, H., and Stoica, I. Efficient Memory Management for Large Language Model Serving with PagedAttention. SOSP, 2023.
+-   Leviathan, Y., Kalman, M., and Matias, Y. Fast Inference from Transformers via Speculative Decoding. ICML, 2023.
+-   Lewis, P., and coauthors. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. NeurIPS, 2020.
+-   Liu, H., Zaharia, M., and Abbeel, P. Ring Attention with Blockwise Transformers for Near-Infinite Context. arXiv:2310.01889, 2023.
+-   Liu, N. F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., and Liang, P. Lost in the Middle: How Language Models Use Long Contexts. Transactions of the Association for Computational Linguistics, 2024.
+-   Loshchilov, I., and Hutter, F. Decoupled Weight Decay Regularization. ICLR, 2019.
+-   Micikevicius, P., and coauthors. Mixed Precision Training. ICLR, 2018.
+-   Muennighoff, N., and coauthors. Scaling Data-Constrained Language Models. arXiv:2305.16264, 2023.
+-   Olsson, C., and coauthors. In-context Learning and Induction Heads. Transformer Circuits Thread, 2022.
+-   Ouyang, L., and coauthors. Training language models to follow instructions with human feedback. NeurIPS, 2022.
+-   Peng, B., Quesnelle, J., Fan, H., and Shippole, E. YaRN: Efficient Context Window Extension of Large Language Models. arXiv:2309.00071, 2023.
+-   Rafailov, R., Sharma, A., Mitchell, E., Ermon, S., Manning, C. D., and Finn, C. Direct Preference Optimization: Your Language Model is Secretly a Reward Model. NeurIPS, 2023.
+-   Sennrich, R., Haddow, B., and Birch, A. Neural Machine Translation of Rare Words with Subword Units. ACL, 2016.
+-   Shao, Z., and coauthors. DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models. arXiv:2402.03300, 2024.
+-   Shazeer, N. Fast Transformer Decoding: One Write-Head is All You Need. arXiv:1911.02150, 2019.
+-   Shumailov, I., Shumaylov, Z., Zhao, Y., Papernot, N., Anderson, R., and Gal, Y. AI models collapse when trained on recursively generated data. Nature, 2024.
+-   Snell, C., Lee, J., Xu, K., and Kumar, A. Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters. arXiv:2408.03314, 2024.
+-   Su, J., Lu, Y., Pan, S., Murtadha, A., Wen, B., and Liu, Y. RoFormer: Enhanced Transformer with Rotary Position Embedding. arXiv:2104.09864, 2021.
+-   Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., and Polosukhin, I. Attention Is All You Need. NeurIPS, 2017.
+-   Xiao, G., Tian, Y., Chen, B., Han, S., and Lewis, M. Efficient Streaming Language Models with Attention Sinks. ICLR, 2024.
+-   Xiong, R., Yang, Y., He, D., Zheng, K., Zheng, S., Xing, C., Zhang, H., Lan, Y., Wang, L., and Liu, T.-Y. On Layer Normalization in the Transformer Architecture. ICML, 2020.
+-   Zhang, B., and Sennrich, R. Root Mean Square Layer Normalization. NeurIPS, 2019.
