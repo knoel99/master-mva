@@ -67,7 +67,7 @@ format:
   Credits and volume   5 ECTS · 30 h (lectures 12 h, labs 18 h) per the Université Paris-Saclay programme table
   Label                [Modelling]{.badge .label}[Track I&I]{.badge .track}
   Language             French (master-mva.com and Université Paris-Saclay); no distance learning (Université Paris-Saclay)
-  Assessment           “Evaluation Continue non Intégrale” (Université Paris-Saclay): continuous assessment, non-integral regime; components and weights not displayed
+  Assessment           “Evaluation Continue non Intégrale” (Université Paris-Saclay): continuous assessment that is not “integral”, i.e. not exclusively continuous; components and weights not displayed
   Prerequisites        Data structures, Python programming, L3-level linear algebra, differential calculus, probability and statistics, basics of machine learning (master-mva.com; the Université Paris-Saclay page lists the same items except the last)
   -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ A sensor delivers a continuous waveform; a computer stores a finite list of numb
 
 ### 1.1 Signals and complex baseband
 
-Radio, radar and many vibration signals are narrowband: their energy sits in a band of width $B$ around a carrier $f_c$ with $B \ll f_c$. Sampling them directly would require more than $2 f_c$ samples per second; one samples instead the slowly varying envelope.
+Radio, radar and many vibration signals are narrowband: their energy sits in a band of width $B$ around a carrier $f_c$ with $B \ll f_c$. Sampling them directly with the low-pass theorem of section 1.2 would require more than $2 f_c$ samples per second; one samples instead the slowly varying envelope.
 
 ::: def
 [Definition 1.1 — Complex baseband (complex envelope)]{.tag} A real bandpass signal of carrier $f_c$ is written
@@ -605,6 +605,7 @@ and the **scalogram** is $|W_x(a, b)|^2$.
 $$
 \psi(t) = \pi^{-1/4}\, e^{i \omega_0 t}\, e^{-t^2/2}, \qquad \omega_0 \approx 6 .
 $$
+    Its mean is not exactly zero, but its spectrum at $f = 0$ is $e^{-\omega_0^2/2} \approx 10^{-8}$ times its peak: it is admissible in practice.
 -   When $C_\psi < \infty$, $x$ can be reconstructed from $W_x$ (Calderón's formula; see Mallat's book in the References).
 
 ### 2.4 Discrete wavelets and filter banks
@@ -765,7 +766,7 @@ With two classes, $f^\star$ compares the likelihood ratio $p(x \mid 1) / p(x \mi
 | Family | Strength | Weakness |
 |---|---|---|
 | Linear models | fast, calibrated, interpretable | linear boundaries only |
-| Kernel SVM | strong on small data sets | quadratic cost in the sample size |
+| Kernel SVM | strong on small data sets | cost at least quadratic in the sample size |
 | $k$-nearest neighbours | no training; asymptotic error at most twice the Bayes error (Cover and Hart, 1967) | needs a good distance |
 | Random forests, gradient boosting | robust to scales and heterogeneous indicators | blind to time and frequency structure |
 
@@ -804,7 +805,11 @@ EM (Dempster, Laird and Rubin, 1977) alternates an E-step, computing the respons
 DBSCAN (Ester, Kriegel, Sander and Xu, 1996) needs no number of clusters, finds any shape and isolates outliers, as radar deinterleaving requires (ch. 6.3). Standardise the features first: it has a single density scale.
 :::
 
-Hierarchical clustering (Ward's criterion) and principal component analysis complete the toolbox.
+**Hierarchical clustering** starts from $n$ singletons and repeatedly merges two clusters. Ward's criterion merges the pair $A, B$ that increases the k-means objective $J$ the least; with sizes $n_A, n_B$ and means $\mu_A, \mu_B$, this increase is
+$$
+\Delta J(A, B) = \frac{n_A\, n_B}{n_A + n_B}\, \|\mu_A - \mu_B\|^2 .
+$$
+The merges form a tree, the dendrogram; cutting it at a given height yields a partition for every number of clusters. Principal component analysis completes the toolbox.
 
 ### 3.4 Evaluation
 
@@ -962,7 +967,7 @@ $$
 All gradients cost about twice the forward pass.
 
 ::: proof
-*Output.* Since $\ell = -z_{L,y} + \log \sum_j e^{z_{L,j}}$, its derivative in $z_{L,j}$ is $-\mathbb 1[j = y] + p_j$.
+*Output.* Since $\ell = -z_{L,y} + \log \sum_j e^{z_{L,j}}$, its derivative in $z_{L,j}$ is $-\mathbf 1[j = y] + p_j$.
 
 *Recursion.* $z_{\ell+1}$ depends on $z_\ell$ through $W_{\ell+1} \sigma(z_\ell)$, whose Jacobian is $W_{\ell+1}\, \mathrm{diag}(\sigma'(z_\ell))$. The chain rule (Definition 0.5) transposes it.
 
@@ -1334,11 +1339,13 @@ T0 = np.sum(np.abs(cn((5_000, N))) ** 2, axis=1)                      # H0: nois
 T1 = np.sum(np.abs(cn((5_000, N), g) + cn((5_000, N))) ** 2, axis=1)  # H1: Gaussian signal
 print(f"threshold {lam:.1f}; P_FA {np.mean(T0 > lam):.3f} (target {pfa})")
 print(f"P_D Monte Carlo {np.mean(T1 > lam):.3f}, Gaussian approximation {pd_theory:.3f}")
-n_req = ((norm.isf(pfa) - (1 + g) * norm.isf(0.9)) / g) ** 2
-print(f"samples needed for P_D = 0.9 at -10 dB: {n_req:.0f}")
+M = int(np.ceil(((norm.isf(pfa) - (1 + g) * norm.isf(0.9)) / g) ** 2))   # Example 5.4
+lam_M = M + np.sqrt(M) * norm.isf(pfa)
+T1 = np.sum(np.abs(cn((5_000, M), g) + cn((5_000, M))) ** 2, axis=1)
+print(f"N = {M} samples for P_D = 0.9 at -10 dB; Monte Carlo P_D {np.mean(T1 > lam_M):.3f}")
 ```
 
-The simulated false-alarm rate is 0.009 for a target of 0.01, and the detection rate is 0.787 against 0.776 predicted; 1 396 samples reach a detection rate of 0.9.
+The simulated false-alarm rate is 0.009 for a target of 0.01, and the detection rate is 0.787 against 0.776 predicted. With the 1 396 samples of Example 5.4, the simulated detection rate is 0.886 for a target of 0.9: the Gaussian approximation is accurate to about 0.015.
 
 The second experiment observes a narrowband primary user, a tone of unknown frequency at $-15$ dB, over 256 samples. It compares the energy detector, the periodogram maximum (the generalised likelihood-ratio test, GLRT, for an unknown frequency) and a logistic regression on the 32 largest periodogram values, a shift-invariant input.
 
@@ -1422,13 +1429,13 @@ When several radars share a frequency band and a direction, the PDW parameters d
 [Proposition 6.4 — Peaks reveal the PRIs]{.tag}
 
 1.  A single train $t_n = \varphi + n T$, $n = 0, \dots, M - 1$, produces the differences $kT$ only, with multiplicity $M - k$.
-2.  For two interleaved trains with PRIs $T_1, T_2$ of irrational ratio, every difference between a pulse of one train and a pulse of the other occurs at most once.
+2.  For two interleaved trains with PRIs $T_1, T_2$ of irrational ratio and phases $\varphi_1, \varphi_2$ in general position, every difference between a pulse of one train and a pulse of the other occurs at most once.
 
 The histogram therefore shows peaks at the multiples of each PRI over a flat floor of cross-differences.
 
 ::: proof
 1.  A difference of two pulses $n$ and $n + k$ equals $kT$, and $M - k$ pairs have index gap $k$.
-2.  A cross-difference has the form $\varphi_2 - \varphi_1 + k T_2 - l T_1$ (or its negative). If two such values coincide, then $(k - k') T_2 = (l - l') T_1$; irrationality of the ratio forces $k = k'$ and $l = l'$. [∎]{.qed}
+2.  A cross-difference has the form $\varphi_2 - \varphi_1 + k T_2 - l T_1$ (or its negative). If two values of the same sign coincide, then $(k - k') T_2 = (l - l') T_1$; irrationality of the ratio forces $k = k'$ and $l = l'$. A coincidence between opposite signs would make $2(\varphi_2 - \varphi_1)$ an integer combination of $T_1$ and $T_2$, which phases in general position avoid. [∎]{.qed}
 :::
 
 Missed pulses create peaks at $2T, 3T, \dots$ that compete with $T$. Cumulative and sequential difference histograms (CDIF, Mardia, 1989; SDIF, Milojević and Popović, 1992) test orders $c = 1, 2, \dots$ against thresholds to pick the fundamental.
@@ -1592,7 +1599,13 @@ $$
 Expanding the distance, $-\|f - c_k\|^2 = 2 c_k^\top f - \|c_k\|^2 - \|f\|^2$. The last term is the same for every class, so it changes neither the softmax nor the decision. [∎]{.qed}
 :::
 
-With $K = 1$ the rule is nearest-neighbour classification. Speaker enrolment *is* a few-shot problem: the mean embedding of the enrolment utterances is a prototype. Triplet-loss siamese networks (Schroff, Kalenichenko and Philbin, 2015) and MAML (Finn, Abbeel and Levine, 2017) are the other classic routes; the same tools enrol a new radar emitter.
+With $K = 1$ the rule is nearest-neighbour classification. Speaker enrolment *is* a few-shot problem: the mean embedding of the enrolment utterances is a prototype.
+
+**Siamese networks** apply one embedding $f_\theta$ to two or three inputs. The triplet loss (Schroff, Kalenichenko and Philbin, 2015) takes an anchor $a$, a positive $p$ of the same class and a negative $n$, and asks the negative to be farther by a margin $m$:
+$$
+\ell(a, p, n) = \max\big(0,\ \|f_\theta(a) - f_\theta(p)\|^2 - \|f_\theta(a) - f_\theta(n)\|^2 + m\big).
+$$
+New classes are then enrolled by distances, as with prototypes. MAML (Finn, Abbeel and Levine, 2017) instead learns an initialisation that adapts in a few gradient steps; the same tools enrol a new radar emitter.
 ::::
 
 The code synthesises ten speakers with a source–filter model, scaling average vowel formants (Peterson and Barney, 1952) by a speaker-specific tract factor. It compares one GMM per speaker, trained on five utterances, with $K$-shot prototypes of a fixed embedding: the mean and standard deviation of the MFCC frames.
@@ -1724,7 +1737,7 @@ $$
 The residual $e = B_U x_U + B_K x_K$ is affine in $x_U$; minimising its squared norm is a least-squares problem whose normal equations are $B_U^\top (B_U x_U + B_K x_K) = 0$. [∎]{.qed}
 :::
 
-The method alternates estimating the AR coefficients and interpolating. It needs $p$ larger than the gap's complexity, roughly the number of spectral peaks times two.
+The method alternates estimating the AR coefficients and interpolating. Each spectral peak needs a pair of poles, so $p$ must be at least twice the number of peaks, and the context must be several times longer than $p$.
 ::::
 
 For longer gaps and clipping, **sparse** priors take over: audio inpainting (Adler, Emiya, Jafari, Elad, Gribonval and Plumbley, 2012) seeks a few Gabor or DCT atoms matching the known samples; declipping also forces restored samples above the clipping level.
@@ -1743,7 +1756,7 @@ $$
 Conditionally on $Y$, the error is a quadratic function of the real number $M$; setting its derivative to zero gives the formula. [∎]{.qed}
 :::
 
-With the true clean and noise spectra, the **ideal ratio mask** $|X|^2 / (|X|^2 + |N|^2)$ is the oracle version of this gain, the upper bound of Code 8.5.
+Knowing the clean bin, the best real mask is the **phase-sensitive mask** $\mathrm{Re}(X \overline{Y}) / |Y|^2$. Its usual variant, the **ideal ratio mask** $|X|^2 / (|X|^2 + |N|^2)$, is the Wiener gain computed with the true powers; Code 8.5 uses it as an oracle reference.
 ::::
 
 -   **Architectures**: U-Nets on magnitude spectrograms (Jansson et al., 2017) and on waveforms (Wave-U-Net, Stoller, Ewert and Dixon, 2018); Demucs for real-time speech enhancement in the waveform domain (Défossez, Synnaeve and Adi, 2020).
@@ -1805,7 +1818,7 @@ Key takeaways — chapter 8
 -   Restoration inverts a known degradation (noise, mask, clipping, filtering) with a prior on audio.
 -   The Wiener gain $\xi / (1 + \xi)$ is the MMSE scalar gain per bin; spectral subtraction approximates it.
 -   AR models fill gaps of a few milliseconds by least squares; sparse dictionaries handle longer gaps and clipping.
--   A mask network trained with the squared error estimates a conditional Wiener gain; the ideal ratio mask is its oracle bound.
+-   A mask network trained with the squared error estimates a conditional Wiener gain; oracle masks computed from the clean signal (phase-sensitive, ideal ratio) give reference scores.
 ::::
 
 ## 9. Use case: predictive maintenance {#ch9}
@@ -2131,9 +2144,11 @@ Key takeaways — chapter 11
 
 ## Exercises {#ex}
 
-1.  **★ Aliasing and complex baseband.** (a) A 9 kHz tone is sampled at 8 kHz. At which frequency does it appear? (b) A receiver captures a band of 20 MHz around 2.4 GHz. Compare the minimum rate of complex IQ sampling with the minimum rate of real sampling of the raw band-pass signal.
+1.  **★ Aliasing and complex baseband.** (a) A 9 kHz tone is sampled at 8 kHz. At which frequency does it appear? (b) A receiver captures a band of 20 MHz around 2.4 GHz. Compare the minimum rate of complex IQ sampling with the rate that Theorem 1.3 requires for real sampling of the raw band-pass signal.
 
-    *Solution*: (a) the tone is folded by one sampling rate, $9 - 8 = 1$ kHz. (b) Complex sampling needs 20 million complex samples per second (the bandwidth). Real sampling of the raw signal must exceed twice its highest frequency, $2 \times 2.41$ GHz $= 4.82$ GHz: about 240 times more samples per second, or 120 times more real numbers, since an IQ sample holds two.
+    *Solution*: (a) the tone is folded by one sampling rate, $9 - 8 = 1$ kHz. (b) Complex sampling needs 20 million complex samples per second (the bandwidth). Theorem 1.3 asks real sampling of the raw signal to exceed twice its highest frequency, $2 \times 2.41$ GHz $= 4.82$ GHz: about 240 times more samples per second, or 120 times more real numbers, since an IQ sample holds two.
+
+    Band-pass (under-)sampling of the real signal can go down to about $2B = 40$ MHz when the band sits suitably between multiples of $f_s/2$, but it then needs a sharp analogue band-pass filter; this is why receivers prefer IQ demodulation.
 
 2.  **★ A resolution budget.** Speech is sampled at 16 kHz. A Hann window has a main lobe four bins wide. Which window length separates two harmonics 100 Hz apart, and what hop gives 50 % overlap?
 
@@ -2149,7 +2164,7 @@ Key takeaways — chapter 11
 
 5.  **★ Metrics under imbalance.** Among 2 000 windows, 40 precede a failure. A detector flags 60 windows, 30 of which precede a failure. Compute recall, precision, F1 and the false-alarm rate.
 
-    *Solution*: recall $30/40 = 0.75$; precision $30/60 = 0.50$; $F_1 = 2 \times 0.5 \times 0.75 / 1.25 = 0.60$; false-alarm rate $30 / 1960 \approx 1.5$ %. The accuracy, $1940/2000 = 97$ %, says nothing useful (Example 3.8).
+    *Solution*: recall $30/40 = 0.75$; precision $30/60 = 0.50$; $F_1 = 2 \times 0.5 \times 0.75 / 1.25 = 0.60$; false-alarm rate $30 / 1960 \approx 1.5$ %. The accuracy, $(30 + 1930)/2000 = 98$ %, says nothing useful: "always healthy" also scores 98 % (Example 3.8).
 
 6.  **★ Sizing an energy detector (computational).** For $P_{FA} = 0.05$, $P_D = 0.95$ and an SNR of $-13$ dB, compute the number of samples from Proposition 5.3, then check it by adapting Code 5.8.
 
@@ -2157,19 +2172,21 @@ Key takeaways — chapter 11
     $$
     N = \Big(\frac{1.645 + 1.0501 \times 1.645}{0.0501}\Big)^2 \approx 4\,527 .
     $$
-    With `N = 4527`, `pfa = 0.05`, `snr_db = -13` in Code 5.8, the Monte Carlo detection rate is close to 0.95 and the false-alarm rate close to 0.05.
+    With `N = 4527`, `pfa = 0.05`, `snr_db = -13` in Code 5.8 (and fewer trials, to save memory), the Monte Carlo detection rate is close to 0.95 and the false-alarm rate close to 0.05.
 
 7.  **★ Deinterleaving by hand.** An interceptor records the TOAs (µs) 0, 200, 500, 900, 1000, 1500, 1600, 2000, 2300. (a) List the order-1 differences: do they reveal a PRI? (b) Count all pairwise differences up to 1 100 µs and find the PRIs. (c) Give the unambiguous range of each emitter.
 
     *Solution*: (a) 200, 300, 400, 100, 500, 100, 400, 300: no dominant value. (b) The counts are 4 at 500 µs, 3 at 700 µs, 3 at 1 000 µs, and at most 2 elsewhere. The value 1 000 is twice 500, so the PRIs are 500 µs (pulses 0, 500, 1000, 1500, 2000) and 700 µs (200, 900, 1600, 2300), as Proposition 6.4 predicts. (c) $c T_r / 2$: 75 km and 105 km.
 
-8.  **★★ Equivariance, receptive field and training (computational).** (a) Show that a convolutional layer with stride 2 commutes with shifts by an even number of samples, but not with a shift by one sample. (b) Compute the receptive field of four layers with kernel size 5 and dilations 1, 2, 4, 8. (c) Train Code 4.11 for 1 000 steps instead of 250 and compare its accuracy with Code 3.10.
+8.  **★★ Equivariance, receptive field and training (computational).** (a) Show that a convolutional layer with stride 2 is equivariant to shifts by an even number of samples (an input shift by $2\tau$ shifts the output by $\tau$), but not to a shift by one sample. (b) Compute the receptive field of four layers with kernel size 5 and dilations 1, 2, 4, 8. (c) Train Code 4.11 for 1 000 steps instead of 250 and compare its accuracy with Code 3.10.
 
-    *Hints and expected result*: (a) the output at index $n$ reads the inputs from $2n$; a shift by $2\tau$ shifts the output by $\tau$, while a shift by 1 changes the sampling phase and no output shift compensates. (b) $R = 1 + 4 \times (1 + 2 + 4 + 8) = 61$ samples (Proposition 4.5). (c) The gap to the hand-crafted features narrows with more steps; report both accuracies with the same test set size.
+    *Hints and expected result*: (a) the output at index $n$ reads the inputs from $2n$; a shift by $2\tau$ shifts the output by $\tau$, while a shift by 1 changes the sampling phase and no output shift compensates. (b) $R = 1 + 4 \times (1 + 2 + 4 + 8) = 61$ samples (Proposition 4.5). (c) The gap to the hand-crafted features narrows: after 1 000 steps the CNN reaches about 0.94, against 0.96 for Code 3.10. Report both accuracies on test sets of the same size.
 
 9.  **★★ Prototypes and nearest neighbours (computational).** (a) Prove that 1-shot prototype classification is nearest-neighbour classification, and that $K$-shot prototypes with squared Euclidean distance give a linear classifier (Proposition 7.7). (b) In Code 7.8, compute the accuracy for $K = 1, \dots, 5$, then replace the Euclidean distance by the cosine distance.
 
-    *Hints and expected result*: (a) with one example per class, the prototype *is* that example; for the linear form, expand the square. (b) Accuracy grows with $K$, from 0.94 to about 0.99, because averaging reduces the variance of the prototype. Cosine distance removes the norm of the embedding; with standardised features the two distances behave similarly.
+    *Hints and expected result*: (a) with one example per class, the prototype *is* that example; for the linear form, expand the square. (b) Accuracy is already high at $K = 1$ (0.91 to 0.99 depending on the random seed) and reaches 0.96 to 1.00 at $K = 5$: averaging reduces the variance of the prototype.
+
+    With only 100 test utterances, the curve is not monotone and differences of a few points are within the noise of the draw; average over several seeds. Cosine distance ignores the norm of the embedding; here it stays within about 0.03 of the Euclidean accuracy.
 
 10. **★★ The Wiener gain in numbers.** (a) Show that the minimal mean squared error of Theorem 8.2 equals $S_x S_n / (S_x + S_n)$, so that the output SNR is $1 + \xi$. (b) Compute the gain and the SNR improvement for bins at 10 dB and at $-5$ dB.
 
@@ -2201,11 +2218,13 @@ Key takeaways — chapter 11
 
 14. **★★★ Can a learned detector beat the SNR wall?** Train a classifier (logistic regression on the periodogram, or a small CNN) to detect a white Gaussian signal when the noise power varies by ±1 dB between examples. Study its false-alarm rate on noise-only data at the worst noise level, as the SNR decreases towards and below $-3.3$ dB.
 
-    *Hints and expected result*: below the wall, choose the noise level $\sigma_n^2 = \rho\sigma^2 - P$ under $\mathcal H_1$; it lies in the uncertainty interval, and the samples then have exactly the law of noise of power $\rho\sigma^2$ under $\mathcal H_0$. No test, learned or not, can then have $P_D > P_{FA}$ for both configurations. With a BPSK signal the two laws differ, and a detector exploiting cyclostationarity (Definition 5.6) escapes the wall.
+    *Hints and expected result*: with the notation of Proposition 5.5 and a signal of power $P = \gamma \sigma_n^2$, choose the noise power $\rho \sigma_n^2 - P$ under $\mathcal H_1$.
+
+    Below the wall it lies in the uncertainty interval, and the samples then have exactly the law of noise of power $\rho\sigma_n^2$ under $\mathcal H_0$. No test, learned or not, can then have $P_D > P_{FA}$ for both configurations. With a BPSK signal the two laws differ, and a detector exploiting cyclostationarity (Definition 5.6) escapes the wall.
 
 ## Projects and assessment {#projects}
 
-The Université Paris-Saclay page gives the assessment as “Evaluation Continue non Intégrale” (continuous assessment, non-integral regime), without components or weights; master-mva.com displays no assessment. The proposals below are those of these notes, not official rules. They fit a continuous assessment built on the labs: a project that pairs a classical chain with a learned one, often by reproducing a published paper, reported in writing and orally, and a written exam.
+The Université Paris-Saclay page gives the assessment as “Evaluation Continue non Intégrale” (continuous assessment that is not exclusively continuous), without components or weights; master-mva.com displays no assessment. The proposals below are those of these notes, not official rules. They fit a continuous assessment built on the labs: a project that pairs a classical chain with a learned one, often by reproducing a published paper, reported in writing and orally, and a written exam.
 
 ### Solo projects {#projects-solo}
 
@@ -2221,7 +2240,7 @@ The Université Paris-Saclay page gives the assessment as “Evaluation Continue
     -   *Data*: the Case Western Reserve University bearing data, public, with the benchmark of Smith and Randall (2015) as the classical reference.
     -   *Work*: envelope analysis with the band chosen by spectral kurtosis; a 1D CNN; splits by window, by record and by load.
     -   *Success criterion*: a table of accuracies per split showing the effect of leakage (Note 3.2) and of the load change.
-    -   *Deliverables*: code, report, talk; chapters 3, 4 and 9.
+    -   *Deliverables*: code, report, talk; chapters 3, 4 and 9; graded with the rubric below.
 
 ### Group projects {#projects-group}
 
@@ -2229,21 +2248,22 @@ The Université Paris-Saclay page gives the assessment as “Evaluation Continue
     -   *Work*: a simulator of 5–20 emitters with constant, jittered and staggered PRIs, RF agility, missed and spurious pulses; DBSCAN plus the PRI transform (Nishiguchi and Kobayashi, 2000) against a transformer that labels pulses.
     -   *Split*: one member builds the simulator and metrics, one the classical chain, one the learned chain.
     -   *Success criterion*: ARI and emitter recall against pulse density; one regime where each approach wins.
-    -   *Deliverables*: code, an 8–10 page joint report, a 20-minute talk; chapters 3, 4 and 6.
+    -   *Deliverables*: code, an 8–10 page joint report, a 20-minute talk; chapters 3, 4 and 6; graded with the rubric below, plus an individual question during the talk.
 2.  **[Group of 2–3 · ≈ 30 h each] Few-shot speaker verification on LibriSpeech.** How many enrolment utterances does each method need?
     -   *Data*: LibriSpeech (Panayotov, Chen, Povey and Khudanpur, 2015), public, with training and test speakers disjoint.
     -   *Work*: GMM-UBM with MAP adaptation, a small x-vector-like network, and the same network trained on episodes with prototypes; enrolment with 1, 3 and 5 utterances.
     -   *Split*: features and GMM-UBM; embedding networks; trial lists, EER and DET curves.
-    -   *Deliverables*: code, joint report, talk; chapters 2 and 7.
+    -   *Success criterion*: EER and DET curves for 1, 3 and 5 enrolment utterances and the three methods, on at least 40 test speakers, with bootstrap confidence intervals; the number of utterances each method needs to reach an EER of 5 %.
+    -   *Deliverables*: code, joint report, talk; chapters 2 and 7; graded with the rubric below, plus an individual question during the talk.
 3.  **[Group of 2–3 · ≈ 30 h each] Paper study: audio inpainting (Adler et al., 2012; Janssen et al., 1986).** Reproduce the reconstruction-quality-versus-gap-length curve, then add a learned inpainter.
     -   *Work*: AR interpolation (Proposition 8.3), sparse inpainting with orthogonal matching pursuit in a DCT or Gabor dictionary, and a small convolutional network trained on artificially punctured public speech or music clips.
     -   *Split*: one member per method, shared evaluation code.
     -   *Success criterion*: SNR curves for gaps of 1 to 20 ms for the three methods, plus a short blind listening test.
-    -   *Deliverables*: code, joint report, talk; chapters 7.2 and 8.
+    -   *Deliverables*: code, joint report, talk; chapters 7.2 and 8; graded with the rubric below, plus an individual question during the talk.
 
 ### Written exam (proposal) {#projects-exam}
 
-Two hours, one handwritten A4 sheet allowed, no calculator needed beyond a table of the Gaussian tail and of chi-square quantiles; four exercises.
+Two hours, one handwritten A4 sheet and a simple calculator allowed, with a table of the Gaussian tail and of chi-square quantiles provided; four exercises.
 
 1.  **Question (4 points).** Explain the time–frequency trade-off of the STFT, state the uncertainty principle, and choose a representation for (a) bearing impacts ringing at 3 kHz and (b) the formants of speech. *Expected*: windowed DFTs and the bound $\sigma_t \sigma_f \geq 1/(4\pi)$ (Theorem 2.3); (a) short windows or wavelets, which are fine in time at high frequency; (b) windows of 20–30 ms, or mel spectra.
 2.  **Question (6 points).** An energy detector uses $N = 2000$ samples with $P_{FA} = 0.01$, so that $Q^{-1}(P_{FA}) = 2.326$, at an SNR of $-12$ dB. Compute the threshold and $P_D$, then the SNR wall for a noise uncertainty of 0.5 dB.
@@ -2264,7 +2284,7 @@ Two hours, one handwritten A4 sheet allowed, no calculator needed beyond a table
 
 ## References {#refs}
 
-**Official references.** The course pages on master-mva.com and on the Université Paris-Saclay site list no bibliography for this course (2026–2027). The works below are those cited on this page, grouped by topic.
+**Official references.** The course pages on master-mva.com and on the Université Paris-Saclay site list no bibliography for this course (2026–2027). The works below are those cited on this page, together with standard textbooks and surveys for further reading, grouped by topic.
 
 **Textbooks**
 

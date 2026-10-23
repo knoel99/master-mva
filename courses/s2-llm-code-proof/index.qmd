@@ -462,7 +462,7 @@ With cache, step $t$ processes the new position only, $O(d^2)$, and its attentio
 
 ```python
 import torch
-torch.manual_seed(0)
+torch.manual_seed(0); torch.set_num_threads(1)
 d, T = 16, 10
 Wq, Wk, Wv = (torch.randn(d, d) / d ** 0.5 for _ in range(3))
 X = torch.randn(T, d)                       # embeddings of T tokens
@@ -608,7 +608,7 @@ for n in (0, 50, 200, 500):
 print([show(t, merges).decode() for t in list(merges.values())[:10]])
 ```
 
-With 500 merges, the compression is 4.37 bytes per token on the training file but 2.62 on the held-out one. The first merges learnt are runs of 2, 4 and 8 spaces and a newline followed by 8 spaces: indentation.
+With 500 merges, the compression is 4.37 bytes per token on the training file but 2.62 on the held-out one. Four of the first five merges are runs of 2, 4 and 8 spaces and a newline followed by 8 spaces: indentation.
 :::
 
 ### 2.3 Unigram tokenization and SentencePiece
@@ -757,7 +757,7 @@ C \approx 6\, N D \ \text{ floating-point operations.}
 $$
 
 ::: proof
-In the forward pass, each parameter takes part in one multiply-add per token, 2 FLOPs. The backward pass computes the gradients with respect to the activations and to the weights, two products of the same size as the forward one, 4 FLOPs. Attention scores add a term proportional to the context length, small when it is below about $6d$. [∎]{.qed}
+In the forward pass, each parameter takes part in one multiply-add per token, 2 FLOPs. The backward pass computes the gradients with respect to the activations and to the weights, two products of the same size as the forward one, 4 FLOPs. With $N \approx 12Ld^2$ (Proposition 1.5), the attention scores over a context of $T$ tokens add a fraction of about $T/(12d)$, small when $T \ll 12d$. [∎]{.qed}
 :::
 ::::
 
@@ -833,7 +833,7 @@ print("fitted alpha = %.3f, beta = %.3f, E = %.2f" % (p[3], p[4], p[0]))
 ```
 :::
 
-Kaplan et al. (2020) had recommended growing the model much faster than the data. Hoffmann et al. (2022) attribute most of the difference to the learning-rate schedule, which Kaplan et al. kept fixed across run lengths.
+Kaplan et al. (2020) had recommended growing the model much faster than the data. Hoffmann et al. (2022) point to the learning-rate schedule, which Kaplan et al. did not adapt to the length of each run, as one cause of the difference.
 
 ### 3.4 When data run out
 
@@ -1215,7 +1215,7 @@ The index is computed once per constraint, not once per step. Because the automa
 Programming languages need context-free grammars (Proposition 0.8). The viable-prefix test then needs a parser that works on prefixes.
 
 :::: prop
-[Proposition 6.4 — Viable prefixes of a context-free language]{.tag} Assume every non-terminal of the grammar derives at least one terminal string. Earley's parser, run on a prefix $u$, ends with a non-empty set of items if and only if $u$ is a viable prefix, and it processes a prefix of length $n$ in $O(n^3)$ time, $O(n)$ per character for unambiguous LR grammars run with an LR parser.
+[Proposition 6.4 — Viable prefixes of a context-free language]{.tag} Assume every non-terminal of the grammar derives at least one terminal string. Earley's parser, run on a prefix $u$, ends with a non-empty set of items if and only if $u$ is a viable prefix. It processes a prefix of length $n$ in $O(n^3)$ time in general, $O(n^2)$ for unambiguous grammars, and linear time for many grammars of programming languages.
 
 ::: proof
 *Sketch.* An Earley item records a rule, a position in it and a start index; the parser keeps exactly the items consistent with some derivation whose yield begins with the input read so far. If the set is non-empty, completing the pending rules with terminal strings, which exist by assumption, yields a word of $L$ extending $u$; conversely, a word of $L$ extending $u$ gives a derivation whose items are all generated. See Earley (1970) for the complexity. [∎]{.qed}
@@ -1902,7 +1902,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: Theorem 3.7 gives $N^\star \approx 1.46 \times 10^{10}$ parameters, $D^\star \approx 1.14 \times 10^{12}$ tokens and $L \approx 2.005$ (Code 3.9 prints them). The ratio is about 78 tokens per parameter, against 50 at $10^{21}$: with $\beta < \alpha$, data grow faster than parameters.
 
-4.  **★ The size of a LoRA adapter.** A 7-billion-parameter model has $L = 32$ blocks of width $d = 4096$. LoRA of rank $r = 16$ is applied to $W_Q$, $W_K$, $W_V$ and $W_O$ in every block. (a) Count the trainable parameters. (b) What fraction of the model is it? (c) How much memory do their Adam states take in fp32?
+4.  **★ The size of a LoRA adapter.** A 7-billion-parameter model has $L = 32$ blocks of width $d = 4096$. LoRA of rank $r = 16$ is applied to the four attention projections $W_Q, W_K, W_V, W_O$ of every block. (a) Count the trainable parameters. (b) What fraction of the model is it? (c) How much memory do their Adam states take in fp32?
 
     *Solution*: (a) Each $4096 \times 4096$ matrix gets $16 \times (4096 + 4096) = 131\,072$ parameters, so $4 \times 32 \times 131\,072 = 16\,777\,216$ in total, about $1.7 \times 10^7$. (b) About 0.24 % of $7 \times 10^9$. (c) Two fp32 states of 4 bytes per parameter: 134 MB.
 
@@ -1918,15 +1918,32 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: (a) The score between positions $m + c$ and $n + c$ is $q^\top R_{(n+c)-(m+c)} k = q^\top R_{n-m} k$. Each score is unchanged, and so is each softmax row. (b) $R_{n-m} k = (\cos(n-m), \sin(n-m))$, so the score is $\cos(n - m)$. It is maximal at distance 0 but oscillates with the distance, so one frequency cannot tell distances apart: several frequencies $\theta_i$ are needed.
 
-8.  **★★ Banding for near-duplicate detection.** $k = br$ MinHash values are split into $b$ bands of $r$ values; two files become a candidate pair if they agree on all values of at least one band. (a) Show that a pair of Jaccard similarity $J$ becomes a candidate with probability $1 - (1 - J^r)^b$. (b) Compute it for $b = 20$, $r = 5$ and $J \in \{0.3, 0.8\}$.
+8.  **★★ Banding for near-duplicate detection.** The $k = br$ MinHash values of a file are split into $b$ bands of $r$ values. Two files become a candidate pair if they agree on all values of at least one band.
 
-    *Solution*: (a) By Proposition 3.2 and independence of the hashes, a band agrees with probability $J^r$, and the $b$ bands are independent. (b) For $J = 0.8$: $J^5 = 0.328$ and $1 - 0.672^{20} \approx 0.9996$. For $J = 0.3$: $J^5 = 0.00243$ and $1 - 0.99757^{20} \approx 0.047$. The curve switches near $(1/b)^{1/r} \approx 0.55$.
+    (a) Show that a pair of Jaccard similarity $J$ becomes a candidate with probability
+
+    $$
+    1 - (1 - J^r)^b .
+    $$
+
+    (b) Compute it for $b = 20$, $r = 5$ and $J \in \{0.3, 0.8\}$.
+
+    *Solution*: (a) By Proposition 3.2 and the independence of the hashes, a band agrees with probability $J^r$, and the $b$ bands are independent.
+
+    (b) The two similarities give:
+
+    -   for $J = 0.8$, $J^5 = 0.328$ and $1 - 0.672^{20} \approx 0.9996$;
+    -   for $J = 0.3$, $J^5 = 0.00243$ and $1 - 0.99757^{20} \approx 0.047$.
+
+    The curve switches near $(1/b)^{1/r} \approx 0.55$: pairs above that similarity are almost always compared, pairs well below it almost never.
 
 9.  **★★ When n equals k.** (a) Show that for $n = k$ the unbiased estimator of Theorem 5.6 is $\mathbb{1}[c \ge 1]$ and explain why it is unbiased. (b) For $n = k = 2$, compute the expectation of the plug-in estimator and its bias.
 
     *Solution*: (a) If $c \ge 1$, $\binom{n-c}{n} = 0$ and the estimator is 1; if $c = 0$ it is $1 - 1 = 0$. Its expectation is the probability that one of $k$ samples passes, pass@$k$ itself.
 
-    (b) $c = 0, 1, 2$ with probabilities $(1-p)^2$, $2p(1-p)$ and $p^2$; the plug-in values are $0$, $3/4$ and $1$. The expectation is $\frac{3}{2}p(1-p) + p^2$, while pass@2 is $2p - p^2$; the bias is
+    (b) The count $c$ takes the values 0, 1 and 2 with probabilities $(1-p)^2$, $2p(1-p)$ and $p^2$. The plug-in estimator then takes the values 0, 3/4 and 1.
+
+    Its expectation is $\frac{3}{2}p(1-p) + p^2$, while pass@2 is $2p - p^2$. The bias is
 
     $$
     -\tfrac{1}{2}\, p(1 - p) .
@@ -2027,15 +2044,40 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 14. **★★ Resample or repair, with three calls.** A fresh sample is correct with probability $p = 0.3$. Compare, with a budget of three calls, three independent samples and the chain sample–repair–repair, for a repair success probability $r = 0.2$ and $r = 0.45$, assuming independent attempts.
 
-    *Solution*: Resampling succeeds with probability $1 - 0.7^3 = 0.657$. The chain succeeds with probability $p + (1-p)r + (1-p)(1-r)r$: for $r = 0.45$, $0.3 + 0.315 + 0.173 = 0.788$, better; for $r = 0.2$, $0.3 + 0.14 + 0.112 = 0.552$, worse. As in Proposition 9.3, the comparison turns on $r$ against $p$.
+    *Solution*: Resampling succeeds with probability $1 - 0.7^3 = 0.657$. The chain succeeds when the sample, the first repair or the second repair is correct, with probability
 
-15. **★★★ Correcting the distortion.** Let $q$ be the distribution of masked decoding (Definition 6.1), and $Z_t(y_{<t})$ the total model probability of the tokens allowed at step $t$. (a) Show that for every valid $y$, $q(y) = p(y) / \prod_t Z_t(y_{<t})$. (b) Deduce that the weight $W(y) = \prod_t Z_t(y_{<t})$ satisfies $\mathbb{E}_q[f(Y) W(Y)] = \mathbb{E}_p[f(Y)\, \mathbb{1}[Y \in L]]$ for every $f$, and that $\mathbb{E}_q[W] = p(L)$. (c) Propose a self-normalized estimator of $\mathbb{E}[f(Y) \mid Y \in L]$ and discuss its variance when $p(L)$ is small.
+    $$
+    p + (1-p)\,r + (1-p)(1-r)\,r .
+    $$
+
+    -   For $r = 0.45$: $0.3 + 0.315 + 0.173 = 0.788$, better than resampling.
+    -   For $r = 0.2$: $0.3 + 0.14 + 0.112 = 0.552$, worse.
+
+    As in Proposition 9.3, the comparison turns on $r$ against $p$.
+
+15. **★★★ Correcting the distortion.** Let $q$ be the distribution of masked decoding (Definition 6.1). Let $Z_t(y_{<t})$ be the total model probability of the tokens allowed at step $t$, and define the weight $W(y) = \prod_t Z_t(y_{<t})$.
+
+    (a) Show that every valid $y$ satisfies $q(y) = p(y) / W(y)$.
+
+    (b) Deduce that, for every function $f$,
+
+    $$
+    \mathbb{E}_q\big[f(Y)\, W(Y)\big] = \mathbb{E}_p\big[f(Y)\, \mathbb{1}[Y \in L]\big], \qquad \mathbb{E}_q[W] = p(L).
+    $$
+
+    (c) Propose a self-normalized estimator of $\mathbb{E}[f(Y) \mid Y \in L]$ and discuss its variance when $p(L)$ is small.
 
     *Hints and expected result*: (a) Each factor of $q$ is $p(y_t \mid y_{<t}) / Z_t$ for an allowed token. (b) Multiply by $W$ and sum over valid sequences; take $f = 1$ for the second identity.
 
-    (c) Draw $y^{(1)}, \dots, y^{(m)}$ from $q$ and use $\sum_i W_i f(y^{(i)}) / \sum_i W_i$. It is consistent, and its variance grows with the spread of the weights, large when masking intervenes often; sequential Monte Carlo (Lew et al., 2023) resamples particles to control it. On Code 6.7, the estimate converges to the exact conditional.
+    (c) Draw $y^{(1)}, \dots, y^{(m)}$ from $q$ and use the ratio
 
-16. **★★★ (Python) A prover with conjunction and a learned policy.** Extend Code 8.6 with formulas $A \wedge B$, a tactic `split` (goal $A \wedge B$ gives goals $A$ and $B$) and a tactic `cases h` (a hypothesis $A \wedge B$ is replaced by $A$ and $B$). Then replace `PRIOR` by a policy learnt by expert iteration on random formulas.
+    $$
+    \frac{\sum_i W_i\, f(y^{(i)})}{\sum_i W_i} .
+    $$
+
+    It is consistent, and its variance grows with the spread of the weights, large when masking intervenes often. Sequential Monte Carlo (Lew et al., 2023) resamples particles to control it. On Code 6.7, the estimate converges to the exact conditional.
+
+16. **★★★ (Python) A prover with conjunction and a learned policy.** Extend Code 8.6 with conjunctions $A \wedge B$ and two tactics. The tactic `split` turns a conjunctive goal into one goal per conjunct; the tactic `cases h` replaces a conjunctive hypothesis `h` by its two conjuncts. Then replace `PRIOR` by a policy learnt by expert iteration on random formulas.
 
     *Hints and expected result*: Extend the parser with a binary connective of higher precedence than `->`, add the two tactics in `tactics`, and keep `check` unchanged: it only replays legal moves. The formula `(A /\ B) -> (B /\ A)` is then proved by `intro`, `cases`, `split` and two `assumption` steps.
 
@@ -2073,7 +2115,7 @@ The official assessment (master-mva.com, “Mode de validation”) is homework w
     -   *Split*: data and training; sandboxed evaluation harness; statistical analysis and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 4, 5, 9.
 3.  **[Group of 2–3 · ≈ 30 h each] A tactic policy by expert iteration.** Paper study of Polu and Sutskever (2020) and Polu et al. (2023) in a toy domain. Extend the prover of Code 8.6 with conjunction and disjunction, generate random provable formulas, and train a small policy network on the proofs found, round after round.
     -   *Success criterion*: within a fixed expansion budget, the fraction of held-out formulas proved rises over three rounds above the fixed-prior baseline, and every proof is replayed by the checker.
-    -   *Split*: environment, checker and formula generator; policy model and training; search, expert iteration and evaluation. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 7, 8.
+    -   *Split*: environment, checker and formula generator; policy model and training; search, expert iteration and evaluation. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 8, 9.4.
 
 ### Written exam (proposal) {#projects-exam}
 
@@ -2085,7 +2127,16 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic devices, four q
 
 2.  **Question (6 points).** (a) For a problem, 20 samples are drawn and 4 pass: estimate pass@1 and pass@5 without bias. (b) Count the parameters of a rank-8 LoRA adapter on a $2048 \times 2048$ matrix. (c) For the law of Definition 3.6 with $\alpha = \beta = 0.5$ and $A/B = 1/4$, compute $N^\star$ and $D^\star$ for $C = 6 \times 10^{20}$.
 
-    *Expected*: (a) $0.2$ and $1 - \binom{16}{5}/\binom{20}{5} = 1 - 4368/15504 \approx 0.718$. (b) $8 \times 4096 = 32\,768$. (c) $G = 1/4$ and $\sqrt{C/6} = 10^{10}$, so $N^\star = 2.5 \times 10^{9}$ and $D^\star = 4 \times 10^{10}$, 16 tokens per parameter.
+    *Expected*:
+
+    -   (a) pass@1 $= 4/20 = 0.2$, and by Theorem 5.6
+
+        $$
+        \text{pass@}5 = 1 - \binom{16}{5} \Big/ \binom{20}{5} = 1 - \frac{4368}{15504} \approx 0.718 .
+        $$
+
+    -   (b) By Proposition 4.3, $8 \times (2048 + 2048) = 32\,768$ parameters.
+    -   (c) $G = 1/4$ and $\sqrt{C/6} = 10^{10}$, so $N^\star = 2.5 \times 10^{9}$ and $D^\star = 4 \times 10^{10}$: 16 tokens per parameter.
 
 3.  **Question (5 points).** Prove that $1 - \binom{n-c}{k}/\binom{n}{k}$ is an unbiased estimator of pass@$k$, and that the plug-in estimator $1 - (1 - c/n)^k$ is biased downward.
 
