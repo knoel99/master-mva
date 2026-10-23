@@ -207,6 +207,12 @@ air = subprocess.run([sys.executable, str(ROOT / "tools/check_airiness.py")],
                      capture_output=True, text=True)
 check(air.returncode == 0, "check_airiness: every page passes A1-A3 (specs/front-redesign.md)",
       "; ".join(l for l in air.stdout.splitlines() if "FAIL" in l)[:300])
+owned = subprocess.run([sys.executable, str(ROOT / "tools/check_project_sections.py")],
+                       capture_output=True, text=True)
+owned_fail = "; ".join(l for l in owned.stdout.splitlines() if l.startswith("FAIL"))[:300]
+check(owned.returncode == 0,
+      "check_project_sections: substantial pages, end-of-year projects, history, coherence",
+      owned_fail or owned.stderr[-200:])
 
 # --- Report ------------------------------------------------------------------
 total = passed + len(failures)
