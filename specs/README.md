@@ -16,3 +16,5 @@ Each new page or major rewrite follows a contract here. See also `AGENTS.md` (ga
 | `front-redesign` | Projector contrast, dark mode, side contents, mobile, airy-prose gate (inherited from LLGA) | implemented |
 | `quarto-source` | Quarto 1.7.32 sources, pinned KaTeX, rendering pitfalls | implemented |
 | `en-only` | English only, no language switcher | implemented |
+| `commit-evolution-2026-10` | Git history of `master` and `ccr-35a7ca30-pszhhr` through 23 October 2026 | note |
+| `coherence-objectives` | Catalogue courses against validation rules, tracks, and page state | note |
