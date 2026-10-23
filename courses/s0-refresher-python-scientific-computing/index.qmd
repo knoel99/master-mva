@@ -40,7 +40,15 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: arrays, broadcasting and rounding](#ch0)
+-   [1. Matrix products, solves and least squares](#ch1)
+-   [2. Reverse-mode differentiation and one training step](#ch2)
+-   [3. Stable vectorised models](#ch3)
+-   [4. Research directions and open problems](#ch4)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
@@ -50,22 +58,669 @@ TODO: one bullet per level-2 heading, in page order.
   Instructors          not published (master-mva.com, 2026–2027)
   Period               Before semester 1 · refresher fortnight (14/09/2026 – 24/09/2026)
   Credits and volume   no ECTS · 12 h of guided self-study (master-mva.com planning: “Cours de remise à niveau : 14/09 au 24/09/2026 (facultatifs et sans inscription / obligatoires pour track I&I)”; content and volume not published)
-  Label                TODO
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
+  Label                not displayed
+  Language             not displayed
+  Assessment           not displayed
+  Prerequisites        not displayed
   -------------------- ------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+**Audience**: An M1 graduate in mathematics, computer science or physics, able to write a short Python function and a matrix product on paper, who needs those calculations to agree with NumPy and with PyTorch.
+
+**Empirical first**: The matrix with rows (1, 1) and (1, 1.001) has 2-norm condition number 4002.000750124839. A perturbation of size 1e-6 with opposite signs, added to the right-hand side (2, 2.001), moves the solution by a relative 0.0020005000627642258, while the right-hand side moves by a relative 4.998750156289031e-07. The logits (1000, 1001, 999) make a direct exponential overflow, and their shifted log-sum-exp equals 1001.4076059644444.
+
+These notes are independent support for the guided self-study named in the fiche. The refresher fortnight publishes no programme, so the chapters below are the syllabus of this page. They practise shapes, least squares and one gradient step, the calculations later MVA courses repeat on real data.
+
+### What you will be able to do
+
+-   Compute a C-order offset and tell a view from a copy.
+-   Decide whether two shapes broadcast, and read one entry of the sum.
+-   Explain a printed zero with the unit roundoff and the tie-to-even rule.
+-   Form a matrix product, solve a square system, and report a residual norm.
+-   Write the normal equations and the thin-SVD formula for the same minimiser.
+-   Bound the change in a solution when only the right-hand side moves.
+-   Compute a scalar gradient by a reverse sweep, and name the cost of that sweep.
+-   Take one descent step on a squared residual with a step tied to the operator norm.
+-   Shift a log-sum-exp so every exponential stays finite.
+-   Evaluate one ReLU layer and its mean squared loss on a three-row table.
+
+### Official objectives and syllabus (2026–2027)
+
+The refresher fortnight publishes no programme. The planning page on master-mva.com, read on 22 October 2026, gives the window 14/09/2026 – 24/09/2026 and describes the sessions as optional, without registration, and mandatory for the I&I track. It states no objectives and no topic list. This page therefore has no official-topic table.
+
+Language, assessment and prerequisites are not displayed. There is no published syllabus to extend. The numerical bounds, the reverse-mode argument and the stable softmax are the substance of these notes.
+
+### Where this course fits in the programme
+
+The catalogue attaches no Learning or Modelling label and no track badge. Two companion refreshers in the same fortnight treat probability and statistics, and linear algebra with optimisation. This page uses those subjects at M1 level and shows how to compute them.
+
+Later courses that use the same tools include Introduction to Statistical Learning, Convex Optimization and Applications in Machine Learning, Computational Statistics, Deep Learning, Theoretical Foundations of Deep Learning, and Training and Deploying Large-Scale Models. They come after the fortnight, so this page treats them as destinations.
+
+### Course outline
+
+-   **Arrays, broadcasting and rounding** — layout, the broadcast rule, and one-operation rounding.
+-   **Matrix products, solves and least squares** — cost, normal equations, the SVD minimiser, and a perturbation bound.
+-   **Reverse-mode differentiation and one training step** — adjoints, their cost, and a safe step on a quadratic.
+-   **Stable vectorised models** — the log-sum-exp shift, the softmax Jacobian, and one ReLU layer.
+-   **Research directions and open problems** — compilers, mixed precision, implicit gradients, and memory-aware kernels.
+
+### Session plan {#sessions}
+
+**12 h of guided self-study = 4 steps of 3 h.**
+
+The split into sessions is a proposal.
+
+| Session | Hours | Level | Content | Practice |
+| --- | --- | --- | --- | --- |
+| 1 | 3 h | 1 | ch. 0 | Ex. 1, Ex. 2, Ex. 3 |
+| 2 | 3 h | 1 | ch. 1 | Ex. 4, Ex. 5, Ex. 6 |
+| 3 | 3 h | 2 | ch. 2 | Ex. 7, Ex. 8 |
+| 4 | 3 h | 3 | ch. 3 | Ex. 9, Ex. 10 |
+
+**Self-study, outside the 12 h** (about 4 h in total): ch. 4 Research directions and open problems (≈ 4 h).
+
+### How to study this module
+
+-   Read the chapter named in a row of the session plan, then do the exercises in that row. Step 1 is [ch. 0](#ch0) with exercises 1–3. Step 2 is [ch. 1](#ch1) with exercises 4–6. Step 3 is [ch. 2](#ch2) with exercises 7–8. Step 4 is [ch. 3](#ch3) with exercises 9–10.
+-   The 12 h figure is the catalogue's guided self-study volume. The fortnight publishes no official hourly load, and the split into four steps is a proposal.
+-   Run the fences with Python 3 and NumPy. [Ch. 2](#ch2) also shows the same step in PyTorch. Every fence uses synthetic numbers and a fixed seed where the draw is random.
+-   [Ch. 4](#ch4) is self-study, about 4 h, outside the 12 h.
+
+::: note
+[Scope of the notes]{.tag}
+
+The fiche quotes the catalogue entry for this refresher. The mathematics and the code are support written for that entry. Harris and coauthors (2020) describe the array model used below.
+:::
+
+## 0. Review: arrays, broadcasting and rounding {#ch0}
+
+Later chapters multiply arrays and subtract close numbers. An array is a buffer with a shape and strides. Broadcasting repeats axes of length one. One binary64 operation rounds correctly, to within one unit roundoff, when the result stays in the normalised range.
+
+### 0.1 Layout and views
+
+A NumPy array pairs a memory block with a dtype, a shape, and one stride per axis. A slice is usually a view of that block, so a write through the slice changes the parent. Reshape returns a view when strides can express the new order, and a copy when they cannot.
+
+In C order the flat offset of an index $(i_1,\ldots,i_d)$ on a shape $(n_1,\ldots,n_d)$ is
+
+$$
+\sum_{k=1}^{d} i_k \prod_{j=k+1}^{d} n_j,
+$$
+
+with the empty product equal to 1. On a shape $(2, 3)$, the index $(1, 2)$ has offset 5.
+
+### 0.2 Broadcasting
+
+A vector of $p$ scales divides the rows of an $n \times p$ matrix, with no Python loop.
+
+::: def
+[Definition 0.1 — Broadcast shapes]{.tag}
+
+Line the two shapes up on the right and pad the shorter shape with ones on the left. The shapes broadcast when every aligned pair of lengths is equal or contains a 1. The result length on an axis is the larger of the two lengths.
+:::
+
+:::: prop
+[Proposition 0.2 — Broadcast sum]{.tag}
+
+If two arrays broadcast, their elementwise sum equals the sum of the arrays obtained by repeating every axis of length 1 up to the result length.
+
+::: proof
+Equal lengths already match. A length of 1 against a length $n$ repeats its single slice $n$ times, and a missing axis was padded with a one. The expanded arrays share the result shape, and their sum is the broadcast sum. [∎]{.qed}
+:::
+::::
+
+A column $(3, 1)$ holding 1, 2, 3 and a row $(1, 4)$ holding 10, 20, 30, 40 broadcast to shape $(3, 4)$. Row 2, column 3, counting from one, equals 32.
+
+### 0.3 One-operation rounding
+
+Binary64 stores a sign, an 11-bit exponent and a 52-bit fraction. A normal number hides its leading 1, so the significand has 53 bits. Integers up to $2^{53}$ are exact.
+
+::: def
+[Definition 0.3 — Unit roundoff]{.tag}
+
+Let $\varepsilon$ denote the gap between 1 and the next binary64 number. That gap equals $2^{-52}$. NumPy reports it as the float64 machine epsilon. The unit roundoff for round-to-nearest is half the gap,
+
+$$
+u = 2^{-53}.
+$$
+:::
+
+:::: thm
+[Theorem 0.4 — Standard model]{.tag}
+
+Take finite binary64 operands and one of addition, subtraction, multiplication and division. When the exact result is normalised,
+
+$$
+\mathrm{fl}(a \circ b) = (a \circ b)\,(1+\delta), \qquad |\delta| \le u.
+$$
+
+Higham (2002) records this model of IEEE 754 arithmetic.
+
+::: proof
+Scale the exact result into the binade of $[1, 2)$ times a power of two. The gap there is $\varepsilon$ times that scale, so half a gap is a relative distance $u$. Overflow and subnormal results lie outside the claim. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 0.5 — A tie rounds to one]{.tag}
+
+The sum of 1 and $\varepsilon/2$ is the midpoint between 1 and the next float. Ties round to even, and the mantissa of 1 is even, so the stored sum is 1. Subtracting 1 returns 0. The relative error of that rounding is within $u$.
+:::
+
+::: key
+[Key formula — Unit roundoff]{.tag}
+
+$$
+u = 2^{-53}.
+$$
+:::
+
+```python
+import numpy
+eps = float(numpy.finfo(numpy.float64).eps)
+print(eps)
+print((1.0 + eps / 2.0) - 1.0)
+print((1.0 + eps) - 1.0)
+```
+
+The three printed values are 2.220446049250313e-16, then 0.0, then the same gap. The last subtraction is exact, because $1+\varepsilon$ is itself a floating-point number.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   A slice is usually a view, and a write through the view changes the parent buffer.
+-   Shapes broadcast when each aligned pair of lengths agrees or contains a one.
+-   One binary64 operation rounds to a relative error of at most $u = 2^{-53}$.
+-   A tie just above 1 can round back to 1, and the next subtraction then prints 0.
+::::
+
+## 1. Matrix products, solves and least squares {#ch1}
+
+A linear solve and a least-squares fit are the matrix tasks later courses call most often. Both rest on a product, a residual and a condition number. The rounding rules of [ch. 0](#ch0) are why two algebraically equivalent formulas can disagree in binary64.
+
+### 1.1 Cost and the condition number
+
+Multiplying an $m \times n$ matrix by an $n \times p$ matrix performs $mnp$ multiplications and the same number of additions. For a square factor of order $n$,
+
+$$
+\text{product} \approx 2n^3, \qquad \text{elimination} \approx \tfrac{2}{3} n^3.
+$$
+
+Each extra right-hand side, once a factorisation is known, costs about $2n^2$ operations. The counts are the usual ones in Trefethen and Bau (1997). A flop here means one addition, subtraction, multiplication or division.
+
+::: def
+[Definition 1.1 — 2-norm condition number]{.tag}
+
+For a nonzero matrix $A$ of full rank, the 2-norm condition number is the ratio of the largest singular value to the smallest,
+
+$$
+\kappa_2(A) = \sigma_{\max}(A) / \sigma_{\min}(A).
+$$
+
+A large ratio means that a small relative change in the data can become a large relative change in the solution of a square system.
+:::
+
+### 1.2 Least squares
+
+:::: prop
+[Proposition 1.2 — Normal equations]{.tag}
+
+Let $A$ have full column rank and let $b$ be a right-hand side of compatible length. The minimiser of $\|Ax - b\|_2$ is the unique solution of
+
+$$
+A^\top A x = A^\top b.
+$$
+
+::: proof
+Half the squared residual has gradient $A^\top(Ax - b)$. A zero gradient is the displayed equation. Independent columns make $A^\top A$ positive definite, so the critical point is the only minimiser. [∎]{.qed}
+:::
+::::
+
+The eigenvalues of $A^\top A$ are the squares of the singular values of $A$. The condition number of the normal matrix is therefore $\kappa_2(A)^2$. When that number is large, the thin SVD is the stable way to evaluate the same minimiser. With $A = U \Sigma V^\top$ and a positive diagonal $\Sigma$,
+
+$$
+\hat x = V \Sigma^{-1} U^\top b.
+$$
+
+Golub and Van Loan (2013) develop the factorisation and this formula.
+
+### 1.3 A perturbation of the right-hand side
+
+:::: thm
+[Theorem 1.3 — Square right-hand side]{.tag}
+
+Let $A$ be square and nonsingular, and let $A x = b$ and $A(x + \delta x) = b + \delta b$ with $b \neq 0$. Then
+
+$$
+\frac{\|\delta x\|}{\|x\|} \le \kappa_2(A)\, \frac{\|\delta b\|}{\|b\|}.
+$$
+
+::: proof
+From $A\, \delta x = \delta b$, the size of the error in $x$ is at most $\|A^{-1}\|$ times the size of the error in $b$.
+
+Dividing by the size of $x$, and using that the size of $b$ is at most $\|A\|$ times the size of $x$, multiplies the relative change by at most the condition number. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key formula — Perturbation of $b$]{.tag}
+
+$$
+\frac{\|\delta x\|}{\|x\|} \le \kappa_2(A)\, \frac{\|\delta b\|}{\|b\|}.
+$$
+:::
+
+::: ex
+[Example 1.4 — Two nearly equal columns]{.tag}
+
+The rows $(1, 1)$ and $(1, 1.001)$ with right-hand side $(2, 2.001)$ have exact solution $(1, 1)$. The perturbation $(10^{-6}, -10^{-6})$ is small next to that right-hand side and large next to the gap between the columns.
+:::
+
+```python
+import numpy
+A = numpy.array([[1.0, 1.0], [1.0, 1.001]])
+b = numpy.array([2.0, 2.001])
+x = numpy.linalg.solve(A, b)
+db = numpy.array([1.0e-6, -1.0e-6])
+xp = numpy.linalg.solve(A, b + db)
+print(float(x[0]), float(x[1]))
+print(float(numpy.linalg.cond(A)))
+print(float(numpy.linalg.norm(xp - x) / numpy.linalg.norm(x)))
+print(float(numpy.linalg.norm(db) / numpy.linalg.norm(b)))
+```
+
+The fence prints the solution 1.0 1.0, then the condition number 4002.000750124839, then the relative change 0.0020005000627642258 in $x$, then the relative change 4.998750156289031e-07 in $b$. The product of the condition number and the last print is 0.0020005001875155358, which lies just above the relative change in $x$. On this matrix Theorem 1.3 is nearly an equality. Exercise 9 asks why.
+
+::: recap
+Key takeaways — chapter 1
+
+-   A square product of order $n$ costs about $2n^3$ operations, and elimination about two thirds of that.
+-   Full column rank makes the normal equations the unique least-squares minimiser.
+-   Forming $A^\top A$ squares $\kappa_2(A)$. The thin SVD avoids that squaring.
+-   For a square matrix, a relative change in $b$ is amplified by at most $\kappa_2(A)$.
+:::
+
+## 2. Reverse-mode differentiation and one training step {#ch2}
+
+Training a model is a gradient step on a scalar loss. The loss is a straight-line program in the weights. Reverse mode computes every partial derivative of that scalar at a small multiple of the cost of the program itself. Baydin, Pearlmutter, Radul and Siskind (2018) survey the construction. Griewank and Walther (2008) give the proofs and the checkpoint schedules.
+
+### 2.1 Adjoints
+
+::: def
+[Definition 2.1 — Straight-line program]{.tag}
+
+A straight-line program is a finite list of elementary steps. Each step applies one operation, such as addition, multiplication or the exponential, to inputs or to earlier steps. The last step is a scalar output.
+:::
+
+:::: thm
+[Theorem 2.2 — Cost of reverse mode]{.tag}
+
+Let $f$ be a scalar output of a straight-line program with $N$ elementary steps. The gradient of $f$ can be computed with at most $c N$ elementary operations, together with storage for the $N$ forward values. The constant $c$ depends only on the allowed operations.
+
+::: proof
+The forward sweep evaluates every intermediate value and stores it. The adjoint of the output starts at 1. Walking backward, each node adds its adjoint times the local partial derivative into the adjoint of each argument. Each elementary operation has a fixed number of arguments, so the backward sweep does a bounded amount of work per node. The adjoints of the inputs are the partial derivatives. [∎]{.qed}
+:::
+::::
+
+Checkpointing recomputes a segment on the way back and trades time for the memory of the forward values.
+
+::: ex
+[Example 2.3 — Adjoint of a square exponential]{.tag}
+
+Let $f(x) = \exp(x)^2$. At the origin both forward values equal 1.
+
+The output adjoint is 1. Twice that forward value sends adjoint 2 onto the exponential node, and the exponential factor sends adjoint 2 onto $x$. The closed form $2\exp(2x)$ equals 2 there as well.
+:::
+
+### 2.2 A safe step on a quadratic
+
+The least-squares loss of [ch. 1](#ch1) is a quadratic. Its gradient is Lipschitz, and one explicit step size never increases it.
+
+:::: prop
+[Proposition 2.4 — Descent on a least-squares quadratic]{.tag}
+
+Let $f(w) = \tfrac{1}{2} \|Aw - b\|_2^2$ and let $L = \|A\|_2^2$. Write $g$ for the gradient at $w$. Then
+
+$$
+f(w - g/L) \le f(w) - \frac{\|g\|^2}{2L}.
+$$
+
+::: proof
+Set the step $d = -g/L$. The change in this quadratic equals the inner product of $g$ with $d$, plus a half quadratic term in $A^\top A$.
+
+The linear term equals $-\|g\|^2/L$. The quadratic term is at most half of $\|g\|^2/L$, because every eigenvalue of $A^\top A$ is at most $L$. The displayed decrease follows. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key formula — Safe step]{.tag}
+
+$$
+w \leftarrow w - g/L, \qquad L = \|A\|_2^2.
+$$
+:::
+
+Take $A = \mathrm{diag}(1, 2)$ and $b = (1, 2)$, with $w$ at the origin. Then $g = (-1, -4)$ and $L = 4$.
+
+The step length is 1/4, and the new point is $(1/4, 1)$. The squared norm of the gradient is 17, so the proposition caps the new loss by 0.375.
+
+```python
+import numpy
+A = numpy.array([[1.0, 0.0], [0.0, 2.0]])
+b = numpy.array([1.0, 2.0])
+w = numpy.zeros(2)
+grad = A.T @ (A @ w - b)
+step = 1.0 / float(numpy.linalg.norm(A, 2) ** 2)
+w_new = w - step * grad
+loss0 = 0.5 * float(numpy.sum((A @ w - b) ** 2))
+loss1 = 0.5 * float(numpy.sum((A @ w_new - b) ** 2))
+print(float(grad[0]), float(grad[1]))
+print(step)
+print(loss0)
+print(loss1)
+```
+
+The fence prints -1.0 and -4.0, then the step 0.25, then the losses 2.5 and 0.28125. The printed new loss sits under the cap 0.375.
+
+With `requires_grad` set, `backward` writes the adjoint into `grad`, and a later call accumulates. The stored gradient at the origin equals the printed NumPy vector. Paszke and coauthors (2019) define this tape. Nocedal and Wright (2006) treat the same step for smooth Lipschitz gradients.
+
+```python
+import torch
+A = torch.tensor([[1.0, 0.0], [0.0, 2.0]])
+b = torch.tensor([1.0, 2.0])
+w = torch.zeros(2, requires_grad=True)
+loss = 0.5 * torch.sum((A @ w - b) ** 2)
+loss.backward()
+print(w.grad.tolist())
+```
+
+::: recap
+Key takeaways — chapter 2
+
+-   Reverse mode on a scalar straight-line program costs a constant multiple of one forward evaluation.
+-   The constant is independent of the number of inputs. Memory holds the forward values, unless checkpointing recomputes them.
+-   On $f(w) = \tfrac{1}{2}\|Aw-b\|_2^2$, the step $1/\|A\|_2^2$ decreases the loss by at least $\|g\|^2/(2L)$.
+-   An eager tape such as PyTorch stores the same adjoints the reverse sweep computes by hand.
+:::
+
+## 3. Stable vectorised models {#ch3}
+
+A classifier ends in a softmax, and a small network ends in a matrix product. Both fail in ordinary ways. The exponential overflows on large logits. A Python loop over rows of a product pays an interpreter cost that a single matrix product avoids. This chapter stabilises the first and writes the second as one dense layer. Goodfellow, Bengio and Courville (2016) discuss the stable softmax in their numerical chapter.
+
+### 3.1 Log-sum-exp and the softmax Jacobian
+
+::: def
+[Definition 3.1 — Log-sum-exp and softmax]{.tag}
+
+For a vector $z$ with $K$ coordinates,
+
+$$
+\mathrm{lse}(z) = \log \sum_{k=1}^{K} e^{z_k}, \qquad s_k(z) = \exp(z_k - \mathrm{lse}(z)).
+$$
+
+The vector $s(z)$ is the softmax. Its coordinates are positive and sum to 1.
+:::
+
+:::: thm
+[Theorem 3.2 — Shift]{.tag}
+
+For every finite scalar $c$,
+
+$$
+\mathrm{lse}(z) = c + \mathrm{lse}(z - c \mathbf{1}).
+$$
+
+::: proof
+Factor $e^{c}$ out of the sum inside the logarithm. The logarithm turns that factor into an added $c$. The identity holds for every finite $c$. The choice $c = \max_k z_k$ makes every exponent at most 0, so the sum of exponentials lies between 1 and $K$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key formula — Shifted log-sum-exp]{.tag}
+
+$$
+\mathrm{lse}(z) = c + \log \sum_{k=1}^{K} \exp(z_k - c), \qquad c = \max_k z_k.
+$$
+:::
+
+:::: prop
+[Proposition 3.3 — Softmax Jacobian]{.tag}
+
+The Jacobian of $s$ at $z$ equals $\mathrm{diag}(s) - s s^\top$, where $s = s(z)$. For every vector $v$,
+
+$$
+v^\top (\mathrm{diag}(s) - s s^\top)\, v = \sum_k s_k v_k^2 - \Big(\sum_k s_k v_k\Big)^2.
+$$
+
+The right-hand side is a variance, so the Jacobian is positive semidefinite. It is singular because $s$ sums to 1.
+
+::: proof
+Write $s_k = e^{z_k} / \sum_j e^{z_j}$. Differentiating the quotient produces $s_k (\mathbf{1}_{k=j} - s_j)$. That is the claimed matrix. The quadratic form is the variance of the coordinates of $v$ under the discrete law $s$, hence nonnegative. It vanishes when $v$ is constant. [∎]{.qed}
+:::
+::::
+
+On the logits $(1000, 1001, 999)$ the direct exponential overflows. With the shift $c = 1001$ the exponents are $-1, 0, -2$.
+
+```python
+import numpy
+z = numpy.array([1000.0, 1001.0, 999.0])
+c = float(numpy.max(z))
+total = float(numpy.sum(numpy.exp(z - c)))
+print(float(numpy.log(numpy.sum(numpy.exp(z)))))
+print(total)
+print(c + float(numpy.log(total)))
+```
+
+The fence prints inf for the direct evaluation, then 1.503214724408055 for the shifted sum of exponentials, then the log-sum-exp 1001.4076059644444.
+
+For $s = (1/2, 1/2)$ and $v = (1, -1)$ the variance formula equals 1. Indeed $\mathrm{diag}(s) - s s^\top$ applied to $v$ returns $(1/2, -1/2)$, and the dot product with $v$ is 1. Exercise 8 repeats the check on the large logits above.
+
+### 3.2 One hidden ReLU layer
+
+A product over many rows should be one GEMM. A Python loop that dots each row with a vector pays an interpreter dispatch per row. One call to a matrix product pays that dispatch once and then runs a BLAS kernel. The same layout is what a dense layer stores.
+
+::: def
+[Definition 3.4 — One hidden ReLU layer]{.tag}
+
+For an input row $x$, weights $W_1$ and $W_2$, and biases $b_1$ and $b_2$,
+
+$$
+h = \mathrm{relu}(W_1 x + b_1), \qquad \hat y = W_2 h + b_2,
+$$
+
+where $\mathrm{relu}$ replaces each negative coordinate by 0. In batch form the products act on a matrix whose rows are samples. A PyTorch `Linear(in, out)` stores its weight with shape `(out, in)` and applies the same product.
+:::
+
+::: ex
+[Example 3.5 — Three inputs]{.tag}
+
+The first-layer rows are (1, -1) and (1/2, 1/2), with bias (0, -1/4). The output weights are (1, -1) and the output bias is 1/10.
+
+On inputs (1, 0), (0, 1) and (-1, 1), the hidden preactivations are (1, 1/4), (-1, 1/4) and (-2, -1/4). ReLU zeroes every negative entry.
+
+The outputs are 0.85, -0.15 and 0.1. Against targets (1, -1, 0) the squared errors are 0.0225, 0.7225 and 0.01.
+:::
+
+```python
+import numpy
+X = numpy.array([[1.0, 0.0], [0.0, 1.0], [-1.0, 1.0]])
+W1 = numpy.array([[1.0, -1.0], [0.5, 0.5]])
+b1 = numpy.array([0.0, -0.25])
+W2 = numpy.array([1.0, -1.0])
+b2 = 0.1
+y = numpy.array([1.0, -1.0, 0.0])
+pred = numpy.maximum(X @ W1.T + b1, 0.0) @ W2 + b2
+print(float(numpy.mean((pred - y) ** 2)))
+```
+
+The fence prints the mean squared loss 0.25166666666666665, the mean of the three squared errors in the example. One backward step through this layer is the reverse sweep of [ch. 2](#ch2), with a local derivative of 1 on positive preactivations and 0 on negative ones.
+
+::: recap
+Key takeaways — chapter 3
+
+-   Subtracting the largest logit keeps every exponential in a log-sum-exp between $e^{0}$ and 1, up to the count of classes.
+-   The softmax Jacobian is $\mathrm{diag}(s) - s s^\top$, a variance, and it kills constant vectors.
+-   A dense layer is a matrix product of shape `(out, in)` followed by a bias, then a pointwise ReLU.
+-   The three-row example has mean squared loss 0.25166666666666665.
+:::
+
+## 4. Research directions and open problems {#ch4}
+
+The in-class chapters stop at one eager tape, one dense layer and binary64. Current work asks what changes when the same mathematics is compiled, run in a narrow format, or differentiated through a solver rather than through an explicit product.
+
+### 4.1 Compiled tapes
+
+Frostig, Johnson and Leary (2018) trace a NumPy-like program and compile the trace. Fusion removes intermediate buffers, and the same trace can be transformed into its gradient. The difficult point is control flow that depends on values. A compiled subset asks for functional loops. An eager program in the style of [ch. 2](#ch2) may branch on data. Giving both styles one semantics, with the same rounding, is an open design problem as well as an engineering one.
+
+### 4.2 Precision and memory
+
+Micikevicius and coauthors (2018) keep a float32 master copy of each weight, evaluate products in float16, and scale the loss so small gradients survive the narrow exponent. [Ch. 3](#ch3) already needed a shift in binary64. In binary16 the same shift can flush every non-maximal exponential to zero. Exercise 10 shows this on a logit of 20. Which reductions must stay in float32 is still chosen kernel by kernel.
+
+Dao, Fu, Ermon, Rudra and Ré (2022) compute exact attention without storing the matrix of all pairs. The algorithm tiles the softmax and recomputes normalisation statistics. That is the checkpointing of [ch. 2](#ch2), specialised to one kernel and to GPU memory traffic. Automatic fusion that matches these numerics on a wider class of graphs remains open.
+
+### 4.3 Solvers and continuous depth
+
+Blondel and coauthors (2022) differentiate the solution of a fixed-point equation or a cone program by the implicit function theorem, without storing the iterations. The gradient is a linear solve at the solution. The least-squares step of [ch. 1](#ch1) is the simplest case, because the normal equation is an explicit linear system. Maps that return a discrete object, such as a permutation or a shortest path, fall outside that theorem. Useful relaxations exist for some of them. A general rule for which discrete maps admit a faithful smooth surrogate is open.
+
+Chen, Rubanova, Bettencourt and Duvenaud (2018) treat network depth as time in an ordinary differential equation and backpropagate with an adjoint equation. Memory stays independent of the number of solver steps, at the cost of recomputing the forward trajectory. The construction is reverse mode on a continuous straight-line program. Stability of that adjoint over long times, and its interaction with the low-precision products above, are active questions.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Tracing a NumPy program buys fusion and transforms, and it still has to say what a data-dependent branch means.
+-   Mixed precision keeps a wide master copy. A binary16 softmax can flush every logit but the largest.
+-   Implicit differentiation covers solutions of smooth equations. Discrete maps need a separate surrogate.
+-   An adjoint ODE is reverse mode in continuous time, with a recomputed forward pass.
+:::
 
 ## Exercises {#ex}
 
-TODO
+Levels: ★ applies one chapter, ★★ combines two facts or a short derivation, ★★★ asks for a judgement on a computed example. Exercises 2 and 6 draw from a fixed NumPy generator.
+
+1.  **★ A different column and row.** Let the column be $(4, 1, 2)$ and the row be $(5, 6)$. Give the shape of the broadcast sum and the bottom-right entry, counting rows and columns from one.
+
+    *Solution.* The shapes $(3, 1)$ and $(1, 2)$ broadcast to $(3, 2)$ by Definition 0.1. The bottom-right entry is $2 + 6 = 8$.
+
+2.  **★ Five seeded standard normals.** The fence draws five standard normal values and prints the first value, then the mean of the five. Report both printed numbers.
+
+```python
+import numpy
+rng = numpy.random.default_rng(0)
+sample = rng.standard_normal(5)
+print(sample[0])
+print(sample.mean())
+```
+
+    *Solution.* The fence prints 0.1257302210933933 and then 0.040655750447460434. The first number is the first draw. The second is the mean of the five draws from this seed.
+
+3.  **★ A midpoint stored as one.** Let eps be the float64 gap $2^{-52}$. In binary64, evaluate $(1 + \mathrm{eps}/2) - 1$ and $(1 + \mathrm{eps}) - 1$. Explain the first result with Theorem 0.4.
+
+    *Solution.* The first expression returns 0. The second returns eps, equal to 2.220446049250313e-16, as in the fence of [ch. 0](#ch0).
+
+    The value $1 + \mathrm{eps}/2$ is the midpoint between 1 and the next float. Ties round to even, so the sum is stored as 1, and subtracting 1 yields 0. The addition of the two floating-point operands meets Theorem 0.4. The relative error is at most $u$.
+
+4.  **★ One safe step on a diagonal quadratic.** Let $A = \mathrm{diag}(2, 1)$, let $b = (2, 1)$ and let $w = 0$. For $f(w) = \tfrac{1}{2}\|Aw - b\|_2^2$, compute the gradient, the step $1/\|A\|_2^2$, the updated $w$, and the loss before and after the step.
+
+    *Solution.* The residual at the origin is $-b$, so the gradient is $(-4, -1)$. The operator norm of $A$ is 2 and the step is $1/4$. The updated point is $(1, 1/4)$.
+
+    The loss falls from $2.5$ to $0.28125$. Proposition 2.4 applies with $L = 4$, and the same arithmetic as [ch. 2](#ch2) produces the decrease.
+
+5.  **★★ Normal equations for a thin matrix.** Let the matrix have rows (1, 0), (1, 0) and (0, 1), and let the right-hand side be (1, 3, 2). Solve the normal equations, give the residual norm, and compare the square of the 2-norm condition number with the condition number of the normal matrix.
+
+    *Solution.* Here $A^\top A = \mathrm{diag}(2, 1)$ and $A^\top b = (4, 2)$, so the minimiser is $(2, 2)$. The residual $Ax - b$ equals $(1, -1, 0)$, and its Euclidean norm is $\sqrt{2}$.
+
+    The singular values of $A$ are $\sqrt{2}$ and $1$, so $\kappa_2(A)^2 = 2$. The condition number of $A^\top A$ is $2/1 = 2$. The two numbers agree, as the paragraph after Proposition 1.2 states.
+
+6.  **★★ A seeded residual norm.** The fence draws a $6 \times 3$ standard normal matrix and a standard normal right-hand side of length 6, solves the least-squares problem, and prints the Euclidean residual norm. Quote that printed number and say what it measures.
+
+```python
+import numpy
+rng = numpy.random.default_rng(0)
+A = rng.normal(size=(6, 3))
+b = rng.normal(size=6)
+x, residuals, rank, sv = numpy.linalg.lstsq(A, b, rcond=None)
+print(numpy.linalg.norm(A @ x - b))
+```
+
+    *Solution.* The fence prints 1.240898503758325. That number is the Euclidean distance from $b$ to the column space of $A$, which is the least-squares residual norm of Proposition 1.2.
+
+7.  **★★ Reverse mode on a square exponential.** Run the reverse sweep of Example 2.3 at $x = 1$ instead of at the origin. Give the forward values and the adjoint of $x$, and check them against $2\exp(2x)$.
+
+    *Solution.* The forward values are $\exp(1)$ and $\exp(2)$. The output adjoint is 1. The adjoint of the exponential node is $2\exp(1)$. The adjoint of $x$ is $\exp(1) \times 2\exp(1) = 2\exp(2)$.
+
+    The closed form $2\exp(2x)$ at $x = 1$ is the same number. Theorem 2.2 says the sweep and the closed form compute one gradient.
+
+8.  **★★ Shifted softmax and a variance.** For $z = (1000, 1001, 999)$, compute the shifted sum of exponentials, the log-sum-exp, and the three softmax coordinates. For $v = (1, -1, 0)$, evaluate the quadratic form in Proposition 3.3.
+
+    *Solution.* With shift 1001 the exponents are $-1, 0, -2$. The shifted sum of exponentials is 1.503214724408055, and the log-sum-exp is 1001.4076059644444, as printed in [ch. 3](#ch3).
+
+    The softmax coordinates are 0.24472847105479772, 0.6652409557748219 and 0.09003057317038045. They sum to 1. For $v = (1, -1, 0)$ the variance formula equals 0.7331386770242111, which is nonnegative, as Proposition 3.3 requires.
+
+9.  **★★★ A nearly sharp condition number.** Using the matrix of Example 1.4, recompute the condition number, the two relative changes, and the alignment of the perturbation of $b$ with the left singular vector of the smaller singular value. Explain the near-equality in Theorem 1.3.
+
+```python
+import numpy
+A = numpy.array([[1.0, 1.0], [1.0, 1.001]])
+b = numpy.array([2.0, 2.001])
+x = numpy.linalg.solve(A, b)
+db = numpy.array([1.0e-6, -1.0e-6])
+xp = numpy.linalg.solve(A, b + db)
+u, s, vt = numpy.linalg.svd(A, full_matrices=False)
+align = float(numpy.dot(db / numpy.linalg.norm(db), u[:, -1]))
+print(float(numpy.linalg.cond(A)))
+print(float(numpy.linalg.norm(xp - x) / numpy.linalg.norm(x)))
+print(float(numpy.linalg.norm(db) / numpy.linalg.norm(b)))
+print(align)
+```
+
+    *Solution.* The fence prints 4002.000750124839, then 0.0020005000627642258, then 4.998750156289031e-07, then -0.9999999687500054.
+
+    The product of the first print and the third is 0.0020005001875155358, just above the second print, so the inequality of Theorem 1.3 holds. The last print is the cosine between the perturbation and the left singular vector of the smaller singular value. Its absolute value is almost 1, so the perturbation points along the direction $A^{-1}$ amplifies, and the bound is nearly attained.
+
+10. **★★★ Softmax in binary16.** The fence evaluates a softmax of $(20, 0, 0)$ in float16, with and without the shift of Theorem 3.2, and prints the float16 logarithm of the largest finite binary16 number. Say what collapsed, and what a mixed-precision training step should keep in a wider format.
+
+```python
+import numpy
+z = numpy.array([20.0, 0.0, 0.0], dtype=numpy.float16)
+print(numpy.exp(z))
+shifted = numpy.exp(z - numpy.max(z))
+print(shifted / numpy.sum(shifted))
+print(float(numpy.log(numpy.finfo(numpy.float16).max)))
+```
+
+    *Hints and expected result.* The largest finite binary16 value is 65504. The fence prints its float16 logarithm, 11.09375. A logit of 20 lies beyond that threshold, so a direct exponential cannot return a finite softmax.
+
+    The first printed array is inf followed by 1 and 1. The shifted probabilities print as 1, 0 and 0. The shift removed the overflow and flushed the other two exponentials to zero.
+
+    Micikevicius and coauthors (2018) keep a float32 master copy of the weights, run products in float16, and scale the loss. The sums inside a softmax are a reduction to keep in the wider format. [Ch. 4](#ch4) records that this choice is still made kernel by kernel.
 
 ## Projects and assessment {#projects}
 
-TODO
+Assessment: not displayed.
 
 ## References {#refs}
 
-TODO
+Official source
+
+-   Master MVA planning page, <https://www.master-mva.com/formation-mva/planning/>, read 22 October 2026. The refresher fortnight publishes the dates 14/09/2026 – 24/09/2026 and no programme.
+
+Textbooks and standards
+
+-   G. H. Golub and C. F. Van Loan. *Matrix Computations*. 4th ed., Johns Hopkins University Press, 2013.
+-   I. Goodfellow, Y. Bengio and A. Courville. *Deep Learning*. MIT Press, 2016.
+-   A. Griewank and A. Walther. *Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation*. 2nd ed., SIAM, 2008.
+-   N. J. Higham. *Accuracy and Stability of Numerical Algorithms*. 2nd ed., SIAM, 2002.
+-   IEEE Std 754-2019. *IEEE Standard for Floating-Point Arithmetic*. IEEE, 2019.
+-   J. Nocedal and S. J. Wright. *Numerical Optimization*. 2nd ed., Springer, 2006.
+-   L. N. Trefethen and D. Bau. *Numerical Linear Algebra*. SIAM, 1997.
+
+Papers
+
+-   A. G. Baydin, B. A. Pearlmutter, A. A. Radul and J. M. Siskind. Automatic differentiation in machine learning: a survey. *Journal of Machine Learning Research*, 18(153):1–43, 2018.
+-   M. Blondel, Q. Berthet, M. Cuturi, R. Frostig, S. Hoyer, F. Llinares-López, F. Pedregosa and J.-P. Vert. Efficient and modular implicit differentiation. *Advances in Neural Information Processing Systems 35*, 2022.
+-   R. T. Q. Chen, Y. Rubanova, J. Bettencourt and D. Duvenaud. Neural ordinary differential equations. *Advances in Neural Information Processing Systems 31*, 2018.
+-   T. Dao, D. Y. Fu, S. Ermon, A. Rudra and C. Ré. FlashAttention: fast and memory-efficient exact attention with IO-awareness. *Advances in Neural Information Processing Systems 35*, 2022.
+-   R. Frostig, M. Johnson and C. Leary. Compiling machine learning programs via high-level tracing. *SysML*, 2018.
+-   C. R. Harris, K. J. Millman, S. J. van der Walt and coauthors. Array programming with NumPy. *Nature*, 585:357–362, 2020.
+-   P. Micikevicius, S. Narang, J. Alben, G. Diamos, E. Elsen, D. Garcia, B. Ginsburg, M. Houston, O. Kuchaiev, G. Venkatesh and H. Wu. Mixed precision training. *International Conference on Learning Representations*, 2018.
+-   A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury and coauthors. PyTorch: an imperative style, high-performance deep learning library. *Advances in Neural Information Processing Systems 32*, 2019.
