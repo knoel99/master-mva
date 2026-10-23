@@ -1867,3 +1867,205 @@ Biau, Devroye and Lugosi (2008) proved the consistency of simplified random fore
 -   What is the sample complexity of learning a classifier that satisfies a fairness constraint at a given tolerance?
 -   Can stability arguments (ch. 9) replace uniform convergence for rules such as random forests or gradient boosting?
 
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. Exercises 6, 14 and 17 are computational.
+
+1.  **★ A Bayes classifier with costs.** The input takes three values $a, b, c$ with the following probabilities and regression function:
+
+    | $x$ | $a$ | $b$ | $c$ |
+    |---|---|---|---|
+    | $\mathbb{P}(X = x)$ | 0.5 | 0.3 | 0.2 |
+    | $\eta(x)$ | 0.9 | 0.4 | 0.1 |
+
+    Find the Bayes classifier and the Bayes risk, and the excess risk of the constant classifier $+1$. Then find the classifier that minimizes the cost-sensitive risk with cost $0.3$ for a false positive.
+
+    *Solution*: $g^*(a) = +1$ and $g^*(b) = g^*(c) = -1$, so
+    $$
+    R^* = 0.5 \times 0.1 + 0.3 \times 0.4 + 0.2 \times 0.1 = 0.19 .
+    $$
+
+    The constant $+1$ has risk $\mathbb{P}(Y = -1) = 0.41$. Theorem 1.3 gives the same excess, $0.3 \times 0.2 + 0.2 \times 0.8 = 0.22$.
+
+    With cost 0.3, Proposition 2.2 predicts $+1$ where $\eta > 0.3$, that is at $a$ and $b$. Its cost-sensitive risk is $0.015 + 0.054 + 0.014 = 0.083$, against 0.113 for $g^*$.
+
+2.  **★ Bayes risk of Gaussian classes.** In Example 1.5 with $\sigma = 1$, compute $R^*$ for $\|\mu\| = 1.5$. Then take all coordinates of $\mu \in \mathbb{R}^d$ equal to $m = 0.2$: compute $R^*$ for $d = 25$ and $d = 100$, and explain the result.
+
+    *Solution*: $R^* = \Phi(-1.5) = 0.0668$. With $\|\mu\| = m\sqrt{d}$, the risk is $\Phi(-1) = 0.1587$ for $d = 25$ and $\Phi(-2) = 0.0228$ for $d = 100$.
+
+    Many weakly informative independent features add up, provided the classifier weights them correctly. LDA (Proposition 3.1) has to estimate $d$ coordinates of $w$ to do so, which is where estimation error enters.
+
+3.  **★ How many test points?** How large must a test sample be for the test error to be within $\pm 0.01$ of the risk with probability 0.95? Compare with Chebyshev's inequality.
+
+    *Solution*: by Proposition 2.3, $m \geq \log(40) / (2 \times 10^{-4}) = 18\,444$; for $\pm 0.02$, 4611 points suffice.
+
+    Chebyshev with $\mathrm{Var} \leq 1/4$ requires $1/(4 m \varepsilon^2) \leq 0.05$, that is $m \geq 50\,000$. The exponential tail of Hoeffding's inequality is worth a factor 2.7 here, and much more at smaller $\delta$.
+
+4.  **★ VC dimensions.** Compute the VC dimension of (a) axis-parallel rectangles in $\mathbb{R}^2$ (label $+1$ inside), and (b) unions of two intervals on the line.
+
+    *Solution*: (a) $V = 4$. Four points in a diamond, $(\pm 1, 0)$ and $(0, \pm 1)$, are shattered. Among any five points, keep a leftmost, a rightmost, a lowest and a highest one; the smallest rectangle containing them contains the fifth, so the labelling with the fifth point negative and the others positive is impossible.
+
+    (b) $V = 4$. On sorted points, a union of two intervals realizes exactly the labellings with at most two blocks of $+1$. All labellings of four points have at most two such blocks, while $(+, -, +, -, +)$ has three.
+
+5.  **★ Two $\psi$-transforms.** Derive $H$ and $\psi$ for the square loss and the exponential loss (Example 6.5). For an excess exponential risk of 0.005, bound the excess classification risk exactly and with $\psi(\theta) \geq \theta^2/2$.
+
+    *Solution*: for the square loss, $C_\eta(\alpha)$ is minimized at $\alpha = 2\eta - 1$, so $H(\eta) = 4\eta(1 - \eta)$ and $\psi(\theta) = 1 - (1 - \theta^2) = \theta^2$.
+
+    For the exponential loss, the minimizer is $\frac12 \log(\eta/(1-\eta))$, so $H(\eta) = 2\sqrt{\eta(1-\eta)}$ and $\psi(\theta) = 1 - \sqrt{1 - \theta^2}$.
+
+    Solving $1 - \sqrt{1 - \theta^2} \leq 0.005$ gives $\theta \leq \sqrt{1 - 0.995^2} = 0.0999$. The quadratic bound gives $\sqrt{0.01} = 0.1$: almost the same.
+
+6.  **★ Choosing $k$, in Python.** Rerun the code of Example 3.8 with $n = 2000$ and $k \in \{1, 3, 15, 45, 200, 1000, 1999\}$. Explain both ends, and check the Cover–Hart bound.
+
+    *Hints and expected result*: replace the loop of Example 3.8 by the following.
+
+    ```python
+    import numpy as np
+    from sklearn.neighbors import KNeighborsClassifier
+
+    rng = np.random.default_rng(1)
+    mu = np.array([1.0, 0.0])
+    def sample(n):
+        y = rng.choice([-1, 1], size=n)
+        return y[:, None] * mu + rng.standard_normal((n, 2)), y
+
+    X, y = sample(2000)
+    Xte, yte = sample(20_000)
+    for k in [1, 3, 15, 45, 200, 1000, 1999]:
+        err = 1 - KNeighborsClassifier(n_neighbors=k).fit(X, y).score(Xte, yte)
+        print(f"k = {k:4d}   test error = {err:.4f}")
+    ```
+
+    The errors are 0.223, 0.193, 0.170, 0.163, 0.158, 0.158 and 0.504. Small $k$ has high variance, and $k = 1$ sits at the Cover–Hart limit 0.225, below $2R^*(1 - R^*) = 0.267$.
+
+    Large $k$ still works here because the Bayes boundary is a line through the centre of the data, so even half of the sample is a good neighbourhood. At $k = n - 1$ the rule votes over the whole sample: it is a constant classifier with error 0.5.
+
+7.  **★★ A sharper plug-in inequality.** Show that the plug-in classifier satisfies
+    $$
+    R(\hat g) - R^* \leq 2\, \mathbb{E}\big[\,|\hat\eta(X) - \eta(X)|\; \mathbb{1}\{\hat g(X) \neq g^*(X)\}\big] .
+    $$
+    Deduce that under Massart's condition $|2\eta - 1| \geq h$,
+    $$
+    R(\hat g) - R^* \leq \frac{4}{h}\, \mathbb{E}\big[(\hat\eta(X) - \eta(X))^2\big] .
+    $$
+
+    *Solution*: the first bound is the proof of Proposition 2.4 before dropping the indicator.
+
+    Where $\hat g \neq g^*$, the estimate is on the other side of $1/2$, so $|\hat\eta - \eta| \geq |\eta - 1/2| \geq h/2$. Hence $\mathbb{1}\{\hat g \neq g^*\} \leq 2|\hat\eta - \eta| / h$, and inserting this gives the result.
+
+    The classification rate is now the *square* of the $L^2$ rate for $\eta$, instead of its square root.
+
+8.  **★★ The perceptron bound is tight.** Run the perceptron on the points $e_1, \dots, e_d$ of $\mathbb{R}^d$ with arbitrary labels. Count its mistakes and compare with Theorem 3.3.
+
+    *Solution*: the unit vector $w^* = \frac{1}{\sqrt d} \sum_j y_j e_j$ separates the data with margin $\gamma = 1/\sqrt{d}$, and $\rho = 1$, so the bound is $(\rho/\gamma)^2 = d$.
+
+    In the first pass, $w$ is a combination of the earlier, orthogonal $e_j$, so $\langle w, e_i \rangle = 0$ and each example triggers an update: $d$ mistakes. After the pass, $w = \sum_j y_j e_j$ classifies everything correctly, and the bound is attained.
+
+9.  **★★ Rademacher complexity by hand.** On two points $x_1 < x_2$, compute $\hat{\mathfrak{R}}_2$ for the thresholds $x \mapsto \mathbb{1}\{x > t\}$ and for all functions with values in $\{0, 1\}$. Compare with Lemma 4.11.
+
+    *Solution*: the threshold patterns are $(0,0)$, $(0,1)$ and $(1,1)$. For the sign vectors $(+,+)$, $(+,-)$, $(-,+)$ and $(-,-)$, the maxima of $\sigma_1 a_1 + \sigma_2 a_2$ are 2, 0, 1 and 0. Their mean is $3/4$, and dividing by $n = 2$ gives 0.375.
+
+    With all four patterns, the maximum is $(\sigma_1)_+ + (\sigma_2)_+$, of mean 1, so $\hat{\mathfrak{R}}_2 = 0.5$. Massart's lemma gives $\sqrt{2}\, \sqrt{2 \log 3} / 2 = 1.05$ for the thresholds: correct but vacuous, since the class has range 1.
+
+10. **★★ Sauer's lemma is tight.** Show that on an infinite set, the class of indicators of the subsets with at most $V$ elements has VC dimension $V$ and growth function exactly $\sum_{i \leq V} \binom{n}{i}$.
+
+    *Solution*: on $n$ distinct points, the traces are the subsets of at most $V$ of these points: there are $\sum_{i \leq V} \binom{n}{i}$ of them. A set of $V$ points is shattered, since all its subsets are allowed; a set of $V + 1$ points is not, since the full set is missing.
+
+11. **★★ The perceptron loss is not calibrated.** For $\varphi(u) = \max(0, -u)$, compute $C_\eta$, $H$ and $H^-$, and conclude. Then show that the squared hinge loss $\max(0, 1 - u)^2$ is calibrated and compute its $\psi$-transform.
+
+    *Solution*: $C_\eta(\alpha) = (1 - \eta)\, \alpha$ for $\alpha \geq 0$ and $\eta\, |\alpha|$ for $\alpha \leq 0$. Its minimum is at $\alpha = 0$ for every $\eta$, so $H = H^- = 0$: not calibrated, in line with Theorem 6.3 since $\varphi$ is not differentiable at 0. The constant $f = 0$ minimizes the risk, and the perceptron works only through its algorithm and separability.
+
+    The squared hinge has $\varphi'(0) = -2$: calibrated. On $[-1, 1]$ it coincides with the square loss, whose minimizer $2\eta - 1$ lies there, so $\psi(\theta) = \theta^2$.
+
+12. **★★ AdaBoost forgets its last choice.** Show that under the new weights $w_{t+1}$, the base classifier $h_t$ has weighted error exactly $1/2$. What does this imply for $h_{t+1}$?
+
+    *Solution*: the weight of the examples misclassified by $h_t$ becomes
+    $$
+    \frac{\varepsilon_t\, e^{\alpha_t}}{Z_t} = \frac{\varepsilon_t \sqrt{(1 - \varepsilon_t)/\varepsilon_t}}{2\sqrt{\varepsilon_t (1 - \varepsilon_t)}} = \frac12 .
+    $$
+    So $h_t$ is no better than chance under the new weights, and AdaBoost never selects the same classifier twice in a row.
+
+13. **★★ AUC by hand.** Three positives have scores $0.9, 0.7, 0.4$ and three negatives $0.8, 0.3, 0.2$. Compute the empirical AUC by counting pairs, by the rank formula, and as the area under the empirical ROC curve. Compute the empirical ranking risk $L_n$ and relate it to the AUC.
+
+    *Solution*: the score 0.9 beats the three negatives, 0.7 beats two and 0.4 beats two, so $\widehat{\mathrm{AUC}} = 7/9 = 0.778$.
+
+    The positive ranks among the six scores are 6, 4 and 3, so the rank formula gives $(13 - 6)/9 = 7/9$. The ROC curve goes through $(0, 1/3)$, $(1/3, 1/3)$, $(1/3, 1)$ and $(1, 1)$, with area $1/9 + 2/3 = 7/9$.
+
+    Two unordered pairs are misordered, hence 4 of the 30 ordered pairs, and $L_n = 0.133$. The 18 ordered pairs with different labels make up 0.6 of all pairs, and $0.6 \times 2/9 = 0.133$: the empirical analogue of Proposition 8.4.
+
+14. **★★ Exponential weights, in Python.** Simulate 50 experts with Bernoulli losses of means drawn in $[0.3, 0.5]$ over $T = 5000$ rounds. Compare the regret of exponential weights with the bound of Theorem 7.8 and with the uniform average; then vary $\eta$.
+
+    *Hints and expected result*:
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(5)
+    T, M = 5000, 50
+    q = rng.uniform(0.3, 0.5, size=M)                  # mean loss of each expert
+    L = (rng.uniform(size=(T, M)) < q).astype(float)   # losses in {0, 1}
+    eta = np.sqrt(8 * np.log(M) / T)
+
+    cum, total = np.zeros(M), 0.0
+    for t in range(T):
+        w = np.exp(-eta * (cum - cum.min()))           # shift for numerical stability
+        total += (w / w.sum()) @ L[t]
+        cum += L[t]
+    print(f"exponential weights regret {total - cum.min():6.1f}")
+    print(f"uniform average regret     {L.mean(axis=1).sum() - cum.min():6.1f}")
+    print(f"bound sqrt(T log M / 2)    {np.sqrt(T * np.log(M) / 2):6.1f}")
+    ```
+
+    The regret is 72.9, below the bound 98.9, while the uniform average loses 487.4. A much smaller $\eta$ behaves like the uniform average; a much larger one follows the current leader and becomes unstable.
+
+15. **★★★ Fast rates under the margin condition.** Let $\mathcal{G}$ be finite and contain $g^*$, and assume the margin condition with exponent $\alpha$. Adapt the proof of Theorem 9.4 to show that, with probability at least $1 - \delta$,
+    $$
+    R(\hat g_n) - R^* \leq C \Big(\frac{\log(N/\delta)}{n}\Big)^{(1+\alpha)/(2+\alpha)} ,
+    $$
+    for a constant $C$ depending on the margin constant and $\alpha$.
+
+    *Hints and expected result*: by Proposition 9.2 the variance of the excess loss is at most $c\, \Delta^\kappa$, with $\kappa = \alpha/(1 + \alpha)$. Bernstein's inequality and the ERM property give
+    $$
+    \Delta \leq \sqrt{\frac{2 c\, \Delta^\kappa L}{n}} + \frac{4L}{3n} .
+    $$
+    If the first term dominates, $\Delta^{1 - \kappa/2} \lesssim \sqrt{L/n}$, so $\Delta \lesssim (L/n)^{1/(2 - \kappa)}$, and $1/(2 - \kappa) = (1 + \alpha)/(2 + \alpha)$. Otherwise $\Delta \lesssim L/n$, which is smaller. The exponent goes from $1/2$ ($\alpha = 0$) to 1 ($\alpha \to \infty$).
+
+16. **★★★ A lower bound with one point.** The input is a single point, and $\eta = \frac12 + \varepsilon$ under $P_+$, $\eta = \frac12 - \varepsilon$ under $P_-$. Show that every rule has, under one of the two, an expected excess risk of at least
+    $$
+    \varepsilon\, \big(1 - \mathrm{TV}(P_+^n, P_-^n)\big) .
+    $$
+    Using Pinsker's inequality, deduce a lower bound of order $1/\sqrt{n}$.
+
+    *Hints and expected result*: predicting the wrong label costs $|2\eta - 1| = 2\varepsilon$. The sum of the probabilities of a wrong prediction under the two laws is at least $1 - \mathrm{TV}$, which gives the first claim.
+
+    For $\varepsilon \leq 1/4$, the divergence between the two sample laws satisfies
+    $$
+    \mathrm{KL}(P_+^n \,\|\, P_-^n) = 2n\varepsilon \log\frac{1 + 2\varepsilon}{1 - 2\varepsilon} \leq 16 n \varepsilon^2 .
+    $$
+    With $\varepsilon = 1/(8\sqrt{n})$, it is at most $1/4$, so $\mathrm{TV} \leq \sqrt{1/8} = 0.354$, and the excess risk is at least $0.08/\sqrt{n}$. On $V$ shattered points, the same argument gives the $\sqrt{V/n}$ of Theorem 5.5.
+
+17. **★★★ When a linear score cannot rank.** On the concentric circles of scikit-learn, compare the AUC of a linear logistic score, of a random-forest score and of minus the radius. Relate the results to Theorem 8.3, then study the effect of the forest's leaf size and of the training size.
+
+    *Hints and expected result*:
+
+    ```python
+    import numpy as np
+    from sklearn.datasets import make_circles
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import roc_auc_score
+
+    X, y = make_circles(n_samples=4000, noise=0.2, factor=0.5, random_state=0)
+    Xtr, ytr, Xte, yte = X[:1000], y[:1000], X[1000:], y[1000:]
+    lin = LogisticRegression().fit(Xtr, ytr).decision_function(Xte)
+    rf = RandomForestClassifier(n_estimators=300, min_samples_leaf=10, random_state=0)
+    rf_s = rf.fit(Xtr, ytr).predict_proba(Xte)[:, 1]
+    print("linear logistic score AUC:", round(roc_auc_score(yte, lin), 4))
+    print("random forest score AUC  :", round(roc_auc_score(yte, rf_s), 4))
+    print("minus the radius AUC     :", round(roc_auc_score(yte, -np.linalg.norm(Xte, axis=1)), 4))
+    ```
+
+    The AUCs are 0.492, 0.953 and 0.962. Here $\eta$ is a decreasing function of the radius, so minus the radius is (nearly) an optimal score, while no linear score orders the points like $\eta$.
+
+    The logistic population minimizer is optimal only within a model that contains an increasing transform of $\eta$. Studying how fast the forest's AUC approaches the optimum, and comparing with a pairwise objective or TreeRank, is an open-ended project.
+

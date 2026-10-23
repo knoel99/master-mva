@@ -13,6 +13,7 @@ Refuses to overwrite an existing index.qmd.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -89,7 +90,8 @@ def volume(c):
     if c["hours_status"] == "self-study":
         return f"no ECTS · {fmt_h(c['plan_hours'])} of guided self-study ({c['hours_source']})"
     if c["hours_status"] == "assumed":
-        return f"{c['ects']:g} ECTS · {fmt_h(c['plan_hours'])} (assumed: {c['plan_hours_note']})"
+        note = re.sub(r"^assumed(?: from)?:?\s*", "", c["plan_hours_note"])
+        return f"{c['ects']:g} ECTS · {fmt_h(c['plan_hours'])} (assumed: {note})"
     return f"{c['ects']:g} ECTS · volume: TODO"
 
 
