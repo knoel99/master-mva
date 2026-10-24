@@ -85,7 +85,7 @@ It shares tools with [Convex Optimization](../s1-convex-optimization/index.html)
 -   Derive the Bayes classifier, the Bayes risk and the excess-risk formula, and compute them on Gaussian models.
 -   Choose a performance criterion (risk, cost-sensitive risk, ROC curve, AUC) and estimate it with a confidence interval.
 -   Explain and compare the inference principles: plug-in, empirical risk minimization, penalization, maximum likelihood and local averaging.
--   Prove the consistency of nearest-neighbour rules and the mistake bound of the perceptron.
+-   Prove the mistake bound of the perceptron and the Cover–Hart inequalities, and explain the proof of Stone's theorem for nearest neighbours.
 -   Compute VC dimensions and Rademacher complexities, and turn them into generalization bounds with Hoeffding's and McDiarmid's inequalities.
 -   State the fundamental theorem of statistical learning, the no-free-lunch theorem and the minimax lower bounds, and explain what each one forbids.
 -   Decide whether a convex surrogate loss is classification-calibrated and bound the excess classification risk by its excess surrogate risk.
@@ -117,7 +117,7 @@ Every official topic is taught on this page. The extensions beyond the syllabus 
 Official prerequisites: undergraduate courses in analysis and probability. The course also uses a little convexity; ch. 0 reviews everything that is needed.
 
 -   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (conditional expectation, inequalities), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (convex functions, gradients) and [Scientific Python](../s0-refresher-python-scientific-computing/index.html) (NumPy and scikit-learn, used in every code block).
--   **Related courses of semester 1** — [Convex Optimization](../s1-convex-optimization/index.html) gives the algorithms that minimize the surrogate risks of ch. 6. [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) applies the complexity measures of ch. 4 to neural networks. [Statistical Learning with Extreme Values](../s1-extreme-values/index.html) meets the scoring and anomaly ranking of ch. 8, and [Computational Statistics](../s1-computational-statistics/index.html) shares the maximum-likelihood view of ch. 2.
+-   **Related courses of semester 1** — [Convex Optimization](../s1-convex-optimization/index.html) gives the algorithms that minimize the surrogate risks of ch. 6. [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) applies the complexity measures of ch. 4 to neural networks. [Statistical Learning with Extreme Values](../s1-extreme-values/index.html) carries the classification bounds of ch. 4 and the ROC analysis of ch. 8 to extreme regions and anomaly detection, and [Computational Statistics](../s1-computational-statistics/index.html) shares the maximum-likelihood view of ch. 2.
 -   **Courses of semester 2 that build on it** — [Kernel Methods](../s2-kernel-methods/index.html) (SVMs and regularized surrogate minimization in RKHS), [Sequential Learning](../s2-sequential-learning/index.html) (exponential weights and online learning, ch. 7), [Reinforcement Learning](../s2-reinforcement-learning/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Large Random Matrices](../s2-random-matrices-ml/index.html) (high-dimensional classification) and [Responsible Machine Learning](../s2-responsible-ml/index.html) (fairness criteria built on the performance criteria of ch. 2).
 
 ### Course outline
@@ -189,7 +189,7 @@ $$
 ::: proof
 Write $Y - f(X) = (Y - \eta(X)) + (\eta(X) - f(X))$ and expand the square.
 
-The cross term is $2\,\mathbb{E}[(Y - \eta(X))\, h(X)]$ with $h = \eta - f$, and it vanishes by the tower property. [∎]{.qed}
+The cross term is $2\,\mathbb{E}[(Y - \eta(X))\, h(X)]$ with $h = \eta - f$. It vanishes by the tower property, extended from bounded to square-integrable $h$ by truncation. [∎]{.qed}
 :::
 ::::
 
@@ -311,7 +311,7 @@ Before any algorithm, a learning problem must be stated precisely: what is obser
 ::: def
 [Definition 1.1 — Learning problem]{.tag} A **learning problem** consists of:
 
--   an input space $\mathcal{X}$ and an output space $\mathcal{Y}$;
+-   an input space $\mathcal{X}$, an output space $\mathcal{Y}$ and a prediction space $\mathcal{Y}'$ (often $\mathcal{Y}$ itself, or $\mathbb{R}$ for a score);
 -   an unknown distribution $P$ of a pair $(X, Y)$ on $\mathcal{X} \times \mathcal{Y}$;
 -   a sample $D_n = ((X_1, Y_1), \dots, (X_n, Y_n))$ of independent copies of $(X, Y)$;
 -   a loss $\ell(y', y) \geq 0$, the cost of predicting $y'$ when the truth is $y$.
@@ -416,7 +416,7 @@ X = y[:, None] * mu + sigma * rng.standard_normal((n, 2))
 
 eta = 1 / (1 + np.exp(-2 * X @ mu / sigma**2))  # P(Y = +1 | X = x)
 g_star = np.where(eta > 0.5, 1, -1)             # Bayes classifier
-print("error of g* on the sample :", np.mean(g_star != y))
+print("error of g* on the sample :", round(np.mean(g_star != y), 4))
 print("Phi(-||mu||/sigma)        :", round(norm.cdf(-1.0), 4))
 print("mean of min(eta, 1 - eta) :", round(np.mean(np.minimum(eta, 1 - eta)), 4))
 ```
@@ -861,7 +861,7 @@ $$
 :::
 ::::
 
-The growth function is thus either $2^n$ for all $n$ or a polynomial of degree $V$: there is nothing in between.
+The growth function is thus either $2^n$ for all $n$ or bounded by a polynomial of degree $V$: there is nothing in between.
 
 :::: thm
 [Theorem 4.7 — Vapnik–Chervonenkis inequality (1971)]{.tag} For every class $\mathcal{G}$ of binary classifiers, every $n$ and every $\varepsilon > 0$,
@@ -955,7 +955,7 @@ Hence the expected maximum is at most $\log|A| / \lambda + \lambda r^2 / 2$. The
 ::::
 
 :::: prop
-[Corollary 4.12 — ERM over a VC class]{.tag} For the 0–1 loss and a class of VC dimension $V$, the loss class has $\mathfrak{R}_n \leq \sqrt{2V \log(en/V)/n}$. With probability at least $1 - \delta$, the ERM satisfies
+[Corollary 4.12 — ERM over a VC class]{.tag} For the 0–1 loss, a class of VC dimension $V$ and $n \geq V$, the loss class has $\mathfrak{R}_n \leq \sqrt{2V \log(en/V)/n}$. With probability at least $1 - \delta$, the ERM satisfies
 $$
 R(\hat g_n) - \inf_{\mathcal{G}} R \leq 2\sqrt{\frac{2V \log(en/V)}{n}} + \sqrt{\frac{2\log(2/\delta)}{n}} .
 $$
@@ -967,7 +967,7 @@ For the ERM, let $g^\circ$ attain $\inf_{\mathcal{G}} R$ (or approach it).
 
 -   Theorem 4.10 at level $\delta/2$ bounds $R(\hat g_n) - \hat R_n(\hat g_n)$.
 -   By definition, $\hat R_n(\hat g_n) \leq \hat R_n(g^\circ)$.
--   Proposition 2.3 at level $\delta/2$ bounds $\hat R_n(g^\circ) - R(g^\circ)$.
+-   Hoeffding's inequality (Theorem 0.5, one-sided) at level $\delta/2$ bounds $\hat R_n(g^\circ) - R(g^\circ)$ by $\sqrt{\log(2/\delta)/(2n)}$.
 
 Adding the three bounds gives the result. [∎]{.qed}
 :::
@@ -1178,7 +1178,7 @@ Key takeaways — chapter 5
 
 ## 6. Convex risk minimization {#ch6}
 
-ERM with the 0–1 loss is computationally hard: even approximately minimizing the empirical error of half-spaces is NP-hard (Ben-David, Eiron and Long, 2003). Most practical classifiers instead minimize a convex surrogate of the margin $y f(x)$. This chapter asks when this still leads to the Bayes classifier, and how fast.
+ERM with the 0–1 loss is computationally hard: even approximating, within some constant factor, the largest number of sample points that a half-space classifies correctly is NP-hard (Ben-David, Eiron and Long, 2003). Most practical classifiers instead minimize a convex surrogate of the margin $y f(x)$. This chapter asks when this still leads to the Bayes classifier, and how fast.
 
 ::: def
 [Definition 6.1 — Margin losses and surrogate risk]{.tag} A real-valued function $f$ classifies by its sign, and $y f(x)$ is its **margin** on the pair $(x, y)$. For a loss $\varphi : \mathbb{R} \to [0, \infty)$, the **$\varphi$-risk** is
@@ -1335,11 +1335,12 @@ f_exp = np.c_[Xte, np.ones(len(Xte))] @ w
 
 print(f"Bayes risk   {norm.cdf(-np.linalg.norm(mu)):.4f}")
 print(f"logistic     {1 - LogisticRegression(C=1e4).fit(X, y).score(Xte, yte):.4f}")
-print(f"hinge (SVM)  {1 - LinearSVC(C=1.0).fit(X, y).score(Xte, yte):.4f}")
+svm = LinearSVC(C=1.0, loss='hinge', random_state=0)   # the default loss is the squared hinge
+print(f"hinge (SVM)  {1 - svm.fit(X, y).score(Xte, yte):.4f}")
 print(f"exponential  {np.mean(np.sign(f_exp) != yte):.4f}")
 ```
 
-The test errors are 0.1345, 0.1343 and 0.1347: all three surrogates land within 0.003 of the Bayes risk. Here the Bayes classifier is linear, so the approximation error vanishes and calibration does the rest.
+The test errors are 0.1345, 0.1362 and 0.1347: all three surrogates land within 0.005 of the Bayes risk. Here the Bayes classifier is linear, so the approximation error vanishes and calibration does the rest.
 
 ::: recap
 Key takeaways — chapter 6
@@ -1662,7 +1663,19 @@ an average of $m$ **independent** pairs. The supremum of an average is at most t
 
 The empirical ranking risk minimizer therefore has excess ranking risk of order $\sqrt{V \log n / n}$, as in classification. This argument is the one of Clémençon, Lugosi and Vayatis (2008), who also obtain faster rates under low-noise conditions by Hoeffding's decomposition of U-statistics.
 
-**Algorithms.** RankBoost (Freund, Iyer, Schapire and Singer, 2003) minimizes the exponential loss on pairs by boosting, and ranking SVMs use the hinge loss on pairs. Univariate surrogates also work: the minimizer $\log(\eta/(1 - \eta))$ of the logistic risk (Example 6.5) is strictly increasing in $\eta$, so by Theorem 8.3 it is an optimal score. The hinge minimizer $\mathrm{sign}(2\eta - 1)$ collapses the order and is not. **TreeRank** (Clémençon and Vayatis, 2009) builds a piecewise-linear approximation of the optimal ROC curve by recursive partitioning, each split solving a cost-sensitive classification problem (Proposition 2.2).
+**Pairwise surrogates.** As in ch. 6, the indicator of a misordered pair is replaced by a convex loss of the score difference. RankBoost (Freund, Iyer, Schapire and Singer, 2003) minimizes, over linear combinations $F$ of base scores, the pairwise exponential risk
+$$
+\frac{1}{n_+ n_-} \sum_{i : Y_i = 1} \sum_{j : Y_j = -1} \exp\big(-(F(X_i) - F(X_j))\big) .
+$$
+It runs the rounds of Definition 7.3 with the weights placed on the $n_+ n_-$ positive–negative pairs instead of the points. Ranking SVMs use the hinge loss on the same pairs.
+
+**Univariate surrogates.** The minimizer $\log(\eta/(1 - \eta))$ of the logistic risk (Example 6.5) is strictly increasing in $\eta$, so by Theorem 8.3 it is an optimal score. The hinge minimizer $\mathrm{sign}(2\eta - 1)$ collapses the order and is not.
+
+**TreeRank** (Clémençon and Vayatis, 2009) builds a piecewise-linear approximation of the optimal ROC curve by recursive partitioning. Each cell $C$ is one segment of the curve, of horizontal length $\alpha(C) = P_-(C)$ and vertical length $\beta(C) = P_+(C)$. Splitting $C$ into a part $C'$ ranked first and the rest adds a vertex, and the AUC gains the area of a triangle:
+$$
+\tfrac12 \big( \alpha(C)\, \beta(C') - \beta(C)\, \alpha(C') \big) .
+$$
+Maximizing the empirical version of this gain over $C' \subset C$ is a cost-sensitive classification problem inside $C$ (Proposition 2.2).
 
 ::: ex
 [Example 8.7 — AUC of the Gaussian model]{.tag} In Example 1.5 with $\sigma = 1$, the optimal score is $s(x) = \mu^\top x$. The difference of the scores of a positive and a negative example is Gaussian with mean $2\|\mu\|^2$ and variance $2\|\mu\|^2$, so
@@ -1814,7 +1827,7 @@ Let $Z'_1, \dots, Z'_n$ be an independent copy of the sample, and let $D^{(i)}$ 
 :::
 ::::
 
-Regularized ERM is stable. With a convex loss $\varphi$ that is $L$-Lipschitz, inputs of norm at most $R$ and the penalty $\lambda \|w\|^2$, it is stable with $\beta = 2L^2R^2/(\lambda n)$ in the averaged sense used by Shalev-Shwartz and Ben-David (2014, ch. 13), which suffices for Proposition 9.7. The trade-off reappears: a large $\lambda$ makes the rule stable but biased. Stability also explains why stochastic gradient descent with few passes generalizes (Hardt, Recht and Singer, 2016).
+Regularized ERM is stable. With a convex loss $\varphi$ that is $L$-Lipschitz, inputs of norm at most $\rho$ and the penalty $\lambda \|w\|^2$, it is stable with $\beta = 2L^2\rho^2/(\lambda n)$ in the averaged sense used by Shalev-Shwartz and Ben-David (2014, ch. 13), which suffices for Proposition 9.7. The trade-off reappears: a large $\lambda$ makes the rule stable but biased. Stability also explains why stochastic gradient descent with few passes generalizes (Hardt, Recht and Singer, 2016).
 
 ::: recap
 Key takeaways — chapter 9
@@ -2029,7 +2042,9 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
     print(f"bound sqrt(T log M / 2)    {np.sqrt(T * np.log(M) / 2):6.1f}")
     ```
 
-    The regret is 72.9, below the bound 98.9, while the uniform average loses 487.4. A much smaller $\eta$ behaves like the uniform average; a much larger one follows the current leader and becomes unstable.
+    The regret is 72.9, below the bound 98.9, while the uniform average loses 487.4. A much smaller $\eta$ behaves like the uniform average: 231.5 at a tenth of the tuned value.
+
+    A much larger $\eta$ approaches follow-the-leader, which does even better here: 58.1 at ten times the tuned value, 55.3 at a hundred times. With independent losses the leader rarely changes. The tuning of Theorem 7.8 is a worst-case choice: on losses that alternate between two experts, follow-the-leader errs at every round and its regret grows linearly in $T$.
 
 15. **★★★ Fast rates under the margin condition.** Let $\mathcal{G}$ be finite and contain $g^*$, and assume the margin condition with exponent $\alpha$. Adapt the proof of Theorem 9.4 to show that, with probability at least $1 - \delta$,
     $$
@@ -2103,7 +2118,7 @@ The written exam below is a proposal in the spirit of both exams: Part 1 would c
     -   *Deliverables:* a 6–8 page note with the proof, code, 10-minute talk. *Chapters:* ch. 2, 3, 5, 9.
     -   *Success criterion:* a proof without gaps, and a figure showing how the convergence slows down as the dimension grows.
 3.  **[Solo · ≈ 20 h] How loose are generalization bounds?** Compute the bounds of ch. 4, 6 and 7 for a linear SVM and for boosted stumps on real data, and compare them with test errors. A paper study of Bartlett and Mendelson (2002).
-    -   *Data:* the breast-cancer data set bundled with scikit-learn (569 points, 30 standardized features), over 20 random train–test splits.
+    -   *Data:* the breast-cancer data set bundled with scikit-learn (569 points, 30 features, standardized on each training part), over 20 random train–test splits.
     -   *Compute:* the VC bound (Corollary 4.12), the margin bound for linear classifiers (Theorem 4.10 with the ramp loss, Lemma 6.6 and Proposition 4.13) and the margin bound for boosting (Theorem 7.7), with empirical Rademacher complexities estimated by Monte Carlo.
     -   *Deliverables:* code, 4–6 page report, 10-minute talk. *Chapters:* ch. 4, 6, 7.
     -   *Success criterion:* a table of bounds against test errors, the margin $\gamma$ that minimizes each bound, and an explanation of which term makes a bound vacuous when it is.
@@ -2112,7 +2127,7 @@ The written exam below is a proposal in the spirit of both exams: Part 1 would c
 
 1.  **[Group of 2–3 · ≈ 30 h each] Boosting the margin, reproduced.** Does the test error of AdaBoost keep falling after the training error reaches zero, and do margins explain it? A paper study of Schapire, Freund, Bartlett and Lee (1998), with the counterpoint of Breiman (1999).
     -   *Implement:* AdaBoost with stumps and with depth-3 trees, written from scratch and checked against scikit-learn; the normalized margins $Y_i F_T(X_i) / \sum_t \alpha_t$ at $T = 5$, 100 and 1000; Breiman's arc-gv, which maximizes the minimum margin.
-    -   *Data:* the simulated data of `make_hastie_10_2` in scikit-learn (Friedman, Hastie and Tibshirani, 2000) and the breast-cancer data set.
+    -   *Data:* the simulated data of `make_hastie_10_2` in scikit-learn (Example 10.2 of Hastie, Tibshirani and Friedman, 2009) and the breast-cancer data set.
     -   *Split:* member A writes the boosting code; B the margin distributions and the bound of Theorem 7.7; C, in a group of three, arc-gv and the comparison.
     -   *Deliverables:* code, 8–10 page joint report, 20-minute talk. *Chapters:* ch. 6, 7.
     -   *Success criterion:* the cumulative margin distributions of the 1998 paper, reproduced qualitatively, and Breiman's observation that a larger minimum margin need not lower the test error.
@@ -2126,7 +2141,7 @@ The written exam below is a proposal in the spirit of both exams: Part 1 would c
     -   *Model:* histogram classifiers on regular grids of $m \times m$ cells in $[0, 1]^2$, for $m = 1, \dots, 30$, on synthetic data with a known $\eta$ of varying smoothness.
     -   *Split:* member A computes the VC penalty of Proposition 5.8 and the Rademacher penalty; member B implements hold-out and $V$-fold selection, and the oracle choice computed from the true risk.
     -   *Deliverables:* code, 8-page joint report, 20-minute talk. *Chapters:* ch. 2, 4, 5, 9.
-    -   *Success criterion:* the ratio of the excess risk of each selected classifier to that of the oracle, reported over 50 samples for $n$ from 200 to 20 000.
+    -   *Success criterion:* the ratio of the excess risk of each selected classifier to that of the oracle, reported over 50 samples for $n$ from 200 to 20 000, and the oracle inequality of Proposition 5.8 checked on every sample.
 
 ### Written exam (proposal) {#projects-exam}
 

@@ -383,7 +383,7 @@ Displayed as an image in $(\theta, s)$, it is the *sinogram*: a point source tra
 :::
 
 :::: thm
-[Theorem 1.3 — Fourier slice theorem]{.tag} The one-dimensional Fourier transform of a projection, taken in $s$, is a slice of the two-dimensional Fourier transform of $f$:
+[Theorem 1.3 — Fourier slice theorem]{.tag} For an integrable $f$, the one-dimensional Fourier transform of a projection, taken in $s$, is a slice of the two-dimensional Fourier transform of $f$:
 $$
 \widehat{\mathcal{R} f}(\theta, \omega) = \hat f(\omega\, \boldsymbol\theta) .
 $$
@@ -403,7 +403,7 @@ $$
 ::::
 
 :::: thm
-[Theorem 1.4 — Filtered back-projection]{.tag} Filter each projection with the *ramp* $|\omega|$:
+[Theorem 1.4 — Filtered back-projection]{.tag} Let $f$ be smooth and compactly supported, and filter each projection with the *ramp* $|\omega|$:
 $$
 \hat q_\theta(\omega) = |\omega|\, \widehat{\mathcal{R} f}(\theta, \omega) .
 $$
@@ -721,7 +721,7 @@ Key takeaways — chapter 2
 
 -   Gaussian smoothing is the heat equation; scales compose by adding variances, and derivatives are computed by convolving with Gaussian derivatives.
 -   Hessian eigenvalues detect tubes, plates and blobs, the basis of vesselness filters.
--   Perona–Malik diffusion smooths slopes below the threshold $K$ and sharpens those above it.
+-   Perona–Malik diffusion smooths slopes below a threshold set by $K$ ($K$ itself for the first diffusivity, $K/\sqrt2$ for the exponential one) and sharpens those above it.
 -   Openings and closings are idempotent filters that remove small structures and fill small holes.
 -   Interpolate intensities with splines and labels with nearest neighbour; prefilter before downsampling.
 ::::
@@ -815,7 +815,7 @@ $$
 :::
 ::::
 
-EM converges to a stationary point, which depends on the initialisation; k-means or intensity quantiles are common starts. The likelihood is unbounded if a class collapses on a single intensity ($\sigma_k \to 0$), so a variance floor is useful.
+Under mild regularity conditions, EM converges to a stationary point of the likelihood, which depends on the initialisation; k-means or intensity quantiles are common starts. The likelihood is unbounded if a class collapses on a single intensity ($\sigma_k \to 0$), so a variance floor is useful.
 
 ```python
 import numpy as np
@@ -865,7 +865,7 @@ U(z) = -\sum_i \log\big(\pi_{z_i}\, p(y_i \mid z_i)\big) + \beta \sum_{i \sim j}
 $$
 :::
 
-The Potts model is a Markov random field: given its neighbours, a label is independent of the rest of the image. By the Hammersley–Clifford theorem, every positive distribution with this Markov property has such a Gibbs form, a sum of potentials over cliques of the neighbourhood graph (Geman and Geman, 1984).
+The Potts model is a Markov random field: given its neighbours, a label is independent of the rest of the image. By the Hammersley–Clifford theorem, every positive distribution with this Markov property has such a Gibbs form: the exponential of minus a sum of potentials over cliques of the neighbourhood graph. Geman and Geman (1984) brought this Gibbs view to image restoration.
 
 :::: prop
 [Proposition 3.6 — Iterated conditional modes]{.tag} ICM (Besag, 1986) visits the voxels in turn and replaces $z_i$ by the label $k$ minimising its local energy
@@ -881,26 +881,26 @@ Keep the current label in case of ties: every change then strictly decreases $U$
 :::
 ::::
 
-ICM reaches a local minimum. For two classes the exact MAP is a minimum cut in a graph (Greig, Porteous and Seheult, 1989). Zhang, Brady and Smith (2001) combine the Potts prior with EM through a mean-field approximation.
+ICM reaches a local minimum. For two classes the exact MAP is a minimum cut in a graph (Greig, Porteous and Seheult, 1989). Van Leemput et al. (1999) and Zhang, Brady and Smith (2001) combine the Potts prior with EM, through approximations of the label posterior, which is intractable on a grid.
 
 ### 3.4 The bias field and atlas priors
 
-The MRI bias field of ch. 1.3 multiplies the image by a smooth function. Taking logarithms makes it additive: $\ell_i = \log y_i = \log x_i + \beta_i$, with $\beta$ smooth. Wells et al. (1996) and Van Leemput et al. (1999) estimate $\beta$ inside EM; here $\beta = \Phi c$, where the columns of $\Phi$ are smooth basis functions, such as low-degree polynomials, evaluated at the voxels.
+The MRI bias field of ch. 1.3 multiplies the image by a smooth function. Taking logarithms makes it additive: $\ell_i = \log y_i = \log x_i + b_i$, with $b$ smooth. Wells et al. (1996) and Van Leemput et al. (1999) estimate $b$ inside EM; here $b = \Phi c$, where the columns of $\Phi$ are smooth basis functions, such as low-degree polynomials, evaluated at the voxels.
 
 :::: prop
-[Proposition 3.7 — The bias step of EM is a weighted least-squares fit]{.tag} Let the log-intensities of class $k$ be Gaussian with mean $\mu_k + \beta_i$ and variance $\sigma_k^2$, and let $r_{ik}$ be the responsibilities. The M-step for $c$ solves
+[Proposition 3.7 — The bias step of EM is a weighted least-squares fit]{.tag} Let the log-intensities of class $k$ be Gaussian with mean $\mu_k + b_i$ and variance $\sigma_k^2$, and let $r_{ik}$ be the responsibilities. With the class parameters fixed, the M-step for $c$ solves
 $$
 \Phi^\top W \Phi\, c = \Phi^\top W \rho, \qquad w_i = \sum_k \frac{r_{ik}}{\sigma_k^2}, \qquad \rho_i = \ell_i - \frac{1}{w_i} \sum_k \frac{r_{ik}\, \mu_k}{\sigma_k^2},
 $$
 with $W = \mathrm{diag}(w_i)$.
 
 ::: proof
-Up to terms without $\beta$, the expected complete log-likelihood is
+Up to terms without $b$, the expected complete log-likelihood is
 $$
--\sum_i \sum_k \frac{r_{ik}}{2\sigma_k^2} (\ell_i - \beta_i - \mu_k)^2 .
+-\sum_i \sum_k \frac{r_{ik}}{2\sigma_k^2} (\ell_i - b_i - \mu_k)^2 .
 $$
 
-Expanding in $\beta_i$, it equals $-\frac12 \sum_i w_i (\beta_i - \rho_i)^2$ plus a constant. Maximising over $\beta = \Phi c$ is the weighted least-squares problem, whose normal equations are the statement (ch. 0.2). [∎]{.qed}
+Expanding in $b_i$, it equals $-\frac12 \sum_i w_i (b_i - \rho_i)^2$ plus a constant. Maximising over $b = \Phi c$ is the weighted least-squares problem, whose normal equations are the statement (ch. 0.2). [∎]{.qed}
 :::
 ::::
 
@@ -923,9 +923,9 @@ Phi = np.stack([xx[mask], yy[mask]], 1)       # bias basis: degree-1 polynomial,
 
 def em(logy, bias_basis=None, iters=60):
     K = 3; mu = np.quantile(logy, [0.1, 0.5, 0.9]); var = np.full(K, 0.05); pi = np.full(K, 1 / K)
-    beta = np.zeros_like(logy)
+    b = np.zeros_like(logy)
     for _ in range(iters):
-        res = logy - beta
+        res = logy - b
         logp = -0.5 * (res[:, None] - mu) ** 2 / var - 0.5 * np.log(var) + np.log(pi)
         R = np.exp(logp - logp.max(1, keepdims=True)); R /= R.sum(1, keepdims=True)
         nk = R.sum(0); pi = nk / len(logy)
@@ -934,7 +934,7 @@ def em(logy, bias_basis=None, iters=60):
             w = (R / var).sum(1)
             target = logy - (R * mu / var).sum(1) / w
             c = np.linalg.solve(bias_basis.T @ (w[:, None] * bias_basis), bias_basis.T @ (w * target))
-            beta = bias_basis @ c
+            b = bias_basis @ c
     return logp, R
 
 def icm(unary, beta_mrf=1.0, sweeps=5):
@@ -1010,20 +1010,20 @@ $$
 Discretise the curve into $n$ points $v_i$ with unit spacing. The internal energy becomes a quadratic form $\frac12 v^\top A v$ with $A = \alpha L + \beta L^2$, where $L$ is the circulant matrix of the second difference, with rows $(-1, 2, -1)$.
 
 :::: prop
-[Proposition 4.2 — Explicit and semi-implicit snakes]{.tag} The explicit gradient step $v \leftarrow v - \tau (A v + \nabla P(v))$ is stable for the internal forces only if
+[Proposition 4.2 — Explicit and semi-implicit snakes]{.tag} For an even number of points $n$, the explicit gradient step $v \leftarrow v - \tau (A v + \nabla P(v))$ is stable for the internal forces iff
 $$
 \tau \leq \frac{2}{4\alpha + 16\beta} .
 $$
 The semi-implicit step $(I + \tau A)\, v^{t+1} = v^t - \tau \nabla P(v^t)$ damps every mode of the internal forces for all $\tau > 0$.
 
 ::: proof
-$L$ is circulant, with eigenvalues $\mu_k = 2 - 2\cos(2\pi k / n) \in [0, 4]$, so $A$ has eigenvalues $\alpha \mu_k + \beta \mu_k^2 \in [0, 4\alpha + 16\beta]$.
+$L$ is circulant, with eigenvalues $\mu_k = 2 - 2\cos(2\pi k / n) \in [0, 4]$, so $A$ has eigenvalues $\alpha \mu_k + \beta \mu_k^2 \in [0, 4\alpha + 16\beta]$. For even $n$, the upper value is reached at $k = n/2$.
 
 The explicit step multiplies mode $k$ by $1 - \tau(\alpha\mu_k + \beta\mu_k^2)$, which stays in $[-1, 1]$ iff $\tau$ satisfies the bound. The semi-implicit step multiplies it by $1 / (1 + \tau(\alpha\mu_k + \beta\mu_k^2)) \in (0, 1]$. [∎]{.qed}
 :::
 ::::
 
-Kass et al. use the semi-implicit scheme: one banded linear solve per step. Two extensions widen the narrow capture range of the edge potential. Cohen (1991) adds a *balloon* force $\kappa\, n(s)$ along the normal, which inflates the snake from a seed until edges stop it. Xu and Prince (1998) replace $-\nabla P$ by a *gradient vector flow* field that diffuses the edge forces into homogeneous regions.
+Kass et al. use the semi-implicit scheme: one banded linear solve per step. Two extensions widen the narrow capture range of the edge potential. Cohen (1991) adds a *balloon* force of constant magnitude along the normal, which inflates the snake from a seed until edges stop it. Xu and Prince (1998) replace $-\nabla P$ by a *gradient vector flow* field that diffuses the edge forces into homogeneous regions.
 
 ### 4.2 Level sets and region-based contours
 
@@ -1185,7 +1185,7 @@ The matrix fixes $n$ (since $Kn = 0$) and acts as a rotation of angle $\theta$ i
 
 The inverse, the *logarithm*, follows from the trace: $\mathrm{tr}\, R = 1 + 2\cos\theta$, so $\theta = \arccos\big((\mathrm{tr}\, R - 1)/2\big)$. For $0 < \theta < \pi$, the axis is read off $(R - R^\top)/(2\sin\theta) = K$.
 
-The geodesic distance between two rotations is the angle of $R_1^\top R_2$. Unit quaternions $q = (\cos\frac\theta2, \sin\frac\theta2\, n)$ represent the same rotations, $q$ and $-q$ giving the same one; they compose by a product of four numbers and avoid the singularities of Euler angles.
+The geodesic distance between two rotations is the angle of $R_1^\top R_2$. Unit quaternions $q = (\cos\frac\theta2, \sin\frac\theta2\, n)$ represent the same rotations, $q$ and $-q$ giving the same one. They compose by the quaternion product, cheaper than a product of $3 \times 3$ matrices, and avoid the singularities of Euler angles.
 
 ::: ex
 [Example 5.2 — A quarter turn]{.tag} The rotation of $90°$ about $z$ maps $(x, y, z)$ to $(-y, x, z)$. Its trace is $0 + 0 + 1 = 1$, so
@@ -1200,7 +1200,7 @@ and $(R - R^\top)/2 = [e_z]_\times$ gives the axis $e_z$. The arithmetic mean of
 Suppose $N$ landmarks $x_i$ in one image correspond to $y_i$ in the other, such as anatomical points or fiducial markers. Write $\bar x$, $\bar y$ for the centroids, and add a prime for centred points: $x_i' = x_i - \bar x$.
 
 :::: thm
-[Theorem 5.3 — Orthogonal Procrustes problem]{.tag} Let $M = \sum_i y_i' x_i'^\top = U \Sigma V^\top$ (SVD). The minimisers of $\sum_i |R x_i + t - y_i|^2$ over rotations $R$ and translations $t$ are
+[Theorem 5.3 — Orthogonal Procrustes problem]{.tag} Let $M = \sum_i y_i' x_i'^\top = U \Sigma V^\top$ (SVD). A minimiser of $\sum_i |R x_i + t - y_i|^2$ over rotations $R$ and translations $t$ is
 $$
 R^\star = U\, \mathrm{diag}\big(1, 1, \det(U V^\top)\big)\, V^\top, \qquad t^\star = \bar y - R^\star \bar x .
 $$
@@ -1315,7 +1315,12 @@ The choice of $\mathcal{D}$ encodes an assumption on how the intensities of the 
 :::
 
 :::: prop
-[Proposition 5.7 — Properties of mutual information]{.tag} For discrete intensities, $\mathrm{MI}(X, Y) \geq 0$ with equality iff $X$ and $Y$ are independent. It is unchanged when $X$ is replaced by $g(X)$ with $g$ one-to-one.
+[Proposition 5.7 — Properties of mutual information]{.tag} For discrete intensities,
+$$
+\mathrm{MI}(X, Y) \geq 0, \quad \text{with equality iff } X \text{ and } Y \text{ are independent.}
+$$
+
+It is unchanged when $X$ is replaced by $g(X)$ with $g$ one-to-one.
 
 For a function $f$, the value $\mathrm{MI}(X, f(X)) = H(f(X))$ is the maximum over all $Y$ with the same law as $f(X)$.
 
@@ -1394,7 +1399,7 @@ Three regularisers are classical:
     $$
 -   *curvature*, $\frac12 \sum_k \int (\Delta u_k)^2$, which leaves affine maps unpenalised.
 
-Bajcsy and Kovačič (1989) introduced elastic matching; Christensen, Rabbitt and Miller (1996) replaced it with a viscous fluid to allow large deformations.
+Bajcsy and Kovačič (1989) developed multiresolution elastic matching; Christensen, Rabbitt and Miller (1996) replaced it with a viscous fluid to allow large deformations.
 
 :::: prop
 [Proposition 6.1 — The aperture problem]{.tag} Linearise the residual at one voxel: $J - I(x + u) \approx d - g^\top u$ with $d = J(x) - I(x)$ and $g = \nabla I(x)$. If $g \neq 0$, the displacements that cancel it form a line (in 2D) or a plane (in 3D), and the one of minimal norm is
@@ -1421,11 +1426,12 @@ The field is $C^2$, and each control point influences only $4^d$ cells, so gradi
 The transformation folds where the Jacobian determinant $\det(I + \nabla u)$ becomes non-positive. Choi and Lee (2000) proved that an FFD is one-to-one when every control-point displacement stays below about $0.48\, h$ in 2D and $0.40\, h$ in 3D. Rueckert et al. (2006) compose many such small FFDs to obtain large diffeomorphic deformations.
 
 ::: ex
-[Example 6.2 — Folding in one dimension]{.tag} The map $\varphi(x) = x + a \sin x$ has derivative $1 + a \cos x$. It is increasing, hence one-to-one, iff
+[Example 6.2 — Folding in one dimension]{.tag} The map $\varphi(x) = x + a \sin x$ has derivative $1 + a \cos x$. It is a diffeomorphism iff
 $$
-|a| < 1 ;
+|a| < 1 .
 $$
-for $|a| > 1$ the derivative changes sign and the map folds the line onto itself.
+
+At $|a| = 1$ it is still one-to-one, but its inverse is not differentiable where the derivative vanishes. For $|a| > 1$ the derivative changes sign and the map folds the line onto itself.
 :::
 
 ### 6.3 The demons algorithm
@@ -1540,13 +1546,13 @@ inv_err = np.abs(compose(expmap(v), expmap(-v))).max()
 print(f"exp(v) o exp(-v) = id up to {inv_err:.2f} pixels")
 ```
 
-The displacement $\mathrm{id} + v$ folds (minimum determinant $-1.16$), whereas $\exp(v)$ stays positive (0.95). The flow of this divergence-free field preserves areas exactly, so the deviation from 1 and the 1-pixel inverse error come from interpolation.
+The displacement $\mathrm{id} + v$ folds (minimum determinant $-1.16$), whereas $\exp(v)$ stays positive (0.95). The flow of this divergence-free field preserves areas exactly, so the deviation from 1 and the 1-pixel inverse error come from the discretisation: interpolation, finite differences and the first step $\mathrm{id} + v/2^N$.
 
 **Large deformations.** LDDMM (Beg et al., 2005) lets the velocity depend on time and minimises
 $$
 E(v) = \int_0^1 \|v_t\|_V^2\, dt + \frac{1}{\sigma^2} \big\|I \circ \phi_1^{-1} - J\big\|^2,
 $$
-where $\|\cdot\|_V$ is a Sobolev norm. The first term is the squared length of a path of diffeomorphisms for a right-invariant metric, so optimal paths are geodesics and give a distance between shapes. This framework of computational anatomy is developed in [Geometry and Shape Spaces](../s2-shape-spaces/index.html).
+where $\|\cdot\|_V$ is a Sobolev norm. The first term is the energy of a path of diffeomorphisms for a right-invariant metric. Optimal paths are geodesics, whose energy is the squared geodesic distance, so they give a distance between shapes. This framework of computational anatomy is developed in [Geometry and Shape Spaces](../s2-shape-spaces/index.html).
 
 ### 6.5 Evaluating deformable registration
 
@@ -1594,14 +1600,14 @@ Soft tissues are nearly incompressible, with $\nu$ close to $0.5$, which makes $
 The finite element method writes $u = \sum_j u_j N_j$ with piecewise linear “hat” functions $N_j$ on a tetrahedral mesh of the organ. Minimising $W(u) - \int f \cdot u$ over this space gives a sparse linear system $K \mathbf{u} = F$.
 
 :::: prop
-[Proposition 7.2 — The stiffness matrix]{.tag} $K$ is symmetric positive semi-definite. With $\mu > 0$ and $\lambda_L \geq 0$, its kernel consists of the infinitesimal rigid motions $u(x) = a + \omega \times x$. Fixing enough nodes, for instance where an organ is attached, makes $K$ positive definite.
+[Proposition 7.2 — The stiffness matrix]{.tag} $K$ is symmetric positive semi-definite. With $\mu > 0$ and $\lambda_L \geq 0$, on a connected mesh its kernel consists of the nodal values of the infinitesimal rigid motions $u(x) = a + \omega \times x$. Fixing three non-collinear nodes, for instance where an organ is attached, makes the reduced matrix positive definite.
 
 ::: proof
-For the discrete field $u_h$ with nodal vector $\mathbf{u}$, we have $\mathbf{u}^\top K \mathbf{u} = 2W(u_h) \geq 0$. If $W(u_h) = 0$ then $\varepsilon(u) = 0$, and the identity
-$$
-\partial_j \partial_k u_i = \partial_j \varepsilon_{ik} + \partial_k \varepsilon_{ij} - \partial_i \varepsilon_{jk}
-$$
-shows that $u$ is affine with a skew-symmetric gradient, which is an infinitesimal rigid motion. [∎]{.qed}
+For the discrete field $u_h$ with nodal vector $\mathbf{u}$, we have $\mathbf{u}^\top K \mathbf{u} = 2W(u_h) \geq 0$. Since $\mu > 0$, $W(u_h) = 0$ forces $\varepsilon(u_h) = 0$ on every element.
+
+On a tetrahedron $u_h$ is affine, so its gradient is a constant skew-symmetric matrix: $u_h(x) = a + \omega \times x$ there.
+
+An infinitesimal rigid motion is fixed by its values at three non-collinear points, and neighbouring tetrahedra share three such nodes. On a connected mesh, all elements therefore carry the same motion. [∎]{.qed}
 :::
 ::::
 
@@ -1684,7 +1690,7 @@ $$
 \hat\theta = \arg\min_\theta \ \big\|y - H(M_\theta)\big\|^2 + \mathcal{R}(\theta) .
 $$
 
-Each evaluation of $H$ is a simulation, so derivative-free optimisers, adjoint methods or fast surrogate models are used. The central question is *identifiability*: a single boundary only gives $\sqrt{D\rho}$, as above.
+Each evaluation of $H$ is a simulation, so derivative-free optimisers, adjoint methods or fast surrogate models are used. The central question is *identifiability*: following a single visible boundary over time only gives $\sqrt{D\rho}$, as above.
 
 In cardiac electrophysiology, the activation time $T(x)$ of the myocardium approximately solves an eikonal equation $c(x)\, |\nabla T| = 1$, with a conduction velocity $c$ larger along the fibres. Fitting $c$ to measured activation maps personalises the model; Sermesant et al. (2012) used such personalised models to predict the effect of cardiac resynchronisation therapy. Ch. 9 lists the open problems of these “digital twins”.
 
@@ -1976,11 +1982,11 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (c) The stretching energy shrinks the closed snake towards its centroid, mode by mode. The balloon force of Cohen (1991) pushes it outwards and balances this shrinkage.
 
-10. **★★ Curvature motion and the scale of Chan–Vese.** (a) Check that $\varphi(x, t) = |x| - \sqrt{r_0^2 - 2t}$ solves $\partial_t\varphi = \kappa |\nabla\varphi|$, and give the extinction time.
+10. **★★ Curvature motion and the scale of Chan–Vese.** (a) Check that $\varphi(x, t) = |x| - \sqrt{r_0^2 - 2t}$ satisfies $\partial_t\varphi = \kappa |\nabla\varphi|$ on its zero level set, so that this circle moves by curvature, and give the extinction time.
 
     (b) An image equals 1 on a disc of radius $R$ and 0 elsewhere. Fix $c_1 = 1$ and $c_2 = 0$ in the Chan–Vese energy, with $\lambda_1 = \lambda_2 = \lambda$, and restrict the contour to circles of radius $r$ centred on the disc. Show that the disc is found iff $R > 2\mu/\lambda$.
 
-    *Solution*: (a) $|\nabla\varphi| = 1$, $\kappa = \operatorname{div}(x/|x|) = 1/|x|$, which equals $1/r(t)$ on the zero level, and $\partial_t\varphi = 1/\sqrt{r_0^2 - 2t}$. The circle disappears at $t = r_0^2/2$.
+    *Solution*: (a) $|\nabla\varphi| = 1$, $\kappa = \operatorname{div}(x/|x|) = 1/|x|$, which equals $1/r(t)$ on the zero level, and $\partial_t\varphi = 1/\sqrt{r_0^2 - 2t} = 1/r(t)$. Away from the zero level the two sides differ, which is harmless: only the zero level represents the curve. The circle disappears at $t = r_0^2/2$.
 
     (b) The energy of a circle of radius $r$ is
     $$
@@ -2068,7 +2074,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: (a) Every point is at total squared distance $\theta^2 + (\pi - \theta)^2$ from them, minimal at $\theta = \pi/2$: the means are $\pi/2$ and $3\pi/2$.
 
-    (b) At a data point the sum of squared distances is $0 + 2(2\pi/3)^2 = 8\pi^2/9$; at a midpoint it is $2(\pi/3)^2 + \pi^2 = 11\pi^2/9$. Near a data point the sum is $8\pi^2/9 + 3\varepsilon^2$, so each data point is a mean: three means.
+    (b) At a data point the sum of squared distances is $0 + 2(2\pi/3)^2 = 8\pi^2/9$; at a midpoint it is $2(\pi/3)^2 + \pi^2 = 11\pi^2/9$. Near a data point the sum is $8\pi^2/9 + 3\varepsilon^2$. On each arc between the antipodes $\pi/3$, $\pi$ and $5\pi/3$ of the data, the sum is a quadratic with second derivative 6, minimal at the data point of that arc. Each data point is therefore a mean: three means.
 
     (c) In (a) and (b) the iteration converges to the mean nearest to its start. On an arc of length $\pi/2$ the mean is unique and the iteration converges from any start in the arc, as the theorem of Karcher (1977) predicts.
 

@@ -396,7 +396,7 @@ $$
 t = \frac{8.4 \times 10^{22}}{1024 \times 0.4 \times 10^{15}} \approx 2.05 \times 10^5 \text{ s} \approx 57 \text{ h}.
 $$
 
-The same run on a single such accelerator would take about 6.5 years: distribution is not optional.
+The same run on a single such accelerator would take about 6.7 years: distribution is not optional.
 :::
 
 ### 1.4 Spending a compute budget: scaling laws
@@ -424,7 +424,7 @@ $$
 N^\star = G\, \Big(\frac{C}{6}\Big)^{a}, \qquad D^\star = G^{-1} \Big(\frac{C}{6}\Big)^{b}.
 $$
 
-At the optimum the two excess terms are in the fixed ratio $\alpha A / N^{\star\alpha} = \beta B / D^{\star\beta}$.
+At the optimum the two excess terms are in the fixed ratio $\beta/\alpha$, that is $\alpha A / N^{\star\alpha} = \beta B / D^{\star\beta}$.
 
 ::: proof
 Substitute $D = C/(6N)$ to get a function of $N$ alone:
@@ -461,7 +461,9 @@ $$
 N^\star \approx 2.9 \times 10^{10}, \qquad D^\star \approx 5.8 \times 10^{11} \text{ tokens}.
 $$
 
-The published parametric fit ($\alpha = 0.34$, $\beta = 0.28$) gives $a \approx 0.45$, close to $1/2$. A replication by Besiroglu et al. (2024) found that the published constants fit the data poorly: the exponents are robust, the constants are fragile.
+The published parametric fit ($\alpha = 0.34$, $\beta = 0.28$) gives $a \approx 0.45$, close to $1/2$.
+
+A replication by Besiroglu et al. (2024) found that this fit does not match the paper's own data; their corrected fit has a larger $\beta$, close to $\alpha$, which brings $a$ to about $1/2$, in line with the two other estimation methods of Hoffmann et al. The fitted constants are fragile.
 :::
 
 These laws optimize training compute only. A model that will serve billions of tokens should be smaller and trained longer than $N^\star$, because inference cost grows with $N$ (Exercise 15 and ch. 8).
@@ -621,7 +623,7 @@ The practical loop is: profile one training step (`torch.profiler`), sort the ke
 Standard attention writes the $T \times T$ matrix of scores to HBM, reads it back for the softmax, writes the probabilities and reads them again to multiply by $V$. For long sequences this traffic, and the memory to store the probabilities for the backward pass, dominates. FlashAttention (Dao et al., 2022) never materializes the matrix, thanks to the following identity.
 
 :::: prop
-[Proposition 2.4 — Online softmax]{.tag} Let scores $s_1, \dots, s_n$ and value vectors $v_1, \dots, v_n$ arrive in blocks. Start from $m = -\infty$, $\ell = 0$, $o = 0$, and for each block $J$ update
+[Proposition 2.4 — Online softmax (Milakov and Gimelshein, 2018)]{.tag} Let scores $s_1, \dots, s_n$ and value vectors $v_1, \dots, v_n$ arrive in blocks. Start from $m = -\infty$, $\ell = 0$, $o = 0$, and for each block $J$ update
 $$
 m' = \max\big(m, \max_{j \in J} s_j\big), \qquad \ell' = e^{m - m'}\ell + \sum_{j \in J} e^{s_j - m'},
 $$
@@ -868,7 +870,7 @@ seconds of transfer time, so the ring of Theorem 3.3 is optimal up to the latenc
 *Idea of the proof.* Every entry of the result depends on all $p$ inputs and must end on all $p$ processes. A counting argument on the bytes that must leave and enter each process yields $(p-1)n/p$ for the reduction part and as much for the distribution part; the paper gives the formal argument.
 :::
 
-The latency term $2(p-1)\alpha$ grows with $p$. For small messages, tree-shaped algorithms, with $O(\log p)$ steps, are faster; libraries such as NCCL choose between rings and trees according to the message size.
+The latency term $2(p-1)\alpha$ grows with $p$. For small messages, algorithms with $O(\log p)$ steps, such as recursive doubling or trees, are faster (Thakur, Rabenseifner and Gropp, 2005); libraries such as NCCL choose between rings and trees according to the message size.
 
 ::: ex
 [Example 3.6 — Averaging the gradients of a 7B model]{.tag} In bf16 the gradients of $7 \times 10^9$ parameters weigh $n = 14$ GB. On $p = 8$ GPUs of one node with $W = 100$ GB/s per direction:
@@ -1063,7 +1065,7 @@ The stochastic gradient $\nabla F(x; \xi)$ is unbiased with variance at most $\s
 :::
 
 :::: thm
-[Theorem 4.2 — Mini-batch SGD on a non-convex objective]{.tag} Under Definition 4.1, SGD $x_{t+1} = x_t - \eta g_t$ with mini-batch gradients and $\eta \le 1/L$ satisfies
+[Theorem 4.2 — Mini-batch SGD on a non-convex objective (Ghadimi and Lan, 2013)]{.tag} Under Definition 4.1, SGD $x_{t+1} = x_t - \eta g_t$ with mini-batch gradients and $\eta \le 1/L$ satisfies
 
 ::: key
 [Key result — the SGD bound]{.tag}
@@ -1302,7 +1304,9 @@ for H in [1, 10, 100]:                               # H = 1 is mini-batch SGD
 An all-reduce synchronizes everybody. In **decentralized** training each worker only averages with its neighbours in a communication graph, which removes the global synchronization and the central bottleneck.
 
 ::: def
-[Definition 4.13 — Gossip matrix]{.tag} A **gossip matrix** $W \in \mathbb{R}^{p \times p}$ is symmetric, doubly stochastic, and has $W_{ij} > 0$ only if $i = j$ or $i$ and $j$ are neighbours. Its eigenvalues are $1 = \lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_p > -1$ for a connected graph, and we set
+[Definition 4.13 — Gossip matrix]{.tag} A **gossip matrix** $W \in \mathbb{R}^{p \times p}$ is symmetric and doubly stochastic, with $W_{ij} > 0$ exactly when $i = j$ or $i$ and $j$ are neighbours. Its eigenvalues are real, $1 = \lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_p$.
+
+If the graph is connected, $\lambda_2 < 1$ by the Perron–Frobenius theorem, and $\lambda_p > -1$ because the diagonal is positive (Gershgorin discs). We set
 $$
 \lambda = \max(|\lambda_2|, |\lambda_p|) < 1 .
 $$
@@ -1351,10 +1355,11 @@ $$
 x_{t+1} = x_t - a\, x_{t-\tau}, \qquad a = \eta L .
 $$
 
-It is stable if and only if all roots of $z^{\tau+1} - z^{\tau} + a = 0$ lie in the unit disc. A classical result on delay difference equations (Levin and May, 1976) gives the threshold
+It is stable if and only if all roots of $z^{\tau+1} - z^{\tau} + a = 0$ lie strictly inside the unit circle. A classical result on delay difference equations (Levin and May, 1976) gives the threshold
 $$
-0 < a < 2\sin\frac{\pi}{2(2\tau + 1)},
+0 < a < 2\sin\frac{\pi}{2(2\tau + 1)} .
 $$
+
 The threshold is 2 without delay, 1 for $\tau = 1$ and about 0.35 for $\tau = 4$: the step must shrink roughly like $1/\tau$.
 
 ```python
@@ -1564,7 +1569,9 @@ $$
 
 Replacing $\pi^\star$ by $\pi_\theta$ and taking the negative log-likelihood of the observed preferences gives $\mathcal{L}_{\mathrm{DPO}}$.
 
-Conversely, if $\hat r_\theta$ reproduces all the preference probabilities, it differs from $r$ by a function of $x$ alone (Definition 5.5), and the optimal policy for $\hat r_\theta$, which is $\pi_\theta$ itself by construction, is also optimal for $r$. [∎]{.qed}
+Conversely, suppose that $\hat r_\theta$ reproduces all the preference probabilities. Since $\sigma$ is injective, all its reward gaps equal those of $r$, so it differs from $r$ by a function of $x$ alone.
+
+Such a function only changes $Z(x)$ in Theorem 5.6, not the optimal policy. The optimal policy for $\hat r_\theta$, which is $\pi_\theta$ itself by construction, is therefore also optimal for $r$. [∎]{.qed}
 :::
 ::::
 
@@ -1905,7 +1912,7 @@ $$
 ::: proof
 Let $S$ be the number of correct answers, a sum of $k$ independent Bernoulli variables of mean $p$. The majority is wrong only if $S \le k/2$, that is $S/k - p \le -(p - \tfrac12)$.
 
-Hoeffding's inequality for variables in $[0, 1]$ gives the bound. [∎]{.qed}
+Hoeffding's inequality (Hoeffding, 1963) for variables in $[0, 1]$ gives the bound. [∎]{.qed}
 :::
 ::::
 
@@ -2088,15 +2095,15 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: (a) $12 \times 24 \times 2048^2 = 1.21 \times 10^9$ plus $50\,000 \times 2048 = 0.10 \times 10^9$, so $N \approx 1.31 \times 10^9$. (b) $16N \approx 21$ GB (Proposition 1.2).
 
-    (c) The activation estimate of Example 1.3 gives 478 MB per layer, 11.5 GB for 24 layers: it does not fit. FlashAttention removes the $5as/h$ term and leaves 3.4 GB, for a total of 24.4 GB, still just above 24 GB. Activation checkpointing (Proposition 2.8) or sharding the optimizer states over two GPUs (Proposition 3.7) makes it fit.
+    (c) The activation estimate of Example 1.3 gives 478 MB per layer, 11.5 GB for 24 layers: it does not fit. FlashAttention removes the $5as/h$ term and leaves 3.4 GB, for a total of about 24.4 GB. This is at the very limit of a 24 GB card (24 GiB, about 25.8 GB) before the logits, the temporary buffers and the framework's own memory are counted: in practice it does not fit. Activation checkpointing (Proposition 2.8) or sharding the optimizer states over two GPUs (Proposition 3.7) makes it fit with a margin.
 
 2.  **★ How many accelerators?** The model of Exercise 1 must be trained on 20 tokens per parameter within 24 hours, on accelerators of peak $3 \times 10^{14}$ FLOP/s running at 40 % MFU. How many accelerators are needed?
 
-    *Solution*: $D = 2.6 \times 10^{10}$ tokens, so $C = 6ND \approx 2.03 \times 10^{20}$ FLOPs (Proposition 1.1). One accelerator delivers per day
+    *Solution*: $D = 20N \approx 2.62 \times 10^{10}$ tokens, so $C = 6ND \approx 2.06 \times 10^{20}$ FLOPs (Proposition 1.1). One accelerator delivers per day
     $$
     0.4 \times 3 \times 10^{14} \times 86\,400 \approx 1.04 \times 10^{19} \text{ FLOPs},
     $$
-    so about 19.6 accelerator-days are needed: **20 accelerators**.
+    so about 19.9 accelerator-days are needed: **20 accelerators**.
 
 3.  **★ Placing kernels on the roofline.** With $\pi = 10^{15}$ FLOP/s and $\beta = 3 \times 10^{12}$ byte/s, compute the arithmetic intensity and the attainable throughput of: (a) the bf16 product of two $4096 \times 4096$ matrices; (b) the bf16 product of an $8 \times 4096$ matrix by a $4096 \times 4096$ matrix (decode at batch 8); (c) a layer normalization of a bf16 tensor, at about 8 FLOPs per element.
 
@@ -2118,7 +2125,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: (a) Apply Proposition 1.10 twice: the mean over 64 examples is the average over 4 GPUs of the average over 2 micro-steps of the mean over 8 examples. The all-reduce provides the first average and the factor $1/2$ the second.
 
-    (b) The gradient is multiplied by 64, which multiplies the SGD step by 64. Adam is almost invariant to this scaling, but its $\epsilon$ and any gradient-clipping threshold are not.
+    (b) If each micro-step loss is the sum over its 8 examples, each GPU accumulates the sum of the gradients of its 16 examples, and the DDP average over the 4 GPUs gives 16 times the correct gradient. The factor is the number of examples per GPU, so it also changes whenever the number of GPUs changes at a fixed global batch.
+
+    The SGD step is multiplied by 16. Adam is almost invariant to this scaling, but its $\epsilon$ and any gradient-clipping threshold are not.
 
     (c) Without it, DDP all-reduces after each micro-step. The result is still correct, since the all-reduce is linear, but the communication doubles; `no_sync()` skips the first all-reduce and lets the second one carry the accumulated gradients.
 
@@ -2134,9 +2143,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (b) Evaluate both for 1 GB of gradients, 64 workers, 25 GB/s links and a latency of 10 microseconds. (c) Below which message size does the latency term of the ring dominate?
 
-    *Solution*: (a) The server receives $pn$ bytes and sends $pn$ bytes on its own link: at least $2pn/W$. The ring takes $2(p-1)(\alpha + n/(pW))$ by Theorem 3.3.
+    *Solution*: (a) The server receives $pn$ bytes and sends $pn$ bytes on its own link. This takes $2pn/W$ if it receives everything before sending, and at least $pn/W$ even with a full-duplex link and chunks pipelined. The ring takes $2(p-1)(\alpha + n/(pW))$ by Theorem 3.3.
 
-    (b) Server: 5.1 s. Ring: $126 \times (10^{-5} + 6.25 \times 10^{-4}) \approx 0.080$ s, 64 times faster.
+    (b) Server: 5.1 s, or 2.6 s at best with pipelining. Ring: $126 \times (10^{-5} + 6.25 \times 10^{-4}) \approx 0.080$ s, 32 to 64 times faster.
 
     (c) The two terms of the ring are equal when $n = \alpha p W = 16$ MB. Below that, latency dominates; this is why DDP groups gradients into buckets and why libraries switch to trees for small messages.
 
@@ -2173,7 +2182,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
         print(f"{name}: lambda = {lam:.3f}, bound {np.log(1e3) / -np.log(lam):.0f} rounds, observed {t}")
     ```
 
-11. **★★ Inside the DPO gradient.** (a) Derive the gradient of $\mathcal{L}_{\mathrm{DPO}}$ given after Theorem 5.9. (b) What is the weight of every pair at the start of training, when $\pi_\theta = \pi_{\mathrm{ref}}$? (c) Suppose every pair of the data set is labelled in the same direction. Show that the empirical loss has no minimizer and that $\pi_\theta(y_l)/\pi_{\mathrm{ref}}(y_l) \to 0$ along any minimizing sequence.
+11. **★★ Inside the DPO gradient.** (a) Derive the gradient of $\mathcal{L}_{\mathrm{DPO}}$ given after Theorem 5.9. (b) What is the weight of every pair at the start of training, when $\pi_\theta = \pi_{\mathrm{ref}}$? (c) Let $\pi_\theta$ be a softmax with one free logit per candidate answer. Suppose the labels never contradict each other: each pair is always labelled in the same direction and the preferences contain no cycle. Show that the empirical loss has infimum 0 and no minimizer, and that $\pi_\theta(y_l)/\pi_{\mathrm{ref}}(y_l) \to 0$ along any minimizing sequence, for every answer $y_l$ rejected at least once.
 
     *Solution*: (a) Write $u = \hat r_\theta(y_w) - \hat r_\theta(y_l)$. The derivative of $-\log \sigma(u)$ is $-\sigma(-u)$.
 
@@ -2181,7 +2190,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (b) Both implicit rewards vanish, $u = 0$, and every pair has weight $\sigma(0) = 1/2$.
 
-    (c) The loss $-\log \sigma(u)$ is positive and decreases to 0 only as $u \to \infty$. The first implicit reward is bounded above by $-\beta \log \pi_{\mathrm{ref}}(y_w)$, so the second must tend to $-\infty$. DPO thus overfits deterministic preferences; Azar et al. (2024) analyse this and propose a squared loss with a finite target.
+    (c) Each term $-\log \sigma(u)$ is positive and tends to 0 only as $u \to \infty$. Without cycles, the answers can be ranked consistently with the labels; logits decreasing along this ranking with growing gaps send every $u$ to $+\infty$, so the infimum is 0. It is not attained, since every term is positive for finite logits.
+
+    Along a minimizing sequence every gap $u$ tends to $+\infty$. The first implicit reward is bounded above by $-\beta \log \pi_{\mathrm{ref}}(y_w)$, so the second must tend to $-\infty$. With a cycle, the gaps around it sum to zero, so they cannot all tend to $+\infty$ and the infimum is positive. DPO thus overfits deterministic preferences; Azar et al. (2024) analyse this and propose a squared loss with a finite target.
 
 12. **★★ Speculative decoding by the numbers (Python).** A target $p = (0.5, 0.3, 0.2)$ and a draft $q = (0.6, 0.2, 0.2)$ share a vocabulary of three tokens. (a) Compute $\alpha$ and the residual distribution. (b) Assuming independent acceptances and a draft pass costing $c = 0.1$ target pass, find the number of draft tokens $\gamma$ that maximizes the speed-up.
 
@@ -2207,7 +2218,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     The batch is 768 sequences, that is 96 micro-batches of one sequence per pipeline, for a bubble of $15/111 \approx 13.5$ % (less with interleaving).
 
-    A step costs about $1.6 \times 10^{18}$ FLOPs (Proposition 1.1), that is 3.8 s at 40 % MFU of $10^{15}$ FLOP/s per GPU. The data-parallel ring on 2.7 GB of bf16 gradients across 8 nodes at 25 GB/s takes about 0.19 s, which overlaps with the backward pass. Discuss the alternatives ($p = 12$, ZeRO-3 without pipeline) and their costs.
+    A step of $768 \times 2048 \approx 1.57 \times 10^6$ tokens costs about $1.65 \times 10^{18}$ FLOPs (Proposition 1.1), that is about 4.0 s at 40 % MFU of $10^{15}$ FLOP/s per GPU. The data-parallel ring on 2.7 GB of bf16 gradients across 8 nodes at 25 GB/s takes about 0.19 s, which overlaps with the backward pass. Discuss the alternatives ($p = 12$, ZeRO-3 without pipeline) and their costs.
 
 14. **★★★ Verify or vote?** An agent solves tasks of $n = 10$ steps, each step correct with probability $p = 0.8$, independently. (a) Compare a per-step verifier with two attempts per step and a plurality vote over 5 complete runs, assuming that wrong final answers never coincide. (b) Redo (a) when the verifier wrongly accepts a wrong step with probability $0.1$. (c) Discuss the costs.
 
@@ -2251,7 +2262,7 @@ The official assessment (master-mva.com) consists of two homeworks worth 25 % ea
 ### Solo projects {#projects-solo}
 
 1.  **[Solo · ≈ 20 h] Error feedback, reproduced.** Paper study of Stich, Cordonnier and Jaggi (2018), "Sparsified SGD with Memory". Simulate 8 data-parallel workers in NumPy or PyTorch and train a logistic regression and a small MLP on the `digits` data set bundled with scikit-learn, with top-$k$, random-$k$ and ternary QSGD, each with and without error feedback.
-    -   *Success criterion*: top-$k$ at 1 % with memory reaches the accuracy of uncompressed SGD within one point, without memory it does not; plot the loss against the bits sent.
+    -   *Success criterion*: top-$k$ at 1 % with memory reaches the test accuracy of uncompressed SGD within one point; the gap without memory is measured on an IID split and on a label-skewed split of the data across workers, and explained with Code 4.9; plot the loss against the bits sent.
     -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 3, 4. *Evaluation*: the rubric below.
 2.  **[Solo · ≈ 20 h] DPO on a toy language task.** Paper study of Rafailov et al. (2023). Define a known reward on short digit strings, train a tiny transformer by SFT, build a preference data set from the Bradley–Terry model, and run DPO for several $\beta$.
     -   *Success criterion*: on prompts whose responses can be enumerated, the divergence to the optimal policy of Theorem 5.6 decreases during training; draw the reward–divergence frontier and compare it with best-of-$n$ sampling.
@@ -2264,13 +2275,14 @@ The official assessment (master-mva.com) consists of two homeworks worth 25 % ea
 
 1.  **[Group of 2–3 · ≈ 30 h each] DiLoCo at small scale.** Paper study of Douillard et al. (2023). Train a GPT of 10–20 million parameters on TinyStories (Eldan and Li, 2023), with 4 to 8 workers simulated on one free GPU or run as `gloo` processes.
     -   *Comparison*: synchronous data-parallel AdamW, plain model averaging and DiLoCo, for $H \in \{1, 10, 50, 200\}$, reporting validation perplexity against communication rounds and bytes.
-    -   *Success criterion*: reproduce the qualitative claim that DiLoCo with $H$ in the hundreds stays within a few percent of the synchronous perplexity.
+    -   *Success criterion*: reproduce the qualitative claim that DiLoCo with $H$ in the hundreds stays within 5 % of the synchronous validation perplexity at an equal number of training tokens, while plain averaging with the same $H$ does not.
     -   *Split*: model, data and baseline; distributed loop and communication accounting; ablations of the outer optimizer and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 1, 3, 4.
 2.  **[Group of 2–3 · ≈ 30 h each] A mini serving engine.** Build an inference server for GPT-2 small (124 million parameters, public weights; Radford et al., 2019) with a KV cache, continuous batching, a paged cache with block tables, and int8 weight-only quantization.
     -   *Success criterion*: greedy outputs identical to a naive generation loop; a throughput–latency curve as a function of batch size and length, each gain explained with Propositions 6.2–6.9.
     -   *Split*: cache and paging; scheduler and batching; quantization and benchmarks. *Deliverables*: code, a 6–8 page report, a 15-minute talk with a live demonstration. *Chapters*: ch. 2, 6.
 3.  **[Group of 2–3 · ≈ 30 h each] A verified tool-using agent.** Use a small open instruction-tuned model (at most 1.5 billion parameters) to solve GSM8K problems (Cobbe et al., 2021) with a sandboxed calculator called through constrained JSON.
     -   *Measurements*: pass@1 and pass@$k$ with the estimator of Proposition 7.5, majority voting, and a per-step verifier, compared with the predictions of Proposition 7.3 and Theorem 7.4.
+    -   *Success criterion*: every rate is reported with a confidence interval on at least 500 problems; the agent with the calculator beats the same model without tools on pass@1, and each gap between a measurement and its prediction is either within the interval or explained (for instance by correlated errors between samples).
     -   *Split*: agent loop, sandbox and constrained decoding; evaluation harness; statistical analysis. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 5, 6, 7.
 
 ### Written exam (proposal) {#projects-exam}

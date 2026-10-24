@@ -569,7 +569,7 @@ C = 6 \times 7 \times 10^9 \times 2 \times 10^{12} = 8.4 \times 10^{22} \text{ F
 <p>On <span class="math inline">p = 1024</span> accelerators with a nominal peak of <span class="math inline">10^{15}</span> FLOP/s at an MFU of 40 %: <span class="math display">
 t = \frac{8.4 \times 10^{22}}{1024 \times 0.4 \times 10^{15}} \approx 2.05 \times 10^5 \text{ s} \approx 57 \text{ h}.
 </span></p>
-<p>The same run on a single such accelerator would take about 6.5 years: distribution is not optional.</p>
+<p>The same run on a single such accelerator would take about 6.7 years: distribution is not optional.</p>
 </div>
 <h3 id="spending-a-compute-budget-scaling-laws">1.4 Spending a compute budget: scaling laws</h3>
 <p>Given a budget <span class="math inline">C</span>, should one train a large model on few tokens or a small model on many? Empirical scaling laws answer by fitting the final loss as a function of <span class="math inline">N</span> and <span class="math inline">D</span>; the theorem below turns such a fit into an allocation rule.</p>
@@ -586,7 +586,7 @@ G = \Big(\frac{\alpha A}{\beta B}\Big)^{1/(\alpha+\beta)}.
 <p>The unique minimizer is <span class="math display">
 N^\star = G\, \Big(\frac{C}{6}\Big)^{a}, \qquad D^\star = G^{-1} \Big(\frac{C}{6}\Big)^{b}.
 </span></p>
-<p>At the optimum the two excess terms are in the fixed ratio <span class="math inline">\alpha A / N^{\star\alpha} = \beta B / D^{\star\beta}</span>.</p>
+<p>At the optimum the two excess terms are in the fixed ratio <span class="math inline">\beta/\alpha</span>, that is <span class="math inline">\alpha A / N^{\star\alpha} = \beta B / D^{\star\beta}</span>.</p>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>Substitute <span class="math inline">D = C/(6N)</span> to get a function of <span class="math inline">N</span> alone: <span class="math display">
 \varphi(N) = E + A N^{-\alpha} + B \Big(\frac{6N}{C}\Big)^{\beta}.
@@ -608,7 +608,8 @@ N^{\alpha + \beta} = \frac{\alpha A}{\beta B} \Big(\frac{C}{6}\Big)^{\beta},
 <p><span class="tag">Example 1.8 — The “20 tokens per parameter” rule</span> The rule of thumb drawn from Hoffmann et al.&nbsp;(2022) is <span class="math inline">D^\star \approx 20 N^\star</span>. For <span class="math inline">C = 10^{23}</span> FLOPs, <span class="math inline">6 \times 20 \times N^2 = 10^{23}</span> gives <span class="math display">
 N^\star \approx 2.9 \times 10^{10}, \qquad D^\star \approx 5.8 \times 10^{11} \text{ tokens}.
 </span></p>
-<p>The published parametric fit (<span class="math inline">\alpha = 0.34</span>, <span class="math inline">\beta = 0.28</span>) gives <span class="math inline">a \approx 0.45</span>, close to <span class="math inline">1/2</span>. A replication by Besiroglu et al.&nbsp;(2024) found that the published constants fit the data poorly: the exponents are robust, the constants are fragile.</p>
+<p>The published parametric fit (<span class="math inline">\alpha = 0.34</span>, <span class="math inline">\beta = 0.28</span>) gives <span class="math inline">a \approx 0.45</span>, close to <span class="math inline">1/2</span>.</p>
+<p>A replication by Besiroglu et al.&nbsp;(2024) found that this fit does not match the paper’s own data; their corrected fit has a larger <span class="math inline">\beta</span>, close to <span class="math inline">\alpha</span>, which brings <span class="math inline">a</span> to about <span class="math inline">1/2</span>, in line with the two other estimation methods of Hoffmann et al.&nbsp;The fitted constants are fragile.</p>
 </div>
 <p>These laws optimize training compute only. A model that will serve billions of tokens should be smaller and trained longer than <span class="math inline">N^\star</span>, because inference cost grows with <span class="math inline">N</span> (Exercise 15 and ch.&nbsp;8).</p>
 <h3 id="data-parallelism">1.5 Data parallelism</h3>
@@ -729,7 +730,7 @@ I = \frac{F}{Q} \quad \text{(FLOP per byte)}.
 <h3 id="io-aware-attention">2.3 IO-aware attention</h3>
 <p>Standard attention writes the <span class="math inline">T \times T</span> matrix of scores to HBM, reads it back for the softmax, writes the probabilities and reads them again to multiply by <span class="math inline">V</span>. For long sequences this traffic, and the memory to store the probabilities for the backward pass, dominates. FlashAttention (Dao et al., 2022) never materializes the matrix, thanks to the following identity.</p>
 <div class="prop">
-<p><span class="tag">Proposition 2.4 — Online softmax</span> Let scores <span class="math inline">s_1, \dots, s_n</span> and value vectors <span class="math inline">v_1, \dots, v_n</span> arrive in blocks. Start from <span class="math inline">m = -\infty</span>, <span class="math inline">\ell = 0</span>, <span class="math inline">o = 0</span>, and for each block <span class="math inline">J</span> update <span class="math display">
+<p><span class="tag">Proposition 2.4 — Online softmax (Milakov and Gimelshein, 2018)</span> Let scores <span class="math inline">s_1, \dots, s_n</span> and value vectors <span class="math inline">v_1, \dots, v_n</span> arrive in blocks. Start from <span class="math inline">m = -\infty</span>, <span class="math inline">\ell = 0</span>, <span class="math inline">o = 0</span>, and for each block <span class="math inline">J</span> update <span class="math display">
 m' = \max\big(m, \max_{j \in J} s_j\big), \qquad \ell' = e^{m - m'}\ell + \sum_{j \in J} e^{s_j - m'},
 </span> <span class="math display">
 o' = e^{m - m'} o + \sum_{j \in J} e^{s_j - m'} v_j .
@@ -908,7 +909,7 @@ t_{\mathrm{ring}} = 2(p-1)\Big(\alpha + \frac{n}{pW}\Big)
 </span> seconds of transfer time, so the ring of Theorem 3.3 is optimal up to the latency term (Patarasuk and Yuan, 2009).</p>
 <p><em>Idea of the proof.</em> Every entry of the result depends on all <span class="math inline">p</span> inputs and must end on all <span class="math inline">p</span> processes. A counting argument on the bytes that must leave and enter each process yields <span class="math inline">(p-1)n/p</span> for the reduction part and as much for the distribution part; the paper gives the formal argument.</p>
 </div>
-<p>The latency term <span class="math inline">2(p-1)\alpha</span> grows with <span class="math inline">p</span>. For small messages, tree-shaped algorithms, with <span class="math inline">O(\log p)</span> steps, are faster; libraries such as NCCL choose between rings and trees according to the message size.</p>
+<p>The latency term <span class="math inline">2(p-1)\alpha</span> grows with <span class="math inline">p</span>. For small messages, algorithms with <span class="math inline">O(\log p)</span> steps, such as recursive doubling or trees, are faster (Thakur, Rabenseifner and Gropp, 2005); libraries such as NCCL choose between rings and trees according to the message size.</p>
 <div class="ex">
 <p><span class="tag">Example 3.6 — Averaging the gradients of a 7B model</span> In bf16 the gradients of <span class="math inline">7 \times 10^9</span> parameters weigh <span class="math inline">n = 14</span> GB. On <span class="math inline">p = 8</span> GPUs of one node with <span class="math inline">W = 100</span> GB/s per direction: <span class="math display">
 \frac{2 \times 7}{8} \times \frac{14}{100} \approx 0.25 \text{ s per step}.
@@ -1080,7 +1081,7 @@ f(y) \le f(x) + \langle \nabla f(x), y - x \rangle + \frac{L}{2}\|y - x\|^2 .
 <p>The stochastic gradient <span class="math inline">\nabla F(x; \xi)</span> is unbiased with variance at most <span class="math inline">\sigma^2</span>. A mini-batch gradient averages <span class="math inline">B</span> independent samples, so its variance is at most <span class="math inline">\sigma^2/B</span>. We write <span class="math inline">\Delta = f(x_0) - f^\star</span>.</p>
 </div>
 <div class="thm">
-<p><span class="tag">Theorem 4.2 — Mini-batch SGD on a non-convex objective</span> Under Definition 4.1, SGD <span class="math inline">x_{t+1} = x_t - \eta g_t</span> with mini-batch gradients and <span class="math inline">\eta \le 1/L</span> satisfies</p>
+<p><span class="tag">Theorem 4.2 — Mini-batch SGD on a non-convex objective (Ghadimi and Lan, 2013)</span> Under Definition 4.1, SGD <span class="math inline">x_{t+1} = x_t - \eta g_t</span> with mini-batch gradients and <span class="math inline">\eta \le 1/L</span> satisfies</p>
 <div class="key">
 <p><span class="tag">Key result — the SGD bound</span> <span class="math display">
 \frac{1}{T}\sum_{t=0}^{T-1} \mathbb{E}\|\nabla f(x_t)\|^2 \ \le\ \frac{2\Delta}{\eta T} + \frac{\eta L \sigma^2}{B}
@@ -1263,7 +1264,8 @@ x_{t+1} - e_{t+1} = x_t - \mathcal{C}(v_t) - v_t + \mathcal{C}(v_t) = x_t - e_t 
 <h3 id="decentralized-gossip-sgd">4.4 Decentralized (gossip) SGD</h3>
 <p>An all-reduce synchronizes everybody. In <strong>decentralized</strong> training each worker only averages with its neighbours in a communication graph, which removes the global synchronization and the central bottleneck.</p>
 <div class="def">
-<p><span class="tag">Definition 4.13 — Gossip matrix</span> A <strong>gossip matrix</strong> <span class="math inline">W \in \mathbb{R}^{p \times p}</span> is symmetric, doubly stochastic, and has <span class="math inline">W_{ij} &gt; 0</span> only if <span class="math inline">i = j</span> or <span class="math inline">i</span> and <span class="math inline">j</span> are neighbours. Its eigenvalues are <span class="math inline">1 = \lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_p &gt; -1</span> for a connected graph, and we set <span class="math display">
+<p><span class="tag">Definition 4.13 — Gossip matrix</span> A <strong>gossip matrix</strong> <span class="math inline">W \in \mathbb{R}^{p \times p}</span> is symmetric and doubly stochastic, with <span class="math inline">W_{ij} &gt; 0</span> exactly when <span class="math inline">i = j</span> or <span class="math inline">i</span> and <span class="math inline">j</span> are neighbours. Its eigenvalues are real, <span class="math inline">1 = \lambda_1 \ge \lambda_2 \ge \dots \ge \lambda_p</span>.</p>
+<p>If the graph is connected, <span class="math inline">\lambda_2 &lt; 1</span> by the Perron–Frobenius theorem, and <span class="math inline">\lambda_p &gt; -1</span> because the diagonal is positive (Gershgorin discs). We set <span class="math display">
 \lambda = \max(|\lambda_2|, |\lambda_p|) &lt; 1 .
 </span></p>
 <p>Decentralized SGD (Lian et al., 2017) iterates <span class="math inline">x_i \leftarrow \sum_j W_{ij}x_j - \eta g_i</span> on every worker.</p>
@@ -1294,9 +1296,10 @@ x_{t+1} = x_t - \eta\, g(x_{t - \tau_t}) .
 <p><span class="tag">Example 4.16 — A delay shrinks the stable step size</span> On <span class="math inline">f(x) = \frac{L}{2}x^2</span> with a constant delay <span class="math inline">\tau</span>, the iteration is <span class="math display">
 x_{t+1} = x_t - a\, x_{t-\tau}, \qquad a = \eta L .
 </span></p>
-<p>It is stable if and only if all roots of <span class="math inline">z^{\tau+1} - z^{\tau} + a = 0</span> lie in the unit disc. A classical result on delay difference equations (Levin and May, 1976) gives the threshold <span class="math display">
-0 &lt; a &lt; 2\sin\frac{\pi}{2(2\tau + 1)},
-</span> The threshold is 2 without delay, 1 for <span class="math inline">\tau = 1</span> and about 0.35 for <span class="math inline">\tau = 4</span>: the step must shrink roughly like <span class="math inline">1/\tau</span>.</p>
+<p>It is stable if and only if all roots of <span class="math inline">z^{\tau+1} - z^{\tau} + a = 0</span> lie strictly inside the unit circle. A classical result on delay difference equations (Levin and May, 1976) gives the threshold <span class="math display">
+0 &lt; a &lt; 2\sin\frac{\pi}{2(2\tau + 1)} .
+</span></p>
+<p>The threshold is 2 without delay, 1 for <span class="math inline">\tau = 1</span> and about 0.35 for <span class="math inline">\tau = 4</span>: the step must shrink roughly like <span class="math inline">1/\tau</span>.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> spectral_radius(a, tau):                     <span class="co"># roots of z^(tau+1) - z^tau + a = 0</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    coeffs <span class="op">=</span> np.zeros(tau <span class="op">+</span> <span class="dv">2</span>)<span class="op">;</span> coeffs[<span class="dv">0</span>], coeffs[<span class="dv">1</span>], coeffs[<span class="op">-</span><span class="dv">1</span>] <span class="op">=</span> <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>, a</span>
@@ -1442,7 +1445,8 @@ r(x, y) = \beta \log \frac{\pi^\star(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} + 
 \Pr(y_w \succ y_l \mid x) = \sigma\Big(\beta \log \frac{\pi^\star(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi^\star(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)}\Big).
 </span></p>
 <p>Replacing <span class="math inline">\pi^\star</span> by <span class="math inline">\pi_\theta</span> and taking the negative log-likelihood of the observed preferences gives <span class="math inline">\mathcal{L}_{\mathrm{DPO}}</span>.</p>
-<p>Conversely, if <span class="math inline">\hat r_\theta</span> reproduces all the preference probabilities, it differs from <span class="math inline">r</span> by a function of <span class="math inline">x</span> alone (Definition 5.5), and the optimal policy for <span class="math inline">\hat r_\theta</span>, which is <span class="math inline">\pi_\theta</span> itself by construction, is also optimal for <span class="math inline">r</span>. <span class="qed">∎</span></p>
+<p>Conversely, suppose that <span class="math inline">\hat r_\theta</span> reproduces all the preference probabilities. Since <span class="math inline">\sigma</span> is injective, all its reward gaps equal those of <span class="math inline">r</span>, so it differs from <span class="math inline">r</span> by a function of <span class="math inline">x</span> alone.</p>
+<p>Such a function only changes <span class="math inline">Z(x)</span> in Theorem 5.6, not the optimal policy. The optimal policy for <span class="math inline">\hat r_\theta</span>, which is <span class="math inline">\pi_\theta</span> itself by construction, is therefore also optimal for <span class="math inline">r</span>. <span class="qed">∎</span></p>
 </div>
 </div>
 <p>DPO needs no reward model, no sampling and no value network: two forward passes per pair, through the policy and through the frozen reference. Its gradient is <span class="math display">
@@ -1687,7 +1691,7 @@ h_t = (\text{task},\ a_1, o_1,\ \dots,\ a_{t-1}, o_{t-1}).
 </span></p>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>Let <span class="math inline">S</span> be the number of correct answers, a sum of <span class="math inline">k</span> independent Bernoulli variables of mean <span class="math inline">p</span>. The majority is wrong only if <span class="math inline">S \le k/2</span>, that is <span class="math inline">S/k - p \le -(p - \tfrac12)</span>.</p>
-<p>Hoeffding’s inequality for variables in <span class="math inline">[0, 1]</span> gives the bound. <span class="qed">∎</span></p>
+<p>Hoeffding’s inequality (Hoeffding, 1963) for variables in <span class="math inline">[0, 1]</span> gives the bound. <span class="qed">∎</span></p>
 </div>
 </div>
 <p>For <span class="math inline">p = 0.7</span> and <span class="math inline">k = 15</span> the bound is 0.30 and the exact value 0.05. Self-consistency (Wang et al., 2023) applies this to sampled chains of thought: the compute spent at inference buys accuracy, as long as the answers are independent enough and <span class="math inline">p &gt; 1/2</span>.</p>
@@ -1823,12 +1827,12 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <li><p><strong>★ The budget of a 1.3B model.</strong> A decoder-only transformer has <span class="math inline">d = 2048</span>, <span class="math inline">L = 24</span> and a vocabulary of <span class="math inline">50\,000</span> tokens. (a) Count its parameters with Proposition 0.2. (b) Compute the memory of its model states under mixed-precision Adam. (c) With sequences of 2048 tokens, 16 heads and micro-batch 1, does training fit on a 24 GB GPU?</p>
 <p><em>Solution</em>: (a) <span class="math inline">12 \times 24 \times 2048^2 = 1.21 \times 10^9</span> plus <span class="math inline">50\,000 \times 2048 = 0.10 \times 10^9</span>, so <span class="math inline">N \approx 1.31 \times 10^9</span>. (b) <span class="math inline">16N \approx 21</span> GB (Proposition 1.2).</p>
 <ol start="3" type="a">
-<li>The activation estimate of Example 1.3 gives 478 MB per layer, 11.5 GB for 24 layers: it does not fit. FlashAttention removes the <span class="math inline">5as/h</span> term and leaves 3.4 GB, for a total of 24.4 GB, still just above 24 GB. Activation checkpointing (Proposition 2.8) or sharding the optimizer states over two GPUs (Proposition 3.7) makes it fit.</li>
+<li>The activation estimate of Example 1.3 gives 478 MB per layer, 11.5 GB for 24 layers: it does not fit. FlashAttention removes the <span class="math inline">5as/h</span> term and leaves 3.4 GB, for a total of about 24.4 GB. This is at the very limit of a 24 GB card (24 GiB, about 25.8 GB) before the logits, the temporary buffers and the framework’s own memory are counted: in practice it does not fit. Activation checkpointing (Proposition 2.8) or sharding the optimizer states over two GPUs (Proposition 3.7) makes it fit with a margin.</li>
 </ol></li>
 <li><p><strong>★ How many accelerators?</strong> The model of Exercise 1 must be trained on 20 tokens per parameter within 24 hours, on accelerators of peak <span class="math inline">3 \times 10^{14}</span> FLOP/s running at 40 % MFU. How many accelerators are needed?</p>
-<p><em>Solution</em>: <span class="math inline">D = 2.6 \times 10^{10}</span> tokens, so <span class="math inline">C = 6ND \approx 2.03 \times 10^{20}</span> FLOPs (Proposition 1.1). One accelerator delivers per day <span class="math display">
+<p><em>Solution</em>: <span class="math inline">D = 20N \approx 2.62 \times 10^{10}</span> tokens, so <span class="math inline">C = 6ND \approx 2.06 \times 10^{20}</span> FLOPs (Proposition 1.1). One accelerator delivers per day <span class="math display">
 0.4 \times 3 \times 10^{14} \times 86\,400 \approx 1.04 \times 10^{19} \text{ FLOPs},
-</span> so about 19.6 accelerator-days are needed: <strong>20 accelerators</strong>.</p></li>
+</span> so about 19.9 accelerator-days are needed: <strong>20 accelerators</strong>.</p></li>
 <li><p><strong>★ Placing kernels on the roofline.</strong> With <span class="math inline">\pi = 10^{15}</span> FLOP/s and <span class="math inline">\beta = 3 \times 10^{12}</span> byte/s, compute the arithmetic intensity and the attainable throughput of: (a) the bf16 product of two <span class="math inline">4096 \times 4096</span> matrices; (b) the bf16 product of an <span class="math inline">8 \times 4096</span> matrix by a <span class="math inline">4096 \times 4096</span> matrix (decode at batch 8); (c) a layer normalization of a bf16 tensor, at about 8 FLOPs per element.</p>
 <p><em>Solution</em>: (a) <span class="math inline">I = 4096/3 \approx 1365 &gt; 333</span>: compute-bound, up to <span class="math inline">10^{15}</span> FLOP/s.</p>
 <ol start="2" type="a">
@@ -1842,8 +1846,11 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <li><p><strong>★★ Accumulation, sharding and averaging.</strong> One GPU trains with batch 64. You move to 4 GPUs with micro-batches of 8 and 2 accumulation steps. (a) Show that the update is unchanged if each micro-step loss is a mean divided by 2. (b) What happens if the losses are summed over examples instead of averaged? (c) Why does DDP offer a <code>no_sync()</code> context for accumulation steps?</p>
 <p><em>Solution</em>: (a) Apply Proposition 1.10 twice: the mean over 64 examples is the average over 4 GPUs of the average over 2 micro-steps of the mean over 8 examples. The all-reduce provides the first average and the factor <span class="math inline">1/2</span> the second.</p>
 <ol start="2" type="a">
-<li><p>The gradient is multiplied by 64, which multiplies the SGD step by 64. Adam is almost invariant to this scaling, but its <span class="math inline">\epsilon</span> and any gradient-clipping threshold are not.</p></li>
-<li><p>Without it, DDP all-reduces after each micro-step. The result is still correct, since the all-reduce is linear, but the communication doubles; <code>no_sync()</code> skips the first all-reduce and lets the second one carry the accumulated gradients.</p></li>
+<li>If each micro-step loss is the sum over its 8 examples, each GPU accumulates the sum of the gradients of its 16 examples, and the DDP average over the 4 GPUs gives 16 times the correct gradient. The factor is the number of examples per GPU, so it also changes whenever the number of GPUs changes at a fixed global batch.</li>
+</ol>
+<p>The SGD step is multiplied by 16. Adam is almost invariant to this scaling, but its <span class="math inline">\epsilon</span> and any gradient-clipping threshold are not.</p>
+<ol start="3" type="a">
+<li>Without it, DDP all-reduces after each micro-step. The result is still correct, since the all-reduce is linear, but the communication doubles; <code>no_sync()</code> skips the first all-reduce and lets the second one carry the accumulated gradients.</li>
 </ol></li>
 <li><p><strong>★★ Two-level checkpointing.</strong> (a) Recompute the best segment length of Proposition 2.8 for <span class="math inline">n = 48</span> layers. (b) Apply the same idea inside each segment: store checkpoints every <span class="math inline">k_2</span> layers within segments of <span class="math inline">k_1</span> layers. Show that the peak memory is about <span class="math inline">3n^{1/3}</span> units for two extra forward passes.</p>
 <p><em>Solution</em>: (a) <span class="math inline">\sqrt{48} \approx 6.9</span>, so <span class="math inline">k = 7</span> gives about <span class="math inline">48/7 + 7 \approx 14</span> units.</p>
@@ -1855,9 +1862,9 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <ol start="2" type="a">
 <li>Evaluate both for 1 GB of gradients, 64 workers, 25 GB/s links and a latency of 10 microseconds. (c) Below which message size does the latency term of the ring dominate?</li>
 </ol>
-<p><em>Solution</em>: (a) The server receives <span class="math inline">pn</span> bytes and sends <span class="math inline">pn</span> bytes on its own link: at least <span class="math inline">2pn/W</span>. The ring takes <span class="math inline">2(p-1)(\alpha + n/(pW))</span> by Theorem 3.3.</p>
+<p><em>Solution</em>: (a) The server receives <span class="math inline">pn</span> bytes and sends <span class="math inline">pn</span> bytes on its own link. This takes <span class="math inline">2pn/W</span> if it receives everything before sending, and at least <span class="math inline">pn/W</span> even with a full-duplex link and chunks pipelined. The ring takes <span class="math inline">2(p-1)(\alpha + n/(pW))</span> by Theorem 3.3.</p>
 <ol start="2" type="a">
-<li><p>Server: 5.1 s. Ring: <span class="math inline">126 \times (10^{-5} + 6.25 \times 10^{-4}) \approx 0.080</span> s, 64 times faster.</p></li>
+<li><p>Server: 5.1 s, or 2.6 s at best with pipelining. Ring: <span class="math inline">126 \times (10^{-5} + 6.25 \times 10^{-4}) \approx 0.080</span> s, 32 to 64 times faster.</p></li>
 <li><p>The two terms of the ring are equal when <span class="math inline">n = \alpha p W = 16</span> MB. Below that, latency dominates; this is why DDP groups gradients into buckets and why libraries switch to trees for small messages.</p></li>
 </ol></li>
 <li><p><strong>★★ The price of random sparsification.</strong> Take <span class="math inline">d = 10^6</span> coordinates and keep <span class="math inline">k = 10^3</span> of them. (a) Compute <span class="math inline">\omega</span> for random-<span class="math inline">k</span> and the slowdown predicted by Theorem 4.6. (b) How many workers compressing independently make the penalty <span class="math inline">1 + \omega/p</span> at most 2? (c) For top-<span class="math inline">k</span> with error feedback, what does Theorem 4.8 guarantee?</p>
@@ -1886,13 +1893,14 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> np.linalg.norm(x <span class="op">-</span> x.mean()) <span class="op">&gt;</span> <span class="fl">1e-3</span> <span class="op">*</span> start:            <span class="co"># gossip until 1000x smaller</span></span>
 <span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>        x, t <span class="op">=</span> W <span class="op">@</span> x, t <span class="op">+</span> <span class="dv">1</span></span>
 <span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: lambda = </span><span class="sc">{</span>lam<span class="sc">:.3f}</span><span class="ss">, bound </span><span class="sc">{</span>np<span class="sc">.</span>log(<span class="fl">1e3</span>) <span class="op">/</span> <span class="op">-</span>np<span class="sc">.</span>log(lam)<span class="sc">:.0f}</span><span class="ss"> rounds, observed </span><span class="sc">{</span>t<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div></li>
-<li><p><strong>★★ Inside the DPO gradient.</strong> (a) Derive the gradient of <span class="math inline">\mathcal{L}_{\mathrm{DPO}}</span> given after Theorem 5.9. (b) What is the weight of every pair at the start of training, when <span class="math inline">\pi_\theta = \pi_{\mathrm{ref}}</span>? (c) Suppose every pair of the data set is labelled in the same direction. Show that the empirical loss has no minimizer and that <span class="math inline">\pi_\theta(y_l)/\pi_{\mathrm{ref}}(y_l) \to 0</span> along any minimizing sequence.</p>
+<li><p><strong>★★ Inside the DPO gradient.</strong> (a) Derive the gradient of <span class="math inline">\mathcal{L}_{\mathrm{DPO}}</span> given after Theorem 5.9. (b) What is the weight of every pair at the start of training, when <span class="math inline">\pi_\theta = \pi_{\mathrm{ref}}</span>? (c) Let <span class="math inline">\pi_\theta</span> be a softmax with one free logit per candidate answer. Suppose the labels never contradict each other: each pair is always labelled in the same direction and the preferences contain no cycle. Show that the empirical loss has infimum 0 and no minimizer, and that <span class="math inline">\pi_\theta(y_l)/\pi_{\mathrm{ref}}(y_l) \to 0</span> along any minimizing sequence, for every answer <span class="math inline">y_l</span> rejected at least once.</p>
 <p><em>Solution</em>: (a) Write <span class="math inline">u = \hat r_\theta(y_w) - \hat r_\theta(y_l)</span>. The derivative of <span class="math inline">-\log \sigma(u)</span> is <span class="math inline">-\sigma(-u)</span>.</p>
 <p>Since the reference policy does not depend on <span class="math inline">\theta</span>, the gradient of <span class="math inline">u</span> is <span class="math inline">\beta</span> times the difference of the gradients of the two log-probabilities, which gives the formula.</p>
 <ol start="2" type="a">
 <li><p>Both implicit rewards vanish, <span class="math inline">u = 0</span>, and every pair has weight <span class="math inline">\sigma(0) = 1/2</span>.</p></li>
-<li><p>The loss <span class="math inline">-\log \sigma(u)</span> is positive and decreases to 0 only as <span class="math inline">u \to \infty</span>. The first implicit reward is bounded above by <span class="math inline">-\beta \log \pi_{\mathrm{ref}}(y_w)</span>, so the second must tend to <span class="math inline">-\infty</span>. DPO thus overfits deterministic preferences; Azar et al.&nbsp;(2024) analyse this and propose a squared loss with a finite target.</p></li>
-</ol></li>
+<li><p>Each term <span class="math inline">-\log \sigma(u)</span> is positive and tends to 0 only as <span class="math inline">u \to \infty</span>. Without cycles, the answers can be ranked consistently with the labels; logits decreasing along this ranking with growing gaps send every <span class="math inline">u</span> to <span class="math inline">+\infty</span>, so the infimum is 0. It is not attained, since every term is positive for finite logits.</p></li>
+</ol>
+<p>Along a minimizing sequence every gap <span class="math inline">u</span> tends to <span class="math inline">+\infty</span>. The first implicit reward is bounded above by <span class="math inline">-\beta \log \pi_{\mathrm{ref}}(y_w)</span>, so the second must tend to <span class="math inline">-\infty</span>. With a cycle, the gaps around it sum to zero, so they cannot all tend to <span class="math inline">+\infty</span> and the infimum is positive. DPO thus overfits deterministic preferences; Azar et al.&nbsp;(2024) analyse this and propose a squared loss with a finite target.</p></li>
 <li><p><strong>★★ Speculative decoding by the numbers (Python).</strong> A target <span class="math inline">p = (0.5, 0.3, 0.2)</span> and a draft <span class="math inline">q = (0.6, 0.2, 0.2)</span> share a vocabulary of three tokens. (a) Compute <span class="math inline">\alpha</span> and the residual distribution. (b) Assuming independent acceptances and a draft pass costing <span class="math inline">c = 0.1</span> target pass, find the number of draft tokens <span class="math inline">\gamma</span> that maximizes the speed-up.</p>
 <p><em>Solution</em>: (a) <span class="math inline">\alpha = 0.5 + 0.2 + 0.2 = 0.9</span> and the residual puts all its mass on the second token, the only one that the draft under-samples (Theorem 6.11).</p>
 <ol start="2" type="a">
@@ -1910,7 +1918,7 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <li><p><strong>★★★ Laying out a 175B model.</strong> A model of <span class="math inline">1.75 \times 10^{11}</span> parameters with 96 layers is trained on 128 nodes of 8 GPUs with 80 GB each, with sequences of 2048 tokens and batches of about <span class="math inline">1.5 \times 10^6</span> tokens. Propose a layout (tensor, pipeline and data parallel degrees, ZeRO stage, micro-batches), and estimate its memory per GPU, its bubble and the share of data-parallel communication.</p>
 <p><em>Hints and expected result</em>: take <span class="math inline">t = 8</span> inside each node. With <span class="math inline">p = 16</span> stages of 6 layers, each GPU holds <span class="math inline">1.37 \times 10^9</span> parameters, 21.9 GB of states, or 7.5 GB with ZeRO-1 over the remaining <span class="math inline">d_{\mathrm{dp}} = 8</span>.</p>
 <p>The batch is 768 sequences, that is 96 micro-batches of one sequence per pipeline, for a bubble of <span class="math inline">15/111 \approx 13.5</span> % (less with interleaving).</p>
-<p>A step costs about <span class="math inline">1.6 \times 10^{18}</span> FLOPs (Proposition 1.1), that is 3.8 s at 40 % MFU of <span class="math inline">10^{15}</span> FLOP/s per GPU. The data-parallel ring on 2.7 GB of bf16 gradients across 8 nodes at 25 GB/s takes about 0.19 s, which overlaps with the backward pass. Discuss the alternatives (<span class="math inline">p = 12</span>, ZeRO-3 without pipeline) and their costs.</p></li>
+<p>A step of <span class="math inline">768 \times 2048 \approx 1.57 \times 10^6</span> tokens costs about <span class="math inline">1.65 \times 10^{18}</span> FLOPs (Proposition 1.1), that is about 4.0 s at 40 % MFU of <span class="math inline">10^{15}</span> FLOP/s per GPU. The data-parallel ring on 2.7 GB of bf16 gradients across 8 nodes at 25 GB/s takes about 0.19 s, which overlaps with the backward pass. Discuss the alternatives (<span class="math inline">p = 12</span>, ZeRO-3 without pipeline) and their costs.</p></li>
 <li><p><strong>★★★ Verify or vote?</strong> An agent solves tasks of <span class="math inline">n = 10</span> steps, each step correct with probability <span class="math inline">p = 0.8</span>, independently. (a) Compare a per-step verifier with two attempts per step and a plurality vote over 5 complete runs, assuming that wrong final answers never coincide. (b) Redo (a) when the verifier wrongly accepts a wrong step with probability <span class="math inline">0.1</span>. (c) Discuss the costs.</p>
 <p><em>Hints and expected result</em>: (a) With the verifier, Proposition 7.3 gives <span class="math inline">(1 - 0.2^2)^{10} \approx 0.665</span>. A whole run succeeds with probability <span class="math inline">0.8^{10} \approx 0.107 &lt; 1/2</span>, so Theorem 7.4 does not apply; plurality wins when the correct answer appears at least twice, about 0.092, plus 0.068 from ties broken at random: about 0.16.</p>
 <ol start="2" type="a">
@@ -1945,7 +1953,7 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <ol type="1">
 <li><strong>[Solo · ≈ 20 h] Error feedback, reproduced.</strong> Paper study of Stich, Cordonnier and Jaggi (2018), “Sparsified SGD with Memory”. Simulate 8 data-parallel workers in NumPy or PyTorch and train a logistic regression and a small MLP on the <code>digits</code> data set bundled with scikit-learn, with top-<span class="math inline">k</span>, random-<span class="math inline">k</span> and ternary QSGD, each with and without error feedback.
 <ul>
-<li><em>Success criterion</em>: top-<span class="math inline">k</span> at 1 % with memory reaches the accuracy of uncompressed SGD within one point, without memory it does not; plot the loss against the bits sent.</li>
+<li><em>Success criterion</em>: top-<span class="math inline">k</span> at 1 % with memory reaches the test accuracy of uncompressed SGD within one point; the gap without memory is measured on an IID split and on a label-skewed split of the data across workers, and explained with Code 4.9; plot the loss against the bits sent.</li>
 <li><em>Deliverables</em>: code, a 4–6 page report, a 10-minute talk. <em>Chapters</em>: ch.&nbsp;3, 4. <em>Evaluation</em>: the rubric below.</li>
 </ul></li>
 <li><strong>[Solo · ≈ 20 h] DPO on a toy language task.</strong> Paper study of Rafailov et al.&nbsp;(2023). Define a known reward on short digit strings, train a tiny transformer by SFT, build a preference data set from the Bradley–Terry model, and run DPO for several <span class="math inline">\beta</span>.
@@ -1964,7 +1972,7 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <li><strong>[Group of 2–3 · ≈ 30 h each] DiLoCo at small scale.</strong> Paper study of Douillard et al.&nbsp;(2023). Train a GPT of 10–20 million parameters on TinyStories (Eldan and Li, 2023), with 4 to 8 workers simulated on one free GPU or run as <code>gloo</code> processes.
 <ul>
 <li><em>Comparison</em>: synchronous data-parallel AdamW, plain model averaging and DiLoCo, for <span class="math inline">H \in \{1, 10, 50, 200\}</span>, reporting validation perplexity against communication rounds and bytes.</li>
-<li><em>Success criterion</em>: reproduce the qualitative claim that DiLoCo with <span class="math inline">H</span> in the hundreds stays within a few percent of the synchronous perplexity.</li>
+<li><em>Success criterion</em>: reproduce the qualitative claim that DiLoCo with <span class="math inline">H</span> in the hundreds stays within 5 % of the synchronous validation perplexity at an equal number of training tokens, while plain averaging with the same <span class="math inline">H</span> does not.</li>
 <li><em>Split</em>: model, data and baseline; distributed loop and communication accounting; ablations of the outer optimizer and report. <em>Deliverables</em>: code, a 6–8 page report, a 15-minute talk. <em>Chapters</em>: ch.&nbsp;1, 3, 4.</li>
 </ul></li>
 <li><strong>[Group of 2–3 · ≈ 30 h each] A mini serving engine.</strong> Build an inference server for GPT-2 small (124 million parameters, public weights; Radford et al., 2019) with a KV cache, continuous batching, a paged cache with block tables, and int8 weight-only quantization.
@@ -1975,6 +1983,7 @@ m\,\frac{T(T + 1)}{2} \ \text{tokens}, \qquad \text{against} \quad mT \ \text{wi
 <li><strong>[Group of 2–3 · ≈ 30 h each] A verified tool-using agent.</strong> Use a small open instruction-tuned model (at most 1.5 billion parameters) to solve GSM8K problems (Cobbe et al., 2021) with a sandboxed calculator called through constrained JSON.
 <ul>
 <li><em>Measurements</em>: pass@1 and pass@<span class="math inline">k</span> with the estimator of Proposition 7.5, majority voting, and a per-step verifier, compared with the predictions of Proposition 7.3 and Theorem 7.4.</li>
+<li><em>Success criterion</em>: every rate is reported with a confidence interval on at least 500 problems; the agent with the calculator beats the same model without tools on pass@1, and each gap between a measurement and its prediction is either within the interval or explained (for instance by correlated errors between samples).</li>
 <li><em>Split</em>: agent loop, sandbox and constrained decoding; evaluation harness; statistical analysis. <em>Deliverables</em>: code, a 6–8 page report, a 15-minute talk. <em>Chapters</em>: ch.&nbsp;5, 6, 7.</li>
 </ul></li>
 </ol>

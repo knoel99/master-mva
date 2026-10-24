@@ -331,14 +331,14 @@ window.Quarto = {
 <td>3 h</td>
 <td>2</td>
 <td>ch.&nbsp;2 Vectorisation, broadcasting, pairwise distances, reductions; ch.&nbsp;3 Floating point, cancellation, conditioning, solvers, least squares, log-sum-exp</td>
-<td>Ex. 3, 4, 6, 7, 9; Q5–Q7</td>
+<td>Ex. 3, 4, 7, 9; Q5–Q7</td>
 </tr>
 <tr class="odd">
 <td>3</td>
 <td>3 h</td>
 <td>2</td>
 <td>ch.&nbsp;4 <code>scipy.optimize</code>, finite differences, CSR matrices, convolution theorem and filters, Matplotlib; ch.&nbsp;5 Estimator API, pipelines, cross-validation, leakage, nested search</td>
-<td>Ex. 5, 8; Q8–Q10</td>
+<td>Ex. 5, 6, 8; Q8–Q10</td>
 </tr>
 <tr class="even">
 <td>4</td>
@@ -352,9 +352,9 @@ window.Quarto = {
 <p><strong>Self-study, outside the 12 h</strong> (about 5 h in total): ch.&nbsp;9 Going further — summation error, Kahan summation, forward and reverse mode, checkpointing, FP16 and BF16, the roofline model (≈ 3 h, with Ex. 13–14) · ch.&nbsp;10 Research directions and open problems (≈ 2 h, with Ex. 15).</p>
 <h3 id="how-to-study-this-module">How to study this module</h3>
 <ul>
-<li>Take the <a href="#projects-selfcheck">diagnostic self-check</a> first. If you answer a step’s questions without hesitation, skim that step and do its ★★ exercises only.</li>
+<li>Take the <a href="#projects-selfcheck">diagnostic self-check</a> first. If you answer a step’s questions without hesitation, skim that step and do only its highest-level exercises (★★ from step 2 on).</li>
 <li>Type the code blocks rather than pasting them, then change one number and predict the effect before running again.</li>
-<li>Keep a single environment for the whole year: Python 3.10 or later with NumPy, SciPy, Matplotlib, scikit-learn and PyTorch (the CPU build is enough here). Every block fixes its seeds and runs in a few seconds on a laptop.</li>
+<li>Keep a single environment for the whole year: Python 3.10 or later with NumPy 2, SciPy 1.12 or later, Matplotlib, scikit-learn and PyTorch 2 (the CPU build is enough here). Older versions lack some functions used below, such as <code>sp.eye_array</code> and the <code>rtol</code> argument of <code>cg</code>. Every block fixes its seeds and runs in a few seconds on a laptop.</li>
 <li>After step 4, do one of the two <a href="#projects-practice">practice projects</a>: they combine all the steps the way the first MVA labs will.</li>
 </ul>
 <div class="note">
@@ -549,7 +549,7 @@ s_{d-1} = b, \qquad s_k = s_{k+1}\, n_{k+1} = b \prod_{j &gt; k} n_j .
 </ul>
 </div>
 <h2 id="ch2">2. Vectorisation and broadcasting</h2>
-<p>A Python loop pays an interpreter overhead of tens of nanoseconds per iteration; a NumPy function pays it once per call. Vectorising writes a computation as a few whole-array operations, and broadcasting lets arrays of different shapes take part in one.</p>
+<p>A Python loop pays an interpreter overhead of tens to hundreds of nanoseconds per iteration; a NumPy function pays it once per call. Vectorising writes a computation as a few whole-array operations, and broadcasting lets arrays of different shapes take part in one.</p>
 <h3 id="why-loops-are-slow">2.1 Why loops are slow</h3>
 <div class="sourceCode" id="cb5"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -674,7 +674,8 @@ x = \pm\, m \times 2^{e}, \qquad 2^{p-1} \le m &lt; 2^{p},
 <p><span class="proof-title"><em>Proof</em>. </span>From <span class="math inline">\delta x = A^{-1} \delta b</span> we get <span class="math inline">\|\delta x\| \le \|A^{-1}\|\, \|\delta b\|</span>. From <span class="math inline">b = Ax</span> we get <span class="math inline">\|b\| \le \|A\|\, \|x\|</span>. Dividing the first inequality by <span class="math inline">\|x\| \ge \|b\| / \|A\|</span> gives the claim. <span class="qed">∎</span></p>
 </div>
 </div>
-<p>The LAPACK solvers behind NumPy and SciPy are <em>backward stable</em>: they solve exactly a problem perturbed by a few units of <span class="math inline">u</span>. Theorem 3.6 then gives a rule of thumb.</p>
+<p>The LAPACK solvers behind NumPy and SciPy are <em>backward stable</em> (for LU with partial pivoting, in practice): they solve exactly a problem whose data <span class="math inline">A</span> and <span class="math inline">b</span> are perturbed by a few units of <span class="math inline">u</span>.</p>
+<p>Theorem 3.6 covers the perturbation of <span class="math inline">b</span>. A relative perturbation <span class="math inline">\varepsilon</span> of <span class="math inline">A</span> has, to first order, the same effect, a relative error of at most <span class="math inline">\kappa(A)\, \varepsilon</span>. Hence a rule of thumb.</p>
 <div class="key">
 <p><span class="tag">Key result — digits lost to conditioning</span> <span class="math display">
 \frac{\|\hat x - x\|}{\|x\|} \lesssim \kappa(A)\, u :
@@ -885,7 +886,7 @@ X_k = \sum_{n=0}^{N-1} x_n\, e^{-2i\pi kn/N}, \qquad (x \circledast y)_n = \sum_
 </span></p>
 </div>
 <div class="prop">
-<p><span class="tag">Proposition 5.3 — Cross-validation is unbiased for a smaller sample</span> Assume the pairs <span class="math inline">(x_i, y_i)</span> are i.i.d. and the folds have equal size <span class="math inline">n/K</span>. Let <span class="math inline">\hat f_{m}</span> denote the procedure trained on <span class="math inline">m</span> points and <span class="math inline">R(f)</span> the risk of a fixed predictor <span class="math inline">f</span>. Then <span class="math display">
+<p><span class="tag">Proposition 5.3 — Cross-validation is unbiased for a smaller sample</span> Assume the pairs <span class="math inline">(x_i, y_i)</span> are i.i.d., and the folds are fixed in advance with equal size <span class="math inline">n/K</span>. Let <span class="math inline">\hat f_{m}</span> denote the procedure trained on <span class="math inline">m</span> points and <span class="math inline">R(f)</span> the risk of a fixed predictor <span class="math inline">f</span>. Then <span class="math display">
 \mathbb{E}\big[\widehat R_{\mathrm{CV}}\big] = \mathbb{E}\big[R(\hat f_{n(K-1)/K})\big] .
 </span></p>
 <div class="proof">
@@ -1075,10 +1076,15 @@ X_k = \sum_{n=0}^{N-1} x_n\, e^{-2i\pi kn/N}, \qquad (x \circledast y)_n = \sum_
 <div class="def">
 <p><span class="tag">Definition 7.2 — Dataset and DataLoader</span> A map-style <code>Dataset</code> implements <code>__len__</code> and <code>__getitem__(i)</code>, which returns one sample. A <code>DataLoader</code> draws indices, in order or shuffled by a seeded generator, groups them into batches and stacks the samples into tensors. With <code>num_workers &gt; 0</code> it loads batches in parallel worker processes.</p>
 </div>
-<p>Random augmentations need care with workers. PyTorch seeds its own generator in each worker, but NumPy’s state may be duplicated across workers; the documented fix is a <code>worker_init_fn</code> seeding NumPy from <code>torch.initial_seed()</code>.</p>
+<p>Random augmentations need care with workers. Each worker process receives a copy of the dataset.</p>
+<ul>
+<li>Since PyTorch 1.9, every worker re-seeds Python’s <code>random</code>, PyTorch and NumPy’s global generator from a base seed drawn from the loader’s <code>generator</code>.</li>
+<li>A NumPy <code>Generator</code> object stored in the dataset is copied with its state, so all workers draw the same “random” noise.</li>
+</ul>
+<p>The fix is a <code>worker_init_fn</code> that gives each worker its own stream, seeded from the per-worker seed.</p>
 <div class="sourceCode" id="cb20"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.utils.data <span class="im">import</span> DataLoader, Dataset</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.utils.data <span class="im">import</span> DataLoader, Dataset, get_worker_info</span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> NoisyWindows(Dataset):</span>
@@ -1087,30 +1093,34 @@ X_k = \sum_{n=0}^{N-1} x_n\, e^{-2i\pi kn/N}, \qquad (x \circledast y)_n = \sum_
 <span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, n_windows<span class="op">=</span><span class="dv">64</span>, length<span class="op">=</span><span class="dv">32</span>):</span>
 <span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>        t <span class="op">=</span> np.arange(n_windows <span class="op">*</span> length) <span class="op">/</span> <span class="fl">50.0</span></span>
 <span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.clean <span class="op">=</span> np.sin(t).reshape(n_windows, length).astype(np.float32)</span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__len__</span>(<span class="va">self</span>):</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">len</span>(<span class="va">self</span>.clean)</span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__getitem__</span>(<span class="va">self</span>, i):</span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>        noise <span class="op">=</span> np.random.standard_normal(<span class="va">self</span>.clean.shape[<span class="dv">1</span>]).astype(np.float32)</span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> torch.from_numpy(<span class="va">self</span>.clean[i] <span class="op">+</span> <span class="fl">0.1</span> <span class="op">*</span> noise), torch.from_numpy(<span class="va">self</span>.clean[i])</span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(<span class="dv">0</span>)        <span class="co"># copied, state included, into every worker</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__len__</span>(<span class="va">self</span>):</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">len</span>(<span class="va">self</span>.clean)</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__getitem__</span>(<span class="va">self</span>, i):</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>        noise <span class="op">=</span> <span class="va">self</span>.rng.standard_normal(<span class="va">self</span>.clean.shape[<span class="dv">1</span>]).astype(np.float32)</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> torch.from_numpy(<span class="va">self</span>.clean[i] <span class="op">+</span> <span class="fl">0.1</span> <span class="op">*</span> noise), torch.from_numpy(<span class="va">self</span>.clean[i])</span>
 <span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> seed_worker(worker_id):</span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    np.random.seed(torch.initial_seed() <span class="op">%</span> <span class="dv">2</span><span class="op">**</span><span class="dv">32</span>)   <span class="co"># one NumPy seed per worker</span></span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> first_values(seed):</span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> DataLoader(NoisyWindows(), batch_size<span class="op">=</span><span class="dv">16</span>, shuffle<span class="op">=</span><span class="va">True</span>, num_workers<span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>                        worker_init_fn<span class="op">=</span>seed_worker,</span>
-<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>                        generator<span class="op">=</span>torch.Generator().manual_seed(seed))</span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [xb[<span class="dv">0</span>, :<span class="dv">3</span>] <span class="cf">for</span> xb, _ <span class="kw">in</span> loader]</span>
-<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> seed_worker(worker_id):</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    info <span class="op">=</span> get_worker_info()                       <span class="co"># info.seed comes from the loader's generator</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>    info.dataset.rng <span class="op">=</span> np.random.default_rng(info.seed)</span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> noise_of_batches(seed, init<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> DataLoader(NoisyWindows(), batch_size<span class="op">=</span><span class="dv">16</span>, shuffle<span class="op">=</span><span class="va">True</span>, num_workers<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>                        worker_init_fn<span class="op">=</span>init, generator<span class="op">=</span>torch.Generator().manual_seed(seed))</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [xb <span class="op">-</span> yb <span class="cf">for</span> xb, yb <span class="kw">in</span> loader]          <span class="co"># batch b is built by worker b % 2</span></span>
 <span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:       <span class="co"># required when workers are started by "spawn"</span></span>
-<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>    torch.set_num_threads(<span class="dv">1</span>)</span>
-<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>    run1, run2 <span class="op">=</span> first_values(<span class="dv">0</span>), first_values(<span class="dv">0</span>)</span>
-<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="bu">len</span>(run1), <span class="bu">all</span>(torch.equal(a, b) <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(run1, run2)))  <span class="co"># 4 True</span></span></code></pre></div>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:       <span class="co"># required when workers are started by "spawn"</span></span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>    torch.set_num_threads(<span class="dv">1</span>)</span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>    dup <span class="op">=</span> noise_of_batches(<span class="dv">0</span>)</span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(torch.allclose(dup[<span class="dv">0</span>], dup[<span class="dv">1</span>], atol<span class="op">=</span><span class="fl">1e-6</span>))       <span class="co"># True: both workers drew the same noise</span></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>    run1, run2 <span class="op">=</span> noise_of_batches(<span class="dv">0</span>, seed_worker), noise_of_batches(<span class="dv">0</span>, seed_worker)</span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(torch.allclose(run1[<span class="dv">0</span>], run1[<span class="dv">1</span>], atol<span class="op">=</span><span class="fl">1e-6</span>),     <span class="co"># False: one stream per worker</span></span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>          <span class="bu">all</span>(torch.equal(a, b) <span class="cf">for</span> a, b <span class="kw">in</span> <span class="bu">zip</span>(run1, run2)))  <span class="co"># True: and reproducible</span></span></code></pre></div>
 <h3 id="gpus">7.3 GPUs</h3>
 <p>A GPU runs thousands of operations in parallel, from its own memory, driven asynchronously by Python. Four habits follow.</p>
 <ul>
@@ -1240,7 +1250,7 @@ S = \frac{1}{(1 - p) + p/s} \le \frac{1}{1 - p} .
 </div>
 </div>
 <div class="thm">
-<p><span class="tag">Theorem 9.2 — Recursive summation</span> Adding <span class="math inline">x_1, \dots, x_n</span> from left to right in floating point returns <span class="math inline">\hat s</span> with <span class="math display">
+<p><span class="tag">Theorem 9.2 — Recursive summation</span> Let <span class="math inline">(n - 1)\,u &lt; 1</span>. Adding <span class="math inline">x_1, \dots, x_n</span> from left to right in floating point returns <span class="math inline">\hat s</span> with <span class="math display">
 |\hat s - s| \le \gamma_{n-1} \sum_{i=1}^n |x_i|, \qquad s = \sum_{i=1}^n x_i .
 </span></p>
 <div class="proof">
@@ -1444,10 +1454,10 @@ f(a + b\epsilon) = f(a) + f'(a)\, b\, \epsilon .
 <div class="recap">
 <p><strong>Key takeaways — chapter 9</strong></p>
 <ul>
-<li>Left-to-right summation errs by up to <span class="math inline">(n-1)u \sum_i |x_i|</span>; pairwise and Kahan summation remove most of this growth.</li>
+<li>Left-to-right summation errs by up to about <span class="math inline">(n-1)u \sum_i |x_i|</span>; pairwise and Kahan summation remove most of this growth.</li>
 <li>Forward mode computes Jacobian–vector products, reverse mode vector–Jacobian products; choose by the number of inputs and outputs.</li>
 <li>Checkpointing every <span class="math inline">\sqrt{L}</span> layers cuts activation memory to <span class="math inline">O(\sqrt{L})</span> for one extra forward pass.</li>
-<li><code>bfloat16</code> keeps the range of <code>float32</code> with 3 digits; keep <code>float32</code> master weights.</li>
+<li><code>bfloat16</code> keeps the range of <code>float32</code> with fewer than 3 significant digits; keep <code>float32</code> master weights.</li>
 <li>Elementwise operations are limited by memory bandwidth, matrix products by compute.</li>
 </ul>
 </div>
@@ -1475,7 +1485,7 @@ f(x) = \mathrm{ReLU}(x) - \mathrm{ReLU}(-x)
 <p><em>Open problem</em>: guarantees for automatic differentiation of iterative algorithms, and for the nonsmooth networks used in practice.</p>
 <h3 id="low-precision-and-stochastic-rounding">10.4 Low precision and stochastic rounding</h3>
 <p>Training in <code>bfloat16</code> (Kalamkar and coauthors, 2019) and in 8-bit floating-point formats (Micikevicius and coauthors, 2022), and running inference with 8-bit integer matrix products (Dettmers and coauthors, 2022), push past the precisions analysed in ch.&nbsp;9.3.</p>
-<p><em>Stochastic rounding</em> rounds up or down at random, with probabilities that make the rounding unbiased. Connolly, Higham and Mary (2021) proved that it gives probabilistic error bounds growing like <span class="math inline">\sqrt{n}\,u</span> rather than <span class="math inline">nu</span>, and that it avoids the stagnation of Proposition 9.7.</p>
+<p><em>Stochastic rounding</em> rounds up or down at random, with probabilities that make the rounding unbiased. Connolly, Higham and Mary (2021) proved that it gives probabilistic error bounds growing like <span class="math inline">\sqrt{n}\,u</span> rather than <span class="math inline">nu</span>. It also avoids the stagnation of Proposition 9.7: an update smaller than half a spacing is still applied, with a probability proportional to its size.</p>
 <p><em>Open problem</em>: convergence theory of training at 8 bits and below, and the choice of formats per layer.</p>
 <h3 id="compilers-kernels-and-the-memory-wall">10.5 Compilers, kernels and the memory wall</h3>
 <p>Example 9.9 shows that most operations of a network are memory-bound. Compilers that fuse operations reduce memory traffic: PyTorch 2 (Ansel and coauthors, 2024), JAX (Bradbury and coauthors, 2018) and the Triton language for GPU kernels (Tillet, Kung and Cox, 2019). FlashAttention (Dao and coauthors, 2022) computes exact attention while never writing the full attention matrix to GPU main memory.</p>
@@ -1521,7 +1531,8 @@ f(x) = \mathrm{ReLU}(x) - \mathrm{ReLU}(-x)
 <span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    D <span class="op">=</span> np.maximum(sq <span class="op">-</span> <span class="dv">2</span> <span class="op">*</span> X_test <span class="op">@</span> X_train.T, <span class="fl">0.0</span>)</span>
 <span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> np.argpartition(D, k, axis<span class="op">=</span><span class="dv">1</span>)[:, :k]   <span class="co"># the k nearest, unordered</span></span>
 <span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (y_train[idx].mean(axis<span class="op">=</span><span class="dv">1</span>) <span class="op">&gt;</span> <span class="fl">0.5</span>).astype(<span class="bu">int</span>)</span></code></pre></div>
-<p>With 2000 training and 1000 test points, the predictions coincide with scikit-learn’s on all test points, with accuracy 0.892. The loop version is about 20 times slower. <code>argpartition</code> costs <span class="math inline">O(m)</span> per row instead of <span class="math inline">O(m \log m)</span> for a full sort.</p></li>
+<p>With the first 2000 points for training and the last 1000 for testing, the predictions coincide with scikit-learn’s on all test points, with accuracy 0.892.</p>
+<p>The vectorised version takes about 30 ms. A double loop over test and training points takes several seconds, two orders of magnitude slower. <code>argpartition</code> costs <span class="math inline">O(m)</span> per row instead of <span class="math inline">O(m \log m)</span> for a full sort.</p></li>
 <li><p><strong>★★ Hilbert matrices and lost digits (computational).</strong> For <span class="math inline">n = 4, 6, \dots, 12</span>, let <span class="math inline">H_{ij} = 1/(i + j - 1)</span> (<code>scipy.linalg.hilbert</code>), <span class="math inline">x = (1, \dots, 1)</span> and <span class="math inline">b = Hx</span>. Solve <span class="math inline">Hx = b</span> with <code>np.linalg.solve</code>, and compare the relative error with <span class="math inline">\kappa_2(H)\, u</span>.</p>
 <p><em>Expected result</em>:</p>
 <table class="caption-top">
@@ -1573,7 +1584,7 @@ h = \tanh(W_1 x), \qquad f = w_2^\top h, \qquad \ell = \tfrac12 (f - y)^2 .
 <p>Through the tanh, with <span class="math inline">z = W_1 x</span>, the adjoints are <span class="math display">
 \bar z = \bar h \odot (1 - h^2), \qquad \frac{\partial \ell}{\partial W_1} = \bar z\, x^\top .
 </span></p>
-<p>In code, <code>torch.outer(z_bar, x)</code> matches <code>W1.grad</code>. The backward pass costs two matrix–vector products, the same order as the forward pass.</p></li>
+<p>In code, <code>torch.outer(z_bar, x)</code> matches <code>W1.grad</code>. The backward pass costs one outer product <span class="math inline">\bar z\, x^\top</span>, with as many multiplications as <span class="math inline">W_1 x</span>, plus a few vector operations: the same order as the forward pass.</p></li>
 <li><p><strong>★★ Mini-batch variance without replacement.</strong> Let <span class="math inline">g_1, \dots, g_n</span> be vectors with mean <span class="math inline">\bar g</span> and <span class="math inline">\sigma^2 = \frac1n \sum_i \|g_i - \bar g\|^2</span>. Draw <span class="math inline">B</span> distinct indices uniformly. Show that the mean <span class="math inline">\hat g</span> of the drawn vectors satisfies <span class="math display">
 \mathbb{E}\, \|\hat g - \bar g\|^2 = \frac{\sigma^2}{B} \cdot \frac{n - B}{n - 1},
 </span> and check by simulation.</p>
@@ -1636,9 +1647,9 @@ h = \tanh(W_1 x), \qquad f = w_2^\top h, \qquad \ell = \tfrac12 (f - y)^2 .
 <li><strong>[Solo · ≈ 6 h] k-means three ways: loops, NumPy and PyTorch.</strong> How much do vectorisation and a GPU change the cost of Lloyd’s algorithm, and do the versions agree?
 <ul>
 <li><em>Implement:</em> Lloyd’s k-means in pure Python, in NumPy (distances by Example 2.3, <code>argmin</code>, centroid updates with <code>np.add.at</code> or <code>np.bincount</code>), and in PyTorch on any available device.</li>
-<li><em>Data:</em> <code>make_blobs</code> with 8 centres in dimension 16 and <span class="math inline">n</span> from <span class="math inline">10^3</span> to <span class="math inline">10^6</span> points, <code>random_state=0</code>.</li>
+<li><em>Data:</em> <code>make_blobs</code> with 8 centres in dimension 16 and <span class="math inline">n</span> from <span class="math inline">10^3</span> to <span class="math inline">10^6</span> points, <code>random_state=0</code>. The pure-Python version may stop at <span class="math inline">n = 10^5</span>, where one Lloyd iteration already takes a few seconds.</li>
 <li><em>Deliverables:</em> one script, an environment file, a 2-page note with a log–log plot of time against <span class="math inline">n</span> and a <code>cProfile</code> summary.</li>
-<li><em>Success criterion:</em> from the same initial centroids, all versions and <code>sklearn.cluster.KMeans(init=centroids, n_init=1)</code> give identical assignments (up to ties); the NumPy version is at least 50 times faster than the loops at <span class="math inline">n = 10^4</span>.</li>
+<li><em>Success criterion:</em> every version iterates until no assignment changes. From the same initial centroids, all versions and <code>sklearn.cluster.KMeans(init=centroids, n_init=1, tol=0)</code> give identical assignments (up to ties). The NumPy version is at least 50 times faster than the loops at <span class="math inline">n = 10^4</span>.</li>
 <li><em>Chapters:</em> ch.&nbsp;0–2, 4.4, 6, 7.3 and 8.</li>
 </ul></li>
 <li><strong>[Solo · ≈ 6 h] One model, three solvers, one reproducible report.</strong> Do SciPy, scikit-learn and PyTorch return the same <span class="math inline">\ell_2</span>-regularised logistic regression?
