@@ -10,7 +10,8 @@ Checks (code-level proxies for the manual gates):
 - Pages: lang="en", theme.js loaded, no FR switcher, no TODO left in a source.
 - Fiche: the introduction quotes the catalogue's ECTS and volume.
 - Pedagogy: >= 8 graded exercises on science and refresher pages; a
-  "Projects and assessment" section on science pages (specs/projects-and-assessment.md).
+  "Projects and assessment" section on science pages, and its refresher variant
+  (self-check, practice projects, grid) on refresher pages (specs/projects-and-assessment.md).
 - Home: generated tree lists every page; tracks and routes wired; every route
   is a feasible programme under the validation rules (specs/home-and-tracks.md).
 - KaTeX: published pages and Quarto sources pin 0.19.0 with subresource integrity.
@@ -110,6 +111,19 @@ for cdir in course_dirs:
             exam = subsection(proj[1], "### Written exam")
             nq = len(re.findall(r"^\d+\.\s", exam, re.M))
             check(nq >= 3, f"{cid}: written-exam proposal with >= 3 questions", f"found {nq}")
+            check(src.find("## Exercises {#ex}") < src.find("## Projects and assessment")
+                  < src.find("## References {#refs}"),
+                  f"{cid}: Projects section between Exercises and References")
+    if c["kind"] == "refresher":
+        proj = src.split("## Projects and assessment {#projects}", 1)
+        check(len(proj) == 2, f"{cid}: '## Projects and assessment {{#projects}}' section")
+        if len(proj) == 2:
+            body = proj[1].split("\n## ", 1)[0]
+            for sub in ("projects-selfcheck", "projects-practice", "projects-rubric"):
+                check(f"{{#{sub}}}" in body, f"{cid}: refresher variant has {{#{sub}}}")
+            practice = subsection(proj[1], "### Practice projects")
+            n = len(re.findall(r"^\d+\.\s+\*\*\[(?:Solo|Group)", practice, re.M))
+            check(n >= 2, f"{cid}: >= 2 practice projects", f"found {n}")
             check(src.find("## Exercises {#ex}") < src.find("## Projects and assessment")
                   < src.find("## References {#refs}"),
                   f"{cid}: Projects section between Exercises and References")

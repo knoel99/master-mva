@@ -45,6 +45,10 @@ Format line (duration, documents allowed, number of exercises).
 - **P3** The **written exam** proposal has at least **3 questions** with points summing to 20 and an expected-answer outline for each; it mixes a course question, a computation and a short proof.
 - **P4** A **rubric** table gives criteria and weights (summing to 100 %).
 - **P5** Prose follows the airy rules (each list item ≤ 100 words; sub-bullets allowed).
+- **P6 Refresher variant.** The three refresher pages (kind `refresher`: no ECTS, no assessment) replace the exam and the 2 + 2 subjects by a lighter variant, in this order:
+  - `### Diagnostic self-check {#projects-selfcheck}`: short questions, each naming the chapter that answers it, with expected answers;
+  - `### Practice projects {#projects-practice}`: at least 2 numbered `**[Solo` or `**[Group` subjects of a few hours, at least one a paper study;
+  - `### Self-assessment grid {#projects-rubric}`: criteria and weights summing to 100 %.
 
 ## End-of-year projects page (`projects/index.qmd`)
 
@@ -52,4 +56,4 @@ Integrative projects that combine courses of a route or a track, sized for 4–6
 
 ## Proof
 
-- `python3 tools/check_gates.py`: for each science page, the section exists in the right place, ≥ 2 `**[Solo` items, ≥ 2 `**[Group` items, ≥ 3 numbered exam questions; the projects page exists, has no TODO and links only catalogue pages.
+- `python3 tools/check_gates.py`: for each science page, the section exists in the right place, ≥ 2 `**[Solo` items, ≥ 2 `**[Group` items, ≥ 3 numbered exam questions; for each refresher page, the three anchors of P6 and ≥ 2 practice subjects; the projects page exists, has no TODO and links only catalogue pages.
