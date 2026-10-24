@@ -64,7 +64,7 @@ format:
   Credits and volume   5 ECTS · 24 h (lectures 24 h) per the Université Paris-Saclay programme table
   Label                [Modelling]{.badge .label} · domains on master-mva.com: Image processing
   Language             French (Université Paris-Saclay course detail, “Langue d'enseignement”); the master-mva.com description is written in English
-  Assessment           4 homework assignments, including exercises and a report analysing a research paper (master-mva.com, “Mode de validation”); the Université Paris-Saclay course detail states “Evaluation Continue non Intégrale” (continuous assessment that is not the only component of the grade); no weighting displayed
+  Assessment           4 homework assignments, including exercises and a report analysing a research paper (master-mva.com, “Mode de validation”); the Université Paris-Saclay course detail states “Evaluation Continue non Intégrale” (continuous assessment, of the “non-integral” kind; the components of the grade are not detailed); no weighting displayed
   Prerequisites        not displayed on the official pages
   -------------------- ------------------------------------------------------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ The Université Paris-Saclay course detail sets the learning objective of traini
 | 5 — A generic problem: anomaly detection in images, different theories, contribution of the a-contrario approach | ch. 5.1 (families of methods), 5.4 (residuals reduced to noise, multiscale NFA) |
 | 6 — Comparison on examples of the classical anomaly detection theories in hyperspectral imaging | ch. 5.2–5.3: RX, local RX with the Hotelling correction, mixture RX, matched filter; Code 5.4 compares them |
 | 7 — Detection in time series | ch. 6.1–6.3: background models of a time series, exact change tests, families of changes |
-| Time series detection in satellite images (master-mva.com) and 8 — Applications to recurrent satellite imaging, cloud detection, detection and temporal categorisation of changes | ch. 6.4 (cloud screening, inter-band parallax), 6.5 (categorisation of changes); Code 6.4 |
+| Time series detection in satellite images (master-mva.com) and 8 — Applications to recurrent satellite imaging, cloud detection, detection and temporal categorisation of changes | ch. 6.4 (cloud screening, inter-band parallax), 6.3 and 6.5 (families, detection and categorisation of changes); Code 6.4 |
 | Detection of image forgery | ch. 7: forensic traces (7.1), JPEG grid detection (7.2), mosaic, noise and copy-move traces (7.3–7.4), evaluation (7.5); Code 7.4 |
 | Reference: Gordon, Glazko, Qiu and Yakovlev (2007), mean number of false discoveries and Bonferroni | ch. 2.5: Proposition 2.7 and Code 2.8 |
 | References: Desolneux, Moisan and Morel (2007); Kanizsa (1979) | ch. 1.2–1.3 (Kanizsa), ch. 3–4 (Desolneux, Moisan and Morel) |
@@ -400,7 +400,7 @@ A digital image is a set of samples $u(k)$, $k \in \mathbb{Z}^2$, of a continuou
 $$
 u(x) = \sum_{k \in \mathbb{Z}^2} u(k)\, \mathrm{sinc}(x_1 - k_1)\, \mathrm{sinc}(x_2 - k_2) .
 $$
-The theorem and its proof are in [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html).
+Here $\mathrm{sinc}(t) = \sin(\pi t) / (\pi t)$. The theorem and its proof are in [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html).
 
 Three consequences matter for detection.
 
@@ -467,7 +467,7 @@ He illustrated the claim with a drawing of a sleeping cat made of 38 points of m
 Two lessons follow for detection.
 
 -   Detectors should work on geometric features such as level lines, gradient orientations and corners, rather than on raw grey levels. Orientations have an extra advantage: they do not change under a monotone change of contrast.
--   The surprise of an event, in Shannon's sense, is $-\log \mathbb{P}(\text{event})$. The a-contrario theory measures the surprise of a group by $-\log_{10}$ of its number of false alarms, which is this self-information minus the logarithm of the number of groups examined.
+-   The surprise of an event, in Shannon's sense, is $-\log \mathbb{P}(\text{event})$. The a-contrario theory measures the surprise of a group by $-\log_{10}$ of its number of false alarms ([ch. 3](#ch3)), which is this self-information minus the logarithm of the number of groups examined.
 
 ::: recap
 [Key takeaways — chapter 1]{.tag}
@@ -1431,6 +1431,7 @@ import numpy as np
 from scipy.fft import dct, idct
 from scipy.ndimage import gaussian_filter
 from scipy.stats import binom
+from scipy.special import xlogy
 from numpy.lib.stride_tricks import sliding_window_view
 
 rng = np.random.default_rng(6)
@@ -1479,8 +1480,8 @@ def log10_tail(k, N, p):
     exact = binom.logsf(k - 1, N, p) / np.log(10)
     if np.isfinite(exact):
         return exact
-    a = k / N
-    return -N * (a * np.log(a / p) + (1 - a) * np.log((1 - a) / (1 - p))) / np.log(10)
+    a = k / N                                          # xlogy(0, .) = 0 covers k = N
+    return -N * (xlogy(a, a / p) + xlogy(1 - a, (1 - a) / (1 - p))) / np.log(10)
 
 for name, v in (("authentic", img), ("forged", forged)):
     V = votes(v)[4::8, 4::8]                           # one vote per 8 x 8 cell
@@ -1757,7 +1758,7 @@ The subjects below are proposals for that report and for personal training, in t
     -   *Deliverables and evaluation*: code, report, talk; rubric below. Chapters used: [ch. 0](#ch0), 3, 7.
 3.  **[Solo · ≈ 15 h] Paper study: stability of multiple testing (Gordon, Glazko, Qiu and Yakovlev, 2007).** Does the Bonferroni rule keep its advantage in stability when the tests are as correlated as image tests?
     -   *Implement*: Code 2.8 with three correlation structures: equicorrelation, block correlation, and the spatial correlation of a smoothed Gaussian random field tested pixel by pixel.
-    -   *Prove*: $\mathbb{E}[V] \le \varepsilon N_0 / N$ under any dependence (Proposition 2.5), and show by an example that the FDR bound of Theorem 2.6 can fail under negative dependence.
+    -   *Prove*: $\mathbb{E}[V] \le \varepsilon N_0 / N$ under any dependence (Proposition 2.5), and show by an example that the FDR bound of Theorem 2.6 can fail under negative dependence (two null p-values, coupled so that $\{p_1 \le q/2\}$ and $\{p_2 \le q/2\}$ are disjoint and both lie in $(q/2, q]$ with probability $q/2$, give an FDR of $3q/2$).
     -   *Success criterion*: the paper's qualitative finding reproduced, a smaller variance of the numbers of true and of total discoveries for Bonferroni, with intervals over 4000 runs.
     -   *Deliverables and evaluation*: code, a 4-page report, a 10-minute talk; rubric below. Chapters used: [ch. 0](#ch0), 2, 3.
 
