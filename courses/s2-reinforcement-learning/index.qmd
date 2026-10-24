@@ -106,7 +106,7 @@ The description announces eight lectures and one written exam, with the titles l
 | Objective: a solid formal basis on the foundational notions of RL | Theorem 1.7 (Bellman optimality), Theorem 1.11 (policy iteration), Theorem 2.3 (stochastic approximation), Theorem 3.4 (policy gradient), Theorem 4.4 (linear TD), Theorem 6.6 (Lai–Robbins), Theorem 7.3 (average-reward optimality); proofs completed in [ch. 9](#ch9) |
 | Lecture 1: MDP and Dynamic Programming | [ch. 1](#ch1): Definitions 1.1–1.5, Propositions 1.4 and 1.6, Theorem 1.7, value iteration (Proposition 1.8), Example 1.10, policy iteration (Theorem 1.11), linear programming (Proposition 1.12), finite horizon |
 | Lecture 2: The first algorithms of Reinforcement Learning | [ch. 2](#ch2): Monte Carlo evaluation, TD(0) and TD($\lambda$), stochastic approximation (Theorem 2.3), Q-learning (Theorem 2.6), SARSA, exploration rules, certainty equivalence |
-| Lecture 3: The Actors: Policy Iteration and Gradient | [ch. 3](#ch3): performance difference (Lemma 3.1), approximate and conservative policy iteration (Proposition 3.2), policy gradient theorem (Theorem 3.4), REINFORCE and baselines, gradient domination (Proposition 3.7), natural policy gradient, TRPO and PPO |
+| Lecture 3: The Actors: Policy Iteration and Gradient | [ch. 3](#ch3): performance difference (Lemma 3.1), approximate policy iteration (Proposition 3.2; conservative policy iteration in [ch. 9](#ch9)), policy gradient theorem (Theorem 3.4), REINFORCE and baselines, gradient domination (Proposition 3.7), natural policy gradient, TRPO and PPO |
 | Lecture 4: The Critics: RL with function Approximation | [ch. 4](#ch4): projected Bellman equation (Proposition 4.2), linear TD (Theorems 4.3–4.4), LSTD, fitted Q-iteration and error propagation (Proposition 4.6), the deadly triad (Example 4.7), compatible actor–critic (Proposition 4.8) |
 | Lecture 5: Scaling up RL: Towards Deep RL and Continuous MDPs | [ch. 5](#ch5): DQN (Algorithm 5.1), overestimation and Double DQN (Proposition 5.2), continuous MDPs (Definition 5.3), LQR (Theorem 5.4), deterministic policy gradient (Theorem 5.5), entropy regularisation and SAC (Proposition 5.6), PPO |
 | Lecture 6: Exploration-Exploitation in RL | [ch. 6](#ch6): bandit regret, UCB (Theorem 6.4), Lai–Robbins (Theorem 6.6), Thompson sampling, episodic regret, UCB-VI (Algorithm 6.8, Proposition 6.9, Theorem 6.10), posterior sampling, lower bounds |
@@ -625,12 +625,15 @@ The parameter $\lambda$ trades bias for variance: small $\lambda$ trusts the cur
 
 To act well, the agent needs $Q^\star$, the fixed point of the operator of Theorem 1.7 on action values. Watkins (1989) proposed to iterate it from samples.
 
+::: key
+[Key result — the Q-learning update]{.tag}
+$$
+Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha_t \Big( r_t + \gamma \max_{a'} Q(s_{t+1}, a') - Q(s_t, a_t) \Big)
+$$
+:::
+
 ::: thm
-[Theorem 2.6 — Q-learning (Watkins and Dayan, 1992)]{.tag} After each transition, Q-learning updates
-$$
-Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha_t \Big( r_t + \gamma \max_{a'} Q(s_{t+1}, a') - Q(s_t, a_t) \Big) .
-$$
-If every pair $(s, a)$ is visited infinitely often and the steps of each pair satisfy the Robbins–Monro conditions, then $Q_t \to Q^\star$ almost surely, whatever the behaviour policy.
+[Theorem 2.6 — Q-learning (Watkins and Dayan, 1992)]{.tag} After each transition, Q-learning applies the update of the key result above. If every pair $(s, a)$ is visited infinitely often and the steps of each pair satisfy the Robbins–Monro conditions, then $Q_t \to Q^\star$ almost surely, whatever the behaviour policy.
 :::
 
 ::: proof
@@ -702,9 +705,7 @@ for exponent in (1.0, 0.7):
     print(f"alpha = 1/N^{exponent}: errors {errors}, greedy policy {Q.argmax(axis=1)}")
 ```
 
-Both runs find the greedy policy (risky, safe), but the errors differ. With $\alpha = 1/N$ the sup-norm error is still 4.78 after 200 000 steps; with $\alpha = N^{-0.7}$ it is 0.021.
-
-Even-Dar and Mansour (2003) explain this: with the step $1/N$, the convergence time of Q-learning can be exponential in $1/(1 - \gamma)$, while polynomial steps $N^{-\beta}$ with $1/2 < \beta < 1$ give polynomial bounds.
+Both runs find the greedy policy (risky, safe), but the errors differ. With $\alpha = 1/N$ the sup-norm error is still 4.78 after 200 000 steps; with $\alpha = N^{-0.7}$ it is 0.021 ([ch. 9](#ch9) explains why).
 
 ::: note
 [Model-based learning and the maximisation bias]{.tag} The alternative to Q-learning is **certainty equivalence**: estimate $\hat P$ and $\hat r$ by empirical frequencies and solve the estimated MDP. With a simulator that returns a sample of $P(\cdot \mid s, a)$ for any pair, about $SA/((1 - \gamma)^3 \varepsilon^2)$ samples, up to logarithmic factors, give an $\varepsilon$-accurate $Q^\star$; this is minimax optimal (Azar, Munos and Kappen, 2013).
@@ -757,8 +758,6 @@ $$
 $$
 The proof is in [ch. 9](#ch9).
 :::
-
-The policies of approximate policy iteration may oscillate. **Conservative policy iteration** (Kakade and Langford, 2002) moves only a fraction $\alpha$ towards the greedy policy, $\pi_{k+1} = (1 - \alpha)\pi_k + \alpha\pi'$. The occupancy then changes by $O(\alpha)$, so Lemma 3.1 guarantees an improvement when $\alpha$ is small compared with the estimated advantage.
 
 ### The policy gradient theorem
 
@@ -964,7 +963,14 @@ $$
 $$
 :::
 
-TD with approximation cannot reach $V^\pi$ itself when it is outside the span. It solves the **projected Bellman equation** $\Phi w = \Pi T^\pi (\Phi w)$, which is well posed for the right norm.
+TD with approximation cannot reach $V^\pi$ itself when it is outside the span. It solves the **projected Bellman equation**, which is well posed for the right norm.
+
+::: key
+[Key result — the projected Bellman equation]{.tag}
+$$
+\Phi w_{\mathrm{TD}} = \Pi\, T^\pi (\Phi w_{\mathrm{TD}})
+$$
+:::
 
 :::: prop
 [Proposition 4.2 — The projected Bellman operator is a contraction]{.tag} Let $d$ be the stationary distribution of $P^\pi$. Then $\|P^\pi v\|_d \le \|v\|_d$ for every $v$.
@@ -1423,6 +1429,15 @@ $$
 The same holds for any one-parameter exponential family, with its KL divergence. The proof, a change of measure, is in [ch. 9](#ch9).
 :::
 
+With Proposition 6.2, the theorem bounds the regret of every consistent algorithm from below.
+
+::: key
+[Key result — the Lai–Robbins regret constant]{.tag}
+$$
+\liminf_{T \to \infty} \frac{R_T}{\log T} \ge \sum_{a : \Delta_a > 0} \frac{\Delta_a}{\mathrm{kl}(\mu_a, \mu^\star)}
+$$
+:::
+
 By Pinsker's inequality, $\mathrm{kl}(\mu_a, \mu^\star) \ge 2\Delta_a^2$, so UCB1 is optimal up to a constant factor. KL-UCB ([ch. 7](#ch7)) and **Thompson sampling** reach the constant itself. Thompson sampling (Thompson, 1933) samples a mean for each arm from its posterior and plays the best sample. For Bernoulli arms with uniform priors it is asymptotically optimal (Kaufmann, Korda and Munos, 2012; Agrawal and Goyal, 2012).
 
 ### Optimism in episodic MDPs
@@ -1588,12 +1603,15 @@ V^\pi_\gamma = \frac{g^\pi}{1 - \gamma}\, \mathbf{1} + h^\pi + o(1) .
 $$
 :::
 
+::: key
+[Key result — the average-reward optimality equation]{.tag}
+$$
+g^\star + h^\star(s) = \max_a \Big[ r(s, a) + \sum_{s'} P(s' \mid s, a)\, h^\star(s') \Big]
+$$
+:::
+
 :::: thm
-[Theorem 7.3 — Average-reward optimality equation]{.tag} In a communicating finite MDP there exist a constant $g^\star$ and a vector $h^\star$ such that
-$$
-g^\star + h^\star(s) = \max_a \Big[ r(s, a) + \sum_{s'} P(s' \mid s, a)\, h^\star(s') \Big] \quad \text{for all } s .
-$$
-Then $g^\star$ is the optimal gain from every state, and a policy that attains the maximum in every state is gain-optimal.
+[Theorem 7.3 — Average-reward optimality equation]{.tag} In a communicating finite MDP there exist a constant $g^\star$ and a vector $h^\star$ that solve the key equation above in every state $s$. Then $g^\star$ is the optimal gain from every state, and a policy that attains the maximum in every state is gain-optimal.
 
 ::: proof
 *Optimality.* For any policy, possibly history-dependent, the equation gives
@@ -1836,6 +1854,13 @@ Write $\mathbb{E}_\mu[N_a]$ as $w_a\, \mathbb{E}_\mu[\tau_\delta]$, take the inf
 :::
 ::::
 
+::: key
+[Key result — the sample complexity of best-arm identification]{.tag}
+$$
+\mathbb{E}_\mu[\tau_\delta] \ge T^\star(\mu)\, \mathrm{kl}(\delta, 1 - \delta) \approx T^\star(\mu) \log(1/\delta)
+$$
+:::
+
 The maximising weights $w^\star(\mu)$ are the proportions in which an optimal strategy samples the arms. For two Gaussian arms of variance $\sigma^2$ and gap $\Delta$, $w^\star = (1/2, 1/2)$ and $T^\star = 8\sigma^2/\Delta^2$.
 
 ::: def
@@ -1943,7 +1968,7 @@ Key takeaways — chapter 8
 
 ## 9. Complements for self-study {#ch9}
 
-This chapter completes the proofs that the sessions only sketch. It can be read after session 7; each section names the result it proves.
+This chapter completes the proofs that the sessions only sketch, and adds a few complements: step sizes, conservative policy iteration, the dual linear program. It can be read after session 7; each section names the result it concerns.
 
 ### Asynchronous stochastic approximation (Theorem 2.3)
 
@@ -1967,6 +1992,10 @@ Since $\sum_t \alpha_t(i) = \infty$, the limit superior of $|U_t(i)|$ is at most
 
 *Conclusion.* By induction, the limit superior of $\|x_t\|_\infty$ is at most $\beta^k B$ for every $k$, hence $x_t \to 0$. [∎]{.qed}
 ::::
+
+### Step sizes of Q-learning (ch. 2)
+
+The code of ch. 2 shows the step $1/N$ to be much slower than $N^{-0.7}$. Even-Dar and Mansour (2003) explain this: with the step $1/N$, the convergence time of Q-learning can be exponential in $1/(1 - \gamma)$, while polynomial steps $N^{-\beta}$ with $1/2 < \beta < 1$ give polynomial bounds.
 
 ### Approximate policy iteration (Proposition 3.2)
 
@@ -1998,6 +2027,8 @@ $$
 
 Taking sup norms, with $e_k = \|V^\star - V^{\pi_k}\|_\infty$, we get $e_{k+1} \le \gamma e_k + 2\gamma\varepsilon/(1 - \gamma)$, and the limit superior of $e_k$ is at most $2\gamma\varepsilon/(1 - \gamma)^2$. [∎]{.qed}
 ::::
+
+The policies of approximate policy iteration may oscillate. **Conservative policy iteration** (Kakade and Langford, 2002) moves only a fraction $\alpha$ towards the greedy policy, $\pi_{k+1} = (1 - \alpha)\pi_k + \alpha\pi'$. The occupancy then changes by $O(\alpha)$, so Lemma 3.1 guarantees an improvement when $\alpha$ is small compared with the estimated advantage.
 
 ### Softmax policy gradient and the natural gradient (Definition 3.8)
 
