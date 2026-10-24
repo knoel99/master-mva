@@ -107,7 +107,7 @@ By the end of the course, the description expects students to know state-of-the-
 | Validation, interpretation and reproducibility | [ch. 8](#ch8): data splits and leakage, confidence intervals, paired tests, calibration, saliency and Grad-CAM with sanity checks, reproducibility; sessions 8–9 |
 | “Plus de détails” (end of the list of themes) | not covered — a link to the course presentation, not a topic |
 | “Les intervenants” (end of the list of themes) | not covered — a link to the instructors' pages, not a topic |
-| Objective: three-dimensional, time-varying information from several types of images | ch. 0.2 (3D convolutions), ch. 1.2–1.3 (modalities, volumes, cine MRI), ch. 4.3 (3D U-Net), ch. 5.3 (multimodal registration by mutual information) |
+| Objective: three-dimensional, time-varying information from several types of images | ch. 0.2 (3D convolutions), ch. 1.2–1.3 (modalities, volumes, cine MRI), ch. 2.1 (volumes, time series and multi-contrast inputs), ch. 4.3 (3D U-Net), ch. 5.3 (multimodal registration by mutual information) |
 | Objective: more traditional image-processing and machine-learning approaches | ch. 2.5 (radiomics), ch. 3.5 (candidate generation), ch. 4.1 (thresholding, region growing, atlases), ch. 5.4 (classical registration), ch. 6.2 (filtered backprojection, compressed sensing), ch. 7.1 (PCA) |
 | Objective: applications (brain, cardiac…) | Alzheimer's disease (ch. 2, ch. 8), brain tumours and cardiac MRI (ch. 4.5), brain atlases (ch. 5), lung nodules (ch. 3), MRI and CT reconstruction (ch. 6) |
 | Learning outcome: know state-of-the-art techniques | ch. 2–7, and [ch. 9](#ch9) for current research |
@@ -156,8 +156,8 @@ Level 1 = foundations (reviews, definitions, first worked examples), 2 = core me
 | 5 | 3 h | 2 | ch. 5 Registration: transformation models, similarity measures, scaling and squaring, classical optimisation, VoxelMorph, evaluation | Ex. 8; lab: code of ch. 5 |
 | 6 | 3 h | 2 | ch. 6 Denoising and reconstruction: forward models, filtered backprojection, compressed sensing, Rician noise, Noise2Noise, unrolled networks | Ex. 9, 10 |
 | 7 | 3 h | 3 | ch. 7 Generative models: linear autoencoders and PCA, VAEs, anomaly detection, GANs, pix2pix and CycleGAN | Ex. 11 |
-| 8 | 3 h | 3 | ch. 8.1–8.3 Validation: splits and leakage, uncertainty of a performance estimate, comparing models, metrics and calibration | Ex. 12, 13 |
-| 9 | 3 h | 3 | ch. 8.4–8.5 Interpretation and reproducibility: saliency, Grad-CAM, integrated gradients, sanity checks, shortcut learning, reporting; article presentations | Ex. 14 |
+| 8 | 3 h | 3 | ch. 8.1–8.3 Validation: splits and leakage, uncertainty of a performance estimate, comparing models, metrics and calibration | Ex. 12, 14 |
+| 9 | 3 h | 3 | ch. 8.4–8.5 Interpretation and reproducibility: saliency, Grad-CAM, integrated gradients, sanity checks, shortcut learning, reporting; article presentations | Ex. 13 |
 
 **Self-study, outside the 27 h** (about 5 h in total): ch. 9 Research directions and open problems (≈ 3 h, with Ex. 15) · the code blocks of ch. 6–8, run and modified at home (≈ 2 h).
 
@@ -228,6 +228,7 @@ The layer is equivariant to translations: shifting the input shifts the output. 
 ```python
 import torch
 import torch.nn as nn
+torch.set_num_threads(1)
 
 conv2d = nn.Conv2d(32, 64, kernel_size=3, padding=1)    # 32 -> 64 channels, 3 x 3
 conv3d = nn.Conv3d(32, 64, kernel_size=3, padding=1)    # same, 3 x 3 x 3
@@ -444,6 +445,8 @@ For 2D images (radiographs, fundus photographs, dermoscopy, pathology patches), 
 -   **2D networks on slices** classify each slice, then aggregate the slice scores by averaging or by a small attention module. They reuse 2D pretrained weights.
 -   **2.5D networks** feed a few neighbouring slices, or three orthogonal slices, as input channels.
 
+**Images over time.** Cine cardiac MRI and follow-up scans add a time axis. The frames can be stacked as input channels, convolved over space and time together, or encoded one by one and then combined by a recurrent or attention module across time steps. Several contrasts of the same patient (T1, T2, FLAIR) are stacked as channels once they are registered (ch. 5).
+
 **Transfer learning.** Initialising from ImageNet weights then fine-tuning is the default for 2D images. Raghu et al. (2019) found, on large retinal and chest X-ray tasks, that pretraining brought little accuracy over well-chosen small networks trained from scratch, but sped up convergence. Its benefit is largest with small data sets.
 
 ### 2.2 Sensitivity, specificity and the ROC curve
@@ -509,7 +512,7 @@ A network trained on balanced data ($\pi_0 = 1/2$) that outputs $q = 0.9$ means,
 $$
 \frac{0.01 \times 0.9}{0.01 \times 0.9 + 0.99 \times 0.1} \approx 0.083,
 $$
-the number of Example 2.3. Weighting the loss of class $k$ by $w_k$ is equivalent to training under a prevalence proportional to $w_k \pi_k$, so the same correction undoes class weights. Weighted losses, oversampling of the rare class and the focal loss of ch. 3.3 all change the effective prior.
+the number of Example 2.3. Weighting the loss of class $k$ by $w_k$ is equivalent to training under a prevalence proportional to $w_k \pi_k$, so the same correction undoes class weights. Weighted losses and oversampling of the rare class change the effective prior. The focal loss of ch. 3.3 is not a prior change, but it also distorts the outputs, which must then be recalibrated (ch. 8.3) before being read as probabilities.
 
 ### 2.4 Weak labels and multiple-instance learning
 
@@ -524,7 +527,7 @@ $$
 z = \sum_{n=1}^N a_n h_n, \qquad a_n = \frac{\exp\big(w^\top \tanh(V h_n)\big)}{\sum_{m} \exp\big(w^\top \tanh(V h_m)\big)} .
 $$
 
-The pooled vector $z$ is invariant to permutations of the tiles, and the weights $a_n$ show which tiles drove the decision. Campanella et al. (2019) trained such weakly supervised models on more than 40 000 slides, with diagnoses as the only labels.
+The pooled vector $z$ is invariant to permutations of the tiles, and the weights $a_n$ show which tiles drove the decision. Campanella et al. (2019) trained weakly supervised multiple-instance models (max-pooling over tiles, then a recurrent aggregator) on more than 40 000 slides, with diagnoses as the only labels.
 
 ### 2.5 The radiomics baseline and a worked example
 
@@ -541,7 +544,7 @@ from sklearn.metrics import roc_auc_score
 
 rng = np.random.default_rng(0)
 torch.manual_seed(0)
-torch.set_num_threads(2)
+torch.set_num_threads(1)
 
 def make(n, prevalence=0.3, size=24):
     """Smooth random 'tissue' texture; positives carry a faint blob."""
@@ -632,7 +635,7 @@ usually with a smooth-$L^1$ loss. The targets are invariant to translation and s
 :::
 
 -   **Two-stage detectors** (Faster R-CNN, Ren et al., 2015): a region proposal network scores the anchors; the best few hundred proposals are cropped from the feature map and passed to a second head that classifies them and refines the boxes.
--   **One-stage detectors** (YOLO, Redmon et al., 2016; RetinaNet, Lin et al., 2017) classify and regress all anchors at once. They are faster, but face an extreme imbalance: tens of thousands of background anchors per lesion.
+-   **One-stage detectors** (YOLO, Redmon et al., 2016; RetinaNet, Lin et al., 2017) classify and regress all anchors (all grid cells, for the first YOLO) in one pass. They are faster, but face an extreme imbalance: tens of thousands of background anchors per lesion.
 -   **Medical variants** add 3D anchors, and Retina U-Net (Jaeger et al., 2020) adds a segmentation decoder whose voxel-level supervision helps the detector when lesions are few.
 
 ### 3.3 The focal loss
@@ -779,7 +782,7 @@ Segmentation labels every voxel: which voxels belong to the left ventricle, to t
 
 -   **Thresholding** labels the voxels whose intensity lies in an interval; Otsu's method chooses the threshold that maximises the between-class variance of the histogram. It works for bone in CT, rarely in MRI.
 -   **Region growing** starts from a seed and adds neighbouring voxels of similar intensity; it leaks through weak boundaries.
--   **Energy-based methods** (active contours, level sets, graph cuts) minimise an energy that balances fidelity to the image and smoothness of the boundary. Graph cuts find the global minimum of such binary energies.
+-   **Energy-based methods** (active contours, level sets, graph cuts) minimise an energy that balances fidelity to the image and smoothness of the boundary. Graph cuts find the global minimum of such binary energies when the pairwise terms are submodular, for instance when they penalise label changes between neighbours.
 -   **Atlas-based segmentation** registers one or several labelled images (atlases) to the new image and transfers their labels; multi-atlas methods fuse the transferred labels by voting. It uses the registration of ch. 5 and was the state of the art for brain structures before deep learning.
 
 ### 4.2 Fully convolutional networks and U-Net
@@ -836,7 +839,7 @@ The denominator of the first form is $\mathrm{TP} + U$; dividing it and the nume
 :::
 ::::
 
-Because the true negatives are absent, the Dice loss is not swamped by the background, which can fill 99.9 % of a brain MRI with a small lesion. The cross-entropy, a sum over all voxels, is; it gives smoother gradients, and the sum of the two is a robust default.
+Because the true negatives are absent, the Dice loss is not swamped by the background, which can fill 99.9 % of a brain MRI with a small lesion. The cross-entropy, a mean over all voxels, is dominated by that background. It gives smoother gradients, however, and the sum of the two losses is a robust default.
 
 The overlap measures miss the boundary: a thin false-positive island far away barely changes the Dice coefficient but can matter clinically.
 
@@ -875,7 +878,7 @@ import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter
 
 torch.manual_seed(0)
-torch.set_num_threads(2)
+torch.set_num_threads(1)
 rng = np.random.default_rng(0)
 
 def make(n, size=32):
@@ -975,13 +978,13 @@ A transformation is physically plausible if it does not tear or fold tissue: it 
 $$
 J_\varphi(x) = \det\big(I + \nabla u(x)\big)
 $$
-is the local volume change. Where $J_\varphi(x) \leq 0$, the transformation folds space and is not locally invertible.
+is the local volume change. Where $J_\varphi(x) < 0$ the orientation is reversed. Where $J_\varphi$ changes sign, space folds onto itself and $\varphi$ is not injective near the fold; such voxels, with $J_\varphi(x) \leq 0$, are counted as *folded*.
 :::
 
 Diffeomorphisms (smooth bijections with smooth inverse) are obtained by integrating a velocity field. With a *stationary* velocity field $v$, the transformation is the time-one flow of the equation $\frac{d}{dt} \phi_t = v \circ \phi_t$, with $\phi_0 = \mathrm{id}$, written $\exp(v)$ (Arsigny et al., 2006; Ashburner, 2007).
 
 :::: thm
-[Theorem 5.3 — Scaling and squaring]{.tag} Let $v$ be a smooth, Lipschitz velocity field with flow $(\phi_t)$. Then $\phi_1$ is a diffeomorphism with inverse $\phi_{-1}$, and for every integer $N$,
+[Theorem 5.3 — Scaling and squaring]{.tag} Let $v$ be a smooth velocity field on $\mathbb{R}^d$, bounded with bounded derivatives, and let $(\phi_t)$ be its flow. Then $\phi_1$ is a diffeomorphism with inverse $\phi_{-1}$, and for every integer $N$,
 $$
 \phi_1 = \underbrace{\phi_{2^{-N}} \circ \dots \circ \phi_{2^{-N}}}_{2^N \text{ times}}, \qquad \phi_{2^{-N}} = \mathrm{id} + 2^{-N} v + O(2^{-2N}).
 $$
@@ -1045,7 +1048,7 @@ $$
 \mathcal{L}(\theta) = \mathbb{E}_{(F, M)}\Big[\mathcal{D}\big(F, M \circ (\mathrm{id} + g_\theta(F, M))\big) + \lambda \|\nabla g_\theta(F, M)\|^2\Big].
 $$
 
-The optimisation is *amortised*: once trained, the network registers a new pair in one forward pass, in about a second. When segmentations are available for training, a Dice term between warped and fixed labels improves anatomical accuracy. Dalca et al. (2019) make the output a stationary velocity field integrated by scaling and squaring layers (Theorem 5.3), which gives diffeomorphisms.
+The optimisation is *amortised*: once trained, the network registers a new pair in one forward pass, in about a second on a GPU. When segmentations are available for training, a Dice term between warped and fixed labels improves anatomical accuracy. Dalca et al. (2019) make the output a stationary velocity field integrated by scaling and squaring layers (Theorem 5.3), which gives diffeomorphisms.
 
 Supervised alternatives regress known deformations, either synthetic ones applied to real images or ones computed by a classical method; they inherit the errors of the method they imitate.
 
@@ -1060,6 +1063,7 @@ import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter
 
 torch.manual_seed(0)
+torch.set_num_threads(1)
 rng = np.random.default_rng(0)
 n = 64
 img = gaussian_filter((rng.random((n, n)) > 0.5).astype(float), 3)      # a blobby 'anatomy'
@@ -1270,7 +1274,7 @@ x += 0.3 * ellipse(0.3, 0.45, 0.06, 0.06)
 
 F = lambda u: np.fft.fft2(u, norm="ortho")              # unitary DFT: k-space
 Fi = lambda k: np.fft.ifft2(k, norm="ortho")
-# Cartesian undersampling: keep 10 central phase-encoding lines + 20 % of the others
+# Cartesian undersampling: keep the 9 central phase-encoding lines + about 20 % of the others
 rows = rng.random(n) < 0.2
 rows[np.abs(np.fft.fftfreq(n) * n) < 5] = True
 M = np.repeat(rows[:, None], n, axis=1)
@@ -1477,7 +1481,7 @@ A medical imaging model is only as good as the evidence that it works on new pat
 
 Wen et al. (2020) reviewed convolutional networks for Alzheimer's disease classification from MRI and found that a substantial share of the published studies may have suffered from leakage, often through slice-level splits. They showed that such splits inflate accuracy, and released an open-source framework for reproducible evaluation.
 
-Splits must be made at the level of the subject: every image of a patient goes to the same set. Hyperparameters are chosen by cross-validation inside the training set (nested cross-validation), and the test set is used once. An **external** test set, from other hospitals and scanners, measures the robustness to the domain shifts of ch. 9.
+Splits must be made at the level of the subject: every image of a patient goes to the same set. Hyperparameters are chosen by cross-validation inside the training set (nested cross-validation), and the test set is used once. An **external** test set, from other hospitals and scanners, measures the robustness to changes of scanner, protocol and population (the distribution shifts surveyed in ch. 9.4).
 
 In the code below, each subject contributes 10 slices with a strong individual "fingerprint" and a weak disease effect. A one-nearest-neighbour classifier recognises the subject, not the disease.
 
@@ -1631,7 +1635,7 @@ Open questions: do such models beat a task-specific nnU-Net when a few hundred a
 
 ### 9.2 Learning with fewer labels
 
-Self-supervised pretraining learns representations from unlabelled scans. Models Genesis (Zhou et al., 2021) restores 3D CT and MRI patches that were deliberately corrupted; Azizi et al. (2021) showed that contrastive pretraining on unlabelled medical images improved dermatology and chest X-ray classifiers. Radiology reports are a free source of weak labels: Tiu et al. (2022) trained an image–text model on chest radiographs and their reports that detects pathologies without any explicit annotation.
+Self-supervised pretraining learns representations from unlabelled scans. Models Genesis (Zhou et al., 2021) learns to restore deliberately corrupted 3D CT patches; Azizi et al. (2021) showed that contrastive pretraining on unlabelled medical images improved dermatology and chest X-ray classifiers. Radiology reports are a free source of weak labels: Tiu et al. (2022) trained an image–text model on chest radiographs and their reports that detects pathologies without any explicit annotation.
 
 The survey of Cheplygina, de Bruijne and Pluim (2019) organises semi-supervised, multiple-instance and transfer learning in medical imaging. Annotation noise and disagreement between experts remain poorly handled by losses that assume a single true label.
 
@@ -1650,13 +1654,15 @@ Gichoya et al. (2022) found that deep networks can predict patients' self-report
 A clinician needs to know when not to trust a prediction. Deep ensembles (Lakshminarayanan, Pritzel and Blundell, 2017) and Monte Carlo dropout (Gal and Ghahramani, 2016) estimate predictive uncertainty empirically. Conformal prediction gives distribution-free guarantees (Angelopoulos and Bates, 2023).
 
 :::: prop
-[Proposition 9.1 — Split conformal prediction]{.tag} Let $s(x, y)$ be a non-conformity score (for instance $1 - \hat p_y(x)$), computed on $n$ calibration cases exchangeable with the test case. Let $\hat q$ be the $\lceil (n + 1)(1 - \alpha) \rceil$-th smallest calibration score. The set $C(x) = \{y : s(x, y) \leq \hat q\}$ satisfies
+[Proposition 9.1 — Split conformal prediction]{.tag} Let $s(x, y)$ be a non-conformity score (for instance $1 - \hat p_y(x)$), computed on $n$ calibration cases exchangeable with the test case.
+
+Let $\hat q$ be the $\lceil (n + 1)(1 - \alpha) \rceil$-th smallest calibration score, and $\hat q = +\infty$ if this index exceeds $n$. The set $C(x) = \{y : s(x, y) \leq \hat q\}$ satisfies
 $$
 P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 $$
 
 ::: proof
-By exchangeability, the rank of the test score among the $n + 1$ scores is uniform on $\{1, \dots, n + 1\}$ (ties broken at random). The test label is in $C$ exactly when its score is at most $\hat q$, which happens when its rank is at most $\lceil (n+1)(1-\alpha) \rceil$, an event of probability at least $1 - \alpha$. [∎]{.qed}
+By exchangeability, the rank of the test score among the $n + 1$ scores is uniform on $\{1, \dots, n + 1\}$ (ties broken at random). The test label is in $C$ when its score is at most $\hat q$. This happens whenever its rank is at most $m = \lceil (n+1)(1-\alpha) \rceil$, an event of probability $m / (n + 1) \geq 1 - \alpha$. [∎]{.qed}
 :::
 ::::
 
@@ -1690,7 +1696,7 @@ Key takeaways — chapter 9
 
 ## Exercises {#ex}
 
-The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 10, 12 and 13 are computational.
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 10, 12 and 14 are computational.
 
 1.  **★ Hounsfield units and windows.** Take $\mu_{\text{water}} = 0.19$ cm⁻¹ and $\mu_{\text{air}} = 0$. (a) Convert $\mu = 0.20$ and $\mu = 0.38$ cm⁻¹ to Hounsfield units. (b) Map these values and fat ($-100$ HU) through the soft-tissue window of level 40 and width 400. (c) Which tissues can no longer be told apart in this window?
 
@@ -1743,7 +1749,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 7.  **★★ The gradient of the Dice loss.** With $\varepsilon = 0$, write $I = \sum_i p_i g_i$, $P = \sum_i p_i$ and $G = \sum_i g_i$.
 
-    (a) Compute $\partial L_{\text{Dice}} / \partial p_i$. (b) Evaluate it at $p = 0$ for an image with $10^6$ voxels and $G = 100$ foreground voxels. (c) Compare with the accuracy and the mean cross-entropy of the prediction "all background".
+    (a) Compute $\partial L_{\text{Dice}} / \partial p_i$. (b) Evaluate it at $p = 0$ for an image with $10^6$ voxels and $G = 100$ foreground voxels. (c) Compare the accuracy, the mean cross-entropy and the Dice loss of the "all background" prediction $p_i = 0.01$ for every voxel.
 
     *Solution*: (a) Since $L = 1 - 2I / (P + G)$,
     $$
@@ -1752,7 +1758,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (b) At $p = 0$, $I = P = 0$: the gradient is $-2 / G = -0.02$ on foreground voxels and $0$ on background voxels, whatever their number.
 
-    (c) "All background" has accuracy $99.99\,\%$, and its mean cross-entropy gives each foreground voxel a weight $10^{-6}$. The Dice loss equals 1, its maximum: it sees the failure that accuracy hides (Proposition 4.3).
+    (c) At threshold 0.5 the prediction has accuracy $99.99\,\%$. Its mean cross-entropy is about $0.0105$, of which the 100 missed foreground voxels contribute only $100 \times \log(100) / 10^6 \approx 0.00046$.
+
+    The Dice loss is $1 - 2 / 10\,100 \approx 0.9998$, almost its maximum: it sees the failure that accuracy and the averaged cross-entropy hide (Proposition 4.3).
 
 8.  **★★ Folding and diffeomorphisms.** (a) In 1D, for which $a$ is $\varphi(x) = x + a \sin x$ invertible with a positive derivative?
 
@@ -1800,13 +1808,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (b) McNemar's statistic (Proposition 8.2) is $25 / 11 \approx 2.27$, with a $p$-value of $0.13$; the exact binomial test gives $0.23$. Five points of accuracy on 100 patients are not significant.
 
-13. **★★★ Leakage with a convolutional network.** Modify the code of ch. 2.5 so that the data come from 150 "subjects" of 8 slices each: every subject has its own background texture, shared by all its slices, and its own label. Train the CNN with a slice-level split and with a subject-level split, and compare the test AUCs. How does the gap change with the strength of the subject texture and of the lesion?
+13. **★★ Integrated gradients for a logistic model.** Let $f(x) = \sigma(w^\top x + b)$, with $\sigma$ the logistic function, and the baseline $x' = 0$.
 
-    *Hints and expected result*: draw one texture per subject and add small slice-specific noise. Split with `GroupShuffleSplit` for the subject level.
-
-    The slice-level split gives a higher AUC, because the network can recognise the subject's texture seen in training. The gap grows with the subject-specific variability and shrinks when the lesion signal is strong (ch. 8.1).
-
-14. **★★★ Integrated gradients for a logistic model.** Let $f(x) = \sigma(w^\top x + b)$, with $\sigma$ the logistic function, and the baseline $x' = 0$. (a) Compute $\mathrm{IG}_i(x)$ in closed form and check Proposition 8.4. (b) Compare with the gradient saliency when $|w^\top x|$ is large. (c) Propose a sanity check, in the sense of Adebayo et al. (2018), that the attribution $x_i$ alone (the input itself) would fail.
+    (a) Compute $\mathrm{IG}_i(x)$ in closed form, for $w^\top x \neq 0$, and check Proposition 8.4. (b) Compare with the gradient saliency when $|w^\top x|$ is large. (c) Propose a sanity check, in the sense of Adebayo et al. (2018), that the attribution $x_i$ alone (the input itself) would fail.
 
     *Solution*: (a) Along the path, $\partial_i f = w_i\, \sigma'(t\, w^\top x + b)$. Integrating in $t$,
     $$
@@ -1817,6 +1821,12 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
     (b) The gradient $w_i\, \sigma'(w^\top x + b)$ vanishes when the logistic saturates, even though the features drove the decision; IG does not.
 
     (c) Randomise $w$: IG changes with $w$, whereas the input-only map does not, so it explains the image, not the model.
+
+14. **★★★ Leakage with a convolutional network.** Modify the code of ch. 2.5 so that the data come from 150 "subjects" of 8 slices each: every subject has its own background texture, shared by all its slices, and its own label. Train the CNN with a slice-level split and with a subject-level split, and compare the test AUCs. How does the gap change with the strength of the subject texture and of the lesion?
+
+    *Hints and expected result*: draw one texture per subject and add small slice-specific noise. Split with `GroupShuffleSplit` for the subject level.
+
+    The slice-level split gives a higher AUC, because the network can recognise the subject's texture seen in training. The gap grows with the subject-specific variability and shrinks when the lesion signal is strong (ch. 8.1).
 
 15. **★★★ Designing a multi-centre validation study.** A team wants to show that a hippocampus segmentation network trained on one public data set works in three hospitals. Design the study: data and splits, reference segmentations, metrics, confidence intervals, subgroups, comparison with a classical method, and what result would count as success.
 
@@ -1835,7 +1845,7 @@ The official assessment (master-mva.com) is an article presentation and a projec
 1.  **[Solo · ≈ 25 h] Learned registration of brain MRI slices (paper study).** Reimplement VoxelMorph (Balakrishnan et al., 2019) in 2D on slices of the OASIS brain MRI data (Marcus et al., 2007), as preprocessed and labelled for the Learn2Reg challenge (Hering et al., 2023). Compare with affine registration and with per-pair iterative optimisation of a dense field, then add scaling and squaring.
     -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
     -   *Chapters*: ch. 5, 8.
-    -   *Success criterion*: a label Dice clearly above the affine baseline, under 1 % of folded pixels with scaling and squaring, and a run-time comparison.
+    -   *Success criterion*: a mean label Dice at least 5 points above the affine baseline on held-out pairs, under 1 % of folded pixels with scaling and squaring, and a run-time comparison with the iterative method.
 2.  **[Solo · ≈ 20 h] Noise2Noise for magnitude MRI (paper study).** Reproduce the Noise2Noise principle (Lehtinen et al., 2018) on slices of the public IXI brain MRI data set: add complex Gaussian noise, train a residual CNN denoiser with clean targets and with independent noisy targets, and compare. Then lower the signal-to-noise ratio and show the Rician bias of Proposition 6.3.
     -   *Deliverables*: code, a report, a talk.
     -   *Chapters*: ch. 6, 8.
@@ -1852,7 +1862,7 @@ The official assessment (master-mva.com) is an article presentation and a projec
     -   *Measure*: Dice and HD95 per structure and phase, with bootstrap intervals; Bland–Altman analysis of the ejection fraction.
     -   *Chapters*: ch. 4, 8. *Deliverables*: code, an 8-page report, a 20-minute talk.
     -   *Success criterion*: a Dice above 0.90 on the left-ventricular cavity, and paired tests between the variants.
-2.  **[Group of 2–3 · ≈ 30 h each] Accelerated MRI reconstruction.** On the single-coil knee data of fastMRI (Zbontar et al., 2018), available under a free data-use agreement, compare zero filling, compressed sensing with total variation, a U-Net post-processing network and a cascade with data-consistency layers (Schlemper et al., 2018) at acceleration 4 and 8.
+2.  **[Group of 2–3 · ≈ 30 h each] Accelerated MRI reconstruction.** On a subset (about 100 training volumes) of the single-coil knee data of fastMRI (Zbontar et al., 2018), available under a free data-use agreement, compare zero filling, compressed sensing with total variation, a U-Net post-processing network and a cascade with data-consistency layers (Schlemper et al., 2018) at acceleration 4 and 8.
     -   *Split*: compressed sensing and evaluation; U-Net; cascade.
     -   *Measure*: PSNR and SSIM, and a hallucination test: insert a small synthetic lesion in k-space and check whether each method preserves it (in the spirit of Antun et al., 2020).
     -   *Chapters*: ch. 6, 8. *Deliverables*: code, a report, a talk.

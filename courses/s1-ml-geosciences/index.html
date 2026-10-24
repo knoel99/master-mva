@@ -229,7 +229,7 @@ window.Quarto = {
 <tbody>
 <tr class="odd">
 <td>Introduction to measurement systems: images and logs (seismic, electromagnetic, ultrasonic, mechanical…) — theme 1 on both pages</td>
-<td>ch.&nbsp;1: forward model (1.1), well logs (1.2), borehole images (1.3), seismic convolutional model (1.4), ultrasonic pulse–echo and corrosion (1.5)</td>
+<td>ch.&nbsp;1: forward model (1.1), well logs with electromagnetic (Archie) and mechanical (sonic, caliper) physics (1.2), borehole images (1.3), seismic convolutional model (1.4), ultrasonic pulse–echo and corrosion (1.5)</td>
 </tr>
 <tr class="even">
 <td>Compression</td>
@@ -377,7 +377,7 @@ window.Quarto = {
 <td>3 h</td>
 <td>1</td>
 <td>ch.&nbsp;1.3–1.6 borehole images, seismic convolutional model, ultrasonic pulse–echo, what makes the data hard</td>
-<td>Ex. 2, 4; lab: code 1.11 (seismogram, tuning, sinusoid fit)</td>
+<td>Ex. 2; lab: code 1.11 (seismogram, tuning, sinusoid fit)</td>
 </tr>
 <tr class="odd">
 <td>3</td>
@@ -426,7 +426,7 @@ window.Quarto = {
 <td>3 h</td>
 <td>3</td>
 <td>ch.&nbsp;8 Inversion: Tikhonov, ISTA, impedance, nonlinear and learned inversion</td>
-<td>Ex. 11; lab: code 8.7</td>
+<td>Ex. 4, 11; lab: code 8.7</td>
 </tr>
 <tr class="even">
 <td>10</td>
@@ -445,7 +445,7 @@ window.Quarto = {
 <li>Do the exercises listed in the session plan in the same week; the ★ ones check the session, the ★★ ones prepare the exam.</li>
 <li>Keep one notebook per chapter with a common data generator (synthetic logs and borehole images): the labs reuse it.</li>
 <li>The environment is Python 3 with NumPy, SciPy, scikit-learn and PyTorch on CPU; every code block runs in less than about 30 s on a laptop.</li>
-<li>Start the project (see <a href="#projects">Projects and assessment</a>) after session 8, when classification and inversion have been seen.</li>
+<li>Start the project (see <a href="#projects">Projects and assessment</a>) at the kick-off of session 10, once classification (session 8) and inversion (session 9) have been seen.</li>
 </ul>
 <div class="note">
 <p><span class="tag">Independent notes</span> These notes reconstruct the official programme for self-study. They are not the instructors’ material, and the industrial data sets of the course are replaced by synthetic data and by public data sets named in each place.</p>
@@ -533,7 +533,7 @@ f(x_{k+1}) - f^\star \le \frac{L}{2}\left(\|x_k - x^\star\|^2 - \|x_{k+1} - x^\s
 <p><span class="tag">Definition 0.8 — Convolutional layer and receptive field</span> A one-dimensional convolutional layer with kernel size <span class="math inline">k</span> maps <span class="math inline">C</span> input channels to <span class="math inline">C'</span> output channels: <span class="math display">
 y_{c,t} = b_c + \sum_{c'=1}^{C} \sum_{j=0}^{k-1} W_{c,c',j}\, x_{c',\, t + j - \lfloor k/2 \rfloor},
 </span> followed by a pointwise nonlinearity such as <span class="math inline">\mathrm{ReLU}(u) = \max(u, 0)</span>. It commutes with translations, and its weights are shared across positions.</p>
-<p>Stacking <span class="math inline">L</span> such layers with stride 1 gives each output a <strong>receptive field</strong> of <span class="math inline">1 + L(k - 1)</span> input samples. The proof is an induction: each layer adds <span class="math inline">\lfloor k/2 \rfloor</span> samples on each side.</p>
+<p>Stacking <span class="math inline">L</span> such layers with stride 1 gives each output a <strong>receptive field</strong> of <span class="math inline">1 + L(k - 1)</span> input samples. The proof is an induction: each layer widens the field by <span class="math inline">k - 1</span> samples (<span class="math inline">\lfloor k/2 \rfloor</span> on each side when <span class="math inline">k</span> is odd).</p>
 </div>
 <p>Two-dimensional layers work the same way on images. Encoder–decoder networks with skip connections (U-Net, ch.&nbsp;7.2) combine a large receptive field with precise localisation.</p>
 <p><strong>Code 0.9 — checking the convolution theorem, aliasing and least squares.</strong></p>
@@ -638,8 +638,8 @@ x(z_k) \in \mathbb{R}^p, \qquad z_k = z_0 + k\, \Delta z, \quad k = 0, \dots, n 
 <div class="prop">
 <p><span class="tag">Proposition 1.3 — The vertical response of a tool is a convolution</span> Let a tool average the true property with a vertical response <span class="math inline">g \ge 0</span> of integral 1: <span class="math display">
 m(z) = \int g(z - z')\, x(z')\, dz' .
-</span> If <span class="math inline">g</span> is a box of width <span class="math inline">w</span>, a bed of thickness <span class="math inline">h &lt; w</span> with contrast <span class="math inline">\Delta</span> over a uniform background appears with an apparent contrast of at most <span class="math display">
-\frac{h}{w}\, \Delta .
+</span> If <span class="math inline">g</span> is a box of width <span class="math inline">w</span>, a bed of thickness <span class="math inline">h &lt; w</span> with contrast <span class="math inline">\Delta</span> over a uniform background appears with an apparent contrast whose absolute value is at most <span class="math display">
+\frac{h}{w}\, |\Delta| .
 </span></p>
 <div class="proof">
 <p><span class="proof-title"><em>Proof</em>. </span>Write <span class="math inline">x = x_0 + \Delta\, \mathbb{1}_{\text{bed}}</span>. Then <span class="math display">
@@ -648,14 +648,19 @@ m(z) - x_0 = \Delta \cdot \frac{|\text{window}(z) \cap \text{bed}|}{w}.
 </div>
 </div>
 <div class="ex">
-<p><span class="tag">Example 1.4 — A thin sand in a shale</span> A tool with a 60 cm box response logs a 15 cm sand (gamma ray 30 API) inside a shale (110 API), so <span class="math inline">\Delta = -80</span> API. The apparent contrast is at most <span class="math display">
-\frac{15}{60} \times (-80) = -20 \text{ API},
-</span> so the log reads about 90 API at the sand and the sand is almost invisible. Thinly laminated reservoirs are underestimated for this reason, and the Fourier view (Proposition 0.4) says why: the tool is a low-pass filter.</p>
+<p><span class="tag">Example 1.4 — A thin sand in a shale</span> A tool with a 60 cm box response logs a 15 cm sand (gamma ray 30 API) inside a shale (110 API), so <span class="math inline">\Delta = -80</span> API. In absolute value, the apparent contrast is at most <span class="math display">
+\frac{15}{60} \times 80 = 20 \text{ API},
+</span> so the log reads about 90 API at best at the sand and the sand is almost invisible. Thinly laminated reservoirs are underestimated for this reason, and the Fourier view (Proposition 0.4) says why: the tool is a low-pass filter.</p>
 </div>
 <div class="note">
 <p><span class="tag">Physics as a model — Archie’s law</span> Archie (1942) observed that, in clean formations, the true resistivity <span class="math inline">R_t</span> relates to porosity <span class="math inline">\phi</span> and water saturation <span class="math inline">S_w</span> through <span class="math display">
 R_t = \frac{a\, R_w}{\phi^{m} S_w^{n}},
 </span> with <span class="math inline">R_w</span> the water resistivity and empirical constants <span class="math inline">a</span>, <span class="math inline">m</span>, <span class="math inline">n</span>. Resistivity spans several orders of magnitude, so models work with <span class="math inline">\log R_t</span>; in that variable Archie’s law is linear. Such laws are the “physical models” with which learned models must stay consistent (ch.&nbsp;8, ch.&nbsp;9).</p>
+</div>
+<div class="note">
+<p><span class="tag">Physics as a model — the sonic log</span> A sonic tool times a compressional wave refracted along the borehole wall and logs its slowness <span class="math inline">\Delta t = 1/v</span>, in µs/ft. In a clean, consolidated rock, Wyllie, Gregory and Gardner (1956) add the travel times through the pore fluid and the matrix: <span class="math display">
+\Delta t = \phi\, \Delta t_f + (1 - \phi)\, \Delta t_m, \qquad \phi = \frac{\Delta t - \Delta t_m}{\Delta t_f - \Delta t_m}.
+</span> With a sandstone matrix at 55.5 µs/ft and water at 189 µs/ft, a reading of 80 µs/ft gives <span class="math inline">\phi = 24.5 / 133.5 \approx 18</span> %. A mechanical caliper logs the borehole diameter; enlarged intervals flag pad readings as unreliable (ch.&nbsp;4.2).</p>
 </div>
 <h3 id="borehole-images">1.3 Borehole images</h3>
 <p>An imaging tool records many logs around the borehole wall at once. Resistivity tools press several pads against the wall and cover part of the circumference; rotating ultrasonic transducers cover all of it. Unrolling the cylinder gives an image <span class="math inline">I(z, \varphi)</span>, with depth <span class="math inline">z</span> downwards and azimuth <span class="math inline">\varphi \in [0, 2\pi)</span> across.</p>
@@ -678,7 +683,7 @@ z = z_0 + \tan\theta\,(X \cos\varphi_d + Y \sin\varphi_d).
 <p><span class="tag">Example 1.6 — Sizes of sinusoids</span> In an 8.5-inch borehole, <span class="math inline">r = 10.8</span> cm.</p>
 <ul>
 <li>A bed dipping at 30° gives an amplitude <span class="math inline">r \tan 30° = 6.2</span> cm, so the sinusoid spans 12.5 cm from top to bottom.</li>
-<li>A fracture dipping at 80° gives <span class="math inline">r \tan 80° = 61</span> cm: its sinusoid spans 1.23 m.</li>
+<li>A fracture dipping at 80° gives <span class="math inline">r \tan 80° = 61</span> cm: its sinusoid spans 1.22 m.</li>
 </ul>
 <p>Steep fractures therefore cross many image rows, and a pad gap (ch.&nbsp;6.2) cuts them into separate pieces.</p>
 </div>
@@ -969,7 +974,7 @@ y = S_s(h * x) + n = A x + n, \qquad A \in \mathbb{R}^{m \times N}, \quad m = N 
 </ul>
 <h3 id="what-a-trained-estimator-converges-to">3.3 What a trained estimator converges to</h3>
 <div class="thm">
-<p><span class="tag">Theorem 3.3 — The MMSE estimator is the posterior mean</span> Among all measurable functions <span class="math inline">f</span> with <span class="math inline">\mathbb{E}\|f(Y)\|^2 &lt; \infty</span>, <span class="math display">
+<p><span class="tag">Theorem 3.3 — The MMSE estimator is the posterior mean</span> Let <span class="math inline">\mathbb{E}\|X\|^2 &lt; \infty</span>. Among all measurable functions <span class="math inline">f</span> with <span class="math inline">\mathbb{E}\|f(Y)\|^2 &lt; \infty</span>, <span class="math display">
 \arg\min_f \; \mathbb{E}\, \|X - f(Y)\|^2 = \mathbb{E}[X \mid Y].
 </span></p>
 <div class="proof">
@@ -1253,7 +1258,7 @@ X - f(Y) = (X - \mathbb{E}[X \mid Y]) + (\mathbb{E}[X \mid Y] - f(Y)).
 <p>All <span class="math inline">n</span> correlations are computed at once with the FFT, in <span class="math inline">\mathcal{O}(n \log n)</span>, since a correlation is a convolution with a reversed signal (Proposition 0.4). For non-circular logs, the overlap changes with <span class="math inline">\tau</span>, so the correlation is computed on a common interior window or normalised.</p>
 </div>
 <div class="prop">
-<p><span class="tag">Proposition 5.2 — Phase correlation</span> If <span class="math inline">y = S_\tau x</span>, then <span class="math inline">\hat y_\ell = e^{-2i\pi \ell\tau/n}\, \hat x_\ell</span>. Wherever <span class="math inline">\hat x_\ell \neq 0</span>, the normalised cross-power spectrum is a pure phase, and its inverse DFT is a spike at <span class="math inline">\tau</span>: <span class="math display">
+<p><span class="tag">Proposition 5.2 — Phase correlation</span> If <span class="math inline">y = S_\tau x</span>, then <span class="math inline">\hat y_\ell = e^{-2i\pi \ell\tau/n}\, \hat x_\ell</span>. If <span class="math inline">\hat x_\ell \neq 0</span> for every <span class="math inline">\ell</span>, the normalised cross-power spectrum is a pure phase, and its inverse DFT is a spike at <span class="math inline">\tau</span>: <span class="math display">
 \mathcal{F}^{-1}\!\left[\frac{\hat y_\ell\, \overline{\hat x_\ell}}{|\hat y_\ell\, \overline{\hat x_\ell}|}\right] = \delta_\tau .
 </span></p>
 <div class="proof">
@@ -1401,9 +1406,9 @@ F(U) \sim \mathrm{Uniform}(0, 1).
 <div class="prop">
 <p><span class="tag">Proposition 6.3 — Equalisation amplifies where the histogram peaks</span> If <span class="math inline">U</span> has density <span class="math inline">p</span>, the equalising map <span class="math inline">T = F</span> has slope <span class="math inline">T'(u) = p(u)</span>. A small perturbation <span class="math inline">\delta</span> of a value <span class="math inline">u</span> becomes, after equalisation, <span class="math display">
 T(u + \delta) - T(u) \approx p(u)\, \delta .
-</span> Clipping the density at a level <span class="math inline">c</span> before integrating bounds the slope, hence the amplification, by <span class="math inline">c</span>.</p>
+</span> Clipping the density at a level <span class="math inline">c</span> and renormalising it before integrating bounds the slope, hence the amplification, by <span class="math inline">c / \kappa</span>, where <span class="math inline">\kappa \le 1</span> is the mass that survives the clipping.</p>
 <div class="proof">
-<p><span class="proof-title"><em>Proof</em>. </span><span class="math inline">F</span> is differentiable with <span class="math inline">F' = p</span>, and the first-order Taylor expansion gives the approximation. If the clipped density <span class="math inline">\min(p, c)</span> is renormalised by its mass <span class="math inline">\kappa \le 1</span>, the new map has slope at most <span class="math inline">c/\kappa</span>, which is bounded. <span class="qed">∎</span></p>
+<p><span class="proof-title"><em>Proof</em>. </span><span class="math inline">F</span> is differentiable with <span class="math inline">F' = p</span>, and the first-order Taylor expansion gives the approximation. The clipped density <span class="math inline">\min(p, c)</span> has mass <span class="math inline">\kappa</span>, so the new map has density <span class="math inline">\min(p, c)/\kappa</span>, and its slope is at most <span class="math inline">c/\kappa</span>. <span class="qed">∎</span></p>
 </div>
 </div>
 <p>Flat, noisy regions have a peaked histogram, so plain equalisation turns their noise into strong texture. <strong>CLAHE</strong> (Zuiderveld, 1994) clips the histogram, redistributes the excess, computes the map in tiles, and blends neighbouring tiles bilinearly. Learned enhancement networks can mimic the renderings interpreters prefer, at the risk of learning the taste of a single expert (ch.&nbsp;9.1).</p>
@@ -1656,10 +1661,10 @@ p'(y \mid x) = \frac{p(y \mid x)\, \pi'(y)/\pi(y)}{\sum_{k} p(k \mid x)\, \pi'(k
 <div class="def">
 <p><span class="tag">Definition 8.1 — Well-posedness (Hadamard)</span> The problem of recovering <span class="math inline">x</span> from <span class="math inline">y = Ax</span> is <strong>well-posed</strong> if a solution exists for every <span class="math inline">y</span>, if it is unique, and if it depends continuously on <span class="math inline">y</span>. Otherwise it is <strong>ill-posed</strong>.</p>
 </div>
-<p>In finite dimension, the third condition fails gradually rather than absolutely: the ratio <span class="math inline">\sigma_1 / \sigma_n</span> (the condition number) measures how much noise is amplified. For deconvolution by a band-limited wavelet, the smallest singular values are numerically zero; in code 8.7 they range from 8.3 down to <span class="math inline">3 \times 10^{-17}</span>. Dividing by them, as <span class="math inline">A^+</span> does, amplifies noise without limit.</p>
+<p>In finite dimension, the third condition fails gradually rather than absolutely: the ratio <span class="math inline">\sigma_1 / \sigma_n</span> (the condition number) measures how much noise is amplified. For deconvolution by a band-limited wavelet, the smallest singular values are numerically zero; in code 8.7 they range from 8.3 down to the level of rounding errors, below <span class="math inline">10^{-16}</span>. Dividing by them, as <span class="math inline">A^+</span> does, amplifies noise without limit.</p>
 <h3 id="tikhonov-regularisation">8.2 Tikhonov regularisation</h3>
 <div class="thm">
-<p><span class="tag">Theorem 8.2 — Tikhonov in the SVD basis</span> With <span class="math inline">A = \sum_i \sigma_i u_i v_i^\top</span> and <span class="math inline">\lambda &gt; 0</span>, the regularised solution of Proposition 0.6 is</p>
+<p><span class="tag">Theorem 8.2 — Tikhonov in the SVD basis</span> Let <span class="math inline">A = \sum_i \sigma_i u_i v_i^\top</span> have full column rank, so that the <span class="math inline">v_i</span> form a basis, and let <span class="math inline">\lambda &gt; 0</span>. The regularised solution of Proposition 0.6 is</p>
 <div class="key">
 <p><span class="tag">Key result — filter factors</span> <span class="math display">
 x_\lambda = \sum_i f_i\, \frac{u_i^\top y}{\sigma_i}\, v_i, \qquad f_i = \frac{\sigma_i^2}{\sigma_i^2 + \lambda} \in (0, 1).
@@ -1857,7 +1862,8 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 <p>Other answers to shift are standardising each well or tool (code 7.3), domain-adversarial training that makes features indistinguishable across domains (Ganin et al., 2016), and monitoring input statistics in production (9.5).</p>
 <h3 id="uncertainty-robustness-and-interpretability">9.3 Uncertainty, robustness and interpretability</h3>
 <div class="thm">
-<p><span class="tag">Theorem 9.5 — Split conformal prediction</span> Let <span class="math inline">f</span> be trained on one data set, and let <span class="math inline">S_i = |Y_i - f(X_i)|</span> be the scores of <span class="math inline">n</span> calibration pairs. Let <span class="math inline">\hat q</span> be the <span class="math inline">\lceil (1 - \alpha)(n + 1) \rceil</span>-th smallest score. If the calibration pairs and a new pair <span class="math inline">(X, Y)</span> are exchangeable, then</p>
+<p><span class="tag">Theorem 9.5 — Split conformal prediction</span> Let <span class="math inline">f</span> be trained on one data set, and let <span class="math inline">S_i = |Y_i - f(X_i)|</span> be the scores of <span class="math inline">n</span> calibration pairs.</p>
+<p>Let <span class="math inline">\hat q</span> be the <span class="math inline">\lceil (1 - \alpha)(n + 1) \rceil</span>-th smallest score, and <span class="math inline">\hat q = +\infty</span> if this index exceeds <span class="math inline">n</span>. If the calibration pairs and a new pair <span class="math inline">(X, Y)</span> are exchangeable, then</p>
 <div class="key">
 <p><span class="tag">Key result — distribution-free coverage</span> <span class="math display">
 \mathbb{P}\big(|Y - f(X)| \le \hat q\big) \;\ge\; 1 - \alpha .
@@ -1970,7 +1976,7 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 <h2 id="ex">Exercises</h2>
 <ol type="1">
 <li><p><strong>★ A thin coal bed on a density log.</strong> A density tool with a 40 cm box response (Proposition 1.3) logs a 10 cm coal bed of density 1.40 g/cm³ inside a sandstone of density 2.45 g/cm³. What is the lowest density the log can show? How thick must a bed be for the log to show at least 90 % of the true contrast?</p>
-<p><em>Solution</em>: <span class="math inline">\Delta = -1.05</span> g/cm³ and the apparent contrast is at most <span class="math inline">\frac{10}{40}\Delta = -0.26</span> g/cm³, so the log reads about 2.19 g/cm³ at best.</p>
+<p><em>Solution</em>: <span class="math inline">\Delta = -1.05</span> g/cm³, and in absolute value the apparent contrast is at most <span class="math inline">\frac{10}{40} \times 1.05 = 0.26</span> g/cm³, so the log reads about 2.19 g/cm³ at best.</p>
 <p>With a box response the apparent contrast is <span class="math inline">\frac{h}{w}\Delta</span> for <span class="math inline">h &lt; w</span> and <span class="math inline">\Delta</span> for <span class="math inline">h \ge w</span>; 90 % therefore requires <span class="math inline">h \ge 0.9\, w = 36</span> cm.</p></li>
 <li><p><strong>★ Dip from a sinusoid.</strong> On the image of an 8.5-inch borehole (<span class="math inline">r = 10.8</span> cm), a fracture reaches its shallowest point at azimuth 200° and depth 1012.40 m, and its deepest point at azimuth 20° and depth 1012.90 m. Give its dip, dip azimuth and the parameter <span class="math inline">z_0</span> of Theorem 1.5.</p>
 <p><em>Solution</em>: the amplitude is half the span, <span class="math inline">r\tan\theta = 0.25</span> m, so <span class="math inline">\tan\theta = 2.315</span> and <span class="math inline">\theta = 66.6°</span>. The dip azimuth is the azimuth of the deepest point, <span class="math inline">\varphi_d = 20°</span>, and <span class="math inline">z_0 = 1012.65</span> m is the mid-depth.</p></li>
@@ -1979,7 +1985,7 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 </span> Check the formula against the 8-bit line of code 2.8.</p>
 <p><em>Solution</em>: with <span class="math inline">\mathrm{MSE} = \Delta^2/12</span> and peak 1, <span class="math display">
 \mathrm{PSNR} = 10\log_{10}(12 \cdot 4^b) = 10\log_{10}12 + 20\, b \log_{10}2 = 10.79 + 6.02\, b .
-</span> For <span class="math inline">b = 8</span> this gives 58.95 dB, and the measured MSE <span class="math inline">1.27 \times 10^{-6}</span> gives 58.96 dB.</p></li>
+</span> For <span class="math inline">b = 8</span> this gives 58.96 dB, and the measured MSE <span class="math inline">1.27 \times 10^{-6}</span> gives 58.96 dB.</p></li>
 <li><p><strong>★ Reflectivity and back.</strong> Three layers have impedances <span class="math inline">6.0</span>, <span class="math inline">7.5</span> and <span class="math inline">5.0</span> (in <span class="math inline">10^6</span> SI units). Compute the two reflection coefficients, then recover the impedance ratios with Proposition 8.5, and compare with the small-contrast rule <span class="math inline">\Delta \ln Z \approx 2R</span>.</p>
 <p><em>Solution</em>: <span class="math inline">R_1 = 1.5/13.5 = 0.111</span> and <span class="math inline">R_2 = -2.5/12.5 = -0.2</span>. Then <span class="math inline">2\operatorname{artanh}(0.111) = 0.2231 = \ln(7.5/6)</span> and <span class="math inline">2\operatorname{artanh}(-0.2) = -0.4055 = \ln(5/7.5)</span>, exactly. The approximation gives 0.222 and −0.400, errors of 0.4 % and 1.3 %.</p></li>
 <li><p><strong>★ Dynamic time warping by hand.</strong> Align <span class="math inline">a = (1, 3, 2)</span> with <span class="math inline">b = (1, 1, 3, 2)</span> with the squared difference (Theorem 5.4). Give the table, the optimal cost and an optimal path. Why is the cost zero although the sequences have different lengths?</p>
@@ -2025,7 +2031,7 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 <li><strong>[Solo · ≈ 20 h] Paper study — learned ISTA for seismic deconvolution.</strong> Does an unrolled network reproduce on seismic traces the speed-up reported by Gregor and LeCun (2010)?
 <ul>
 <li><em>Work</em>: implement ISTA, FISTA and LISTA in PyTorch; train LISTA on synthetic traces generated as in code 8.7, with Ricker frequencies drawn between 20 and 35 Hz.</li>
-<li><em>Success criterion</em>: with 10 layers, LISTA matches on test traces the reflectivity error of ISTA after 500 iterations.</li>
+<li><em>Success criterion</em>: with 10 layers, LISTA comes within 10 % of the test reflectivity error that ISTA reaches after 500 iterations.</li>
 <li><em>Deliverables</em>: code, a 4–6 page report, a 10-minute talk. <em>Chapters</em>: ch.&nbsp;0, 1.4, 8.</li>
 <li><em>Evaluation</em>: the rubric below; comparisons must be made at equal compute.</li>
 </ul></li>
@@ -2062,6 +2068,7 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 </ul></li>
 <li><strong>[Group of 2–3 · ≈ 30 h each] Compressing borehole images for a telemetry budget.</strong> Which codec preserves interpretation best at 0.1 to 1 bit per pixel?
 <ul>
+<li><em>Data</em>: synthetic unrolled borehole images from the generators of codes 2.8 and 7.8, a few thousand 256 × 256 images whose sinusoid parameters are known, so that dip errors are exact.</li>
 <li><em>Work</em>: block DCT with uniform quantisation and entropy coding; PCA on patches; a small learned codec trained on the rate–distortion loss of Ballé, Laparra and Simoncelli (2017).</li>
 <li><em>Split</em>: member A builds the classical codecs and the entropy coder, member B the learned codec, member C the task metric (dip error of automatically picked sinusoids) and the ranking of methods (ch.&nbsp;4).</li>
 <li><em>Success criterion</em>: rate–distortion curves in PSNR, SSIM and dip error for the three codecs, and the lowest rate keeping the dip error below 2°.</li>
@@ -2134,6 +2141,7 @@ w(x) = \frac{n_s}{n_t} \cdot \frac{c(x)}{1 - c(x)} .
 <li>Ö. Yilmaz, <em>Seismic Data Analysis: Processing, Inversion, and Interpretation of Seismic Data</em>, Society of Exploration Geophysicists, 2001.</li>
 <li>G. E. Archie, “The electrical resistivity log as an aid in determining some reservoir characteristics”, <em>Transactions of the AIME</em> 146, 1942.</li>
 <li>M. B. Widess, “How thin is a thin bed?”, <em>Geophysics</em> 38(6), 1973.</li>
+<li>M. R. J. Wyllie, A. R. Gregory, L. W. Gardner, “Elastic wave velocities in heterogeneous and porous media”, <em>Geophysics</em> 21(1), 1956.</li>
 </ul>
 <p><strong>Signals, compression and images (ch.&nbsp;0, 2, 4, 6)</strong></p>
 <ul>

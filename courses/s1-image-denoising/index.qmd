@@ -115,7 +115,7 @@ The description recalls that the separation of noise and signal was already the 
 | Plan: Image self-similarity and denoising | ch. 5 |
 | Plan: Bayesian patch-based methods | ch. 6 |
 | Plan: A crash course on deep learning (I and II) | ch. 7.1–7.4 (I) and ch. 7.5–7.7 (II) |
-| Plan: A comparative study of deep and shallow CNN denoisers | ch. 8 |
+| Plan: A comparative study of deep and shallow CNN denoisers | ch. 8 (8.3: a trained two-layer DCT network against the four-layer CNN of ch. 7.7; 8.4–8.5: deep networks) |
 | Plan: Comparison of all denoising methods | ch. 9 |
 
 Every official topic is taught on this page. Its extensions beyond the syllabus are the review chapter 0, Stein's unbiased risk estimate (ch. 2 and 4), Gaussian-mixture patch priors (ch. 6.4), and the research chapter 10 on self-supervised denoising, denoisers as priors and video.
@@ -837,10 +837,10 @@ The same computation for the affine noise curve gives the *generalised Anscombe 
 [Proposition 3.7 — Median absolute deviation (MAD)]{.tag} If $Z \sim \mathcal{N}(0, \sigma^2)$, the median of $|Z|$ is $c\,\sigma$ with $c = \Phi^{-1}(3/4) \approx 0.6745$, where $\Phi$ is the standard normal distribution function. Hence the estimator
 
 $$
-\hat\sigma = \frac{\mathrm{median}_i\, |d_i|}{0.6745}
+\hat\sigma = \frac{\mathrm{median}_i\, |d_i|}{0.6745},
 $$
 
-computed on high-pass coefficients $d_i$ of the noisy image.
+applied to high-pass coefficients $d_i$ of the noisy image, which are nearly pure noise.
 
 ::: proof
 $\mathbb{P}(|Z| \le c\sigma) = 2\Phi(c) - 1$, which equals $1/2$ when $\Phi(c) = 3/4$. [∎]{.qed}
@@ -1119,7 +1119,7 @@ The DC atom is the constant $1/\sqrt{d}$; its coefficient times the atom contrib
 :::
 ::::
 
-The same holds for the few lowest frequencies, which survive in most patches. After aggregation these errors are smooth over about $s$ pixels: faint blotches, visible in flat regions although small in MSE. For $\sigma = 40$ and $8 \times 8$ patches, the DC error alone has standard deviation 5 grey levels.
+The same holds for the few lowest frequencies, which survive in most patches. After aggregation these errors are smooth over about $s$ pixels: faint blotches, visible in flat regions although small in MSE. For $\sigma = 40$ and $8 \times 8$ patches, the DC error of each patch estimate has standard deviation 5 grey levels. Aggregation averages strongly correlated errors and only brings it down to about 3.3.
 
 :::: prop
 [Proposition 4.9 — A coarse scale is less noisy]{.tag} Keep the $\frac N2 \times \frac N2$ lowest coefficients of the orthonormal global DCT of an $N \times N$ image, invert at size $\frac N2$ and divide by 2. The result is a half-size version of the image whose noise is white with variance
@@ -1277,7 +1277,7 @@ $$
 2\sqrt2 \times 400 / 5 = 226 .
 $$
 
-Subtracting $2\sigma^2$ centres the distance of true copies at zero. A filtering parameter $h = 0.7\sigma$ gives $h^2 = 196$, about one standard deviation: true copies keep weights near 1, while patches that differ by more than a few standard deviations get negligible weights.
+Subtracting $2\sigma^2$ centres the distance of true copies at zero. A filtering parameter $h = 0.7\sigma$ gives $h^2 = 196$, about one standard deviation. Half of the true copies get weight 1 and most of the others at least $e^{-226/196} \approx 0.32$, while patches that differ by more than a few standard deviations get negligible weights.
 :::
 
 ::: thm
@@ -1364,7 +1364,7 @@ For $\sigma = 20$ and $k = 3$, an $8 \times 8$ patch separates differences of ro
 
 But a $60 \times 60$ region rarely has a copy in the same image. Every patch method chooses a size between these two constraints, and deep networks face the same trade-off with their receptive field (ch. 7.5).
 
-The global ensemble of patches is far from filling its space. Natural $3 \times 3$ patches of high contrast concentrate near a two-dimensional manifold of edges (Lee, Pedersen and Mumford, 2003), whose topology is that of a Klein bottle (Carlsson, Ishkhanov, de Silva and Zomorodian, 2008). Small patches recur within the same image, at the same and at other scales (Zontak and Irani, 2011).
+The global ensemble of patches is far from filling its space. Natural $3 \times 3$ patches of high contrast concentrate near a low-dimensional manifold of edges (Lee, Pedersen and Mumford, 2003). Topological data analysis shows that a dense core of them has the topology of a Klein bottle (Carlsson, Ishkhanov, de Silva and Zomorodian, 2008). Small patches recur within the same image, at the same and at other scales (Zontak and Irani, 2011).
 
 The PCA of all the patches of an image gives a first, linear, picture of this structure. The number of principal variances above $\sigma^2$ is the number of directions that a Wiener filter keeps (Corollary 2.8).
 
@@ -1474,7 +1474,7 @@ $$
 2.  **Step 2 (oracle).** Redo the grouping on $\hat u_1$, whose patch distances are far less noisy. Estimate the covariance $C_1$ from the basic patches, and apply the Wiener estimate with $C = C_1$ to the *noisy* patches. Aggregate.
 :::
 
-The full algorithm adds a test for flat groups — if the group variance is close to $\sigma^2$, every patch is replaced by the mean — and works on colour patches. The code below keeps the two steps.
+The full algorithm adds a test for flat groups — if the group variance is close to $\sigma^2$, every patch is replaced by the mean — takes the step-2 group mean from the basic estimate, and works on colour patches. The code below keeps the two steps.
 
 ```python
 import numpy as np
@@ -1605,7 +1605,7 @@ The parameters $\theta$ are all the $W_\ell$ and $b_\ell$; the intermediate vect
 :::
 
 :::: prop
-[Proposition 7.2 — ReLU networks are piecewise linear, and conversely in 1D]{.tag} Every ReLU network is a continuous piecewise linear function. Conversely, every continuous piecewise linear $g : \mathbb{R} \to \mathbb{R}$ with breakpoints $x_1 < \dots < x_n$ is a network with one hidden layer of $n + 2$ units.
+[Proposition 7.2 — ReLU networks are piecewise linear, and conversely in 1D]{.tag} Every ReLU network is a continuous piecewise linear function. Conversely, every continuous piecewise linear $g : \mathbb{R} \to \mathbb{R}$ with breakpoints $x_1 < \dots < x_n$ is a network with one hidden layer of $n + 1$ units.
 
 ::: proof
 Affine maps and $\rho$ are continuous and piecewise linear, and so are their compositions.
@@ -1616,7 +1616,9 @@ $$
 g(x) = g(x_1) + s_0\big(\rho(x - x_1) - \rho(x_1 - x)\big) + \sum_{k=1}^n (s_k - s_{k-1})\, \rho(x - x_k).
 $$
 
-Both sides are continuous, agree at $x_1$ and have the same slope on every interval, so they coincide. [∎]{.qed}
+Both sides are continuous, agree at $x_1$ and have the same slope on every interval, so they coincide.
+
+The hidden units are $\rho(x_1 - x)$ and the $n$ units $\rho(x - x_k)$, with $\rho(x - x_1)$ shared by two terms: $n + 1$ units and an output bias $g(x_1)$. [∎]{.qed}
 :::
 ::::
 
@@ -1879,13 +1881,63 @@ $$
 \eta_S(t) = \rho(t - \tau) - \rho(-t - \tau) .
 $$
 
-A sliding-DCT soft-thresholding denoiser is therefore a ReLU network with $2 s^2$ hidden channels, biases $\mp\tau$ and fixed weights.
+A sliding-DCT soft-thresholding denoiser is therefore a ReLU network with $2 s^2$ hidden channels: filters $\pm c_k$, all with bias $-\tau$, and fixed weights.
 
 The comparison becomes concrete. The human algorithm fixes the filters (DCT atoms), the non-linearity (a threshold at $3\sigma$) and the depth (two layers). Learning these filters and shrinkage functions, layer after layer, gives the *shrinkage fields* of Schmidt and Roth (2014) and the trainable reaction–diffusion of Chen and Pock (2017): shallow learned networks. Deep CNNs replace the explicit transform by twenty learned layers.
 
+The code below measures the step from human to learned design. It starts from the soft-threshold version of Proposition 8.2, with $8 \times 8$ DCT filters and a threshold $1.5\sigma$, then trains its filters and its 64 thresholds with the data and the budget of ch. 7.7.
+
+```python
+import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
+from scipy.fft import idctn
+from sklearn.datasets import load_sample_image
+
+torch.manual_seed(0); torch.set_num_threads(1)
+rng = np.random.default_rng(0)
+sigma, s = 20.0 / 255, 8
+img = load_sample_image("china.jpg").mean(axis=2) / 255
+test = img[100:356, 200:456]                                         # the crop of ch. 4-7
+train = torch.tensor(np.concatenate([img[:, :200], img[:, 456:]], axis=1), dtype=torch.float32)
+atoms = idctn(np.eye(s * s).reshape(s * s, s, s), axes=(-2, -1), norm="ortho")[:, None]
+
+class ShallowDCT(nn.Module):
+    """Proposition 8.2 with soft thresholds: analysis filters, one threshold per channel, synthesis filters."""
+    def __init__(self):
+        super().__init__()
+        self.wa = nn.Parameter(torch.tensor(atoms, dtype=torch.float32))   # layer 1 starts as the DCT
+        self.ws = nn.Parameter(torch.tensor(atoms, dtype=torch.float32))   # layer 2 starts as its inverse
+        tau = torch.full((1, s * s, 1, 1), 1.5 * sigma); tau[0, 0] = 0      # the DC channel is kept
+        self.tau = nn.Parameter(tau)
+
+    def forward(self, y):
+        a = F.conv2d(y, self.wa)
+        a = F.relu(a - self.tau) - F.relu(-a - self.tau)                  # soft threshold with ReLUs
+        cnt = F.conv_transpose2d(torch.ones_like(a[:, :1]), torch.ones(1, 1, s, s))
+        return F.conv_transpose2d(a, self.ws) / cnt                       # uniform aggregation
+
+net = ShallowDCT()
+y_test = torch.tensor(test + sigma * rng.standard_normal(test.shape), dtype=torch.float32)[None, None]
+psnr = lambda a: 10 * np.log10(1 / np.mean((a - test) ** 2))
+with torch.no_grad():
+    before = psnr(net(y_test)[0, 0].numpy())
+opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+H, W = train.shape
+for step in range(300):                                               # same budget as ch. 7.7
+    i = torch.randint(0, H - 32, (16,)); j = torch.randint(0, W - 32, (16,))
+    x = torch.stack([train[a:a + 32, b:b + 32] for a, b in zip(i, j)])[:, None]
+    loss = ((net(x + sigma * torch.randn_like(x)) - x) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+with torch.no_grad():
+    after = psnr(net(y_test)[0, 0].numpy())
+print(f"fixed DCT, soft 1.5 sigma: {before:.2f} dB | learned two-layer network: {after:.2f} dB"
+      f" | {sum(p.numel() for p in net.parameters())} parameters")
+```
+
+On the same noisy crop, the fixed soft-threshold DCT scores 25.96 dB and the trained two-layer network 27.07 dB, with 8256 parameters. That is 0.3 dB above hard-threshold DCT (26.78 dB) and level with the four-layer CNN of ch. 7.7 (27.00 dB). At this small budget, a shallow network shaped by the human design matches a generic deeper one. Depth pays off with more data and training, as in DnCNN.
+
 NL-means does not fit this frame. Its weights depend on the content of the image, through patch distances. Such content-dependent averaging is an *attention* mechanism; non-local and attention layers bring it back into networks (ch. 9.4).
 
-The code checks Proposition 8.2 numerically, and the two identities of Proposition 8.4 below.
+The next code checks Proposition 8.2 numerically, and the two identities of Proposition 8.4 below.
 
 ```python
 import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
@@ -2138,7 +2190,7 @@ Clean references are often unavailable: in microscopy, astronomy or medical imag
     $$
     \mathbb{E}\|f(Y) - Y'\|^2 = \mathbb{E}\|f(Y) - X\|^2 + \mathbb{E}\|N'\|^2 .
     $$
-2.  *Blind spot.* If the coordinates of $N$ are independent and each output $f_i(Y)$ does not depend on $Y_i$, then
+2.  *Blind spot.* If $N$ is independent of $X$, its coordinates are independent, and each output $f_i(Y)$ does not depend on $Y_i$, then
     $$
     \mathbb{E}\|f(Y) - Y\|^2 = \mathbb{E}\|f(Y) - X\|^2 + \mathbb{E}\|N\|^2 .
     $$
@@ -2326,7 +2378,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (c) The covariance of the basic estimate is no longer inflated by noise eigenvalues (Example 6.3), but the basic estimate is biased (it is already smoothed). The Wiener formula needs an unbiased observation $X + N$ with known noise, which only the noisy patches provide.
 
-11. **★★ Backpropagation through a convolution (Python).** For $z = w \star a$ (cross-correlation, no padding) and a loss with gradient $g = \partial\ell/\partial z$, prove that $\partial \ell / \partial w(q) = \sum_p g(p)\, a(p + q)$, i.e. the cross-correlation of $a$ with $g$. Check it with PyTorch.
+11. **★★ Backpropagation through a convolution (Python).** For the cross-correlation without padding $z(p) = \sum_q w(q)\, a(p + q)$, written $z = w \star a$, and a loss with gradient $g = \partial\ell/\partial z$, prove that $\partial \ell / \partial w(q) = \sum_p g(p)\, a(p + q)$, i.e. the cross-correlation of $a$ with $g$. Check it with PyTorch.
 
     *Solution*: $z(p) = \sum_q w(q)\, a(p + q)$, so $\partial z(p)/\partial w(q) = a(p + q)$ and the chain rule gives the formula, as in Proposition 7.5.
 
@@ -2345,7 +2397,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     The script prints `True`.
 
-12. **★★ Receptive field and parameter count.** A DnCNN-type network has 17 layers of $3 \times 3$ convolutions with biases: $1 \to 64$, then fifteen $64 \to 64$, then $64 \to 1$. Count its parameters, ignoring batch normalisation, and give its receptive field. How many layers would a $60 \times 60$ receptive field need, and how does the downsampling of FFDNet change the answer?
+12. **★★ Receptive field and parameter count.** A DnCNN-type network has 17 layers of $3 \times 3$ convolutions with biases: $1 \to 64$, then fifteen $64 \to 64$, then $64 \to 1$. Count its parameters, ignoring batch normalisation, and give its receptive field. How many layers would a $60 \times 60$ receptive field need? How does the answer change if the image is first rearranged into four half-resolution sub-images, as FFDNet does (ch. 8.2)?
 
     *Solution*: $64 \times 10 = 640$, plus $15 \times 64 \times 577 = 553\,920$, plus $577$: in total $555\,137$ parameters. The receptive field is $35 \times 35$ (Proposition 7.9).
 
@@ -2355,7 +2407,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: (a) Check the three cases $t > \tau$, $|t| \le \tau$ and $t < -\tau$.
 
-    (b) For a small $\alpha$ all coefficients of $\alpha\tilde u$ fall below $\tau$ except the large ones, so $D(\alpha \tilde u) \neq \alpha D(\tilde u)$ in general.
+    (b) Take $\alpha > 0$ so small that every DCT coefficient of every patch of $\alpha\tilde u$ is below $\tau$. Then $D(\alpha \tilde u) = 0$, while $\alpha D(\tilde u) \neq 0$ as soon as $D(\tilde u) \neq 0$.
 
     (c) The MAD estimate scales with the image: multiplying $\tilde u$ by $\alpha > 0$ multiplies every high-pass coefficient, hence their median and $\hat\sigma$, by $\alpha$.
 
@@ -2363,9 +2415,11 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 14. **★★★ Noise-level mismatch (Python).** Train the network of ch. 7.7 at $\sigma = 20$, once with biases and once with `bias=False` in every convolution. Test both on the crop of ch. 4 at $\sigma = 5, 10, 20, 40$, with the same noise realisations, and compare with the PSNR of the noisy input. Explain the results with Theorem 7.4 and Proposition 8.4.
 
-    *Hints and expected result*: the noisy inputs score 34.2, 28.1, 22.1 and 16.1 dB. With 300 steps as in ch. 7.7, the network with biases gives about 29.1, 28.7, 26.9 and 20.3 dB. At $\sigma = 5$ it is *worse than its input*: it removes noise of the training level from an image that has much less.
+    *Hints and expected result*: the noisy inputs score 34.2, 28.1, 22.1 and 16.1 dB. Call `torch.manual_seed(0)` before each training and draw each test noise with `np.random.default_rng(0)`. With 300 steps as in ch. 7.7, the network with biases gives about 29.8, 29.3, 27.0 and 19.9 dB. At $\sigma = 5$ it is *worse than its input*: it removes noise of the training level from an image that has much less.
 
-    The bias-free network gives about 29.8, 29.1, 26.7 and 21.5 dB. It loses 0.2 dB at the training level and gains 1.2 dB at $\sigma = 40$, but does not fix the failure at low noise. Proposition 8.4 only makes the network consistent under contrast scaling: denoising at $\sigma = 5$ is like denoising at $\sigma = 20$ an image of four times the contrast, outside the training distribution. Retrain both networks with $\sigma$ drawn uniformly in $[0, 25]$ for each patch, as Mohan et al. (2020) train over a range starting at zero, and compare again.
+    The bias-free network gives about 30.8, 29.8, 26.8 and 20.9 dB. Over other seeds the values move by up to 0.5 dB at $\sigma = 5$, but the pattern stays. The bias-free network loses at most 0.25 dB at the training level and gains about 1 dB at $\sigma = 40$, but does not fix the failure at low noise.
+
+    Proposition 8.4 only makes the network consistent under contrast scaling: denoising at $\sigma = 5$ is like denoising at $\sigma = 20$ an image of four times the contrast, outside the training distribution. Retrain both networks with $\sigma$ drawn uniformly in $[0, 25]$ for each patch, as Mohan et al. (2020) train over a range starting at zero, and compare again.
 
     Theorem 7.4 explains the failure: the trained function approximates $\mathbb{E}[X \mid X + N_{20}]$, not the denoiser for other levels.
 
@@ -2385,8 +2439,9 @@ The official assessment (master-mva.com) has three parts: simple mathematical ex
 
 1.  **[Solo · ≈ 20 h] Paper study: NL-Bayes.** Reproduce the two-step algorithm of Lebrun, Buades and Morel (2013, *SIAM Journal on Imaging Sciences*, and its IPOL implementation) on grey images.
     -   Implement both steps, the flat-area test and the aggregation; vary the patch size and $K$.
-    -   Data: five public test images at $\sigma = 10, 20, 40$, with the same noise realisations given to the IPOL demo.
-    -   Success criterion: within 0.3 dB of the IPOL results, and a measured gain of the second step.
+    -   Data: five public test images at $\sigma = 10, 20, 40$, with fixed noise realisations.
+    -   Reference: the C++ source code published with the IPOL article, run locally on the same noisy images.
+    -   Success criterion: within 0.3 dB of the reference implementation, and a measured gain of the second step.
     -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 2, 5 and 6.
 2.  **[Solo · ≈ 20 h] Multiscale DCT and low-frequency noise.** Measure the residual noise of Algorithm 4.6 and how Algorithm 4.10 removes it.
     -   Estimate the power spectrum of the error $\hat u - u$ on flat images, then with two and three scales and several recomposition fractions $r$.
@@ -2403,7 +2458,8 @@ The official assessment (master-mva.com) has three parts: simple mathematical ex
 1.  **[Group of 2–3 · ≈ 30 h each] Paper study: bias-free denoisers.** Reproduce the main experiment of Mohan, Kadkhodaie, Simoncelli and Fernandez-Granda (2020): networks trained on a limited range of noise levels, tested far outside it.
     -   Data: a public set of natural images such as the Berkeley segmentation dataset; a free GPU tier suffices for DnCNN-size networks.
     -   Split: one member builds the data pipeline and trains the networks with biases; one trains the bias-free versions; one evaluates with paired statistics and computes Jacobian rows (Proposition 8.4).
-    -   Success criterion: the curve of PSNR against test $\sigma$ shows the generalisation gap reported in the paper.
+    -   Protocol: train both networks on a limited range such as $\sigma \in [0, 10]$ and test from $\sigma = 5$ to 100 on held-out images.
+    -   Success criterion: a figure of PSNR against test $\sigma$ in which the two networks agree within 0.3 dB inside the training range and the bias-free one leads by several dB far outside it, the qualitative finding of the paper.
     -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 7, 8 and 9.
 2.  **[Group of 2–3 · ≈ 30 h each] The human–machine benchmark.** Compare sliding DCT, multiscale DCT, NL-means, NL-Bayes, BM3D (a public implementation) and a DnCNN-type network trained by the group.
     -   Protocol of ch. 9.1: Kodak24 or Set12, $\sigma = 15, 25, 50$, paired differences with standard errors, SSIM, method noise, run time.
@@ -2414,7 +2470,7 @@ The official assessment (master-mva.com) has three parts: simple mathematical ex
 3.  **[Group of 2–3 · ≈ 30 h each] Denoising without clean images.** Compare Noise2Noise and a blind-spot method (Proposition 10.1) with supervised training and NL-Bayes on synthetic fluorescence-like images with Poisson–Gaussian noise.
     -   Use the generalised Anscombe transform of ch. 3.3 for the classical baseline.
     -   Split: data simulation and variance stabilisation; self-supervised training; evaluation.
-    -   Success criterion: self-supervised results within 0.5 dB of supervised training at equal architecture.
+    -   Success criterion: Noise2Noise within 0.5 dB of supervised training at equal architecture, and the larger gap of the blind-spot method measured and explained (it never sees the centre pixel).
     -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 3, 6, 7 and 10.
 
 ### Written exam (proposal) {#projects-exam}

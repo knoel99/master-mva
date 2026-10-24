@@ -173,7 +173,7 @@ Level 1 = foundations and first examples, 2 = core models and algorithms, 3 = ad
 | 4 | 4 h | 2 | ch. 6 scaled dot-product and multi-head attention, the block, causal mask, sinusoidal, rotary and ALiBi positions; ch. 7 masked, denoising and causal pretraining, BARThez | Ex. 4, 9, 10; lab: attention and RoPE from scratch, corruption functions (codes 6.10, 7.6) |
 | 5 | 4 h | 2 | ch. 8 compute accounting, scaling laws, Chinchilla, tokenization at scale; ch. 9 BLEU, ROUGE, BERTScore, distillation, FrugalScore, native-sourced benchmarks | Ex. 6, 11; lab: compute-optimal allocation, distilling a metric (codes 8.6, 9.7) |
 | 6 | 4 h | 3 | ch. 10 instruction tuning, adapters, LoRA, prefix tuning; ch. 11 reward models, KL-regularized RL, PPO, DPO, AI feedback | Ex. 5 (a), 12; lab: LoRA layer, DPO on a toy policy (codes 10.7, 11.8) |
-| 7 | 4 h | 3 | ch. 12 BM25, dense retrieval, RAG, hallucination, knowledge graphs, GraphRAG, text-to-SQL and execution accuracy; ch. 13 quantization, LLM.int8(), NF4, GPTQ, AWQ, KV cache, pruning | Ex. 5 (b), 13, 15; lab: BM25 and graph retrieval, RTN versus GPTQ (codes 12.7, 13.8); data-challenge kick-off |
+| 7 | 4 h | 3 | ch. 12 BM25, dense retrieval, RAG, hallucination, knowledge graphs, GraphRAG, text-to-SQL and execution accuracy; ch. 13 quantization, LLM.int8(), NF4, GPTQ, AWQ, KV cache, pruning | Ex. 5 (b), 13, 15; lab: BM25, graph retrieval and text-to-SQL, RTN versus GPTQ (codes 12.7, 12.9, 13.8); data-challenge kick-off |
 
 **Self-study, outside the 28 h** (about 3 h in total, plus the data challenge): ch. 14 Research directions and open problems (≈ 3 h, with Ex. 16).
 
@@ -684,7 +684,7 @@ Proof: the unnormalised Gram matrix is $K = \Phi \Phi^\top$, with the $\phi(G_i)
 ::: def
 [Definition 3.9 — Document degeneracy and core-based kernels]{.tag} The nested cores of a graph-of-words describe how cohesive a document is: a focused text has a deep core hierarchy, a list of loosely related terms a shallow one. The degeneracy framework of Nikolentzos and coauthors (2018) compares two graphs level by level of cohesion.
 
-Let $C_i(G)$ be the $i$-core of $G$, so that $C_0(G) = G$ and $C_i(G)$ is empty for $i > \delta(G)$. For a base kernel $k$, such as the shortest-path kernel,
+Let $C_i(G)$ be the $i$-core of a graph $G$; the $0$-core is the whole graph, and the cores beyond the degeneracy $\delta(G)$ are empty. For a base kernel $k$, such as the unnormalised shortest-path kernel,
 $$
 k_{\mathrm{core}}(G, G') = \sum_{i=0}^{\min(\delta(G), \delta(G'))} k\big(C_i(G), C_i(G')\big).
 $$
@@ -819,7 +819,7 @@ for name, net in [("RNN (tanh)", torch.nn.RNN(d, d, batch_first=True)),
     x.grad = None
 ```
 
-The RNN gradient falls from about 2 to $5 \times 10^{-4}$ after ten steps and to $3.5 \times 10^{-11}$ after thirty. The LSTM keeps $5 \times 10^{-2}$ and $2 \times 10^{-4}$: the decay is much slower.
+The RNN gradient falls from about 2 at the last step to $5 \times 10^{-4}$ at $t = T - 10$ and to $3.5 \times 10^{-11}$ at $t = T - 30$. At the same steps, the LSTM keeps $5 \times 10^{-2}$ and $2 \times 10^{-4}$: the decay is much slower.
 :::
 
 ::: recap
@@ -934,7 +934,7 @@ with the softmax taken row by row: each output row is a convex combination of va
 :::
 
 ::: prop
-[Proposition 6.2 — Why divide by the square root of the dimension]{.tag} If $q, k \in \mathbb{R}^{d_k}$ have independent coordinates of mean 0 and variance 1, then
+[Proposition 6.2 — Why divide by the square root of the dimension]{.tag} Let $q, k \in \mathbb{R}^{d_k}$ be random vectors whose $2 d_k$ coordinates are independent, with mean 0 and variance 1. Then
 $$
 \mathbb{E}[q^\top k] = 0, \qquad \mathrm{Var}(q^\top k) = d_k.
 $$
@@ -963,11 +963,11 @@ Without positions, a Transformer is a sophisticated bag of words. Positions must
 ::::
 
 ::: def
-[Definition 6.5 — The Transformer block and the causal mask]{.tag} A pre-normalised block applies attention and a position-wise feed-forward network, each inside a residual connection with layer normalisation:
+[Definition 6.5 — The Transformer block and the causal mask]{.tag} A pre-normalised block applies attention and a position-wise feed-forward network, each inside a residual connection. Each sublayer first applies a layer normalisation $\mathrm{LN}$, which centres every token vector, divides it by its standard deviation and applies a learned scale and shift:
 $$
 X' = X + \mathrm{MHA}(\mathrm{LN}(X)), \qquad Y = X' + W_2\, \phi\big(W_1\, \mathrm{LN}(X')\big),
 $$
-with a hidden width of about $4d$. A layer costs $O(n^2 d)$ for the scores and $O(n d^2)$ for the projections.
+with a non-linearity $\phi$ such as ReLU or GELU and a hidden width of about $4d$. A layer costs $O(n^2 d)$ for the scores and $O(n d^2)$ for the projections.
 
 A decoder adds a causal mask before the softmax, with $M_{ij} = 0$ if $j \leq i$ and $-\infty$ otherwise. Position $i$ then sees only positions up to $i$, while the whole sequence is still processed in one pass.
 :::
@@ -1155,7 +1155,9 @@ Key takeaways — chapter 7
 Large language models are decoder-only Transformers trained with the causal loss of Definition 7.5 on trillions of tokens. At this scale the questions become quantitative: how much compute a run needs, how to split it between parameters and data, and how the tokenizer changes the bill.
 
 ::: note
-[Remark 8.1 — Pretraining dynamics]{.tag} A typical run uses AdamW, a learning rate that rises linearly during a warm-up and then decays (often a cosine down to about a tenth of its peak), and batches of millions of tokens. The loss decreases smoothly, roughly as a power of the number of steps, with occasional spikes handled by skipping data or restarting from a checkpoint. Deduplicating the corpus and choosing the mixture of sources (web, code, books, languages) matter as much as the architecture.
+[Remark 8.1 — Pretraining dynamics]{.tag} A typical run uses AdamW (Loshchilov and Hutter, 2019), the Adam update of Definition 0.4 with a decoupled weight decay, a learning rate that rises linearly during a warm-up and then decays (often a cosine down to about a tenth of its peak), and batches of millions of tokens.
+
+The loss decreases smoothly, roughly as a power of the number of steps, with occasional spikes handled by skipping data or restarting from a checkpoint. Deduplicating the corpus and choosing the mixture of sources (web, code, books, languages) matter as much as the architecture.
 :::
 
 ::: prop
@@ -1536,7 +1538,9 @@ which is maximal exactly when $\pi = \pi^*$. [∎]{.qed}
 ::::
 
 ::: def
-[Definition 11.4 — RLHF with PPO]{.tag} InstructGPT (Ouyang and coauthors, 2022), following Christiano and coauthors (2017), samples responses from the policy, scores them with $r_\phi$ minus a per-token KL penalty, and updates the policy by PPO (Schulman and coauthors, 2017). States are the prompt plus the tokens so far, actions are next tokens, and advantages $A_t$ come from a value network. With the probability ratio $\rho_t$, PPO maximises
+[Definition 11.4 — RLHF with PPO]{.tag} InstructGPT (Ouyang and coauthors, 2022), following Christiano and coauthors (2017), samples responses from the policy, scores them with $r_\phi$ minus a per-token KL penalty, and updates the policy by PPO (Schulman and coauthors, 2017). States are the prompt plus the tokens so far, and actions are next tokens. The advantage $A_t$ estimates how much better the chosen token is than the policy's average choice in state $s_t$; it is computed with a value network that predicts the expected future reward.
+
+With the probability ratio $\rho_t$, PPO maximises
 $$
 \rho_t = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\mathrm{old}}(a_t \mid s_t)}, \qquad L^{\mathrm{CLIP}} = \mathbb{E}_t \big[\min\big(\rho_t A_t,\ \mathrm{clip}(\rho_t, 1 - \epsilon, 1 + \epsilon)\, A_t\big)\big], \qquad \epsilon \approx 0.2.
 $$
@@ -1555,7 +1559,7 @@ In the Bradley–Terry model the term $\log Z(x)$ cancels, which suggests fittin
 $$
 \mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E} \log \sigma\Big(\beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)}\Big).
 $$
-If preferences follow the Bradley–Terry model with reward $r$ and cover all pairs of responses, the minimiser over policies is $\pi^*$.
+Assume that preferences follow the Bradley–Terry model with reward $r$, that every pair of responses is compared with positive probability, and that $\pi_{\mathrm{ref}}$ gives positive probability to every response. Then the minimiser of the expected loss over policies is $\pi^*$.
 
 ::: proof
 The DPO loss is the reward-model loss of Definition 11.1 for the implicit reward
@@ -1643,7 +1647,7 @@ This is a $B$-way softmax classification (Proposition 0.2) with $B - 1$ negative
 $$
 p(y \mid x) \approx \sum_{z \in \text{top-}K} p_\eta(z \mid x) \prod_t p_\theta(y_t \mid x, z, y_{<t}).
 $$
-With today's large language models, the retrieved passages are usually placed in the prompt, and only the retriever is trained or tuned.
+With today's large language models, the retrieved passages are usually placed in the prompt of a frozen generator, and at most the retriever is tuned.
 :::
 
 ::: note
@@ -1700,7 +1704,7 @@ KG = nx.DiGraph()                            # triples extracted from the docume
 for h, r, t in [("BARThez", "pretrained_like", "BART"), ("BART", "introduced_by", "Facebook AI"),
                 ("Facebook AI", "has_lab_in", "Paris"), ("FrugalScore", "distils", "metrics")]:
     KG.add_edge(h, t, rel=r)
-linked = [e for e in KG if e.lower() in q.lower()]          # naive entity linking
+linked = [e for e in KG if e.lower() in tok(q)]             # naive linking: exact token match
 sub = nx.compose_all([nx.ego_graph(KG, e, radius=3) for e in linked])
 context = [f"{u} {KG[u][v]['rel']} {v}." for u, v in nx.bfs_edges(sub, linked[0])]
 print("graph context for the LLM:", " ".join(context))
@@ -1715,12 +1719,36 @@ BM25 returns the BARThez document and an irrelevant one; the 3-hop subgraph arou
 For relational databases, the LLM writes an SQL query from the question and the schema (text-to-SQL); running it returns exact evidence that can be checked.
 :::
 
+::: ex
+[Example 12.9 — Text-to-SQL with an execution check]{.tag} The LLM receives the schema and the question and writes a query; below, a hand-written query stands in for its output. Two different queries can be equally right, so text-to-SQL systems are scored by execution accuracy: the fraction of questions whose query returns the same rows as a reference query, as on the Spider benchmark (Yu and coauthors, 2018).
+
+```python
+import sqlite3
+
+db = sqlite3.connect(":memory:")
+db.executescript("""
+CREATE TABLE model(name TEXT, base TEXT, language TEXT);
+INSERT INTO model VALUES ('BART', NULL, 'English'), ('BARThez', 'BART', 'French'),
+    ('mBART', 'BART', 'multilingual'), ('CamemBERT', 'RoBERTa', 'French');
+""")
+schema = "model(name, base, language)"                        # shown to the LLM
+question = "Which French models are derived from BART?"
+generated = "SELECT name FROM model WHERE base = 'BART' AND language = 'French'"
+reference = "SELECT m.name FROM model AS m WHERE m.language = 'French' AND m.base = 'BART'"
+rows = db.execute(generated).fetchall()
+print(rows, "| exact string match:", generated == reference,
+      "| execution match:", set(rows) == set(db.execute(reference).fetchall()))
+```
+
+The two queries differ as strings but return the same single row, BARThez, so the generated query counts as correct. Unlike a generated sentence, this answer can be traced back to rows of the database.
+:::
+
 ::: recap
 Key takeaways — chapter 12
 
 -   BM25 and dense dual encoders retrieve passages; dense retrievers are trained with in-batch negatives.
 -   RAG conditions generation on retrieved evidence, which allows citations and reduces hallucination; retrieval and faithfulness are evaluated separately.
--   Graph augmentation retrieves chains of triples, verbalised or encoded by message passing; GraphRAG summarises communities of an extracted graph; text-to-SQL queries databases.
+-   Graph augmentation retrieves chains of triples, verbalised or encoded by message passing; GraphRAG summarises communities of an extracted graph; text-to-SQL queries databases and is scored by execution accuracy.
 :::
 
 ## 13. Quantization and efficient inference {#ch13}
@@ -1736,7 +1764,7 @@ The scale is stored in 16 bits per tensor, per output channel, or per group of $
 :::
 
 ::: prop
-[Proposition 13.2 — Rounding error and outliers]{.tag} Every weight satisfies $|Q(w_i) - w_i| \leq s/2$, and if rounding errors are uniformly spread the mean squared error is $s^2 / 12$. Since $s$ is proportional to the largest weight of the group, one outlier enlarges the error of every weight that shares its scale. Small groups contain outliers, at a storage cost of
+[Proposition 13.2 — Rounding error and outliers]{.tag} Every weight satisfies $|Q(w_i) - w_i| \leq s/2$, and if rounding errors are uniformly spread the mean squared error is $s^2 / 12$. Since $s$ is proportional to the largest weight of the group, one outlier enlarges the error of every weight that shares its scale. Small groups confine the damage of an outlier to a few weights, at a storage cost of
 $$
 b + 16 / g \ \text{bits per weight}, \qquad \text{for example } 4.125 \text{ bits for } b = 4,\ g = 128.
 $$
@@ -1900,9 +1928,9 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
     The document $d_2$ has $\log 1.5 = 0.405$ for “graph” and for “words”; $d_3$ has 1.099 for “vectors” and 0.405 for “words”.
 
-    (b) The norms are 1.366 and 0.573, and only “graph” is shared, so
+    (b) The norms are 1.365 and 0.573, and only “graph” is shared, so
     $$
-    \cos(d_1, d_2) = \frac{0.811 \times 0.405}{1.366 \times 0.573} \approx 0.42, \qquad \cos(d_1, d_3) = 0.
+    \cos(d_1, d_2) = \frac{0.811 \times 0.405}{1.365 \times 0.573} \approx 0.42, \qquad \cos(d_1, d_3) = 0.
     $$
 
     (c) The product of the probabilities is $1/512$, so the perplexity is $512^{1/4} = 2^{9/4} \approx 4.76$.
@@ -1939,7 +1967,7 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
     *Solution*: (a) $C = 6 N \cdot 20 N = 120 N^2$, so $N \approx 9.1 \times 10^9$ parameters and $D \approx 1.8 \times 10^{11}$ tokens. (b) The 256 accelerators deliver about $10^{17}$ operations per second, so training takes about $9.8 \times 10^4$ seconds, a little more than a day.
 
-    (c) The fitted law gives a smaller model trained on more tokens (a ratio of about 60 tokens per parameter at this budget): the two estimation methods disagree, which is why Example 8.6 discusses the replication.
+    (c) The fitted law gives $N^* \approx 5.2 \times 10^9$ parameters and $D^* \approx 3.2 \times 10^{11}$ tokens, a smaller model trained on more data (about 63 tokens per parameter): the two estimation methods disagree, which is why Example 8.6 discusses the replication.
 
 7.  **★★ SGNS with a smoothed noise law.** Redo the proof of Theorem 2.4 with negatives drawn from $P_n(c) = \#(c)^{3/4} / Z$. Show that the optimum is a PMI computed with a smoothed context distribution, shifted by $\log k$. Explain why rare contexts get smaller PMI values than with the unigram law, and what a finite dimension changes.
 
@@ -2077,7 +2105,7 @@ The official assessment (master-mva.com) is a final data challenge plus a lab-ba
 
 3.  **[Solo · ≈ 20 h] How low can rank and bits go?** Question: what LoRA rank and how many bits does a small open model need on a classification task?
     -   Fine-tune GPT-2 small (124 million parameters, public weights) with LoRA of rank 1 to 64 on SST-2 (Socher and coauthors, 2013), on a free GPU tier (ch. 10).
-    -   Merge the adapters, quantize the model with round-to-nearest and the GPTQ procedure of Example 13.8 at 8, 4 and 3 bits, and report accuracy and WikiText-2 perplexity (Merity and coauthors, 2017) (ch. 13).
+    -   Merge the adapters, quantize the model with round-to-nearest and the GPTQ procedure of Example 13.8 at 8, 4 and 3 bits, and report SST-2 accuracy. As a check of general ability, also report the WikiText-2 perplexity (Merity and coauthors, 2017) of the pretrained model quantized the same way (ch. 13).
     -   Deliverables: code, a 4–6 page report, a 10-minute talk. Success: an accuracy-versus-rank curve with a clear knee, and GPTQ at least as good as round-to-nearest at 4 and 3 bits.
 
 ### Group projects {#projects-group}
@@ -2137,7 +2165,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four qu
 
 ## References {#refs}
 
-*Works named in the official syllabus.* The official pages list no bibliography; these are the works the 2026–2027 syllabus names explicitly (GreekMMLU is cited there without a reference).
+*Works behind the methods named in the official syllabus.* The official pages list no bibliography; these are the papers that introduced the methods the 2026–2027 syllabus names explicitly (GreekMMLU is named there without a reference).
 
 -   M. Kamal Eddine, A. J.-P. Tixier, M. Vazirgiannis, “BARThez: a Skilled Pretrained French Sequence-to-Sequence Model”, *EMNLP*, 2021.
 -   M. Kamal Eddine, G. Shang, A. J.-P. Tixier, M. Vazirgiannis, “FrugalScore: Learning Cheaper, Lighter and Faster Evaluation Metrics for Automatic Text Generation”, *ACL*, 2022.
@@ -2164,7 +2192,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four qu
 
 -   D. Kingma, J. Ba, “Adam: A Method for Stochastic Optimization”, *ICLR*, 2015; Z. Harris, “Distributional Structure”, *Word*, 1954.
 -   G. Salton, C. Buckley, “Term-Weighting Approaches in Automatic Text Retrieval”, *Information Processing & Management*, 1988; S. Chen, J. Goodman, “An Empirical Study of Smoothing Techniques for Language Modeling”, *ACL*, 1996.
--   R. Sennrich, B. Haddow, A. Birch, “Neural Machine Translation of Rare Words with Subword Units”, *ACL*, 2016; T. Kudo, “Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates”, *ACL*, 2018.
+-   R. Sennrich, B. Haddow, A. Birch, “Neural Machine Translation of Rare Words with Subword Units”, *ACL*, 2016; T. Kudo, “Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates”, *ACL*, 2018; M. Schuster, K. Nakajima, “Japanese and Korean Voice Search”, *ICASSP*, 2012.
 -   O. Levy, Y. Goldberg, “Neural Word Embedding as Implicit Matrix Factorization”, *NeurIPS*, 2014; O. Levy, Y. Goldberg, I. Dagan, “Improving Distributional Similarity with Lessons Learned from Word Embeddings”, *TACL*, 2015.
 -   P. Bojanowski, E. Grave, A. Joulin, T. Mikolov, “Enriching Word Vectors with Subword Information”, *TACL*, 2017.
 -   F. Rousseau, M. Vazirgiannis, “Graph-of-word and TW-IDF: New Approach to Ad Hoc IR”, *CIKM*, 2013; F. Rousseau, M. Vazirgiannis, “Main Core Retention on Graph-of-Words for Single-Document Keyword Extraction”, *ECIR*, 2015.
@@ -2189,6 +2217,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four qu
 
 *Chapters 8–10: scale, evaluation and adaptation.*
 
+-   I. Loshchilov, F. Hutter, “Decoupled Weight Decay Regularization”, *ICLR*, 2019.
 -   J. Kaplan and coauthors, “Scaling Laws for Neural Language Models”, arXiv, 2020; T. Besiroglu, E. Erdil, M. Barnett, J. You, “Chinchilla Scaling: A Replication Attempt”, arXiv, 2024.
 -   A. Petrov, E. La Malfa, P. Torr, A. Bibi, “Language Model Tokenizers Introduce Unfairness Between Languages”, *NeurIPS*, 2023; P. Rust, J. Pfeiffer, I. Vulić, S. Ruder, I. Gurevych, “How Good is Your Tokenizer? On the Monolingual Performance of Multilingual Language Models”, *ACL*, 2021.
 -   K. Papineni, S. Roukos, T. Ward, W.-J. Zhu, “BLEU: a Method for Automatic Evaluation of Machine Translation”, *ACL*, 2002; C.-Y. Lin, “ROUGE: A Package for Automatic Evaluation of Summaries”, *ACL Workshop Text Summarization Branches Out*, 2004.
@@ -2206,6 +2235,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four qu
 -   S. Robertson, H. Zaragoza, “The Probabilistic Relevance Framework: BM25 and Beyond”, *Foundations and Trends in Information Retrieval*, 2009; J. Johnson, M. Douze, H. Jégou, “Billion-Scale Similarity Search with GPUs”, *IEEE Transactions on Big Data*, 2019.
 -   P. Lewis and coauthors, “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks”, *NeurIPS*, 2020; Z. Ji and coauthors, “Survey of Hallucination in Natural Language Generation”, *ACM Computing Surveys*, 2023; N. Liu and coauthors, “Lost in the Middle: How Language Models Use Long Contexts”, *TACL*, 2024.
 -   J. Gilmer, S. Schoenholz, P. Riley, O. Vinyals, G. Dahl, “Neural Message Passing for Quantum Chemistry”, *ICML*, 2017; X. He and coauthors, “G-Retriever: Retrieval-Augmented Generation for Textual Graph Understanding and Question Answering”, *NeurIPS*, 2024.
+-   T. Yu and coauthors, “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task”, *EMNLP*, 2018.
 -   D. Edge and coauthors, “From Local to Global: A Graph RAG Approach to Query-Focused Summarization”, arXiv, 2024; V. Traag, L. Waltman, N. J. van Eck, “From Louvain to Leiden: Guaranteeing Well-Connected Communities”, *Scientific Reports*, 2019.
 -   B. Hassibi, D. Stork, “Second Order Derivatives for Network Pruning: Optimal Brain Surgeon”, *NeurIPS*, 1993; T. Dettmers, A. Pagnoni, A. Holtzman, L. Zettlemoyer, “QLoRA: Efficient Finetuning of Quantized LLMs”, *NeurIPS*, 2023.
 -   N. Shazeer, “Fast Transformer Decoding: One Write-Head is All You Need”, arXiv, 2019; J. Ainslie and coauthors, “GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints”, *EMNLP*, 2023; W. Kwon and coauthors, “Efficient Memory Management for Large Language Model Serving with PagedAttention”, *SOSP*, 2023.

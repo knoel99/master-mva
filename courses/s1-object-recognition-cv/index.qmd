@@ -82,7 +82,7 @@ It shares tools with [Deep Learning](../s1-deep-learning/index.html), [3D Comput
 ### What you will be able to do
 
 -   Model image formation with the pinhole camera, and estimate cameras, homographies and fundamental matrices from point correspondences.
--   Detect and describe local features that are covariant to scale and rotation (Harris, difference of Gaussians, SIFT), and prove their invariances.
+-   Detect corners and blobs (Harris, difference of Gaussians), describe them with SIFT, and prove which transformations each step is covariant or invariant to.
 -   Match features robustly with the ratio test and RANSAC, and size RANSAC for a given outlier rate.
 -   Build a large-scale visual search engine with visual words, inverted files and product quantisation.
 -   Encode images with bags of features, spatial pyramids and sparse codes, and learn a dictionary.
@@ -114,7 +114,7 @@ The same page announces 10 lectures of 3 hours each, with all materials and lect
 | Weakly-supervised learning for visual recognition | [ch. 10](#ch10): multiple-instance learning and pooling (Propositions 10.3–10.4), weakly supervised detection (Definition 10.5), class activation maps (Proposition 10.6), contrastive and language supervision, narrated video |
 | Organisation: 10 lectures of 3 hours each | [Session plan](#sessions): 10 sessions of 3 h, one or two themes per session |
 
-Beyond the official themes, these notes add the evaluation of detectors and segmenters (ch. 7), a self-contained review of the mathematical tools (ch. 0) and a self-study chapter on research directions (ch. 11).
+Beyond the official themes, these notes add the evaluation of detectors (ch. 7), a self-contained review of the mathematical tools (ch. 0) and a self-study chapter on research directions (ch. 11).
 
 ### Where this course fits in the programme
 
@@ -122,7 +122,7 @@ The official prerequisites are basic linear algebra, analysis and probability. T
 
 -   **Preparation** — the refreshers [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, least squares, gradient descent), [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Bayes' rule, binomial and chi-square laws) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the language of the assignments).
 -   **Related courses in semester 1** — [Deep Learning](../s1-deep-learning/index.html), [3D Computer Vision](../s1-3d-computer-vision/index.html), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html), [Convex Optimization](../s1-convex-optimization/index.html), [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html).
--   **Courses that build on it in semester 2** — [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html), [AI and Computer Vision for Cultural Heritage](../s2-ai-cultural-heritage/index.html), [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html), [Multimodal Explainable AI](../s2-multimodal-xai/index.html) and [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html).
+-   **Courses that build on it or share its tools in semester 2** —[Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html), [AI and Computer Vision for Cultural Heritage](../s2-ai-cultural-heritage/index.html), [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html), [Multimodal Explainable AI](../s2-multimodal-xai/index.html) and [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html).
 -   **Research** — the final project is a first research experience, and a natural step towards a vision topic for the [research internship](../s3-research-internship/index.html).
 
 ### Course outline
@@ -227,9 +227,11 @@ $$
 \min_{\|x\| = 1} \|Ax\|^2 = \sigma_n^2, \quad \text{attained at } x = \pm v_n .
 $$
 
+When $m < n$, as for a minimal sample, the missing singular values are set to 0, and the minimum is 0.
+
 ::: proof
 -   Write $x = \sum_i c_i v_i$; since $V$ is orthogonal, $\|x\| = 1$ means $\sum_i c_i^2 = 1$.
--   Since $A v_i = \sigma_i u_i$ with orthonormal $u_i$, we get $\|Ax\|^2 = \sum_i \sigma_i^2 c_i^2$.
+-   Since $A v_i = \sigma_i u_i$ with orthonormal $u_i$ (and $A v_i = 0$ for $i > m$), we get $\|Ax\|^2 = \sum_i \sigma_i^2 c_i^2$.
 -   This weighted average of the $\sigma_i^2$ is at least $\sigma_n^2$, with equality for $c = \pm e_n$. [∎]{.qed}
 :::
 ::::
@@ -376,12 +378,12 @@ Vanishing points calibrate a camera from a single image of a building. With zero
 
 ::: thm
 [Algorithm 1.5 — Calibration by the direct linear transform]{.tag}
-Input: $n \geq 6$ correspondences $X_i \leftrightarrow x_i$ between known 3D points of a calibration object and their images.
+Input: $n \geq 6$ correspondences $X_i \leftrightarrow x_i$ between known 3D points of a calibration object, not all on one plane, and their images. For coplanar points the system below is degenerate; a planar target is handled by the homography method described after the algorithm.
 
-1.  Normalise the coordinates: centre each point set and scale it to unit average distance.
+1.  Normalise the coordinates with similarities $T$ (image) and $T_3$ (space) that centre each point set and scale its mean distance to $\sqrt2$ and $\sqrt3$.
 2.  Each correspondence gives, through $\tilde{x}_i \times P\tilde{X}_i = 0$, two independent linear equations in the 12 entries of $P$.
 
-    Stack them into $Ap = 0$, with $A$ of size $2n \times 12$, and take for $p$ the last right singular vector of $A$ (Proposition 0.4).
+    Stack them into $Ap = 0$, with $A$ of size $2n \times 12$, and take for $p$ the last right singular vector of $A$ (Proposition 0.4). Undo the normalisation: $P = T^{-1} \hat{P}\, T_3$.
 3.  Factor the left $3 \times 3$ block of $P$ as $KR$ by an RQ decomposition, with a positive diagonal for $K$ and the sign of $P$ chosen so that $\det R = 1$.
 
     Then $t = K^{-1} p_4$, where $p_4$ is the last column of $P$.
@@ -394,7 +396,7 @@ In practice one films a planar checkerboard in several positions (Zhang, 2000). 
 [Theorem 1.6 — When two views are related by a homography]{.tag}
 A homography is an invertible $3 \times 3$ matrix $H$ acting on homogeneous image points, defined up to scale; it has 8 degrees of freedom.
 
-1.  The images of a *plane* in two views are related by a homography, $\tilde{x}' \sim H \tilde{x}$.
+1.  The images of a *plane* that contains neither camera centre are related by a homography, $\tilde{x}' \sim H \tilde{x}$.
 2.  Two views taken from the *same centre*, by a camera rotating about its optical centre, are related for every scene point by
 $$
 H = K' R\, K^{-1} .
@@ -690,7 +692,7 @@ After downsampling by 2, the same blob has size 2 px and is detected at $\sigma 
 
 ::: note
 [Affine regions and learned features]{.tag}
-Under a strong change of viewpoint, a small planar patch undergoes an affine map, not a similarity. Harris-Affine and Hessian-Affine detectors (Mikolajczyk and Schmid, 2004) iterate scale selection and a transformation of the local frame by $M^{1/2}$, until the structure tensor of the patch becomes isotropic. Since 2018, detectors and descriptors are also learned end to end, for instance SuperPoint (DeTone, Malisiewicz and Rabinovich, 2018); ch. 11 returns to them.
+Under a strong change of viewpoint, a small planar patch undergoes an affine map, not a similarity. Harris-Affine and Hessian-Affine detectors (Mikolajczyk and Schmid, 2004) iterate scale selection and a transformation of the local frame by $M^{1/2}$, until the structure tensor of the patch becomes isotropic. Detectors and descriptors are now also learned end to end, for instance SuperPoint (DeTone, Malisiewicz and Rabinovich, 2018); ch. 11 returns to them.
 :::
 
 :::: recap
@@ -782,11 +784,11 @@ The cost grows exponentially with $s$, which is why minimal solvers such as the 
 
 ::: prop
 [Proposition 3.6 — Choosing the threshold]{.tag}
-Assume the inlier positions carry independent Gaussian noise of standard deviation $\sigma$ on each coordinate. With the true model, the squared transfer error $e^2 = \|y - H(x)\|^2$ is distributed as $\sigma^2 \chi^2_2$, the sum of two squared standard Gaussians. A threshold that keeps 95 % of the inliers is therefore
+Assume the points $x$ of the first image are exact, and the inlier positions $y$ in the second image carry independent Gaussian noise of standard deviation $\sigma$ on each coordinate. With the true model, the squared transfer error $e^2 = \|y - H(x)\|^2$ is then distributed as $\sigma^2 \chi^2_2$, the sum of two squared standard Gaussians. A threshold that keeps 95 % of the inliers is therefore
 $$
 t^2 = 5.99\, \sigma^2 ,
 $$
-since 5.99 is the 0.95 quantile of the $\chi^2_2$ law.
+since 5.99 is the 0.95 quantile of the $\chi^2_2$ law. When both images are noisy, the same quantile applies to the reprojection error of the optimal correction (Hartley and Zisserman, 2004, ch. 4).
 :::
 
 ::: def
@@ -841,7 +843,7 @@ H_ls = dlt(x, y)                                             # plain least squar
 print("least squares on all matches, max |H - H_true|:", np.abs(H_ls - H_true).max().round(2))
 ```
 
-RANSAC keeps 91 of the 97 true inliers, about the 95 % expected from Proposition 3.6, and accepts no outlier. It runs 437 iterations rather than the 72 of Example 3.5: a model fitted to four noisy points finds fewer inliers than the true model, so the running estimate of $w$ is pessimistic. The least-squares fit on all matches is useless, with entries off by 1.76.
+RANSAC keeps 91 of the 97 true inliers, about the 95 % expected from Proposition 3.6, and accepts no outlier. It runs 437 iterations rather than the 72 of Example 3.5: a model fitted to four noisy points finds fewer inliers than the true model. The best minimal model has 64 inliers, so the running estimate is $w = 0.32$ instead of 0.49. The least-squares fit on all matches is useless, with entries off by 1.76.
 
 ::: note
 [Beyond the basic loop]{.tag}
@@ -1203,7 +1205,7 @@ p = \operatorname{softmax}(z_L), \qquad \mathcal{L} = -\log p_y .
 $$
 :::
 
-One hidden layer already suffices to approximate any continuous function on a compact set (Cybenko, 1989; Hornik, 1991). Depth makes such approximations far more economical, and it is what makes features reusable across tasks.
+One hidden layer already suffices to approximate any continuous function on a compact set: Cybenko (1989) and Hornik (1991) prove it for sigmoidal and bounded activations, and Leshno et al. (1993) for every non-polynomial one, the ReLU included. Depth makes such approximations far more economical, and it is what makes features reusable across tasks.
 
 :::: prop
 [Proposition 6.2 — Gradient of the softmax cross-entropy]{.tag}
@@ -1376,7 +1378,7 @@ Key takeaways — chapter 6
 
 ## 7. Convolutional neural networks for visual recognition {#ch7}
 
-A fully connected layer between a 224 × 224 colour image and a feature map of the same size would need about $10^{11}$ weights. Convolutional networks build in two properties of images, locality and the equivalence of positions. Since 2012 they have dominated recognition (Krizhevsky, Sutskever and Hinton, 2012).
+A fully connected layer from a 224 × 224 colour image to the 112 × 112 × 64 feature map of a standard first layer would need about $10^{11}$ weights (Example 7.2). Convolutional networks build in two properties of images, locality and the equivalence of positions. Since 2012 they have dominated recognition (Krizhevsky, Sutskever and Hinton, 2012).
 
 ::: def
 [Definition 7.1 — Convolutional layer]{.tag}
@@ -1466,7 +1468,7 @@ Apply the chain rule, with the Jacobian $I + \partial F_m / \partial x_m$ of eac
 
 ::: note
 [Architectures and transfer]{.tag}
--   LeNet read handwritten digits with two convolutional layers (LeCun et al., 1998).
+-   LeNet-5 read handwritten digits with alternating convolutional and subsampling layers (LeCun et al., 1998).
 -   AlexNet scaled the recipe to ImageNet with ReLUs, dropout, data augmentation and GPUs (Krizhevsky, Sutskever and Hinton, 2012).
 -   VGG networks stacked $3 \times 3$ convolutions, and ResNets trained 152 layers thanks to residual connections.
 -   Vision transformers cut the image into $16 \times 16$ patches treated as the tokens of a transformer; with enough pre-training data they match or exceed CNNs (Dosovitskiy et al., 2021).
@@ -1639,7 +1641,7 @@ E(u) = \int \Big(\big(\nabla I^\top u + I_t\big)^2 + \alpha^2 \big(\|\nabla u_1\
 $$
 The smoothness term fills in the flow where the aperture problem leaves it undetermined.
 
-Modern variational methods replace the squares by robust penalties. Since 2015, the most accurate methods are networks trained on synthetic data, such as FlowNet (Dosovitskiy et al., 2015) and RAFT (Teed and Deng, 2020). Accuracy is measured by the average *end-point error*, the mean of $\|u - u^{\text{gt}}\|$ over pixels.
+Modern variational methods replace the squares by robust penalties. FlowNet (Dosovitskiy et al., 2015) showed that a network trained on synthetic data can estimate flow; its successors, such as RAFT (Teed and Deng, 2020), are now the most accurate methods. Accuracy is measured by the average *end-point error*, the mean of $\|u - u^{\text{gt}}\|$ over pixels.
 :::
 
 ```python
@@ -1706,10 +1708,10 @@ The estimated motion, $(0.599, -0.400)$, matches the true one to a thousandth of
 [Proposition 8.7 — Inflation preserves image features]{.tag}
 Let $w$ be a 2D filter, and define the 3D filter $W(\cdot, \tau) = w / k$ for each of the $k$ temporal offsets $\tau$.
 
-On a "boring" video $V$ that repeats the same frame $I$, the 3D convolution with $W$ equals, at every time, the 2D convolution of $I$ with $w$.
+On a "boring" video $V$ that repeats the same frame $I$, the 3D convolution with $W$ equals the 2D convolution of $I$ with $w$ at every time whose temporal window lies inside the clip. With zero padding in time, the first and last $(k - 1)/2$ frames differ.
 
 ::: proof
--   At time $t$, $(V * W)(x, t) = \sum_\tau \sum_u I(x - u)\, w(u)/k$, because every frame equals $I$.
+-   At a time $t$ whose window lies inside the clip, $(V * W)(x, t) = \sum_\tau \sum_u I(x - u)\, w(u)/k$, because every frame of the window equals $I$.
 -   The inner sum does not depend on $\tau$, so the $k$ terms of the outer sum average to $(I * w)(x)$.
 -   Pointwise non-linearities and spatial pooling act frame by frame on identical frames, so by induction the inflated network reproduces the activations of the 2D network. [∎]{.qed}
 :::
@@ -1746,7 +1748,7 @@ Objects are three-dimensional. Recognising one fully means recovering its catego
 With a calibrated camera, the pose $(R, t)$ of a known object has 6 degrees of freedom, and each 2D–3D correspondence gives two equations.
 
 -   Three correspondences give finitely many poses, up to four for the P3P problem.
--   Six or more give a linear solution by the DLT of Algorithm 1.5.
+-   Six or more, not all coplanar, give a linear solution by the DLT of Algorithm 1.5.
 -   EPnP solves the problem for any $n \geq 4$ correspondences in $O(n)$ operations (Lepetit, Moreno-Noguer and Fua, 2009).
 
 In practice the correspondences come from matched features or from a network, and the pose is estimated inside RANSAC (ch. 3).
@@ -2208,9 +2210,11 @@ Key takeaways — chapter 11
 
     Since $\det(VU^\top) = -1$, Theorem 9.3 gives $R^\star = S\, S = I$, with residual $\sum_i \|p_i - Sp_i\|^2 = 4\sum_i z_i^2 = 4nc$. The correction flips the axis of smallest variance, which costs least.
 
-14. **★★ Normalised eight-point algorithm (Python).** Generate 100 points in front of two cameras ($K$ as in Exercise 1, second camera rotated by 15° about the vertical axis and translated by $(1, 0.1, 0.2)$), add 0.5 px of noise, and implement Algorithm 1.10 with and without normalisation. Compare the median distance of the points to their epipolar lines.
+14. **★★ Normalised eight-point algorithm (Python).** Draw 100 points uniformly in the box $[-2, 2] \times [-1.5, 1.5] \times [4, 10]$ of the first camera frame, and view them with two cameras ($K$ as in Exercise 1, second camera rotated by 15° about the vertical axis and translated by $(1, 0.1, 0.2)$). Add 0.5 px of noise to both images, and implement Algorithm 1.10 with and without normalisation. Compare the median distance of the points to their epipolar lines.
 
-    *Hints and expected result*: build each row as the Kronecker product of $\tilde{x}'$ and $\tilde{x}$, take the last right singular vector, project to rank 2 with an SVD, and undo the normalisation with $F = T'^\top \hat{F} T$. With normalisation, the median epipolar distance is about 0.4–0.5 px, at the noise level. Without it, it is several pixels (about 4 px in our run), and it stays large even on the noise-free points.
+    *Hints and expected result*: build each row as the Kronecker product of $\tilde{x}'$ and $\tilde{x}$, take the last right singular vector, project to rank 2 with an SVD, and undo the normalisation with $F = T'^\top \hat{F} T$. With normalisation, the median epipolar distance is about 0.4–0.5 px, at the noise level. Without it, it is a few pixels (1.5–2.6 px over five seeds in our runs).
+
+Measure also the distance of the *noise-free* points to the epipolar lines of each noisy estimate. It is about 0.1 px with normalisation, but stays at a few pixels without it: the error lies in the estimated $F$, not in the data. On exact data, both versions recover $F$ to machine precision.
 
 15. **★★ Dictionary size and pooling (Python).** In the code of ch. 5, vary the number of atoms $K \in \{16, 32, 64\}$, and compare sum and max pooling of the sparse codes over the spatial pyramid.
 
@@ -2232,7 +2236,7 @@ Key takeaways — chapter 11
 
 ## Projects and assessment {#projects}
 
-Officially, the course is assessed by three programming assignments, worth 50 % of the grade, and by a research-oriented final project, including a report and a presentation, worth the other 50 % (master-mva.com); the Université Paris-Saclay record lists partial continuous assessment. The solo subjects below are sized like an assignment or a light final project, and the group subjects like a full final project. The written exam is a self-assessment proposal, since the official assessment includes no written exam.
+Officially, the course is assessed by three programming assignments, worth 50 % of the grade, and by a research-oriented final project, including a report and a presentation, worth the other 50 % (master-mva.com); the Université Paris-Saclay record lists partial continuous assessment. The solo subjects below are sized like an assignment or a light final project, and the group subjects like a full final project. Each subject is graded with the rubric at the end of this section, against its stated success criterion. The written exam is a self-assessment proposal, since the official assessment includes no written exam.
 
 ### Solo projects {#projects-solo}
 
@@ -2257,13 +2261,13 @@ Officially, the course is assessed by three programming assignments, worth 50 % 
 4.  **[Solo · ≈ 20 h] Optical flow, classical against learned.** Question: where does Lucas–Kanade fail, and does a coarse-to-fine pyramid fix it?
     -   Data: the public MPI-Sintel training set, with ground-truth flow (Butler et al., 2012).
     -   Implement pyramidal Lucas–Kanade and Horn–Schunck, measure the average end-point error by region (textured, untextured, occlusion boundaries), and compare with published RAFT numbers.
-    -   Success criterion: error maps that confirm the aperture-problem analysis of Proposition 8.2.
+    -   Success criterion: a measured reduction of the end-point error by the pyramid on pixels moving more than 5 px, and error maps whose large errors coincide with a small eigenvalue $\lambda_2$ of the structure tensor (report the correlation), as Proposition 8.2 predicts.
     -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters: ch. 2, 8.
 
 ### Group projects {#projects-group}
 
 1.  **[Group of 2–3 · ≈ 30 h each] Two-stream action recognition on UCF101.** Question: how much does motion add to appearance for action classification?
-    -   Data: UCF101, split 1 (Soomro, Zamir and Shah, 2012); a free GPU tier.
+    -   Data: UCF101, split 1 (Soomro, Zamir and Shah, 2012); a free GPU tier. Computing the flow of all 13 320 clips is the bottleneck: sample 5 frame pairs per clip, or restrict the study to the first 25 classes.
     -   Member 1 computes optical flow and trains the flow stream; member 2 fine-tunes an ImageNet-pretrained RGB stream; member 3 inflates the RGB network into a small 3D CNN (Proposition 8.7) and runs the fusion and the evaluation.
     -   Success criterion: report the accuracy of each stream and of their fusion, and a measured gain from fusion, as in Simonyan and Zisserman (2014).
     -   Deliverables: code, a joint 6–8 page report, a 15-minute talk with a short individual part each. Chapters: ch. 7, 8.
@@ -2358,6 +2362,7 @@ Neural networks and convolutional networks:
 
 -   G. Cybenko, "Approximation by superpositions of a sigmoidal function", *Mathematics of Control, Signals and Systems* 2(4), 303–314, 1989.
 -   K. Hornik, "Approximation capabilities of multilayer feedforward networks", *Neural Networks* 4(2), 251–257, 1991.
+-   M. Leshno, V. Ya. Lin, A. Pinkus and S. Schocken, "Multilayer feedforward networks with a nonpolynomial activation function can approximate any function", *Neural Networks* 6(6), 861–867, 1993.
 -   D. P. Kingma and J. Ba, "Adam: a method for stochastic optimization", *ICLR*, 2015.
 -   I. Loshchilov and F. Hutter, "Decoupled weight decay regularization", *ICLR*, 2019.
 -   L. Bottou, F. E. Curtis and J. Nocedal, "Optimization methods for large-scale machine learning", *SIAM Review* 60(2), 223–311, 2018.

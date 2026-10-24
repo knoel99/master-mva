@@ -75,7 +75,7 @@ format:
 
 **Empirical first**: fit polynomials of degree 0 to 9 to 20 noisy points of a sine curve. The training error falls from 0.73 to 0.17 as the degree grows, so it cannot choose the degree. The Bayesian marginal likelihood of the same models, computed in closed form from the training data alone, peaks at degree 3 ([ch. 3](#ch3)). 
 
-Five neural networks trained on 60 points agree to within 0.02 inside the data and spread to 0.24 far outside it, where all five miss the truth by about 3 ([ch. 8](#ch8)). Averaging models helps, but it is not yet a calibrated posterior.
+Five neural networks trained on 60 points agree to within 0.02 inside the data and spread to 0.24 far outside it, where all five miss the truth by 3 to 3.5 ([ch. 8](#ch8)). Averaging models helps, but it is not yet a calibrated posterior.
 
 This course treats Bayesian inference as a way of deciding under uncertainty. Choose the loss that matters, put a probability distribution on everything unknown, condition on the data, and act to minimize the posterior expected loss. The course then asks where priors come from, how to compute posteriors at the scale of machine learning, how to put priors on infinite-dimensional objects, and what survives of all this in deep learning.
 
@@ -141,7 +141,7 @@ Official prerequisites: an undergraduate course in probability, and a basic know
 -   **4. Bayesian unsupervised learning** — mixtures and the Gibbs sampler, label switching, probabilistic PCA, topic models.
 -   **5. Advanced Monte Carlo** — importance sampling, Metropolis–Hastings, Langevin and Hamiltonian samplers, diagnostics, sequential Monte Carlo.
 -   **6. Variational methods** — the ELBO, mean field and coordinate ascent, stochastic and black-box VI, what the reverse KL misses.
--   **7. Bayesian nonparametrics** — the Dirichlet process, its urn and stick-breaking representations, DP mixtures, consistency and rates.
+-   **7. Bayesian nonparametrics** — the Dirichlet process, its urn and stick-breaking representations, DP mixtures and their collapsed Gibbs sampler, Pitman–Yor and hierarchical extensions.
 -   **8. Bayesian deep learning** — priors on weights, the Gaussian-process limit, Laplace, VI, dropout, SG-MCMC and ensembles, calibration, cold posteriors.
 -   **9. Complements for self-study** — posterior consistency and contraction rates, the number of clusters, the Pitman–Yor urn, expectation propagation, the accuracy of variational Bayes.
 -   **10. Research directions and open problems** — a self-study tour of current work, and how to read a paper.
@@ -420,7 +420,7 @@ All expectations are under the posterior.
 :::
 ::::
 
-For a continuous parameter, the MAP is not a Bayes estimator for any fixed loss, and it changes under a reparameterization. It is best seen as a cheap summary of the posterior.
+For a continuous parameter, the MAP is in general not the Bayes estimator of a fixed loss. Under regularity conditions, it is only a limit of Bayes estimators for the losses $\mathbb{1}\{|\theta - a| > \varepsilon\}$ as $\varepsilon \to 0$. It also depends on the parameterization, through the Jacobian of the change of variables (Exercise 13). It is best seen as a cheap summary of the posterior.
 
 ::: ex
 [Example 1.5 — Three estimators from one posterior]{.tag} After 7 successes in 10 trials with a uniform prior, the posterior is Beta$(8, 4)$ (Example 0.6).
@@ -912,7 +912,7 @@ $$
 :::: prop
 [Proposition 3.6 — Moderated predictions]{.tag} Under a Gaussian approximation $\mathcal{N}(m, S)$ of the posterior, the activation $a = w^\top x^\star$ is $\mathcal{N}(\mu_a, \sigma_a^2)$, with $\mu_a = m^\top x^\star$ and $\sigma_a^2 = x^{\star\top} S x^\star$.
 
-Approximating $\sigma(a)$ by $\Phi(\lambda a)$ with $\lambda^2 = \pi/8$ gives
+Approximating $\sigma(a)$ by $\Phi(\lambda a)$, where $\Phi$ here denotes the standard normal distribution function (not a design matrix) and $\lambda^2 = \pi/8$, gives
 $$
 p(y^\star = 1 \mid x^\star, \mathcal{D}) \approx \sigma\big(\kappa(\sigma_a^2)\, \mu_a\big), \qquad \kappa(s) = \big(1 + \pi s / 8\big)^{-1/2} .
 $$
@@ -1105,7 +1105,7 @@ So a sampler that explores the whole posterior gives useless component-wise aver
 
 The Gibbs sampler above never switches labels, because crossing between the symmetric modes requires moving many allocations at once. This is a failure to mix that happens to be convenient (Celeux, Hurn and Robert, 2000).
 
-The number of components $K$ can be chosen by the evidence, estimated with the methods of ch. 5. Alternatively, take $K$ large with a small $a_0$: Rousseau and Mengersen (2011) show that the posterior then empties the superfluous components. Ch. 7 removes the choice altogether, with infinitely many components.
+The number of components $K$ can be chosen by the evidence, estimated with the methods of ch. 5. Alternatively, take $K$ large with a small $a_0$, below half the dimension of a component's parameter (here $a_0 < 1/2$): Rousseau and Mengersen (2011) show that the posterior then empties the superfluous components. Ch. 7 removes the choice altogether, with infinitely many components.
 
 ### Probabilistic and Bayesian PCA
 
@@ -1327,6 +1327,8 @@ for name, (ch, acc), grads in [("RWMH h=0.1", rwmh(0.1, n), 0),
 
 The acceptance rates are 0.27, 0.56 and 0.93. Per 1000 iterations, the effective sample sizes are about 1 for the random walk, 3 for MALA and 900 for HMC. Even counted per gradient evaluation, HMC gives about 45 effective draws per 1000 gradients, against 2.6 for MALA. The small scales force small steps, and only HMC turns them into long moves.
 
+This comparison flatters HMC a little. Its trajectory length $\varepsilon L = 1.6$ is close to $\pi/2$, a quarter of the oscillation period of the unit-scale coordinate, where the exact Hamiltonian flow returns an independent draw. With $L$ between 10 and 40, HMC gives about 17 to 45 effective draws per 1000 gradients. The tuning matters, but HMC stays far ahead of MALA; the No-U-Turn sampler chooses $L$ automatically.
+
 ### Diagnostics
 
 ::: def
@@ -1518,7 +1520,7 @@ corr = (p * (W[:, 0] - m_exact[0]) * (W[:, 1] - m_exact[1])).sum() / sd_exact.pr
 print("exact posterior correlation", round(corr.item(), 2))
 ```
 
-The means agree: $(0.30, 0.01)$ exactly, $(0.31, 0.05)$ by VI. The exact posterior correlation is −0.89, and the VI standard deviations $(0.37, 0.33)$ are half the exact ones, $(0.74, 0.68)$. Proposition 6.4 predicts this ratio: $\sqrt{1 - 0.89^2} = 0.46$.
+The means agree: $(0.30, 0.01)$ exactly, $(0.31, 0.05)$ by VI. The exact posterior correlation is −0.89, and the VI standard deviations $(0.37, 0.33)$ are half the exact ones, $(0.74, 0.68)$. For a Gaussian with this correlation, Proposition 6.4 predicts the ratio $\sqrt{1 - 0.89^2} = 0.46$; the posterior is not exactly Gaussian, and the observed ratios are 0.50 and 0.49.
 
 **Amortized inference** learns a map from each data point to its variational parameters, as in variational auto-encoders, treated in the [Probabilistic Graphical Models](../s1-probabilistic-graphical-models/index.html) course. Whatever the algorithm, check a variational fit before trusting it. The Pareto diagnostic of Yao, Vehtari, Simpson and Gelman (2018) fits a generalized Pareto tail to the importance weights $p(x, \theta)/q(\theta)$, $\theta \sim q$; a shape estimate above 0.7 flags an unreliable approximation. Ch. 9 discusses expectation propagation and the theory of variational Bayes.
 
@@ -1627,6 +1629,8 @@ New draws repeat earlier values with positive probability, so $G$ is almost sure
 $$
 G = \sum_{k=1}^\infty \pi_k\, \delta_{\theta_k} \;\sim\; \mathrm{DP}(\alpha, G_0).
 $$
+
+*Proof idea.* Splitting off the first stick gives the distributional equation $G = V_1\, \delta_{\theta_1} + (1 - V_1)\, G'$, where $G'$ is built from the remaining sticks and has the same law as $G$. A Dirichlet process satisfies the same equation, by a computation on the Dirichlet laws of Definition 7.2. The equation has a unique solution in law, which proves the theorem (Sethuraman, 1994).
 :::
 
 The mass left after $K$ sticks is $\prod_{k \leq K}(1 - V_k)$, with expectation $(\alpha/(1+\alpha))^K$ by independence. For $\alpha = 2$, 18 sticks leave an expected mass below $10^{-3}$. Truncated stick-breaking is the basis of variational algorithms for DP mixtures (Blei and Jordan, 2006).
@@ -1732,7 +1736,7 @@ They are i.i.d. and centred, because $v_j$ is centred and independent of $(u_j, 
 :::
 ::::
 
-For the ReLU with $u \sim \mathcal{N}(0, I)$ and no bias, the expectation is the **arc-cosine kernel** of Cho and Saul (2009), where $\vartheta$ is the angle between $x$ and $x'$:
+For the ReLU with $u \sim \mathcal{N}(0, I)$ and no bias, the expectation is half the **arc-cosine kernel** of degree 1 of Cho and Saul (2009), where $\vartheta$ is the angle between $x$ and $x'$:
 $$
 \mathbb{E}\big[\varphi(u^\top x)\, \varphi(u^\top x')\big] = \frac{\|x\|\, \|x'\|}{2\pi} \big(\sin\vartheta + (\pi - \vartheta)\cos\vartheta\big).
 $$
@@ -1744,7 +1748,7 @@ Deep networks have the same limit, layer by layer (Lee et al., 2018; Matthews et
 -   **Laplace** (MacKay, 1992; Daxberger et al., 2021): a Gaussian at the MAP, with the Hessian replaced by a generalized Gauss–Newton or Kronecker-factored approximation, often for the last layer only.
 -   **Variational**: a mean-field Gaussian over the weights trained by reparameterization, "Bayes by Backprop" (Blundell et al., 2015). It inherits the small variances of Proposition 6.4.
 -   **Monte Carlo dropout** (Gal and Ghahramani, 2016): keep dropout at test time and average stochastic forward passes, which the authors interpret as variational inference with a Bernoulli family.
--   **Deep ensembles** (Lakshminarayanan, Pritzel and Blundell, 2017): train $M$ networks from different initializations and average them. SWAG (Maddox et al., 2019) adds a Gaussian around each solution.
+-   **Deep ensembles** (Lakshminarayanan, Pritzel and Blundell, 2017): train $M$ networks from different initializations and average them. SWAG (Maddox et al., 2019) fits a Gaussian to the iterates of stochastic gradient descent around one solution, and MultiSWAG (Wilson and Izmailov, 2020) averages several such Gaussians.
 
 :::: prop
 [Proposition 8.3 — Linearized Laplace predictive]{.tag} Let $q(\theta) = \mathcal{N}(\hat\theta, H^{-1})$ and linearize the network around the MAP, with the Jacobian $J(x) = \partial f_\theta(x) / \partial\theta$ at $\hat\theta$. Then the predicted function value is Gaussian:
@@ -1802,7 +1806,7 @@ print("ensemble mean:", preds.mean(0).numpy().round(2), "  true:", np.sin([-2.5,
 print("ensemble sd:  ", preds.std(0).numpy().round(2))
 ```
 
-At $x = -2.5$ the members agree, with spread 0.02 and an error of 0.04. In the gap, at $x = 0$, the spread grows to 0.05 while the error is 0.20. Far away, at $x = 8$, the spread is 0.24 but every member predicts between $-2.5$ and $-1.9$, while $\sin 8 = 0.99$. Diversity among a few MAP fits signals extrapolation, but its size is not calibrated; a Gaussian process with a stationary kernel would return to its prior there (ch. 3).
+At $x = -2.5$ the members agree, with spread 0.02 and an error of 0.04. In the gap, at $x = 0$, the spread grows to 0.05 while the error is 0.20. Far away, at $x = 8$, the spread is 0.24 but every member predicts between $-2.54$ and $-1.93$, while $\sin 8 = 0.99$. Diversity among a few MAP fits signals extrapolation, but its size is not calibrated; a Gaussian process with a stationary kernel would return to its prior there (ch. 3).
 
 ### Evaluating predictive uncertainty
 
@@ -1889,7 +1893,7 @@ Then the posterior is consistent at $P_0$ for the weak topology.
 ::: proof
 *Sketch.* Write the posterior mass of $U^c$ as a ratio of integrals of the likelihood ratios $\prod_i p(X_i)/p_0(X_i)$.
 
--   Denominator: on the KL ball of radius $\varepsilon$, the law of large numbers makes the ratio at least $e^{-2n\varepsilon}$, so the denominator is at least $e^{-2n\varepsilon}$ times the prior mass of the ball, eventually.
+-   Denominator: for each $P$ in the KL ball of radius $\varepsilon$, the law of large numbers makes the likelihood ratio eventually larger than $e^{-2n\varepsilon}$. Fatou's lemma turns this into a bound on the integral: almost surely, the denominator eventually exceeds $e^{-2n\varepsilon}$.
 -   Numerator: weak neighbourhoods admit tests whose errors decrease exponentially, which makes the numerator smaller than $e^{-cn}$ for some $c > 0$.
 
 Choosing $\varepsilon$ small compared with $c$ concludes. [∎]{.qed}
@@ -2036,11 +2040,11 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
 
     The posterior expected squared loss of the mean is the posterior variance, $ab/((a+b)^2(a+b+1)) = 27/1872 = 0.0144$, a standard deviation of 0.12.
 
-2.  **★ A cost-sensitive decision.** A screening model gives a predictive probability of disease of 0.15. Missing a disease costs 20, a false alarm costs 1. Should the patient be flagged? Where does the decision flip? A review by a specialist costs 0.5: is it worth it?
+2.  **★ A cost-sensitive decision.** A screening model gives a predictive probability of disease of 0.15. Missing a disease costs 20, a false alarm costs 1. Should the patient be flagged? Where does the decision flip? A review by a specialist, who then settles the case without error, costs 0.5: is it worth it?
 
     *Solution*: by Proposition 1.12 the threshold is $1/(1 + 20) = 0.048$, and $0.15 > 0.048$: flag.
 
-    The expected losses are $1 \times 0.85 = 0.85$ for flagging and $20 \times 0.15 = 3$ for not flagging. The review, at 0.5, is cheaper than both, so referring the case is the Bayes action.
+    The expected losses are $1 \times 0.85 = 0.85$ for flagging and $20 \times 0.15 = 3$ for not flagging. Since the review settles the case with no further loss, its expected loss is 0.5, below both, so referring the case is the Bayes action.
 
 3.  **★ Gamma–Poisson update.** Daily counts $(2, 0, 3, 1, 4)$ follow a Poisson law with rate $\lambda$, and the prior is Gamma$(2, 1)$ (shape, rate). Give the posterior, its mean and standard deviation, and the predictive probability of a day with no event.
 
@@ -2063,7 +2067,7 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
 
     *Solution*: $\sum x_i^2 = 14$ and $\sum x_i y_i = 14.6$. The posterior precision is $1 + 4 \times 14 = 57$, the posterior mean $4 \times 14.6/57 = 1.025$, the standard deviation 0.132.
 
-    At $x^\star = 4$: predictive mean 4.098, variance $0.25 + 16/57 = 0.531$, standard deviation 0.728. The parameter part has shrunk from 0.43 to 0.28 per unit of $x^{\star 2}/9$.
+    At $x^\star = 4$: predictive mean 4.098, variance $0.25 + 16/57 = 0.531$, standard deviation 0.728. The parameter part of the predictive variance is now $x^{\star 2}/57$ instead of $x^{\star 2}/21$: at $x^\star = 3$ it falls from 0.43 to 0.16.
 
 6.  **★ Chinese restaurant arithmetic.** For $n = 10$ customers, compute the expected number of tables for $\alpha \in \{0.1, 1, 10\}$, and the probability that all customers sit at one table when $\alpha = 1$.
 
@@ -2093,7 +2097,7 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
 
     *Hints and expected result*: with $2 \times 10^5$ replications, the risk of $\delta^{\mathrm{JS}}$ is about 2.00, 4.38, 7.97 and 9.38, always below 10, and matches $d - (d-2)^2\, \mathbb{E}\|X\|^{-2}$ to within simulation error.
 
-    The positive-part version gives 1.26 and 3.98 at the first two points and is identical further away, where the factor is never negative. It dominates $\delta^{\mathrm{JS}}$, a classical result (Lehmann and Casella, 1998).
+    The positive-part version gives 1.26 and 3.98 at the first two points and is practically identical further away, where the factor is almost never negative (probability $4 \times 10^{-4}$ at $\|\theta\| = 5$). It dominates $\delta^{\mathrm{JS}}$, a classical result (Lehmann and Casella, 1998).
 
 10. **★★ Mean field in both directions.** Let $p = \mathcal{N}(0, \Sigma)$ in two dimensions with unit variances and correlation $\rho$. Find the product of Gaussians minimizing $\mathrm{KL}(q \,\|\, p)$, then the product of densities minimizing $\mathrm{KL}(p \,\|\, q)$. Evaluate for $\rho = 0.9$.
 
@@ -2142,7 +2146,7 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
 
     The exact interval is $(0.390, 0.891)$: the logit approximation is much closer, because the posterior is more Gaussian on an unbounded scale. Laplace depends on the parameterization.
 
-14. **★★ A Gibbs sampler for regression with unknown noise (Python).** In the evidence code of ch. 3, take degree 3, keep $\alpha = 1$, and put a Gamma$(1, 0.01)$ prior on the noise precision $\beta$. Derive the two full conditionals, implement the sampler, and report the posterior of the noise standard deviation.
+14. **★★ A Gibbs sampler for regression with unknown noise (Python).** In the evidence code of ch. 3, take degree 3, keep $\alpha = 1$, and put a Gamma$(1, 0.01)$ prior (shape, rate) on the noise precision $\beta$. Derive the two full conditionals, implement the sampler, and report the posterior of the noise standard deviation.
 
     *Hints and expected result*: $w \mid \beta, y$ is given by Proposition 3.1, and $\beta \mid w, y \sim$ Gamma$(1 + n/2,\; 0.01 + \|y - \Phi w\|^2/2)$.
 
