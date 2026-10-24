@@ -17,6 +17,13 @@ Reconstituer, cours par cours, un **support complet et auto-contenu** pour chaqu
 
 La page d'accueil (générée) donne l'arbre des cours par semestre et par label, les boutons des tracks officiels (Santé, I&I, RR) et trois parcours d'exemple vérifiés contre les modalités de validation, le tableau des volumes horaires, et un lien vers les **projets de fin d'année** (`projects/`).
 
+## État (octobre 2026)
+
+- **67 pages de cours** : 64 matières scientifiques du catalogue 2026–2027, et 3 refreshers indépendants pour la quinzaine de remise à niveau. S'y ajoutent 4 pages de cadrage (immersion à l'hôpital, Regulating AI, projet de recherche reproductible, stage) et la page des projets de fin d'année (`projects/`).
+- **Contrôles** : `python3 tools/check_gates.py` passe (1636/1636), `check_progression` 67/67, `check_airiness` sans erreur. Tous les liens entre pages sont valides.
+- **Rendu** : un navigateur sans interface a ouvert toutes les pages, en 1440 px clair et 390 px sombre. Aucune erreur JavaScript ou KaTeX, aucun débordement horizontal.
+- **Relecture** : chaque rédacteur a exécuté tous les blocs Python de sa page et vérifié les nombres cités. 17 pages ont en plus été relues par un second agent indépendant, qui a corrigé faits, mathématiques et références. Cette seconde lecture reste à faire pour les autres pages.
+
 ## Sources
 
 - Catalogue et règles : <https://www.master-mva.com/> (listes des cours des deux semestres, chaque page de cours, modalités de validation, planning, tracks, stage), lu le 22 octobre 2026.
