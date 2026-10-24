@@ -1,0 +1,2249 @@
+---
+title: "Remote Sensing Data: from Sensor to Large-Scale Geospatial Data Exploitation"
+subtitle: "M2 MVA · Semester 2 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: Fourier analysis, sampling, statistics and camera geometry](#ch0)
+-   [1. What can be seen from space?](#ch1)
+-   [2. Modelling an optical instrument](#ch2)
+-   [3. Modelling a synthetic aperture radar](#ch3)
+-   [4. 3D from optical stereo](#ch4)
+-   [5. Sub-pixel accuracy in stereo matching](#ch5)
+-   [6. 3D from SAR: interferometry and phase unwrapping](#ch6)
+-   [7. Processing and exploitation of SAR data](#ch7)
+-   [8. Time series analysis](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Remote Sensing Data: from Sensor to Large-Scale Geospatial Data Exploitation
+  Official title       Remote sensing data: from sensor to large-scale geospatial data exploitation
+  Instructors          F. TUPIN, G. FACCIOLO, C. de FRANCHIS, E. MEINHARDT, E. DALSASSO (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 31.5 h (lectures 31.5 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Computer Vision, Image processing
+  Language             Preferably French; it may be given partly in English if a majority of the students ask for it (master-mva.com)
+  Assessment           Reports and source code of the practical sessions; a project on a remote sensing subject (report, code and oral presentation) (master-mva.com) · Université Paris-Saclay: “Evaluation Continue non Intégrale” (non-integral continuous assessment) · weights not displayed
+  Prerequisites        Basics of linear algebra, calculus, statistics, basics of signal processing, basic programming (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in applied mathematics, computer science or physics who has processed ordinary photographs and now meets images that are calibrated measurements of the Earth.
+
+**Empirical first**: a Sentinel-1 radar image of a uniform field looks like salt-and-pepper noise, yet the phase difference of two images of the same area taken twelve days apart reveals ground displacements of a few millimetres; a pair of Pléiades views of a city, matched to a tenth of a pixel, gives building heights to well under a metre.
+
+The course follows a measurement from the sensor to the map. It models how optical and radar satellites form images, then turns these models into algorithms that recover elevation (stereo-vision, SAR interferometry) and follow the surface over time. It shares its stereo tools with [3D Computer Vision](../s1-3d-computer-vision/index.html) and [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html), and its statistics of noise with [Image Denoising](../s1-image-denoising/index.html).
+
+### What you will be able to do
+
+-   Compute the orbit, revisit, ground sampling distance and diffraction limit of an Earth observation instrument from its design parameters.
+-   Explain what each spectral domain reveals about the surface and compute reflectances and spectral indices such as NDVI.
+-   Model an optical push-broom instrument: point spread function, modulation transfer function, aliasing, noise and its geometric model (physical and RPC).
+-   Derive the range and azimuth resolutions of a synthetic aperture radar from pulse compression and the Doppler history.
+-   State and prove the statistics of fully developed speckle, single-look and multilook.
+-   Build a stereo pipeline for satellite images: rectification, matching costs, semi-global matching, triangulation and DSM rasterisation.
+-   Estimate disparities to a fraction of a pixel and bound the attainable precision with the Cramér–Rao inequality.
+-   Turn an interferogram into a height map or a displacement map: coherence, height of ambiguity and phase unwrapping.
+-   Reduce speckle with local, non-local and self-supervised methods, and detect targets and changes with controlled false-alarm rates.
+-   Analyse satellite image time series: seasonal models, break detection, classification and InSAR deformation inversion (SBAS).
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the objective of providing a good understanding of Earth observation systems and of their mathematical modelling (optical and SAR satellite sensors). It focuses on data processing for elevation recovery (stereo-vision and SAR interferometry) and on time series analysis, and it announces the handling of real images from space agencies or private providers in practical work sessions.
+
+The Université Paris-Saclay course detail gives the volume (31.5 h of lectures) and the nature of the assessment, but no programme of its own. Each topic of the “Thèmes abordés” list is matched below.
+
+| Official topic | Course section |
+|---|---|
+| What can be seen from space? | [ch. 1](#ch1): orbits and revisit (1.1), radiometry and the spectrum (1.2), the four resolutions (1.3), current missions (1.4), spectral signatures and indices (1.5) |
+| Modeling an optical instrument | [ch. 2](#ch2): imaging chain and MTF (2.1–2.2), sampling and aliasing (2.3), noise (2.4), push-broom acquisition (2.5), physical and RPC geometric models (2.6), orthorectification (2.7) |
+| Modeling a Synthetic Aperture Radar instrument | [ch. 3](#ch3): radar principle (3.1), chirp and matched filter (3.2), synthetic aperture (3.3), SAR geometry (3.4), complex SLC data and speckle (3.5–3.6) |
+| How to recover 3D information with optic sensors? | [ch. 4](#ch4): stereo principle and precision (4.1), epipolar geometry of push-broom pairs (4.2), matching costs (4.3), semi-global matching (4.4), triangulation (4.5), large-scale pipeline (4.6) |
+| Sub-pixel accuracy in stereo matching | [ch. 5](#ch5): band-limited interpolation (5.2), parabola fitting and pixel locking (5.3), phase correlation (5.4), gradient refinement and the Cramér–Rao bound (5.5), error budget (5.6) |
+| How to recover 3D information with SAR sensors? | [ch. 6](#ch6): interferometric phase (6.1), height of ambiguity (6.2), coherence (6.3), phase unwrapping (6.4), DEM and displacement, radargrammetry (6.5) |
+| Processing and exploitation of SAR data | [ch. 7](#ch7): log-speckle (7.1), Lee filter (7.2), non-local and self-supervised despeckling (7.3), CFAR detection (7.4), change detection (7.5), polarimetry (7.6) |
+| Time series analysis | [ch. 8](#ch8): data cubes (8.1), harmonic regression (8.2), break detection (8.3), classification (8.4), SAR and InSAR time series, SBAS (8.5) |
+| “Plus de détails” (last item of the list) | Not a topic: a link to further details; the course website it leads to is listed in the [References](#refs) |
+| Objective: handling of real images from space agencies or private providers in practical sessions | Labs of sessions 2, 4, 7 and 11 (synthetic first, then free Sentinel-1/2 products); solo and group projects on public data |
+| Title: large-scale geospatial data exploitation | Orthorectification and map grids (2.7), tiled stereo pipeline (4.6), data cubes and analysis-ready data (8.1) |
+
+Extensions beyond the syllabus: pan-sharpening (2.8), self-supervised despeckling (7.3), polarimetry (7.6) and the research chapter (ch. 9, self-study).
+
+### Where this course fits in the programme
+
+Official prerequisites: basics of linear algebra, calculus, statistics, basics of signal processing and basic programming.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gamma laws, maximum likelihood), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (least squares, Fourier) and [Scientific Python](../s0-refresher-python-scientific-computing/index.html) (NumPy for every lab).
+-   **Semester 1 courses that prepare it** — [3D Computer Vision](../s1-3d-computer-vision/index.html) (epipolar geometry), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (Shannon interpolation, registration), [Image Denoising](../s1-image-denoising/index.html), [Mathematical Models for Digital Photography](../s1-digital-photography/index.html) (MTF, noise), [Machine Learning for Time Series](../s1-time-series/index.html) and [Statistical Learning for Geosciences](../s1-ml-geosciences/index.html).
+-   **Related courses of semester 2** — [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Detection Theory and Industrial Applications](../s2-detection-theory/index.html) and [Artificial Intelligence and the Environment](../s2-ai-environment/index.html).
+-   **After the course** — the [Research Internship](../s3-research-internship/index.html), for which Earth observation laboratories and space agencies are frequent hosts.
+
+### Course outline
+
+-   **Review: Fourier analysis, sampling, statistics and camera geometry** — the M1 tools used everywhere: convolution, Shannon sampling, the phase of a complex number, Gamma laws, least squares, the pinhole camera.
+-   **What can be seen from space?** — orbits, radiometry, the four resolutions, today's missions and spectral indices.
+-   **Modelling an optical instrument** — the imaging chain from optics to digital numbers, and the geometric model that maps pixels to the ground.
+-   **Modelling a synthetic aperture radar** — how a moving antenna and a chirp build a metre-resolution complex image, and why it is speckled.
+-   **3D from optical stereo** — from two push-broom views to a digital surface model.
+-   **Sub-pixel accuracy in stereo matching** — interpolation, sub-pixel estimators, their biases and the best possible precision.
+-   **3D from SAR: interferometry and phase unwrapping** — the phase difference of two radar images as a height or a displacement.
+-   **Processing and exploitation of SAR data** — speckle statistics in practice, despeckling, detection and change detection.
+-   **Time series analysis** — dense optical and radar time series: seasonal models, breaks, classification, deformation histories.
+-   **Research directions and open problems** — neural rendering from satellites, learned stereo and despeckling, foundation models (self-study).
+
+### Session plan {#sessions}
+
+**31.5 h in class = 11 sessions (1 × 1.5 h + 10 × 3 h).**
+
+The volume is the 31.5 h of lectures of the Université Paris-Saclay programme table. The master-mva.com page announces 12 sessions of 3 h, with practical work on a personal laptop; the split below is a proposal that fits the official volume, with the labs held inside the sessions.
+
+Level 1 = foundations, 2 = core models and algorithms, 3 = advanced methods close to current research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 1.5 h | 1 | ch. 0 Review: Fourier transform and sampling, phase and wrapping, Gamma laws and likelihood, least squares, pinhole camera | Python block of ch. 0 |
+| 2 | 3 h | 1 | ch. 1 What can be seen from space? Orbits and revisit, radiometry, resolutions, missions, spectral indices | Ex. 1, 3; lab: NDVI on a synthetic scene |
+| 3 | 3 h | 1 | ch. 2.1–2.4 The optical imaging chain: PSF and MTF, diffraction, sampling and aliasing, noise and SNR | Ex. 2 |
+| 4 | 3 h | 2 | ch. 2.5–2.8 Push-broom acquisition, physical and RPC models, orthorectification, pan-sharpening | lab: localisation and projection; start Ex. 14 |
+| 5 | 3 h | 2 | ch. 3.1–3.4 Radar principle, chirp and matched filter, synthetic aperture, SAR geometry | Ex. 4 |
+| 6 | 3 h | 2 | ch. 3.5–3.6 Complex SLC data and speckle statistics; ch. 4.1–4.2 stereo principle, push-broom epipolar geometry | Ex. 6, 7 |
+| 7 | 3 h | 2 | ch. 4.3–4.6 Matching costs, semi-global matching, triangulation, the tiled pipeline | lab: SGM on a synthetic pair |
+| 8 | 3 h | 2 | ch. 5 Sub-pixel accuracy: interpolation, parabola fitting and pixel locking, phase correlation, Cramér–Rao bound | Ex. 8, 9 |
+| 9 | 3 h | 2 | ch. 6 SAR interferometry: phase model, height of ambiguity, coherence, phase unwrapping, DInSAR | Ex. 5, 11 |
+| 10 | 3 h | 3 | ch. 7 SAR processing: log-speckle, Lee filter, non-local and self-supervised despeckling, CFAR and change detection | Ex. 10, 15 |
+| 11 | 3 h | 3 | ch. 8 Time series: data cubes, harmonic regression, break detection, classification, SBAS inversion | Ex. 12, 13; lab: seasonal fit with clouds |
+
+**Self-study, outside the 31.5 h** (about 6 h in total): ch. 9 Research directions and open problems (≈ 3 h, with Ex. 16) · finishing the labs on free Sentinel-2 and Sentinel-1 products (≈ 3 h).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 and skip what you already master; the Fourier and Gamma results are used without warning later.
+-   After each session, run the Python blocks of the chapter and change one parameter: the noise level, the baseline, the number of looks.
+-   Do the ★ exercises the same week; keep the ★★ proofs (Ex. 7, 9, 10, 13) for the week before the project defence.
+-   The Python environment is NumPy, SciPy, scikit-learn and Matplotlib. For real products add `rasterio` (GeoTIFF reading) and, if you wish, the open-source S2P pipeline cited in ch. 4.
+-   Start the project early: choose it after session 4 and use the labs of sessions 7 and 11 as its first milestones.
+
+## 0. Review: Fourier analysis, sampling, statistics and camera geometry {#ch0}
+
+Every model of the course is a linear filter followed by sampling and noise, and every estimator is a likelihood or a least-squares problem. This chapter recalls these M1 tools in the notation used later.
+
+### 0.1 Fourier transform, convolution and sampling
+
+We use the Fourier transform with frequencies in cycles per unit length, which is the convention of optical engineers.
+
+::: def
+[Definition 0.1 — Fourier transform and convolution]{.tag} For an integrable function $f$ on $\mathbb{R}^d$,
+$$
+\hat f(\nu) = \int_{\mathbb{R}^d} f(x)\, e^{-2i\pi \langle \nu, x\rangle}\, dx, \qquad (h * f)(x) = \int h(y)\, f(x - y)\, dy .
+$$
+
+The convolution theorem states that the transform of a convolution is a product:
+$$
+\widehat{h * f} = \hat h \cdot \hat f .
+$$
+:::
+
+In imaging, the impulse response of a linear shift-invariant system is the *point spread function* (PSF); the modulus of its transform is the *modulation transfer function* (MTF).
+
+:::: thm
+[Theorem 0.2 — Shannon–Whittaker sampling]{.tag} Let $f$ be square-integrable with $\hat f(\nu) = 0$ for $|\nu| \geq 1/(2\delta)$ (one dimension, sampling step $\delta$). Then $f$ is determined by its samples:
+$$
+f(x) = \sum_{k \in \mathbb{Z}} f(k\delta)\, \mathrm{sinc}\Big(\frac{x - k\delta}{\delta}\Big), \qquad \mathrm{sinc}(t) = \frac{\sin \pi t}{\pi t}.
+$$
+
+::: proof
+1.  The Poisson summation formula gives the transform of the sampled signal as a periodisation:
+    $$
+    \delta \sum_k f(k\delta)\, e^{-2i\pi \nu k\delta} = \sum_{m} \hat f\Big(\nu - \frac{m}{\delta}\Big).
+    $$
+2.  Under the hypothesis, the copies do not overlap. Multiplying by the indicator of the interval of half-width $1/(2\delta)$ isolates $\hat f$.
+3.  The inverse transform of that indicator is the sinc kernel scaled by $\delta$. Inverting term by term gives the series. [∎]{.qed}
+:::
+
+If the hypothesis fails, the copies overlap and a frequency $\nu$ is seen at $\nu - m/\delta$: this is **aliasing**, and no post-processing can undo it in general.
+::::
+
+On a periodic grid of $N$ samples the same holds with the discrete Fourier transform (DFT): a band-limited signal is translated by a real $\tau$ exactly by multiplying its coefficient of index $k$ by $e^{-2i\pi k\tau/N}$ (ch. 5).
+
+### 0.2 Complex numbers, phase and wrapping
+
+A radar pixel is a complex number $z = |z| e^{i\varphi}$. Only the phase modulo $2\pi$ is observed.
+
+::: def
+[Definition 0.3 — Wrapping operator]{.tag} The wrapping operator maps a real number to its representative in $[-\pi, \pi)$:
+$$
+\mathcal{W}(\varphi) = \varphi - 2\pi \Big\lfloor \frac{\varphi + \pi}{2\pi} \Big\rfloor .
+$$
+It satisfies $\mathcal{W}(\varphi) = \arg e^{i\varphi}$, and $\mathcal{W}(\varphi_1 - \varphi_2)$ is the argument of $z_1 \bar z_2$.
+:::
+
+This is why interferometry multiplies one image by the conjugate of the other (ch. 6).
+
+### 0.3 Gamma-family laws and maximum likelihood
+
+Speckled radar intensities follow exponential and Gamma laws (ch. 3), so we recall their densities.
+
+::: def
+[Definition 0.4 — Exponential and Gamma laws]{.tag} The Gamma law with shape $L > 0$ and mean $\mu$ has density on $(0, \infty)$
+$$
+p(x) = \frac{L^L}{\Gamma(L)\, \mu^L}\, x^{L-1}\, e^{-L x/\mu}.
+$$
+Its variance is $\mu^2 / L$. For $L = 1$ it is the exponential law of mean $\mu$. The sum of $L$ independent exponential variables of mean $\mu$, divided by $L$, follows this Gamma law.
+:::
+
+For $n$ independent Gamma samples with known $L$, the **maximum-likelihood** estimator of $\mu$ is the empirical mean, unbiased with variance $\mu^2/(nL)$.
+
+::: thm
+[Theorem 0.5 — Cramér–Rao inequality]{.tag} Let $\hat\theta$ be an unbiased estimator of a scalar parameter $\theta$ from observations with log-likelihood $\ell(\theta)$. Under the usual regularity conditions,
+$$
+\mathrm{Var}(\hat\theta) \geq \frac{1}{I(\theta)}, \qquad I(\theta) = \mathbb{E}\big[\ell'(\theta)^2\big] = -\mathbb{E}\big[\ell''(\theta)\big].
+$$
+The proof is the Cauchy–Schwarz inequality applied to the covariance of the estimator and the score $\ell'(\theta)$, whose expectation vanishes.
+:::
+
+For the Gamma sample above, the Fisher information is $nL/\mu^2$, so the empirical mean attains the bound: it is *efficient*.
+
+### 0.4 Least squares and Gauss–Newton
+
+::: prop
+[Proposition 0.6 — Normal equations and minimum-norm solution]{.tag} For $A \in \mathbb{R}^{m \times n}$ and $b \in \mathbb{R}^m$, the minimisers of $\|Ax - b\|^2$ are the solutions of the normal equations
+$$
+A^\top A\, x = A^\top b .
+$$
+Among them, the one of smallest norm is $x^\dagger = A^\dagger b$, where $A^\dagger$ is the pseudo-inverse built from the singular value decomposition (SVD).
+:::
+
+For a non-linear model $r(x) = y - g(x)$, the **Gauss–Newton** iteration linearises $g$ at the current point, with Jacobian $J$, and solves the linear problem for the step:
+$$
+J^\top J\, \Delta x = J^\top r(x), \qquad x \leftarrow x + \Delta x .
+$$
+
+### 0.5 The pinhole camera and triangulation
+
+::: def
+[Definition 0.7 — Projective camera]{.tag} A pinhole camera maps a 3D point $X$ (homogeneous coordinates in $\mathbb{R}^4$) to the image point $x \simeq P X$, with
+$$
+P = K\, [\, R \mid t \,], \qquad K = \begin{pmatrix} f & s & c_x \\ 0 & f & c_y \\ 0 & 0 & 1 \end{pmatrix},
+$$
+where $R$ is a rotation, $t$ a translation and $\simeq$ means equality up to a non-zero factor.
+:::
+
+Two calibrated views give two rays; **triangulation** returns the 3D point closest to both, by linear least squares then refinement of the reprojection error. A satellite push-broom camera is *not* a pinhole camera (ch. 2.5), but an affine camera approximates it on small tiles.
+
+```python
+import numpy as np
+
+# Aliasing in one line: a cosine above the Nyquist frequency is seen at a lower frequency.
+delta = 1.0                       # sampling step (pixels)
+nu = 0.8                          # cycles per pixel, above Nyquist = 0.5
+k = np.arange(16)
+samples = np.cos(2 * np.pi * nu * k * delta)
+alias = np.cos(2 * np.pi * (nu - 1.0) * k * delta)   # frequency nu - 1/delta = -0.2
+print("max |difference| with the alias:", np.abs(samples - alias).max())
+
+# Gamma law: mean of L exponential intensities has variance mu^2 / L.
+rng = np.random.default_rng(0)
+mu, L = 2.0, 4
+I = rng.exponential(mu, size=(200_000, L)).mean(axis=1)
+print("mean %.3f (mu=%.1f), variance %.3f (mu^2/L=%.3f)" % (I.mean(), mu, I.var(), mu**2 / L))
+```
+
+The samples cannot tell 0.8 from −0.2 cycle per pixel, and the variance is close to 1.
+
+::: recap
+Key takeaways — chapter 0
+
+-   An imaging system is a convolution (PSF) followed by sampling; the MTF is the modulus of the transfer function.
+-   Sampling at step $\delta$ is lossless only for signals band-limited to $1/(2\delta)$; otherwise frequencies alias.
+-   Phase is observed modulo $2\pi$; the phase difference of two complex images is the argument of $z_1 \bar z_2$.
+-   Averages of $L$ exponential intensities follow a Gamma law with variance $\mu^2/L$, and the mean attains the Cramér–Rao bound.
+-   Least squares, the pseudo-inverse and Gauss–Newton fit every geometric and deformation model of the course.
+:::
+
+## 1. What can be seen from space? {#ch1}
+
+Before modelling an instrument we need to know where it flies, what it measures and which details it resolves. This chapter gives the orders of magnitude used everywhere later.
+
+### 1.1 Orbits and revisit
+
+Most Earth observation satellites fly on nearly circular orbits between about 500 and 800 km of altitude.
+
+:::: thm
+[Theorem 1.1 — Period of a circular orbit (Kepler's third law)]{.tag} A satellite on a circular orbit of radius $a$ around the Earth, with gravitational parameter $\mu = GM \approx 398\,600$ km³/s², has speed and period
+$$
+v = \sqrt{\mu / a}, \qquad T = 2\pi \sqrt{a^3 / \mu}.
+$$
+
+::: proof
+On a circular orbit the gravitational force provides the centripetal acceleration: $\mu m / a^2 = m v^2 / a$, hence the speed. The period is the circumference divided by the speed, $T = 2\pi a / v$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.2 — A Sentinel-2-like orbit]{.tag} With altitude $h = 786$ km and equatorial radius $R_E = 6378$ km, the radius is $a = 7164$ km.
+
+-   Orbital speed: $v = \sqrt{398\,600 / 7164} \approx 7.46$ km/s.
+-   Speed of the sub-satellite point on the ground: $v R_E / a \approx 6.64$ km/s.
+-   Period: about 100.6 min, that is about 14.3 orbits per day.
+
+With a 290 km swath, one satellite covers the equator in about ten days, and two satellites give a five-day revisit.
+:::
+
+The equatorial bulge of the Earth, measured by $J_2 \approx 1.083 \times 10^{-3}$, makes the orbital plane precess around the polar axis.
+
+::: prop
+[Proposition 1.3 — Sun-synchronous orbit]{.tag} For a circular orbit of radius $a$, inclination $i$ and mean motion $n = 2\pi / T$, the plane precesses at the rate
+$$
+\dot\Omega = -\frac{3}{2}\, J_2 \Big(\frac{R_E}{a}\Big)^2 n \cos i .
+$$
+The orbit is **sun-synchronous** when this rate equals one turn per year, about $0.9856$° per day. The satellite then crosses each latitude at the same local solar time, so illumination is comparable from one pass to the next.
+:::
+
+The formula is the first-order $J_2$ perturbation of celestial mechanics, admitted here. For $h = 786$ km it gives $i \approx 98.5$°, a slightly retrograde orbit close to that of Sentinel-2.
+
+A **geostationary** orbit, of period one sidereal day, lies at about 35 786 km: it sees a hemisphere continuously, with kilometre-scale pixels, as weather satellites do.
+
+### 1.2 Radiometry and the electromagnetic spectrum
+
+A passive sensor measures reflected sunlight or emitted thermal radiation; an active sensor, such as a radar, measures the echo of its own emission.
+
+::: thm
+[Theorem 1.4 — Planck's law and Wien's displacement law]{.tag} The spectral radiance of a black body at temperature $T$ is
+$$
+B_\lambda(T) = \frac{2 h c^2}{\lambda^5}\, \frac{1}{e^{h c / (\lambda k_B T)} - 1}.
+$$
+Its maximum is reached at the wavelength
+$$
+\lambda_{\max} = \frac{2898\ \mu\text{m}\cdot\text{K}}{T}.
+$$
+:::
+
+The Sun ($T \approx 5778$ K) peaks near 0.5 µm and the Earth's surface ($T \approx 300$ K) near 9.7 µm. Optical remote sensing thus has a reflective domain (0.4–2.5 µm) and a thermal domain (8–14 µm).
+
+Water vapour, carbon dioxide and ozone absorb outside a few atmospheric *windows*, where bands are placed. Centimetre microwaves cross clouds almost unaffected: radar sees the ground in all weather, day and night.
+
+::: def
+[Definition 1.5 — Top-of-atmosphere reflectance]{.tag} An optical sensor is calibrated in radiance $L$ (W·m⁻²·sr⁻¹·µm⁻¹). Dividing by the incoming solar flux gives a quantity attached to the surface, the top-of-atmosphere reflectance:
+$$
+\rho_{\mathrm{TOA}} = \frac{\pi\, L\, d^2}{E_{\mathrm{sun}} \cos \theta_s},
+$$
+with $E_{\mathrm{sun}}$ the solar irradiance of the band at one astronomical unit, $d$ the Earth–Sun distance in astronomical units and $\theta_s$ the solar zenith angle.
+:::
+
+The factor $\pi$ comes from a Lambertian surface, of equal radiance in all directions, which reflects a flux $\pi L$ per unit area. Atmospheric correction then estimates the surface reflectance.
+
+### 1.3 The four resolutions
+
+Four resolutions compete for the same photons and the same downlink.
+
+-   **Spatial**: the ground sampling distance (GSD), the distance between two pixel centres on the ground, and the actual sharpness given by the MTF (ch. 2).
+-   **Spectral**: the number, centres and widths of the bands, from one panchromatic band to hundreds of hyperspectral bands.
+-   **Radiometric**: the number of quantisation bits and, above all, the signal-to-noise ratio.
+-   **Temporal**: the revisit time, set by the orbit, the swath and the agility of the platform.
+
+A finer GSD or a narrower band collects fewer photons per pixel, so the signal-to-noise ratio drops. Designers compensate with larger optics, longer integration (ch. 2.4) or wide panchromatic bands.
+
+::: ex
+[Example 1.6 — Data volume]{.tag} A push-broom imager with a swath of 20 km at 0.7 m GSD records about 28 600 pixels per line. At a ground speed of 6.8 km/s it acquires about 9 700 lines per second.
+
+With 12 bits per pixel, the raw panchromatic rate is
+$$
+28\,600 \times 9\,700 \times 12 \approx 3.3\ \text{Gbit/s}.
+$$
+On-board compression and the limited downlink time are therefore part of the design.
+:::
+
+### 1.4 What today's missions see
+
+A few missions used in the labs and projects:
+
+| Mission | Type | Resolution | Swath, revisit |
+|---|---|---|---|
+| Landsat 8 and 9 | optical, 11 bands | 30 m multispectral, 15 m panchromatic, 100 m thermal | 185 km, 16 days per satellite |
+| Sentinel-2 | optical, 13 bands | 10, 20 and 60 m | 290 km, 5 days with two satellites |
+| Pléiades | optical, very high resolution | 0.7 m panchromatic, 2.8 m multispectral at nadir | 20 km, daily with two agile satellites |
+| Sentinel-1 | C-band SAR (5.405 GHz) | 5 m × 20 m in the Interferometric Wide mode | 250 km, 12 days per satellite |
+| TerraSAR-X | X-band SAR | metre class in spotlight modes | revisit of 11 days |
+
+The Copernicus Sentinel data are free and open, the default material of the labs; very high resolution images come from commercial providers or research programmes.
+
+### 1.5 Spectral signatures and indices
+
+Chlorophyll absorbs red light, leaves scatter near-infrared light strongly, and water absorbs almost all near-infrared light.
+
+::: def
+[Definition 1.7 — Normalised difference vegetation index]{.tag} With $\rho_{\mathrm{R}}$ and $\rho_{\mathrm{NIR}}$ the red and near-infrared reflectances,
+$$
+\mathrm{NDVI} = \frac{\rho_{\mathrm{NIR}} - \rho_{\mathrm{R}}}{\rho_{\mathrm{NIR}} + \rho_{\mathrm{R}}} \in [-1, 1].
+$$
+The same construction with green and near-infrared bands gives the water index NDWI.
+:::
+
+A normalised difference cancels a common multiplicative factor (illumination) but not an additive bias (haze); indices are better computed on surface reflectances.
+
+::: ex
+[Example 1.8 — Three surfaces]{.tag} With (red, near-infrared) reflectances:
+
+-   dense vegetation (0.05, 0.45) gives NDVI $= 0.40 / 0.50 = 0.8$;
+-   clear water (0.03, 0.01) gives $-0.5$;
+-   bare soil (0.25, 0.30) gives about $0.09$.
+
+A threshold near 0.3 already separates vegetation from the rest.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(1)
+H, W = 60, 90
+labels = np.zeros((H, W), int)                 # 0 soil, 1 vegetation, 2 water
+labels[:, 30:60] = 1
+labels[20:40, 60:] = 2
+mean = {0: (0.25, 0.30), 1: (0.05, 0.45), 2: (0.03, 0.01)}   # (red, NIR) reflectances
+red = np.zeros((H, W)); nir = np.zeros((H, W))
+for c, (r, n) in mean.items():
+    m = labels == c
+    red[m] = r + 0.01 * rng.standard_normal(m.sum())
+    nir[m] = n + 0.01 * rng.standard_normal(m.sum())
+ndvi = (nir - red) / (nir + red + 1e-6)
+pred = np.where(ndvi > 0.3, 1, np.where(ndvi < -0.1, 2, 0))
+for c in range(3):
+    print("class", c, "mean NDVI %.2f" % ndvi[labels == c].mean())
+print("pixel accuracy of the two thresholds: %.3f" % (pred == labels).mean())
+```
+
+The class means are close to Example 1.8 and two thresholds classify almost every pixel; clouds, shadows and mixed pixels make real images harder (ch. 8).
+
+::: recap
+Key takeaways — chapter 1
+
+-   Low Earth orbits have periods near 100 min; a sun-synchronous inclination near 98° keeps the local time of passage fixed.
+-   The Sun peaks near 0.5 µm and the Earth near 10 µm; microwaves cross clouds, so radar works in all weather.
+-   Radiance is converted to reflectance by dividing by the solar flux and the cosine of the solar zenith angle.
+-   Spatial, spectral, radiometric and temporal resolutions compete for photons and downlink.
+-   Normalised differences such as NDVI cancel multiplicative illumination changes and separate vegetation, water and soil.
+:::
+
+## 2. Modelling an optical instrument {#ch2}
+
+An optical satellite image is the ground radiance blurred by optics and detectors, sampled on a moving grid and corrupted by photon noise. This chapter models each step, then the geometry that maps pixels to the Earth.
+
+### 2.1 The imaging chain as a linear system
+
+Let $f(x)$ be the radiance of the scene, with $x$ a ground coordinate. The digital number of pixel $k$ of a line is modelled as
+$$
+u_k = (h * f)(k\, \delta) + n_k ,
+$$
+where $\delta$ is the ground sampling distance, $h$ the point spread function and $n_k$ the noise.
+
+The PSF is a convolution of independent blurs, so the MTF is a product of factors:
+$$
+h = h_{\mathrm{opt}} * h_{\mathrm{det}} * h_{\mathrm{mot}}, \qquad |\hat h| = |\hat h_{\mathrm{opt}}|\, |\hat h_{\mathrm{det}}|\, |\hat h_{\mathrm{mot}}| .
+$$
+
+The factors are optical diffraction, integration over a detector and motion during the integration time; aerosols also lower the contrast.
+
+### 2.2 Diffraction and the optical MTF
+
+A telescope with a circular pupil of diameter $D$ and focal length $f$ images a point as the Airy pattern, whose first dark ring lies at the angle $1.22\, \lambda / D$.
+
+::: prop
+[Proposition 2.1 — MTF of a circular pupil]{.tag} The optical transfer function of an aberration-free circular pupil is the normalised autocorrelation of the pupil. It vanishes beyond the cut-off frequency $\nu_c = D / (\lambda f)$ in the focal plane and, with $s = \nu / \nu_c \in [0, 1]$, it equals
+$$
+\mathrm{MTF}_{\mathrm{opt}}(\nu) = \frac{2}{\pi}\Big(\arccos s - s\sqrt{1 - s^2}\Big).
+$$
+:::
+
+The proof computes the overlap area of two discs of diameter $D$ whose centres are $\lambda f \nu$ apart (Goodman, *Introduction to Fourier Optics*). Consequence: **the optics is a perfect low-pass filter**; no frequency above $\nu_c$ reaches the detector.
+
+::: prop
+[Proposition 2.2 — Detector MTF]{.tag} A square detector of width $p$ integrates the focal-plane irradiance over its area. Along one axis this is a convolution with the indicator of an interval of length $p$, whose transfer function is
+$$
+\mathrm{MTF}_{\mathrm{det}}(\nu) = |\mathrm{sinc}(p\, \nu)| .
+$$
+:::
+
+Likewise, a motion $m$ during integration adds a factor $|\mathrm{sinc}(m \nu)|$ along the track.
+
+### 2.3 Sampling, aliasing and the factor Q
+
+::: prop
+[Proposition 2.3 — Ground sampling distance]{.tag} For a satellite at altitude $H$ looking at nadir, with detectors of pitch $p$ and focal length $f$, similar triangles give
+$$
+\delta = \frac{H\, p}{f}.
+$$
+:::
+
+The detectors sample at frequency $1/p$; the optics transmits up to $\nu_c$. Their ratio summarises the design.
+
+::: key
+[Key result — the sampling factor of an imager]{.tag}
+$$
+Q = \frac{\lambda\, f}{D\, p} = \frac{1/p}{\nu_c}, \qquad \text{no aliasing} \iff Q \geq 2 .
+$$
+:::
+
+With $Q \geq 2$, Theorem 0.2 holds for every image the optics can form. Earth observation imagers usually have $Q$ near 1, accepting some aliasing for more signal per pixel and a wider swath.
+
+::: ex
+[Example 2.4 — A Pléiades-like instrument]{.tag} Take $H = 694$ km, $f = 12.9$ m, $p = 13$ µm, $D = 0.65$ m and $\lambda = 0.6$ µm.
+
+1.  Ground sampling distance: $\delta = 694$ km × 13 µm / 12.9 m ≈ 0.70 m.
+2.  Sampling factor: $Q = 0.6 \times 12.9 / (0.65 \times 13) \approx 0.92$.
+3.  At the Nyquist frequency $1/(2p)$, the ratio $s = \nu / \nu_c = Q/2$ is 0.46, so the optical MTF is 0.44 and the detector MTF is $2/\pi \approx 0.64$.
+
+The system MTF at Nyquist, before motion and electronics, is therefore
+$$
+0.44 \times 0.64 \approx 0.28 .
+$$
+:::
+
+Fine details keep about a quarter of their contrast, and frequencies between Nyquist and $\nu_c$ alias. Ground segments therefore usually apply a *restoration* (deconvolution balanced against noise) before delivery.
+
+```python
+import numpy as np
+
+def mtf_pupil(s):
+    s = np.clip(s, 0.0, 1.0)
+    return 2 / np.pi * (np.arccos(s) - s * np.sqrt(1 - s**2))
+
+lam, f, D, p = 0.6e-6, 12.9, 0.65, 13e-6
+nu_c = D / (lam * f)                     # optical cut-off in the focal plane (cycles/m)
+Q = (1 / p) / nu_c
+for frac in [0.25, 0.5]:                 # frequency as a fraction of the sampling rate 1/p
+    nu = frac / p
+    m_opt, m_det = mtf_pupil(nu / nu_c), abs(np.sinc(p * nu))
+    print(f"nu = {frac}/p: optics {m_opt:.2f}, detector {m_det:.2f}, system {m_opt * m_det:.2f}")
+print(f"Q = {Q:.2f}; frequencies between 1/(2p) and nu_c alias: nu_c * p = {nu_c * p:.2f} > 0.5")
+```
+
+### 2.4 Noise and signal-to-noise ratio
+
+The number of photo-electrons collected during an integration time is a Poisson variable; the electronics add read noise.
+
+::: prop
+[Proposition 2.5 — Affine noise model]{.tag} If the number of electrons is Poisson of mean $\lambda$, the read noise is centred with variance $\sigma_r^2$, and the digital number is $u = g \cdot (\text{electrons}) + \text{read noise}$ with gain $g$, then
+$$
+\mathbb{E}[u] = g \lambda, \qquad \mathrm{Var}(u) = g\, \mathbb{E}[u] + \sigma_r^2 .
+$$
+:::
+
+The proof uses that a Poisson variance equals its mean. A variance-stabilising transform, such as the generalised Anscombe transform, makes the variance nearly constant so that Gaussian denoisers apply.
+
+The ground moves by one GSD in about 0.1 ms, so integration cannot simply be longer. **Time delay integration** (TDI) adds the charges of $N$ detector lines that see the same ground line in turn.
+
+::: prop
+[Proposition 2.6 — Gain of time delay integration]{.tag} With $N$ TDI stages and shot noise dominant, the signal is multiplied by $N$ and the noise standard deviation by $\sqrt N$, so the signal-to-noise ratio is multiplied by $\sqrt N$.
+:::
+
+Indeed, a sum of $N$ independent Poisson variables of mean $\lambda$ is Poisson of mean $N\lambda$, of standard deviation $\sqrt{N\lambda}$.
+
+Detectors differ slightly in gain and offset, which creates stripes along the track; radiometric calibration estimates and inverts them per detector.
+
+### 2.5 Push-broom acquisition
+
+A **push-broom** sensor is a line of detectors across the track; the satellite motion sweeps the second dimension.
+
+-   Row $r$ of the image is acquired at time $t_r = t_0 + r\, \Delta t$, with a line period equal to the GSD divided by the ground speed.
+-   Each row is a perspective projection of a line of the ground, but different rows come from different positions and attitudes of the camera.
+-   Spectral bands sit on different lines of the focal plane, so they see the same ground a fraction of a second apart. A moving car then appears at slightly different places in each band, which can be used to measure its speed.
+-   Small high-frequency oscillations of the attitude (jitter) bend the rows and must be modelled for sub-pixel work.
+
+Some small satellites use **push-frame** sensors: overlapping 2D pinhole frames along the track.
+
+### 2.6 Physical and RPC geometric models
+
+::: def
+[Definition 2.7 — Localisation and projection functions]{.tag} A physical push-broom model gives, for row $r$, the camera centre $C(t_r)$, its attitude $R(t_r)$ and, for column $c$, the viewing direction $d_c$ in the camera frame. The ray of pixel $(r, c)$ is
+$$
+X(s) = C(t_r) + s\, R(t_r)\, d_c, \qquad s > 0 .
+$$
+The **localisation function** $L(r, c, h)$ returns the point of this ray at height $h$ above the reference ellipsoid.
+
+The **projection function** $P(\varphi, \lambda, h)$ is its inverse: it returns the pixel that sees the ground point of latitude $\varphi$, longitude $\lambda$ and height $h$.
+:::
+
+Evaluating $P$ requires finding when the point crosses the plane of the detector line, a root-finding problem; providers distribute a compact substitute.
+
+::: def
+[Definition 2.8 — Rational polynomial coefficients (RPC)]{.tag} With latitude, longitude and height normalised to $[-1, 1]$ by an offset and a scale, the RPC model writes the normalised row and column as ratios of cubic polynomials:
+$$
+r = \frac{N_r(\varphi, \lambda, h)}{D_r(\varphi, \lambda, h)}, \qquad c = \frac{N_c(\varphi, \lambda, h)}{D_c(\varphi, \lambda, h)} .
+$$
+Each cubic polynomial in three variables has 20 coefficients; fixing the constant terms of the two denominators to 1 leaves 78 coefficients.
+:::
+
+::: prop
+[Proposition 2.9 — Fitting an RPC model is a linear least-squares problem]{.tag} Given ground points $(\varphi_j, \lambda_j, h_j)$ and their image rows $r_j$ computed with the physical model, minimising the residuals of the linearised equations
+$$
+N_r(\varphi_j, \lambda_j, h_j) - r_j\, D_r(\varphi_j, \lambda_j, h_j) = 0
+$$
+over the 39 coefficients of $N_r$ and $D_r$ is a linear least-squares problem (Proposition 0.6). The same holds for the column.
+:::
+
+The coefficients appear linearly once the equation is multiplied by the denominator. The ground points form a 3D grid over the footprint; the ill-conditioned system needs Tikhonov regularisation or reweighting (Tao and Hu, 2001).
+
+The RPC model fits the physical model within a small fraction of a pixel, but its *absolute* accuracy is that of the measured orbit and attitude, often several metres. An offset or affine correction in image space, estimated from tie or control points, absorbs most of this bias (Grodecki and Dial, 2003).
+
+### 2.7 Orthorectification and map grids
+
+Orthorectification resamples the image onto a map grid, such as the UTM projection of the WGS84 ellipsoid.
+
+1.  For each grid node $(E, N)$, compute latitude and longitude with the inverse map projection.
+2.  Read the height $h$ from a digital elevation model (DEM).
+3.  Compute the pixel $(r, c) = P(\varphi, \lambda, h)$ and interpolate the image there (ch. 5.2).
+
+::: prop
+[Proposition 2.10 — Effect of a DEM error]{.tag} If the line of sight makes an angle $\theta$ with the vertical, an error $\Delta h$ on the height moves the orthorectified point horizontally by
+$$
+\Delta x = \Delta h\, \tan \theta .
+$$
+:::
+
+The proof is a right triangle. At $20$° off nadir, a 5 m DEM error shifts the ground by 1.8 m, more than two 0.7 m pixels: building tops, absent from bare-earth DEMs, lean in orthoimages, which motivates the surface models of ch. 4.
+
+### 2.8 Pan-sharpening
+
+Pan-sharpening fuses a sharp panchromatic band $P$ with multispectral bands $M_k$ that are often four times coarser.
+
+-   **Component substitution**: upsample each $M_k$ to the panchromatic grid, form an intensity $I = \sum_k w_k M_k$, then inject the missing details, $M_k + g_k (P - I)$.
+-   **Multiresolution analysis**: inject only the high frequencies of $P$, obtained by subtracting a low-pass version that mimics the MTF of the multispectral sensor.
+
+Component substitution is sharp but distorts colours when $I$ does not match $P$ spectrally. The protocol of Wald, Ranchin and Mangolini (1997) degrades both inputs, fuses them and compares with the original multispectral image.
+
+::: recap
+Key takeaways — chapter 2
+
+-   The PSF is the convolution of optics, detector and motion blurs; the MTF is the product of their transfer functions.
+-   A circular pupil cuts every frequency above $D/(\lambda f)$; a square detector adds a sinc factor.
+-   The GSD is $Hp/f$; the factor $Q = \lambda f/(Dp)$ tells whether the image is aliased ($Q < 2$); real imagers sit near $Q = 1$.
+-   Noise variance is affine in the signal; TDI multiplies the signal-to-noise ratio by the square root of the number of stages.
+-   A push-broom image is a stack of 1D perspective projections taken at different times; RPCs fit its geometry with 78 coefficients.
+-   Orthorectification needs a height model; a height error $\Delta h$ shifts the ground by $\Delta h \tan \theta$.
+:::
+
+## 3. Modelling a synthetic aperture radar {#ch3}
+
+A ten-metre radar antenna seen from 800 km has a beam kilometres wide. Synthetic aperture radar (SAR) reaches metre resolution by pulse compression across the track and coherent synthesis of a long antenna along it. This chapter derives both and explains speckle.
+
+### 3.1 Radar principle and side-looking geometry
+
+A SAR emits pulses towards one side of the track and records the echoes. An echo arriving after a delay $\tau$ comes from the slant range $R = c\tau/2$, the factor 2 accounting for the round trip.
+
+The look is sideways, since points symmetric about the track would echo simultaneously; the **incidence angle** $\theta$ is typically 20° to 45°.
+
+::: prop
+[Proposition 3.1 — Radar equation]{.tag} For a transmitted power $P_t$, an antenna of gain $G$, a wavelength $\lambda$ and a target of radar cross-section $\sigma$ at range $R$, the received power is
+$$
+P_r = \frac{P_t\, G^2\, \lambda^2\, \sigma}{(4\pi)^3\, R^4}.
+$$
+For extended surfaces, $\sigma$ is replaced by $\sigma^0 A$, with $\sigma^0$ the dimensionless **backscattering coefficient** and $A$ the resolution cell area.
+:::
+
+The $R^4$ law (two spherical spreadings) calls for long pulses, which carry more energy. But a pulse of duration $T$ only separates targets more than $cT/2$ apart: 1.5 km for 10 µs.
+
+### 3.2 Range resolution: chirp and matched filter
+
+The solution: emit a long pulse sweeping a band $B$, and compress it on reception.
+
+::: def
+[Definition 3.2 — Linear frequency-modulated pulse (chirp)]{.tag} A chirp of duration $T$ and rate $K$ is
+$$
+s(t) = \mathbb{1}_{[-T/2,\, T/2]}(t)\, e^{i\pi K t^2}.
+$$
+Its instantaneous frequency $K t$ sweeps the band $B = |K|\, T$.
+:::
+
+:::: thm
+[Theorem 3.3 — The matched filter maximises the signal-to-noise ratio]{.tag} Let $y = s + n$ with $n$ a white noise of power spectral density $N_0$. Among linear filters $h$ with finite energy, the output signal-to-noise ratio at time 0,
+$$
+\mathrm{SNR}(h) = \frac{|(h * s)(0)|^2}{N_0\, \|h\|^2},
+$$
+is maximal for $h(t) = \overline{s(-t)}$, and the maximum is $\|s\|^2 / N_0$.
+
+::: proof
+By definition $(h * s)(0) = \int h(u)\, s(-u)\, du$. The Cauchy–Schwarz inequality gives
+$$
+|(h * s)(0)|^2 \leq \|h\|^2\, \|s\|^2 ,
+$$
+with equality if and only if $h$ is proportional to $\overline{s(-\cdot)}$. The noise power at the output is $N_0 \|h\|^2$. Dividing, the ratio is at most $\|s\|^2 / N_0$, attained by the matched filter. [∎]{.qed}
+:::
+::::
+
+The maximum depends only on the pulse energy; the shape decides the *width* of the compressed pulse.
+
+:::: prop
+[Proposition 3.4 — Compressed chirp]{.tag} The output of the matched filter for the chirp of Definition 3.2 has modulus, for $|t| \leq T$,
+$$
+|(h * s)(t)| = (T - |t|)\, \big|\mathrm{sinc}\big(K t\, (T - |t|)\big)\big| .
+$$
+For $|t| \ll T$ it is close to $T\, |\mathrm{sinc}(B t)|$: the first zero is at $t = 1/B$ and the half-power width is $0.886/B$.
+
+::: proof
+1.  The filter output is the autocorrelation $\int s(u + t)\, \overline{s(u)}\, du$.
+2.  On the overlap of the two supports, of length $T - |t|$, the integrand is $e^{i\pi K t^2}\, e^{2i\pi K t u}$, because the quadratic terms in $u$ cancel.
+3.  The integral of $e^{2i\pi K t u}$ over an interval of length $T - |t|$ has modulus $(T - |t|)\, |\mathrm{sinc}(K t (T - |t|))|$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — the two resolutions of a SAR]{.tag}
+$$
+\rho_{\mathrm{range}} = \frac{c}{2B}, \qquad \rho_{\mathrm{azimuth}} = \frac{L}{2}
+$$
+:::
+
+By Proposition 3.4, echoes are separated when their delays differ by $1/B$, i.e. their ranges by $c/(2B)$: 1.5 m for 100 MHz, whatever the duration. A 10 µs pulse has a compression ratio $BT = 1000$.
+
+```python
+import numpy as np
+from scipy.signal import fftconvolve
+
+B, T = 100e6, 10e-6                     # bandwidth 100 MHz, duration 10 microseconds
+fs = 20 * B                             # fine sampling to measure the main lobe
+t = np.arange(-T / 2, T / 2, 1 / fs)
+s = np.exp(1j * np.pi * (B / T) * t**2) # chirp of bandwidth B
+out = fftconvolve(s, np.conj(s[::-1]))  # matched filter h(t) = conj(s(-t))
+mag = np.abs(out) / np.abs(out).max()
+k0 = mag.argmax()
+k = k0 + np.argmax(mag[k0:] < 1 / np.sqrt(2))       # first sample below -3 dB
+x = (k - 1) + (mag[k - 1] - 1 / np.sqrt(2)) / (mag[k - 1] - mag[k])   # linear interpolation
+width = 2 * (x - k0) / fs
+print(f"compression ratio BT = {B * T:.0f}")
+print(f"-3 dB width {width * 1e9:.2f} ns, theory 0.886/B = {0.886 / B * 1e9:.2f} ns")
+print(f"slant-range resolution {3e8 * width / 2:.2f} m, first zero at c/(2B) = {3e8 / (2 * B):.2f} m")
+```
+
+The half-power width matches $0.886/B$ (1.33 m in slant range); the first zero is at the nominal 1.5 m.
+
+### 3.3 Azimuth resolution: the synthetic aperture
+
+Along the track, a real antenna of length $L$ has a beam of angular width about $\lambda / L$. At range $R_0$ its footprint has length
+$$
+L_s = \frac{\lambda R_0}{L},
+$$
+which is 3.8 km for $\lambda = 5.55$ cm, $R_0 = 850$ km and $L = 12.3$ m. A point target stays in the beam while the satellite travels $L_s$.
+
+:::: thm
+[Theorem 3.5 — Azimuth resolution of a stripmap SAR]{.tag} Let the platform move at speed $v$ along a straight line, and let a target be at closest range $R_0$, reached at time $\eta = 0$. After focusing by a matched filter along the azimuth time $\eta$, the azimuth resolution is
+$$
+\rho_{\mathrm{azimuth}} = \frac{L}{2},
+$$
+independent of the range and of the wavelength.
+
+::: proof
+1.  While the target is in the beam, its range is
+    $$
+    R(\eta) = \sqrt{R_0^2 + v^2 \eta^2} \approx R_0 + \frac{v^2 \eta^2}{2 R_0}.
+    $$
+2.  The echo phase is $-4\pi R(\eta) / \lambda$. Up to a constant, it is a chirp in $\eta$ (Definition 3.2) of rate
+    $$
+    K_a = \frac{2 v^2}{\lambda R_0}.
+    $$
+3.  The target is illuminated during $T_a = L_s / v = \lambda R_0 / (L v)$, so the Doppler bandwidth is $B_a = K_a T_a = 2v / L$.
+4.  By Proposition 3.4, matched filtering separates two targets whose closest-approach times differ by $1/B_a$, that is whose positions differ by $v / B_a = L/2$. [∎]{.qed}
+:::
+::::
+
+A *shorter* antenna gives a *finer* resolution, because its wider beam illuminates each target longer. The pulse repetition frequency must, however, exceed $2v/L$ while the swath echoes fit between pulses, which bounds the antenna area from below.
+
+Other modes trade swath for resolution: **spotlight** steers the beam to illuminate the scene longer (finer azimuth resolution); the TOPS mode of Sentinel-1 sweeps it to cover several sub-swaths (coarser).
+
+### 3.4 SAR geometry and distortions
+
+A SAR measures a range and a time of closest approach, so a pixel is the intersection of three surfaces.
+
+::: def
+[Definition 3.6 — Range-Doppler geolocation]{.tag} With $S(\eta)$ and $V(\eta)$ the satellite position and velocity, a pixel of zero-Doppler time $\eta$ and slant range $R$ images the ground point $X$ such that
+$$
+\|X - S(\eta)\| = R, \qquad \langle X - S(\eta),\, V(\eta) \rangle = 0, \qquad X \text{ at height } h \text{ on the ellipsoid}.
+$$
+:::
+
+Geocoding solves this system with a DEM (compare ch. 2.7). The range geometry causes three distortions.
+
+-   **Foreshortening**: a slope facing the radar is compressed into few range cells, so it looks short and bright.
+-   **Layover**: when that slope is steeper than the incidence angle, its top is closer to the radar than its foot and appears before it. Several ground points then share one pixel; building façades lay over the street in front of them.
+-   **Shadow**: a slope facing away from the radar, steeper than $90° - \theta$, receives no signal.
+
+The ground-range resolution is the slant-range resolution divided by $\sin\theta$. At 30° of incidence, 1.5 m of slant range gives 3 m on flat ground.
+
+### 3.5 Complex SLC data
+
+After focusing, each pixel $z$ of a *single-look complex* (SLC) image is a complex number.
+
+A resolution cell contains many elementary scatterers (leaves, stones, roughness), whose echoes add coherently:
+$$
+z = \sum_{k=1}^{N} a_k\, e^{i \phi_k}, \qquad \phi_k = -\frac{4\pi R_k}{\lambda} + \psi_k ,
+$$
+with $a_k$ the amplitudes, $R_k$ the ranges and $\psi_k$ the scattering phases.
+
+Moving a scatterer by a quarter wavelength (1.4 cm at C-band) changes $\phi_k$ by $\pi$, so the phases are effectively random from cell to cell, even on a homogeneous field. Pixels dominated by one stable bright scatterer (building corner, pylon) are **point targets**, the basis of persistent scatterer interferometry (ch. 8.5).
+
+### 3.6 Fully developed speckle
+
+:::: thm
+[Theorem 3.7 — Goodman's model of fully developed speckle]{.tag} Assume the $N$ terms of the sum are independent, with phases uniform on $[0, 2\pi)$ and independent of the amplitudes, and $N$ large. Let $R = \mathbb{E}|z|^2$ be the **reflectivity**. Then $z$ is approximately a circular complex Gaussian variable, and
+
+-   the amplitude $A = |z|$ follows the Rayleigh law of density $(2A/R)\, e^{-A^2/R}$;
+-   the intensity $I = |z|^2$ follows the exponential law of mean $R$;
+-   the phase is uniform and independent of the amplitude.
+
+::: proof
+1.  The real and imaginary parts of $z$ are sums of $N$ independent centred terms. Uniform phases give $\mathbb{E}[\cos^2 \phi_k] = 1/2$, the same for the sine, and $\mathbb{E}[\cos\phi_k \sin \phi_k] = 0$.
+2.  By the central limit theorem, the real and imaginary parts are asymptotically independent Gaussians, each of variance $R/2$.
+3.  In polar coordinates $(A, \varphi)$, the joint density is $\frac{1}{\pi R}\, e^{-A^2/R}\, A$, which factors into a Rayleigh law for $A$ and a uniform law for $\varphi$.
+4.  With $I = A^2$, $dI = 2A\, dA$, so the density of $I$ is $e^{-I/R}/R$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.8 — How strong is speckle?]{.tag} For an exponential intensity of mean $R$, the 2.5 % and 97.5 % quantiles are $0.025\,R$ and $3.69\,R$. On a perfectly homogeneous field, 95 % of the pixels thus spread over a factor of about 146, that is 21.6 dB. The standard deviation equals the mean: the coefficient of variation is 1.
+:::
+
+**Multilooking** averages $L$ independent intensities of the same reflectivity; the result follows the Gamma law of shape $L$ and mean $R$ (Definition 0.4). Hence the multiplicative model of ch. 7:
+$$
+I = R \cdot S, \qquad S \text{ of Gamma law with shape } L \text{ and mean } 1 .
+$$
+
+::: def
+[Definition 3.9 — Equivalent number of looks]{.tag} On a homogeneous area, the equivalent number of looks is
+$$
+\mathrm{ENL} = \frac{\mathbb{E}[I]^2}{\mathrm{Var}(I)} .
+$$
+It equals $L$ for independent looks and is smaller when the looks are correlated, for instance when the image is oversampled.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(2)
+n_pix, N = 100_000, 50                     # pixels, scatterers per resolution cell
+amp = rng.rayleigh(1.0, size=(n_pix, N))   # arbitrary amplitudes
+phase = rng.uniform(0, 2 * np.pi, size=(n_pix, N))
+z = (amp * np.exp(1j * phase)).sum(axis=1) # coherent sum (Section 3.5)
+I = np.abs(z) ** 2
+R = I.mean()
+print("coefficient of variation of I: %.3f (theory 1)" % (I.std() / I.mean()))
+print("P(I > 3R) = %.4f (theory exp(-3) = %.4f)" % ((I > 3 * R).mean(), np.exp(-3)))
+I4 = I[: n_pix // 4 * 4].reshape(-1, 4).mean(axis=1)   # 4-look multilooking
+print("ENL after 4 looks: %.2f" % (I4.mean() ** 2 / I4.var()))
+```
+
+Fifty random phasors already give the exponential law, and four looks an ENL close to 4.
+
+::: recap
+Key takeaways — chapter 3
+
+-   A radar measures range by time delay; the received power falls as $R^{-4}$, so long pulses are needed.
+-   The matched filter maximises the signal-to-noise ratio; a chirp of band $B$ compresses to a sinc of width $1/B$, hence a slant-range resolution $c/(2B)$.
+-   Focusing the Doppler history of a target gives an azimuth resolution $L/2$, independent of range and wavelength.
+-   A SAR pixel is located by a range sphere, a zero-Doppler plane and a DEM; slopes cause foreshortening, layover and shadow.
+-   Fully developed speckle gives an exponential intensity with coefficient of variation 1; $L$ looks give a Gamma law and divide the variance by $L$.
+:::
+
+## 4. 3D from optical stereo {#ch4}
+
+In two views from different directions, high points shift with respect to low ones. Measuring this *disparity* at every pixel and converting it into height gives a digital surface model (DSM).
+
+### 4.1 Stereo principle and height precision
+
+Agile satellites acquire stereo pairs along the track, pointing forward then backward a few tens of seconds apart.
+
+::: prop
+[Proposition 4.1 — Disparity of a parallel-projection pair]{.tag} Let two views project the ground along parallel directions with angles $\theta_1$ and $\theta_2$ from the vertical, in the plane of the track. A point at height $h$ above a reference plane appears shifted on the ground by $h \tan\theta_i$ in view $i$. Its disparity, in pixels of size $\delta$, is
+$$
+d = \frac{h}{\delta}\, \frac{B}{H}, \qquad \frac{B}{H} = \tan\theta_1 - \tan\theta_2 .
+$$
+:::
+
+The proof is two right triangles. For small angles, the base-to-height ratio $B/H$ is the distance between the two satellite positions divided by the altitude.
+
+::: key
+[Key result — height precision of a stereo pair]{.tag}
+$$
+\sigma_h = \frac{\delta}{B/H}\, \sigma_d
+$$
+:::
+
+::: ex
+[Example 4.2 — Error budget of a Pléiades-like pair]{.tag} With $\delta = 0.7$ m and $B/H = 0.3$:
+
+-   a disparity error of one pixel gives a height error of 2.3 m;
+-   a disparity error of 0.1 pixel gives 0.23 m.
+
+Sub-pixel matching (ch. 5) is therefore what turns a stereo pair into a metric height measurement.
+:::
+
+A large $B/H$ improves precision but makes the views differ more (occlusions, specular surfaces). Small-baseline stereo ($B/H$ near 0.1) keeps them similar and relies on accurate sub-pixel matching (Delon and Rougé, 2007).
+
+### 4.2 Epipolar geometry of push-broom pairs
+
+For two pinhole cameras, the match of a point $x$ lies on a line, the epipolar line, given by the fundamental matrix $F$:
+$$
+x'^\top F\, x = 0 .
+$$
+
+Rectification warps both images so that epipolar lines become rows, and matching a 1D search.
+
+For push-broom images the candidate matches $P_2(L_1(x, h))$, for all heights $h$, form a **curve**, and exact rectification is impossible. The answer is local.
+
+:::: prop
+[Proposition 4.3 — Affine cameras have parallel epipolar lines]{.tag} Let two affine cameras map a 3D point $X$ to $x_i = M_i X + t_i$, with $M_i \in \mathbb{R}^{2 \times 3}$ of rank 2. Then the epipolar lines in image 2 are all parallel, with direction $M_2 n_1$, where $n_1$ spans the kernel of $M_1$.
+
+::: proof
+1.  The points that project to $x$ in image 1 form the line $X_0 + s\, n_1$, $s \in \mathbb{R}$, because $M_1 n_1 = 0$.
+2.  Its image in camera 2 is $M_2 X_0 + t_2 + s\, M_2 n_1$, a line of direction $M_2 n_1$.
+3.  This direction does not depend on $x$, so all epipolar lines are parallel. [∎]{.qed}
+:::
+::::
+
+On a tile of moderate size, both cameras are well approximated by affine cameras fitted on RPC correspondences, and two affine maps rectify the tile (de Franchis et al., 2014).
+
+Independent pointing errors of a few pixels make the epipolar lines miss each other; a per-tile translation across them is estimated from keypoint matches.
+
+### 4.3 Matching costs
+
+After rectification, pixel $p$ of the left image is compared with $p - (d, 0)$ in the right image for each disparity $d$, using a window $W$ around $p$.
+
+::: def
+[Definition 4.4 — Common matching costs]{.tag} With $\bar I$ the mean over the window and $\sigma$ the standard deviation:
+
+-   sum of absolute differences: $\sum_{q \in W} |I_1(p + q) - I_2(p + q - d)|$;
+-   zero-mean normalised cross-correlation (ZNCC), which is the empirical correlation coefficient
+    $$
+    \mathrm{ZNCC}(p, d) = \frac{1}{|W|} \sum_{q \in W} \frac{\big(I_1(p+q) - \bar I_1\big)\big(I_2(p+q-d) - \bar I_2\big)}{\sigma_1\, \sigma_2};
+    $$
+-   census: each window is encoded by the bits $[I(p+q) < I(p)]$, and the cost is the Hamming distance between the two bit strings.
+:::
+
+ZNCC is invariant under $I_2 \mapsto a I_2 + b$ with $a > 0$: centring removes $b$ and dividing by $\sigma_2$ removes $a$. Census, built on comparisons, is invariant under any increasing change of radiometry.
+
+Windows assume a constant disparity; near a discontinuity the textured side dominates and objects look *fattened* by up to half a window. Small windows reduce fattening but increase ambiguity, which regularisation addresses.
+
+### 4.4 Semi-global matching
+
+Semi-global matching (SGM, Hirschmüller, 2008) adds a smoothness prior to the cost.
+
+::: def
+[Definition 4.5 — SGM energy]{.tag} For a disparity map $D$, a cost volume $C(p, d)$ and penalties $0 < P_1 < P_2$,
+$$
+E(D) = \sum_p C(p, D_p) + \sum_{(p, q) \text{ neighbours}} \Big( P_1\, [\,|D_p - D_q| = 1\,] + P_2\, [\,|D_p - D_q| > 1\,] \Big).
+$$
+:::
+
+$P_1$ allows slanted surfaces; $P_2$ allows discontinuities but discourages noise. Minimising $E$ over a 2D grid is intractable in general, but along a 1D path it is a dynamic programme.
+
+::: prop
+[Proposition 4.6 — SGM recursion along one direction]{.tag} Along a direction $r$, define $L_r(p, d)$ by $L_r(p, d) = C(p, d)$ at the first pixel of the path and
+$$
+L_r(p, d) = C(p, d) + \min\Big( L_r(p - r, d),\ L_r(p - r, d \pm 1) + P_1,\ \min_k L_r(p - r, k) + P_2 \Big) - \min_k L_r(p - r, k).
+$$
+Then $L_r(p, d)$ is, up to an additive constant independent of $d$, the minimum of the 1D energy of the path ending at $p$ over all labellings with $D_p = d$.
+:::
+
+::: proof
+1.  Without the last subtraction, this is Bellman's recursion: the best labelling of the path ending at $p$ with label $d$ is the best one ending at the previous pixel with some label $k$, plus the penalty between $k$ and $d$, plus the cost at $p$.
+2.  Minimising over $k$ gives the three cases of the formula, and induction along the path shows that $L_r$ is that minimum.
+3.  The subtracted term does not depend on $d$; it only keeps the values bounded. [∎]{.qed}
+:::
+
+SGM sums $L_r$ over 8 or 16 directions and keeps, at each pixel, the disparity of smallest sum; the cost is linear in pixels, disparities and directions. MGM (Facciolo, de Franchis and Meinhardt, 2015) reduces the streaks of 1D paths by mixing several neighbours in the recursion.
+
+```python
+import numpy as np
+from scipy.ndimage import gaussian_filter, uniform_filter
+
+rng = np.random.default_rng(3)
+H, W, D = 80, 120, 12
+true = np.full((H, W), 3)
+true[25:55, 40:80] = 8                                   # a "building": larger disparity
+right = gaussian_filter(rng.standard_normal((H, W + D)), 1.0)
+cols = np.arange(W)[None, :] + true                      # left(x) = right(x + d)
+left = np.take_along_axis(right, cols, axis=1)
+left = left + 0.15 * rng.standard_normal(left.shape)     # noise (left image only)
+
+# Cost volume C[y, x, d] = |left(y, x) - right(y, x + d)|, aggregated on 3x3 windows
+C = np.stack([np.abs(left - right[:, d:d + W]) for d in range(D)], axis=2)
+C = uniform_filter(C, size=(3, 3, 1))
+
+def sgm_pass(C, P1, P2, axis, reverse):
+    """Aggregate along one direction with the recursion of Proposition 4.6."""
+    Cm = np.moveaxis(C, axis, 0)
+    if reverse:
+        Cm = Cm[::-1]
+    Lr = np.empty_like(Cm)
+    Lr[0] = Cm[0]
+    for i in range(1, Cm.shape[0]):
+        prev = Lr[i - 1]
+        m = prev.min(axis=-1, keepdims=True)
+        up = np.pad(prev, ((0, 0), (1, 0)), constant_values=np.inf)[:, :-1] + P1
+        down = np.pad(prev, ((0, 0), (0, 1)), constant_values=np.inf)[:, 1:] + P1
+        Lr[i] = Cm[i] + np.minimum.reduce([prev, up, down, np.broadcast_to(m + P2, prev.shape)]) - m
+    if reverse:
+        Lr = Lr[::-1]
+    return np.moveaxis(Lr, 0, axis)
+
+S = sum(sgm_pass(C, 0.05, 0.6, ax, rev) for ax in (0, 1) for rev in (False, True))
+wta, sgm = C.argmin(axis=2), S.argmin(axis=2)
+for name, d in [("winner-take-all", wta), ("SGM, 4 directions", sgm)]:
+    print(f"{name:18s}: bad pixels (|error| > 1) = {(np.abs(d - true) > 1).mean():.3f}")
+```
+
+Four SGM directions divide the proportion of bad pixels by about ten (6.8 % to 0.6 %).
+
+### 4.5 Filtering and triangulation
+
+Errors concentrate in occlusions, shadows, water and repetitive textures. Two filters remove most of them.
+
+-   **Left–right consistency**: compute the disparity maps from left to right and from right to left, and keep a pixel only if the two disparities agree within one pixel.
+-   **Speckle removal**: discard small connected regions whose disparity differs from their surroundings.
+
+Each remaining match $(x, x')$ is then **triangulated**. With RPC models, one looks for the height $h$ such that the localisation of $x$ at that height projects onto $x'$:
+$$
+\hat h = \arg\min_h\ \big\| P_2\big(L_1(x, h)\big) - x' \big\|^2 .
+$$
+
+A few Gauss–Newton steps (ch. 0.4) solve it; a large final residual flags a pointing error.
+
+### 4.6 A tiled pipeline at scale
+
+A scene holds hundreds of millions of pixels and the affine approximation is only local. The S2P pipeline (de Franchis et al., 2014) proceeds as follows.
+
+1.  Split the reference image into overlapping tiles.
+2.  For each tile, fit the affine approximation, correct the relative pointing error and rectify.
+3.  Match with SGM or MGM and filter.
+4.  Triangulate every match into a 3D point in a map projection such as UTM.
+5.  Rasterise the points onto a regular grid, keeping for instance the median height per cell, and fill small holes.
+6.  When several pairs or dates are available, register the DSMs and fuse them by a per-cell median.
+
+Tiles are independent and run in parallel. DSMs are evaluated against airborne lidar, for instance on the benchmark of Bosch et al. (2016), by median absolute error and completeness (fraction of cells within a tolerance).
+
+::: recap
+Key takeaways — chapter 4
+
+-   Disparity is proportional to height: $d = (h/\delta)(B/H)$; the height precision is $\delta\, \sigma_d / (B/H)$.
+-   Push-broom pairs have curved epipolar lines; on small tiles, affine approximations make them parallel and allow rectification.
+-   ZNCC is invariant to affine radiometric changes and census to increasing ones; windows fatten objects near discontinuities.
+-   SGM minimises a cost plus a two-level smoothness penalty by exact dynamic programming along several 1D directions.
+-   Left–right consistency, triangulation with RPCs and a tiled, parallel organisation turn matches into a city-scale DSM.
+:::
+
+## 5. Sub-pixel accuracy in stereo matching {#ch5}
+
+One pixel of disparity error costs metres of height (Example 4.2). How can a translation be estimated to a fraction of a pixel, which estimators are biased, and what precision does noise allow?
+
+### 5.1 The question
+
+Throughout the chapter we study the one-dimensional model of a rectified pair:
+$$
+u_2(x) = u_1(x - \tau) + n(x),
+$$
+where $\tau$ is a real disparity, constant on the window, and $n$ a white Gaussian noise of variance $\sigma^2$. The same tools register bands, dates and sensors.
+
+### 5.2 Band-limited interpolation
+
+The model needs $u_1$ between samples. For a band-limited scene Theorem 0.2 defines it, and on a periodic grid translation is exact in the Fourier domain.
+
+::: prop
+[Proposition 5.1 — Translation of a trigonometric polynomial]{.tag} Let $u$ be a real trigonometric polynomial of period $N$ with no component at the Nyquist frequency, with discrete Fourier coefficients $\hat u_k$ for $|k| < N/2$.
+
+Then for every real $\tau$, the samples of $u(\cdot - \tau)$ have coefficients
+$$
+\widehat{u(\cdot - \tau)}_k = \hat u_k\, e^{-2i\pi k \tau / N} .
+$$
+:::
+
+The proof is the substitution of $x - \tau$ in each complex exponential. The Nyquist coefficient is excluded because $\cos(\pi x)$ vanishes at every integer after a half-pixel shift: its value between samples is not determined by the samples.
+
+Real images are not periodic, so Fourier translation rings at the borders; apodisation or cubic B-splines limit it. Images are also slightly aliased (ch. 2.3), so sub-pixel estimates inherit a small bias periodic in the shift.
+
+### 5.3 Parabola fitting and pixel locking
+
+The cheapest sub-pixel estimator refines the integer minimum of the matching cost.
+
+::: prop
+[Proposition 5.2 — Parabola fitting]{.tag} Let the cost take the values $c_{-1}, c_0, c_1$ at the disparities $d_0 - 1, d_0, d_0 + 1$, with $c_0$ the smallest. The parabola through these three points has its minimum at $d_0 + \hat\delta$, with
+$$
+\hat\delta = \frac{c_{-1} - c_1}{2\,(c_{-1} - 2 c_0 + c_1)} \in \Big[-\frac12, \frac12\Big].
+$$
+:::
+
+::: proof
+1.  Write the parabola as $a\delta^2 + b\delta + c_0$. Evaluating at $\delta = \pm 1$ gives $a = (c_{-1} + c_1)/2 - c_0$ and $b = (c_1 - c_{-1})/2$.
+2.  Its minimum is at $-b/(2a)$, which is the formula.
+3.  Since $c_0$ is the smallest value, $|c_1 - c_{-1}| \leq c_{-1} - 2c_0 + c_1$, so $|\hat\delta| \leq 1/2$. [∎]{.qed}
+:::
+
+The formula is exact only when the cost is a parabola near its minimum. Otherwise the estimate is biased, and the bias pulls it towards integers: this is **pixel locking** (Shimizu and Okutomi, 2005).
+
+::: ex
+[Example 5.3 — Pixel locking of a V-shaped cost]{.tag} A sum of absolute differences behaves near its minimum like $c(d) = a\, |d - d_0 - \delta|$. For a true offset $\delta \in [0, 1/2]$:
+
+1.  the samples are $c_{-1} = a(1 + \delta)$, $c_0 = a\delta$ and $c_1 = a(1 - \delta)$;
+2.  Proposition 5.2 returns $\hat\delta = \delta / (2(1 - \delta))$.
+
+For $\delta = 0.25$ the estimate is
+$$
+\hat\delta = 0.167 ,
+$$
+a third too small. The correct fit for a V shape, through two lines of opposite slopes, returns exactly 0.25.
+:::
+
+Remedies: fit the right cost shape, cancel the bias by symmetric matching (Shimizu and Okutomi, 2005), or refine on the interpolated images themselves (ch. 5.5).
+
+### 5.4 Phase correlation
+
+For a global translation between two images, the Fourier shift theorem gives a direct estimator. With $U_1$ and $U_2$ the discrete transforms, the model of ch. 5.1 without noise gives the cross-power spectrum
+$$
+U_2(k)\, \overline{U_1(k)} = |U_1(k)|^2\, e^{-2i\pi k\tau/N} .
+$$
+
+-   **Peak**: normalising each coefficient to modulus 1 and inverting the transform gives a Dirac at $\tau$ for an integer shift, and a sampled Dirichlet kernel centred at $\tau$ otherwise. The peak gives the integer part.
+-   **Sub-pixel**: either fit the kernel near the peak (Foroosh, Zerubia and Berthod, 2002), or upsample the inverse transform locally (Guizar-Sicairos, Thurman and Fienup, 2008), or fit the slope of the residual phase by weighted least squares.
+
+Normalisation whitens the spectrum and gives robustness to illumination; phase correlation is the standard tool to co-register bands, dates and sensors.
+
+### 5.5 Gradient refinement and the Cramér–Rao bound
+
+Starting from an estimate $\tau_0$, linearise the model of ch. 5.1:
+$$
+u_1(x - \tau) \approx u_1(x - \tau_0) - (\tau - \tau_0)\, u_1'(x - \tau_0).
+$$
+Least squares on the residual $u_2 - u_1(\cdot - \tau_0)$ give the Gauss–Newton step (ch. 0.4)
+$$
+\tau \leftarrow \tau_0 - \frac{\sum_x u_1'(x - \tau_0)\, \big(u_2(x) - u_1(x - \tau_0)\big)}{\sum_x u_1'(x - \tau_0)^2},
+$$
+iterated with a fresh interpolation of $u_1$. This is the Lucas–Kanade method in one dimension.
+
+:::: thm
+[Theorem 5.4 — Cramér–Rao bound for a translation]{.tag} In the model of ch. 5.1 with $u_1$ known and differentiable, every unbiased estimator of $\tau$ satisfies
+$$
+\mathrm{Var}(\hat\tau) \geq \frac{\sigma^2}{\sum_x u_1'(x - \tau)^2} .
+$$
+If both images carry independent noise of variance $\sigma^2$, the bound is approximately doubled.
+
+::: proof
+1.  Up to a constant, the log-likelihood is
+    $$
+    \ell(\tau) = -\frac{1}{2\sigma^2} \sum_x \big(u_2(x) - u_1(x - \tau)\big)^2 .
+    $$
+2.  At the true $\tau$, where $u_2 - u_1(\cdot - \tau) = n$, the score is
+    $$
+    \ell'(\tau) = -\frac{1}{\sigma^2} \sum_x n(x)\, u_1'(x - \tau).
+    $$
+3.  The noise samples are independent of variance $\sigma^2$, so the Fisher information is
+    $$
+    I(\tau) = \mathbb{E}\big[\ell'(\tau)^2\big] = \frac{1}{\sigma^2} \sum_x u_1'(x - \tau)^2 .
+    $$
+4.  Theorem 0.5 concludes. When both images are noisy, the residual has variance about $2\sigma^2$ and the same computation doubles the bound. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.5 — Best precision on a 9 × 9 window]{.tag} Take 81 pixels whose gradient along the epipolar direction has a root-mean-square value of 10 grey levels per pixel, and a noise of $\sigma = 2$ grey levels in each image.
+
+-   The sum of squared derivatives is $81 \times 100 = 8100$.
+-   With noise in both images the bound on the variance is $2 \times 4 / 8100$, so the standard deviation is at least 0.031 pixel.
+-   With $\delta = 0.7$ m and $B/H = 0.3$ (Example 4.2), the height precision is at best
+    $$
+    \sigma_h \approx 0.7 \times 0.031 / 0.3 \approx 0.07\ \text{m}.
+    $$
+:::
+
+On a uniform roof, a road or water, the gradient energy vanishes and no estimator can locate the match; hence larger windows in weakly textured areas, at the price of fattening.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(4)
+N, sigma, trials = 256, 0.01, 400
+k = np.fft.fftfreq(N)                                   # frequencies in cycles per pixel
+
+def bandlimited(rng, cutoff=0.35):
+    spec = (rng.standard_normal(N) + 1j * rng.standard_normal(N)) * (np.abs(k) < cutoff)
+    u = np.real(np.fft.ifft(spec)); return u / u.std()
+
+def shift(u, tau):                                      # exact DFT translation u(x - tau)
+    return np.real(np.fft.ifft(np.fft.fft(u) * np.exp(-2j * np.pi * k * tau)))
+
+def ssd_parabola(u1, u2, rmax=3):
+    c = np.array([np.sum((u2 - np.roll(u1, d)) ** 2) for d in range(-rmax, rmax + 1)])
+    i = np.argmin(c[1:-1]) + 1
+    cm, c0, cp = c[i - 1], c[i], c[i + 1]
+    return i - rmax + (cm - cp) / (2 * (cm - 2 * c0 + cp))   # Proposition 5.2
+
+def phase_correlation(u1, u2):
+    cross = np.fft.fft(u2) * np.conj(np.fft.fft(u1))    # |U1|^2 exp(-2 i pi k tau)
+    peak = np.argmax(np.real(np.fft.ifft(cross / (np.abs(cross) + 1e-12))))
+    t0 = peak if peak < N // 2 else peak - N             # integer part of the shift
+    phi = np.angle(cross * np.exp(2j * np.pi * k * t0))  # residual phase -2 pi k (tau - t0)
+    w = np.abs(cross)                                   # weighted fit of the phase slope
+    return t0 - np.sum(w * k * phi) / (2 * np.pi * np.sum(w * k * k))
+
+def gradient_refine(u1, u2, tau0, iters=5):              # Gauss-Newton on the shift (ch. 5.5)
+    tau = tau0
+    for _ in range(iters):
+        w = shift(u1, tau)
+        g = np.real(np.fft.ifft(2j * np.pi * k * np.fft.fft(w)))   # derivative of the shifted signal
+        tau -= np.sum(g * (u2 - w)) / np.sum(g * g)
+    return tau
+
+err_par, err_pc, err_gn, fracs, crb = [], [], [], [], []
+for _ in range(trials):
+    u1 = bandlimited(rng)
+    du = np.real(np.fft.ifft(2j * np.pi * k * np.fft.fft(u1)))   # exact derivative
+    crb.append(sigma ** 2 / np.sum(du ** 2))                       # Theorem 5.4
+    tau = rng.uniform(-2, 2)
+    u2 = shift(u1, tau) + sigma * rng.standard_normal(N)
+    t_par = ssd_parabola(u1, u2)
+    err_pc.append(phase_correlation(u1, u2) - tau)
+    err_par.append(t_par - tau); err_gn.append(gradient_refine(u1, u2, t_par) - tau)
+    fracs.append(tau - np.round(tau))
+err_par, err_pc, err_gn, fracs = map(np.array, (err_par, err_pc, err_gn, fracs))
+print("RMS error, parabola on SSD     : %.4f px" % np.sqrt(np.mean(err_par ** 2)))
+print("RMS error, phase correlation    : %.4f px" % np.sqrt(np.mean(err_pc ** 2)))
+print("RMS error, gradient refinement : %.4f px" % np.sqrt(np.mean(err_gn ** 2)))
+print("Cramer-Rao bound               : %.4f px" % np.sqrt(np.mean(crb)))
+near = np.abs(np.abs(fracs) - 0.25) < 0.05
+print("parabola bias at fractional shift +-0.25: %.4f px" % np.mean(np.sign(fracs[near]) * err_par[near]))
+```
+
+Phase correlation and gradient refinement reach the Cramér–Rao bound; the parabola on the SSD cost is about seventy times less precise and locks towards integers (mean error −0.05 pixel at a fractional shift of 0.25).
+
+### 5.6 The error budget of a satellite DSM
+
+In a real pair, other terms add to the bound of Theorem 5.4.
+
+-   **Noise**: the Cramér–Rao term, set by texture and signal-to-noise ratio.
+-   **Aliasing and interpolation**: a bias periodic in the fractional shift, small when $Q$ is close to 1 or above (ch. 2.3).
+-   **Model error**: a slanted or discontinuous surface inside the window violates the constant-shift hypothesis.
+-   **Radiometric differences**: shadows and specular reflections that change between views.
+-   **Geometry**: residual pointing errors and attitude jitter, which bend the epipolar lines.
+
+Work by Delon and Rougé (2007) and by Sabater, Morel and Almansa (2011) shows that block matching can approach a few hundredths of a pixel on well-textured areas, which small-baseline acquisitions exploit.
+
+::: recap
+Key takeaways — chapter 5
+
+-   A band-limited image can be translated exactly in the Fourier domain; boundaries and aliasing add small, structured errors.
+-   Parabola fitting of the cost is biased towards integer disparities (pixel locking) unless the cost really is parabolic.
+-   Phase correlation estimates global shifts from the slope of the cross-power spectrum phase and is robust to illumination.
+-   Gauss–Newton refinement on interpolated images attains the Cramér–Rao bound $\sigma^2 / \sum u'^2$.
+-   Precision is limited by texture: on uniform areas no estimator can locate the match.
+:::
+
+## 6. 3D from SAR: interferometry and phase unwrapping {#ch6}
+
+A SAR image measures ranges, not elevations. Two complex images from slightly different positions add the difference of their phases, which encodes elevation within a fraction of a wavelength. This chapter turns it into heights or displacements.
+
+### 6.1 The interferometric phase
+
+Let $z_1$ and $z_2$ be two SLC images of the same area, co-registered to a small fraction of a pixel with the tools of ch. 5. Their **interferogram** is the pixel-wise product
+$$
+v = z_1\, \overline{z_2} .
+$$
+
+By Definition 0.3 its argument is the wrapped phase difference. If the scatterers of each resolution cell are unchanged between the two acquisitions, their random phases $\psi_k$ (ch. 3.5) cancel, and only the difference of the two ranges remains:
+$$
+\varphi = \frac{4\pi}{\lambda}\, (R_2 - R_1) \pmod{2\pi}.
+$$
+
+The interferometric phase is a sum of contributions, each studied below:
+$$
+\varphi = \varphi_{\mathrm{flat}} + \varphi_{\mathrm{topo}} + \varphi_{\mathrm{defo}} + \varphi_{\mathrm{atmo}} + \varphi_{\mathrm{noise}} \pmod{2\pi} .
+$$
+
+The flat-earth term, computed from the orbits, is removed; the atmospheric term is the difference of propagation delays between dates.
+
+### 6.2 Topographic phase and height of ambiguity
+
+Let $B_\perp$ be the component of the baseline (the vector between the two antenna positions) perpendicular to the line of sight, and $\theta$ the incidence angle.
+
+:::: prop
+[Proposition 6.1 — Height of ambiguity]{.tag} In the far-field approximation, a change $\Delta h$ of the height of a point at slant range $R$ changes the interferometric phase by
+$$
+\Delta\varphi = \frac{4\pi\, B_\perp}{\lambda\, R \sin\theta}\, \Delta h .
+$$
+One fringe ($2\pi$) thus corresponds to the **height of ambiguity**
+$$
+h_a = \frac{\lambda\, R \sin\theta}{2 B_\perp} .
+$$
+
+::: proof
+1.  When $B \ll R$, the range difference is the projection of the baseline on the line of sight: $R_2 - R_1 \approx -B_\parallel$, the parallel component.
+2.  Rotating the line of sight by a small angle $\delta\theta$ changes the parallel component by $B_\perp\, \delta\theta$.
+3.  To stay at the same slant range $R$ while rising by $\Delta h$, the point must move along the range circle; the look angle changes by $\delta\theta = \Delta h / (R \sin\theta)$.
+4.  Multiplying the change of range difference $B_\perp \Delta h / (R \sin\theta)$ by $4\pi/\lambda$ gives $\Delta\varphi$, up to a sign that depends on conventions. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 6.2 — Sentinel-1-like geometry]{.tag} With $\lambda = 5.55$ cm, $R = 850$ km, $\theta = 35$° and $B_\perp = 150$ m:
+$$
+h_a = \frac{0.0555 \times 850\,000 \times \sin 35°}{2 \times 150} \approx 90\ \text{m}.
+$$
+A 400 m hill thus produces between four and five fringes.
+:::
+
+A displacement $d$ of the ground along the line of sight changes each range by $d$, hence the round-trip path by $2d$.
+
+::: key
+[Key result — sensitivity of the interferometric phase]{.tag}
+$$
+\Delta\varphi_{\mathrm{topo}} = 2\pi\, \frac{\Delta h}{h_a}, \qquad \Delta\varphi_{\mathrm{defo}} = \frac{4\pi}{\lambda}\, d
+$$
+:::
+
+One fringe is 2.8 cm of displacement at C-band but 90 m of topography in Example 6.2: the phase is about three thousand times more sensitive to displacement, so differential interferometry measures millimetres.
+
+### 6.3 Coherence
+
+::: def
+[Definition 6.3 — Complex coherence]{.tag} For two jointly circular Gaussian SLC values, the complex coherence is
+$$
+\gamma = \frac{\mathbb{E}\big[z_1\, \overline{z_2}\big]}{\sqrt{\mathbb{E}|z_1|^2\, \mathbb{E}|z_2|^2}}, \qquad |\gamma| \in [0, 1].
+$$
+Its argument is the interferometric phase and its modulus measures how similar the two speckle patterns are. It is estimated over $L$ neighbouring pixels by replacing expectations with sums.
+:::
+
+The estimator is biased upwards: for $\gamma = 0$, $L$ pixels give $|\hat\gamma|$ of order $1/\sqrt{L}$, so windows hold tens of pixels.
+
+The coherence factorises into independent sources of decorrelation.
+
+-   **Thermal noise**: $\gamma_{\mathrm{SNR}} = 1 / (1 + \mathrm{SNR}^{-1})$.
+-   **Geometric (baseline) decorrelation**: the two images see the ground with slightly different wavenumbers. Coherence vanishes beyond a critical perpendicular baseline, about $\lambda R \tan\theta / (2\rho_r)$ for a slant-range resolution $\rho_r$ (Gatelli et al., 1994); it is several kilometres for Sentinel-1-like parameters.
+-   **Temporal decorrelation**: vegetation, water, snow and ploughed fields change between dates; rocks and buildings stay coherent for years.
+-   **Volume decorrelation**: scatterers spread in height, as in a forest canopy, add phases that vary with the baseline.
+
+::: thm
+[Theorem 6.4 — Precision of the interferometric phase]{.tag} For $L$ independent looks of coherence $|\gamma|$, the variance of any unbiased estimator of the phase satisfies
+$$
+\sigma_\varphi^2 \geq \frac{1 - |\gamma|^2}{2 L\, |\gamma|^2} .
+$$
+:::
+
+The bound follows from the Fisher information of the complex Gaussian model (Rodriguez and Martin, 1992). For $|\gamma| = 0.5$ and $L = 20$, $\sigma_\varphi \geq 0.27$ rad: 3.9 m of height with $h_a = 90$ m, or 1.2 mm of displacement at C-band.
+
+### 6.4 Phase unwrapping
+
+Restoring the multiples of $2\pi$ requires a smoothness hypothesis.
+
+:::: thm
+[Theorem 6.5 — Itoh's condition]{.tag} Let $\varphi_0, \dots, \varphi_n$ be samples of a phase and $\psi_k = \mathcal{W}(\varphi_k)$ the wrapped samples. If $|\varphi_{k+1} - \varphi_k| < \pi$ for every $k$, then
+$$
+\varphi_k = \varphi_0 + \sum_{j=0}^{k-1} \mathcal{W}(\psi_{j+1} - \psi_j) .
+$$
+
+::: proof
+1.  Each $\psi_j$ differs from $\varphi_j$ by a multiple of $2\pi$, so $\psi_{j+1} - \psi_j$ differs from $\varphi_{j+1} - \varphi_j$ by a multiple of $2\pi$.
+2.  The wrapping operator ignores multiples of $2\pi$, so
+    $$
+    \mathcal{W}(\psi_{j+1} - \psi_j) = \mathcal{W}(\varphi_{j+1} - \varphi_j).
+    $$
+3.  By hypothesis $\varphi_{j+1} - \varphi_j$ lies in $(-\pi, \pi)$, where $\mathcal{W}$ is the identity. Summing the differences gives the result. [∎]{.qed}
+:::
+::::
+
+In two dimensions, the wrapped differences define a field $g$ that should be the gradient of the unwrapped phase. It is a gradient only if its sum around every elementary loop of $2 \times 2$ pixels vanishes. A loop where the sum is $\pm 2\pi$ is a **residue**: there, the result of integration depends on the path.
+
+Residues appear where the phase is noisy or jumps by more than $\pi$ (layover, steep slopes). Three families of methods handle them.
+
+-   **Branch cuts** (Goldstein, Zebker and Werner, 1988): connect residues of opposite signs by cuts that integration paths may not cross.
+-   **Least squares** (Ghiglia and Romero, 1994): find the phase whose gradient is closest to $g$.
+-   **Minimum-cost flow with statistical costs** (Chen and Zebker, 2001, the SNAPHU software): correct $g$ by integer multiples of $2\pi$ at minimal cost, with costs derived from the coherence.
+
+:::: prop
+[Proposition 6.6 — Least-squares unwrapping solves a Poisson equation]{.tag} On an $M \times N$ grid, the minimisers of
+$$
+\sum_{i,j} \big(\varphi_{i,j+1} - \varphi_{i,j} - g^x_{i,j}\big)^2 + \big(\varphi_{i+1,j} - \varphi_{i,j} - g^y_{i,j}\big)^2
+$$
+are the solutions of the discrete Poisson equation $\Delta \varphi = \operatorname{div} g$ with Neumann boundary conditions. The two-dimensional discrete cosine transform diagonalises this Laplacian, with eigenvalues
+$$
+2\cos\frac{\pi i}{M} + 2\cos\frac{\pi j}{N} - 4 .
+$$
+
+::: proof
+1.  Write the criterion as $\|A\varphi - g\|^2$, with $A$ the forward-difference operator restricted to the grid.
+2.  The normal equations (Proposition 0.6) read $A^\top A\, \varphi = A^\top g$.
+3.  $A^\top$ is minus a backward-difference divergence, so $A^\top A = -\Delta$ with reflecting boundaries and $A^\top g = -\operatorname{div} g$.
+4.  The cosines $\cos(\pi i (2k + 1)/(2M))$ are eigenvectors of the one-dimensional Neumann Laplacian with eigenvalues $2\cos(\pi i/M) - 2$; tensor products give the 2D case. The constant mode (eigenvalue 0) is the unknown additive constant. [∎]{.qed}
+:::
+::::
+
+```python
+import numpy as np
+from scipy.fft import dctn, idctn
+
+rng = np.random.default_rng(5)
+n = 128
+y, x = np.mgrid[0:n, 0:n] / n
+h = 400 * np.exp(-((x - 0.5) ** 2 + (y - 0.45) ** 2) / 0.03)    # a 400 m hill
+h_a = 90.0                                                      # height of ambiguity (m)
+phi = 2 * np.pi * h / h_a                                       # topographic phase (rad)
+
+def wrap(a):
+    return np.angle(np.exp(1j * a))
+
+def unwrap_ls(psi):
+    """Unweighted least-squares unwrapping (Ghiglia and Romero, 1994)."""
+    gx = np.zeros_like(psi); gy = np.zeros_like(psi)
+    gx[:, :-1] = wrap(np.diff(psi, axis=1))                     # wrapped gradients
+    gy[:-1, :] = wrap(np.diff(psi, axis=0))
+    rho = gx.copy(); rho[:, 1:] -= gx[:, :-1]                   # divergence of the gradient field
+    rho += gy; rho[1:, :] -= gy[:-1, :]
+    P = dctn(rho, type=2, norm="ortho")                         # Poisson equation, Neumann boundary
+    i, j = np.mgrid[0:psi.shape[0], 0:psi.shape[1]]
+    denom = 2 * np.cos(np.pi * i / psi.shape[0]) + 2 * np.cos(np.pi * j / psi.shape[1]) - 4
+    denom[0, 0] = 1.0
+    P /= denom; P[0, 0] = 0.0
+    return idctn(P, type=2, norm="ortho")
+
+def residues(psi):
+    d1 = wrap(psi[:-1, 1:] - psi[:-1, :-1]); d2 = wrap(psi[1:, 1:] - psi[:-1, 1:])
+    d3 = wrap(psi[1:, :-1] - psi[1:, 1:]); d4 = wrap(psi[:-1, :-1] - psi[1:, :-1])
+    return np.round((d1 + d2 + d3 + d4) / (2 * np.pi))
+
+for noise in [0.3, 1.0]:                                        # phase noise (rad)
+    psi = wrap(phi + noise * rng.standard_normal(phi.shape))    # observed wrapped phase
+    est = unwrap_ls(psi)
+    est += np.mean(phi - est)                                   # fix the unknown constant
+    err = h_a / (2 * np.pi) * np.sqrt(np.mean((est - phi) ** 2))
+    pc = phi - phi.mean()
+    gain = np.sum((est - est.mean()) * pc) / np.sum(pc ** 2)   # 1 = heights fully recovered
+    print(f"noise {noise} rad: {int(np.abs(residues(psi)).sum())} residues, "
+          f"RMS height error {err:.1f} m, height gain {gain:.2f}")
+```
+
+With 0.3 rad of noise there are no residues and least squares return the phase up to noise. With 1 rad, over a thousand residues appear and least squares *flatten* the hill to two thirds of its height; coherence weights or minimum-cost flow reduce this bias.
+
+### 6.5 Heights, displacements and other 3D techniques
+
+The unwrapped phase gives $h = h_a\, \varphi / (2\pi) + h_0$, with $h_0$ fixed by a control point, then geocoding (ch. 3.4) maps it.
+
+-   **Single-pass interferometry** avoids temporal decorrelation and atmospheric differences; the TanDEM-X formation produced a global DEM this way (Krieger et al., 2007).
+-   **Differential interferometry (DInSAR)** subtracts the topographic phase of a DEM, leaving displacement and atmosphere; the Landers earthquake map of Massonnet et al. (1993) opened the field. The atmosphere, a few centimetres and spatially correlated, is the main error (ch. 8.5).
+-   **Radargrammetry** matches amplitude images of different incidences, with parallax along range, using ch. 4–5 with speckle-adapted costs.
+-   **SAR tomography** uses many baselines to separate scatterers stacked in elevation within one pixel, as in layover (Reigber and Moreira, 2000).
+
+::: recap
+Key takeaways — chapter 6
+
+-   The interferogram $z_1 \bar z_2$ cancels the random speckle phase and keeps the range difference, wrapped modulo $2\pi$.
+-   One fringe is $h_a = \lambda R \sin\theta / (2B_\perp)$ of height, but only $\lambda/2$ of line-of-sight displacement.
+-   Coherence measures the similarity of the two speckle patterns; it sets the phase precision through $(1 - |\gamma|^2)/(2L|\gamma|^2)$.
+-   Unwrapping is exact in 1D under Itoh's condition; in 2D residues make it path-dependent.
+-   Least-squares unwrapping is a Poisson equation solved by DCT, but it underestimates heights where residues are many.
+:::
+
+## 7. Processing and exploitation of SAR data {#ch7}
+
+Speckle is not additive Gaussian noise, so optical tools must be adapted. This chapter derives the statistics every SAR chain uses, then builds despeckling filters, target detectors and change detectors on them.
+
+### 7.1 The multiplicative model and the log transform
+
+Recall the model of ch. 3.6: an $L$-look intensity is $I = R \cdot S$, where $S$ follows the Gamma law of shape $L$ and mean 1, independent of the reflectivity $R$. Taking logarithms makes the noise additive.
+
+:::: prop
+[Proposition 7.1 — Moments of log-speckle]{.tag} With $\psi$ the digamma function and $\psi'$ its derivative (the trigamma function),
+$$
+\mathbb{E}[\log S] = \psi(L) - \log L, \qquad \mathrm{Var}(\log S) = \psi'(L) .
+$$
+For $L = 1$ these are $-0.577$ (Euler's constant) and $\pi^2/6 \approx 1.645$.
+
+::: proof
+1.  For $s > -L$, the Gamma density of Definition 0.4 gives the moments
+    $$
+    \mathbb{E}[S^s] = \frac{\Gamma(L + s)}{\Gamma(L)\, L^s} .
+    $$
+2.  Since $S^s = e^{s \log S}$, this is the moment generating function of $\log S$. Its logarithm is the cumulant generating function $\kappa(s) = \log\Gamma(L+s) - \log\Gamma(L) - s \log L$.
+3.  The mean and the variance are $\kappa'(0) = \psi(L) - \log L$ and $\kappa''(0) = \psi'(L)$. [∎]{.qed}
+:::
+::::
+
+Single-look log-speckle has a standard deviation of 5.6 dB and a bias of $-2.5$ dB, to correct after log-domain filtering. Its law has a heavy lower tail: far from Gaussian for $L = 1$, close to it for large $L$.
+
+### 7.2 Local statistics: the Lee filter
+
+:::: thm
+[Theorem 7.2 — Linear minimum mean-square error filter (Lee, 1980)]{.tag} Let $R$ be random with mean $\mu$, and $I = R S$ with $S$ independent of $R$, of mean 1 and variance $1/L$.
+
+Among estimators of the form $a + bI$, the one of smallest mean-square error is
+$$
+\hat R = \mu + k\, (I - \mu), \qquad k = \frac{\mathrm{Var}(R)}{\mathrm{Var}(I)}, \qquad \mathrm{Var}(R) = \frac{\mathrm{Var}(I) - \mu^2/L}{1 + 1/L} .
+$$
+
+::: proof
+1.  Since $\mathbb{E}[I] = \mathbb{E}[R]\,\mathbb{E}[S] = \mu$, the normal equations in dimension one give the best linear estimator
+    $$
+    \hat R = \mu + \frac{\mathrm{Cov}(R, I)}{\mathrm{Var}(I)}\, (I - \mu).
+    $$
+2.  By independence,
+    $$
+    \mathrm{Cov}(R, I) = \mathbb{E}[R^2]\,\mathbb{E}[S] - \mu^2 = \mathrm{Var}(R).
+    $$
+3.  Also $\mathbb{E}[I^2] = \mathbb{E}[R^2]\, (1 + 1/L)$, so $\mathrm{Var}(I) = (1 + 1/L)\,\mathrm{Var}(R) + \mu^2/L$, which gives $\mathrm{Var}(R)$. [∎]{.qed}
+:::
+::::
+
+The moments are estimated in a sliding window. In a homogeneous area $\mathrm{Var}(I) \approx \mu^2/L$, so $k \approx 0$ and the filter averages; near an edge $k$ approaches 1 and speckle survives. Directional windows (refined Lee) and the Frost and Kuan filters improve this compromise.
+
+```python
+import numpy as np
+from scipy.ndimage import uniform_filter
+from scipy.special import digamma, polygamma
+
+rng = np.random.default_rng(6)
+L = 1
+R = np.full((128, 128), 1.0)                       # reflectivity: background
+R[32:96, 32:64] = 8.0                              # a bright field
+R[40:88, 80:112] = 0.25                            # a dark field
+I = R * rng.gamma(L, 1.0 / L, size=R.shape)        # multiplicative speckle (ch. 3.6)
+
+# Log-speckle moments (Proposition 7.1), on a large independent sample
+logS = np.log(rng.gamma(L, 1.0 / L, size=10**6))
+print("E[log S] = %.3f (theory %.3f), Var = %.3f (theory %.3f)"
+      % (logS.mean(), digamma(L) - np.log(L), logS.var(), polygamma(1, L)))
+
+def lee(I, L, w=7):
+    m = uniform_filter(I, w)                       # local mean
+    v = uniform_filter(I ** 2, w) - m ** 2         # local variance of I
+    var_R = np.maximum((v - m ** 2 / L) / (1 + 1 / L), 0)
+    k = var_R / np.maximum(v, 1e-12)               # Theorem 7.2
+    return m + k * (I - m)
+
+box, lf = uniform_filter(I, 7), lee(I, L)
+flat = (slice(5, 25), slice(5, 120))               # homogeneous strip of the background
+edge = np.zeros_like(R, bool); edge[30:34, 32:64] = True   # rows across the bright edge
+for name, J in [("noisy", I), ("7x7 boxcar", box), ("Lee 7x7", lf)]:
+    enl = J[flat].mean() ** 2 / J[flat].var()
+    err = np.mean(np.abs(np.log(J[edge] / R[edge])))
+    print(f"{name:10s}: ENL on a flat area {enl:6.1f}, mean |log error| at the edge {err:.2f}")
+```
+
+The moments match Proposition 7.1. The boxcar reaches an ENL near its 49 pixels but blurs the edge; the Lee filter smooths less and keeps the edge better.
+
+### 7.3 Non-local and self-supervised despeckling
+
+**Non-local means** average pixels whose patches look alike, with a similarity that must follow the speckle statistics.
+
+::: prop
+[Proposition 7.3 — Likelihood ratio between two speckled intensities]{.tag} Let $I_1$ and $I_2$ be independent $L$-look intensities of reflectivities $R_1$ and $R_2$.
+
+The generalised likelihood ratio test of equal against different reflectivities has the statistic
+$$
+-\log \mathrm{GLR} = L \log \frac{(I_1 + I_2)^2}{4\, I_1 I_2} \ \geq 0 .
+$$
+:::
+
+The proof maximises the Gamma likelihood with a common reflectivity, estimated by $(I_1 + I_2)/2$, and with separate ones, $I_1$ and $I_2$. Summed over patches, this dissimilarity weights the PPB filter (Deledalle, Denis and Tupin, 2009), which iterates on its previous estimates; NL-SAR (Deledalle et al., 2015) tunes patch sizes automatically.
+
+**Plug-and-play** methods such as MuLoG (Deledalle et al., 2017) embed any Gaussian denoiser in a log-domain optimisation that keeps the exact speckle likelihood.
+
+Deep networks reach the best quality, but real SAR data have no speckle-free targets. Three answers exist.
+
+-   Train on optical images with simulated speckle, at the risk of a domain gap.
+-   Use temporal averages of long stacks as references, or train on pairs of dates as in Noise2Noise; SAR2SAR (Dalsasso, Denis and Tupin, 2021) compensates the changes between dates.
+-   Use the structure of a single SLC image, as MERLIN does (Dalsasso, Denis and Tupin, 2022).
+
+:::: prop
+[Proposition 7.4 — Learning a despeckler from the real and imaginary parts]{.tag} In Goodman's model, conditionally on $R$, the real part $X$ and the imaginary part $Y$ of a pixel are independent centred Gaussians of variance $R/2$. A predictor $f(X) > 0$ that minimises the negative log-likelihood of $Y$,
+$$
+\mathbb{E}\Big[\tfrac12 \log f(X) + \frac{Y^2}{f(X)}\Big],
+$$
+is the posterior mean $f(X) = \mathbb{E}[R \mid X]$.
+
+::: proof
+1.  The criterion can be minimised separately for each value of $X$. For fixed $X$, the function $f \mapsto \frac12 \log f + \mathbb{E}[Y^2 \mid X] / f$ has derivative $\frac{1}{2f} - \frac{\mathbb{E}[Y^2 \mid X]}{f^2}$, which vanishes at $f = 2\,\mathbb{E}[Y^2 \mid X]$.
+2.  By conditional independence,
+    $$
+    \mathbb{E}[Y^2 \mid X] = \mathbb{E}\big[\mathbb{E}[Y^2 \mid R, X] \mid X\big] = \mathbb{E}[R/2 \mid X].
+    $$
+3.  Hence the minimiser is $\mathbb{E}[R \mid X]$. [∎]{.qed}
+:::
+::::
+
+The network learns a denoiser from noisy data alone; a weighted SLC spectrum correlates neighbouring pixels and must be whitened first.
+
+### 7.4 Target detection with a constant false-alarm rate
+
+A ship is detected when the intensity exceeds a threshold adapted to the local clutter, so that the probability of false alarm (PFA) stays constant: a CFAR detector. By the Neyman–Pearson lemma, for a bright target in Gamma clutter, the most powerful test is a threshold on the intensity.
+
+For single-look clutter of known mean $\mu$, the intensity is exponential and $P(I > t) = e^{-t/\mu}$, so
+$$
+t = -\mu \log(\mathrm{PFA}).
+$$
+A PFA of $10^{-6}$ requires $t = 13.8\,\mu$, that is 11.4 dB above the mean of the sea.
+
+:::: prop
+[Proposition 7.5 — Cell-averaging CFAR]{.tag} Let the clutter mean be estimated by the average $\hat\mu$ of $N$ independent single-look reference cells around the cell under test, and the detection threshold be $\alpha \hat\mu$. The exact probability of false alarm is
+$$
+\mathrm{PFA} = \Big(1 + \frac{\alpha}{N}\Big)^{-N} .
+$$
+
+::: proof
+1.  The sum $Z = N\hat\mu$ follows the Gamma law of shape $N$ and mean $N\mu$, independent of the tested intensity.
+2.  Conditionally on $Z$, the false-alarm probability is $e^{-\alpha Z/(N\mu)}$.
+3.  Its expectation is the Laplace transform of the Gamma law at $\alpha/(N\mu)$, which equals $(1 + \alpha/N)^{-N}$. [∎]{.qed}
+:::
+::::
+
+Inverting gives $\alpha = N(\mathrm{PFA}^{-1/N} - 1)$, slightly above $-\log \mathrm{PFA}$: estimating the mean costs a little sensitivity. Rough seas and cities have heavier tails, modelled by the K distribution (Jakeman and Pusey, 1976).
+
+```python
+import numpy as np
+from scipy.ndimage import uniform_filter
+
+rng = np.random.default_rng(7)
+n = 512
+y, x = np.mgrid[0:n, 0:n] / n
+mu = 1.0 + 0.5 * np.sin(2 * np.pi * x) * np.cos(2 * np.pi * y)   # slowly varying sea clutter
+I = mu * rng.exponential(1.0, size=(n, n))                         # single-look intensity
+ships = rng.integers(20, n - 20, size=(15, 2))
+I[ships[:, 0], ships[:, 1]] += 40 * mu[ships[:, 0], ships[:, 1]]  # 15 bright point targets
+
+pfa, outer, guard = 1e-4, 21, 7
+N = outer**2 - guard**2                                            # reference cells in the ring
+ring_mean = (uniform_filter(I, outer) * outer**2 - uniform_filter(I, guard) * guard**2) / N
+alpha = N * (pfa ** (-1 / N) - 1)                                  # Proposition 7.5
+det = I > alpha * ring_mean
+hit = det[ships[:, 0], ships[:, 1]].sum()
+fa = det.sum() - hit
+print(f"threshold factor {alpha:.2f} (known mean: {-np.log(pfa):.2f})")
+print(f"detected ships {hit}/15, false alarms {fa} (expected about {pfa * n * n:.0f})")
+```
+
+All fifteen targets are found; the 33 false alarms are close to the 26 expected, given the fluctuation and the clutter variation inside the window.
+
+### 7.5 Change detection
+
+To find floods, harvests or collapsed buildings between two co-registered intensities, one uses their ratio: differences are useless under multiplicative noise.
+
+::: prop
+[Proposition 7.6 — Law of the ratio under no change]{.tag} If $I_1$ and $I_2$ are independent $L$-look intensities of the same reflectivity, the ratio $r = I_1 / I_2$ follows the Fisher–Snedecor law with $(2L, 2L)$ degrees of freedom, whatever the reflectivity.
+:::
+
+Indeed $R$ cancels, and $2L$ times a Gamma variable of shape $L$ and mean 1 is chi-square with $2L$ degrees of freedom; the ratio of two independent chi-squares divided by their degrees of freedom is Fisher–Snedecor.
+
+The test "change if $r$ is outside $[q_{0.005}, q_{0.995}]$" thus has a 1 % false-alarm rate on every surface. For $L = 4$ the quantiles of the law with (8, 8) degrees of freedom are 0.13 and 7.5: a change must exceed a factor 7.5, or 8.7 dB, to be detected pixel by pixel. Averaging over regions, or using the likelihood ratio of Proposition 7.3 on patches, lowers this level. The ratio edge detector of Touzi, Lopes and Bousquet (1988) applies the same statistic to two half-windows of a single image.
+
+### 7.6 Polarimetry
+
+A polarimetric SAR emits and receives horizontal (H) and vertical (V) polarisations: each pixel is a $2 \times 2$ complex scattering matrix (HH, HV, VH, VV), with HV = VH for reciprocal media.
+
+-   The **Pauli vector**, whose components are HH + VV, HH − VV and 2 HV divided by $\sqrt 2$, separates single-bounce scattering (bare surfaces), double-bounce scattering (walls and ground) and volume scattering (vegetation).
+-   Its $L$-look covariance matrix follows a complex Wishart law, the multivariate analogue of the Gamma law, on which classifiers and change tests are built.
+-   The entropy and mean angle of the eigen-decomposition of this matrix give a classification of scattering mechanisms (Cloude and Pottier, 1997).
+
+Sentinel-1 is dual-polarised (VV and VH, or HH and HV); the VH/VV ratio already separates vegetation from bare surfaces.
+
+::: recap
+Key takeaways — chapter 7
+
+-   Log-speckle has mean $\psi(L) - \log L$ and variance $\psi'(L)$: 5.6 dB of standard deviation for one look.
+-   The Lee filter is the linear MMSE estimator under the multiplicative model; it averages flat areas and leaves edges noisy.
+-   Patch similarities for SAR come from the likelihood ratio of Gamma laws; plug-and-play and self-supervised networks reach the best quality without clean references.
+-   CFAR detectors adapt the threshold to the local clutter; cell averaging over $N$ cells gives the exact PFA $(1 + \alpha/N)^{-N}$.
+-   The ratio of two intensities is Fisher–Snedecor under no change, so ratio tests have the same false-alarm rate on every surface.
+:::
+
+## 8. Time series analysis {#ch8}
+
+With revisits of a few days, each pixel of the Earth is a time series. This chapter turns series into seasonal models, alarms, maps and deformation histories, despite clouds, irregular sampling and noise.
+
+### 8.1 Satellite image time series and data cubes
+
+A satellite image time series (SITS) is a stack of orthorectified (ch. 2.7), co-registered (ch. 5.4) images: a **data cube** with axes $x$, $y$, time and band.
+
+-   **Analysis-ready data**: surface reflectances (after atmospheric correction) with per-pixel masks of clouds, shadows, snow and water. Mono-date detectors such as Fmask (Zhu and Woodcock, 2012) or multi-temporal ones such as MAJA (Hagolle et al., 2010) produce the masks.
+-   **Fixed tiling**: products are cut into tiles of a fixed grid, about 110 km wide for Sentinel-2, so that all dates of a place share the same pixels.
+-   **Irregular sampling**: after masking, the valid dates of a pixel are irregular, and whole seasons can be missing in cloudy regions.
+-   **Scale**: a continent over several years holds petabytes. Cloud platforms such as Google Earth Engine (Gorelick et al., 2017) bring the computation to the data, and tiled, cloud-optimised formats let a program read only the windows it needs.
+
+### 8.2 Seasonal models by harmonic regression
+
+::: def
+[Definition 8.1 — Harmonic regression]{.tag} With $T = 365.25$ days and $K$ harmonics, the model of a pixel's index at the valid dates $t_j$ is
+$$
+y(t_j) = a_0 + a_1 \frac{t_j}{T} + \sum_{k=1}^{K} \Big( b_k \cos\frac{2\pi k t_j}{T} + c_k \sin\frac{2\pi k t_j}{T} \Big) + \varepsilon_j .
+$$
+It is linear in its $2K + 2$ coefficients, so it is fitted by least squares (Proposition 0.6) on the valid dates only.
+:::
+
+The estimate has covariance $\sigma^2 (A^\top A)^{-1}$, with $A$ the design matrix of the valid dates: irregular sampling is harmless if the dates cover the year, but a missing season makes the fit unreliable there (Ex. 12).
+
+Undetected clouds lower the index: one-sided outliers, which reweighted least squares with Tukey's bisquare weight ignore. Phenological dates are read on the fitted curve.
+
+### 8.3 Detecting breaks
+
+A clear-cut, a fire or a new building makes the series leave its seasonal model, fitted on a stable history.
+
+:::: prop
+[Proposition 8.2 — CUSUM as a maximum of likelihood ratios]{.tag} Let the residuals $e_t$ be independent, $\mathcal{N}(0, \sigma^2)$ before a change and $\mathcal{N}(\mu_1, \sigma^2)$ after it. The log-likelihood ratio of one residual is
+$$
+s_t = \frac{\mu_1 e_t - \mu_1^2/2}{\sigma^2} .
+$$
+The recursion $S_t = \max(0, S_{t-1} + s_t)$ with $S_0 = 0$ gives, at each time, the largest cumulative log-likelihood ratio over all possible change times:
+$$
+S_t = \max\Big(0,\ \max_{1 \le \tau \le t}\ \sum_{u=\tau}^{t} s_u\Big) .
+$$
+
+::: proof
+1.  The ratio of the two Gaussian densities at $e_t$ has logarithm $\big(e_t^2 - (e_t - \mu_1)^2\big)/(2\sigma^2)$, which simplifies to $s_t$.
+2.  The formula for $S_t$ holds at $t = 1$. Assume it at $t - 1$.
+3.  Then $S_{t-1} + s_t$ is the best sum ending at $t$ for a change before $t$, $s_t$ alone is a change at $t$, and the maximum with 0 covers "no change yet". By induction the formula holds for all $t$. [∎]{.qed}
+:::
+::::
+
+Page's CUSUM raises an alarm when $S_t$ exceeds a threshold $h$; a larger $h$ means fewer false alarms and a longer delay. This rule is optimal in Lorden's minimax sense for detecting a known shift (Moustakides, 1986), and the theory of these stopping times is developed in [Stopping Times and Online Algorithms](../s2-stopping-times-online/index.html). BFAST (Verbesselt et al., 2010) handles unknown shifts and trend changes with structural-change tests on a decomposed series.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(8)
+t = np.arange(0, 3 * 365, 5.0)                       # a Sentinel-2-like 5-day sampling, 3 years
+season = lambda t: 0.45 + 0.25 * np.cos(2 * np.pi * (t - 200) / 365.25)
+ndvi = season(t) + 0.03 * rng.standard_normal(t.size)
+ndvi[t >= 800] -= 0.30                                # clear-cut on day 800
+clear = rng.random(t.size) > 0.6                      # about 60 % of the dates are cloudy
+missed = (~clear) & (rng.random(t.size) < 0.15)       # some clouds escape the mask
+obs = ndvi.copy(); obs[missed] -= 0.4                 # undetected clouds lower the NDVI
+valid = clear | missed
+
+def design(t, K=2, T=365.25):
+    cols = [np.ones_like(t), t / T]
+    for k in range(1, K + 1):
+        cols += [np.cos(2 * np.pi * k * t / T), np.sin(2 * np.pi * k * t / T)]
+    return np.stack(cols, axis=1)
+
+# Fit the seasonal model on the first two years with iteratively reweighted least squares
+hist = valid & (t < 730)
+A, y = design(t[hist]), obs[hist]
+w = np.ones(y.size)
+for _ in range(20):                                   # Tukey bisquare weights
+    beta = np.linalg.lstsq(A * w[:, None] ** 0.5, y * w ** 0.5, rcond=None)[0]
+    r = y - A @ beta
+    s = 1.4826 * np.median(np.abs(r))                 # robust scale
+    w = np.clip(1 - (r / (4.685 * s)) ** 2, 0, None) ** 2
+ols = np.linalg.lstsq(A, y, rcond=None)[0]
+print("amplitude of the annual term: OLS %.3f, robust %.3f (true 0.25)"
+      % (np.hypot(*ols[2:4]), np.hypot(*beta[2:4])))
+
+# Monitor year 3 with a one-sided CUSUM on the residuals (Proposition 8.2)
+mon = valid & (t >= 730)
+e = obs[mon] - design(t[mon]) @ beta
+mu1, h = -0.15, 40.0                                  # shift to detect, alarm threshold
+S, alarm = 0.0, None
+for ti, ei in zip(t[mon], np.maximum(e, 2 * mu1)):     # clipping: one outlier cannot alarm
+    llr = (mu1 * ei - mu1 ** 2 / 2) / s ** 2          # log-likelihood ratio of one date
+    S = max(0.0, S + llr)
+    if S > h and alarm is None:
+        alarm = ti
+print("valid dates:", valid.sum(), "of", t.size, "| break on day 800, alarm on day", alarm)
+```
+
+The robust fit recovers the annual amplitude that ordinary least squares distorts. Clipping each residual at $2\mu_1$ prevents a single undetected cloud from raising the alarm, so at least two anomalous dates are needed. In this run the alarm is raised on day 800, the date of the cut, helped by an undetected cloud ten days earlier. Over other seeds the delay varies by a few weeks, and two close undetected clouds occasionally trigger an early alarm: missed clouds are the main source of false alarms in practice.
+
+### 8.4 Classifying time series
+
+Crop mapping classifies pixels or parcels from their series: winter cereals peak in spring, maize in summer, though both look alike on many single dates.
+
+-   **Features and forests**: gap-filled series, harmonic coefficients or phenological metrics feed a random forest, a robust baseline on millions of pixels.
+-   **Deep temporal models**: one-dimensional convolutions over time (TempCNN, Pelletier, Webb and Petitjean, 2019) or temporal self-attention over pixel sets (Sainte Fare Garnot et al., 2020). The BreizhCrops benchmark (Rußwurm et al., 2020) compares them on Sentinel-2 parcels in Brittany.
+-   **Validation**: pixels of one parcel share its sowing date, soil and variety. A random split of pixels puts the same parcel in training and test sets and measures memorisation, not generalisation. Splits must follow parcels or spatial blocks (Roberts et al., 2017).
+
+```python
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GroupKFold, KFold, cross_val_score
+
+rng = np.random.default_rng(9)
+t = np.arange(0, 365, 10.0)                                # 37 dates over one season
+peaks = {0: 120, 1: 150, 2: 180}                          # three crops with close peak dates
+X, y, parcel = [], [], []
+for p in range(120):                                      # 120 parcels, 20 pixels each
+    c = p % 3
+    shift = rng.normal(0, 20)                             # parcel effect: sowing date, variety
+    amp = rng.uniform(0.4, 0.6)
+    for _ in range(20):
+        curve = 0.2 + amp * np.exp(-((t - peaks[c] - shift) / 40) ** 2)
+        X.append(curve + 0.02 * rng.standard_normal(t.size)); y.append(c); parcel.append(p)
+X, y, parcel = np.array(X), np.array(y), np.array(parcel)
+
+rf = RandomForestClassifier(n_estimators=50, random_state=0)
+acc_pix = cross_val_score(rf, X, y, cv=KFold(5, shuffle=True, random_state=0)).mean()
+acc_par = cross_val_score(rf, X, y, cv=GroupKFold(5), groups=parcel).mean()
+print(f"random split of pixels : accuracy {acc_pix:.3f}")
+print(f"split by parcels       : accuracy {acc_par:.3f}")
+```
+
+The random split reports 81 % accuracy, the parcel split 57 %: the gap is leakage, and only the second number predicts accuracy on new parcels.
+
+### 8.5 SAR and InSAR time series
+
+Radar series ignore clouds, but carry speckle and atmosphere.
+
+-   **Temporal despeckling**: on stable areas, the average of $M$ co-registered dates has an ENL close to $ML$. RABASAR (Zhao et al., 2019) denoises the *ratio* of each date to this temporal average, which is close to 1 except where something changed, then multiplies back.
+-   **Multi-temporal change tests**: the omnibus test of Conradsen et al. (2016) generalises Proposition 7.6 to test whether all dates of a series share one reflectivity, and locates the change points.
+-   **Persistent scatterers** (Ferretti, Prati and Rocca, 2001): pixels dominated by one stable scatterer keep their phase over years. Selected by a low dispersion of their amplitude, they are modelled as a height error plus a velocity, estimated point by point.
+-   **Small baseline subsets (SBAS)** (Berardino et al., 2002): distributed targets are handled with many interferograms of short temporal and spatial baselines, unwrapped (ch. 6.4) and inverted together.
+
+Let the dates be $t_0 < \dots < t_N$ with phase $\varphi_i$ at date $t_i$ and $\varphi_0 = 0$. Each unwrapped interferogram between dates $i < j$ measures $\varphi_j - \varphi_i$ plus noise. Stacking them gives a linear system
+$$
+A\, \varphi = \delta\varphi ,
+$$
+where each row of $A$ has $+1$ in the column of date $j$ and $-1$ in that of date $i$ (no column for date 0).
+
+:::: prop
+[Proposition 8.3 — Rank of the SBAS system]{.tag} Consider the graph whose vertices are the $N + 1$ dates and whose edges are the interferograms, and let $K$ be its number of connected components. Then
+$$
+\operatorname{rank} A = N - K + 1 .
+$$
+The phases are determined by least squares if and only if the graph is connected.
+
+::: proof
+1.  A vector $\varphi$ with $\varphi_0 = 0$ is in the kernel of $A$ if and only if $\varphi_i = \varphi_j$ for every interferogram, that is, if $\varphi$ is constant on each connected component.
+2.  The constant on the component of $t_0$ must be 0, and the $K - 1$ other constants are free, so the kernel has dimension $K - 1$.
+3.  The rank theorem with $N$ columns gives the result. [∎]{.qed}
+:::
+::::
+
+For a disconnected graph, the minimum-norm phases shift each isolated subset towards zero and create jumps. Berardino et al. (2002) take instead the velocities between consecutive dates as unknowns; the minimum-norm solution then only zeroes the velocities of uncovered intervals, a much milder assumption.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(10)
+lam = 0.0555                                          # C-band wavelength (m)
+t = np.arange(25) * 12.0                              # 25 dates, 12 days apart
+d_true = -0.02 * t / 365 + 0.004 * np.sin(2 * np.pi * t / 365)   # subsidence + seasonal (m)
+phi_true = 4 * np.pi / lam * d_true                   # line-of-sight phase (ch. 6.2)
+to_mm = lambda p: 1000 * lam / (4 * np.pi) * np.sqrt(np.mean(p ** 2))
+
+def network(max_gap, cut=None):
+    pairs = [(i, j) for i in range(len(t)) for j in range(i + 1, len(t)) if j - i <= max_gap]
+    if cut is not None:                               # drop every pair spanning dates cut -> cut+1
+        pairs = [(i, j) for i, j in pairs if j <= cut or i >= cut + 1]
+    A = np.zeros((len(pairs), len(t) - 1))            # unknowns: phases of dates 1..N (date 0 = 0)
+    B = np.zeros((len(pairs), len(t) - 1))            # unknowns: velocities between dates
+    for m, (i, j) in enumerate(pairs):
+        if j > 0: A[m, j - 1] += 1
+        if i > 0: A[m, i - 1] -= 1
+        B[m, i:j] = np.diff(t)[i:j]
+    return pairs, A, B
+
+for cut in [None, 12]:
+    pairs, A, B = network(3, cut)
+    dphi = A @ phi_true[1:] + 0.3 * rng.standard_normal(len(pairs))  # unwrapped interferograms
+    print(f"{len(pairs)} interferograms, rank {np.linalg.matrix_rank(A)} for {A.shape[1]} dates")
+    est_phase = np.linalg.pinv(A) @ dphi              # minimum-norm phases
+    est_vel = np.cumsum((np.linalg.pinv(B) @ dphi) * np.diff(t))   # minimum-norm velocities
+    print(f"   RMS error: min-norm phases {to_mm(est_phase - phi_true[1:]):.1f} mm, "
+          f"min-norm velocities {to_mm(est_vel - phi_true[1:]):.1f} mm")
+```
+
+Connected, both parametrisations give the least-squares solution. Split into two subsets, minimum-norm phases are off by a centimetre and minimum-norm velocities by about two millimetres.
+
+::: recap
+Key takeaways — chapter 8
+
+-   A SITS is a data cube of co-registered, masked, analysis-ready images, with irregular valid dates.
+-   Harmonic regression fits the seasonal cycle by least squares on valid dates; bisquare weights remove undetected clouds.
+-   CUSUM accumulates log-likelihood ratios and is the maximum over all change times; clipping makes it robust to single outliers.
+-   Pixels of the same parcel must not be split between training and test sets, or accuracy is overestimated.
+-   SBAS inverts a network of interferograms; its rank is $N - K + 1$, and minimum-norm velocities bridge disconnected subsets.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study. It points to active lines of research that extend the models of ch. 2–8, with a few papers to start from; each section ends with questions that are still open.
+
+### 9.1 Neural rendering for satellite photogrammetry
+
+Neural radiance fields represent a scene as a function that returns a density and a colour at every 3D point, trained so that rendered rays reproduce the images. Work by Marí, Facciolo and Ehret adapted them to satellites. Sat-NeRF (2022) uses the RPC cameras of ch. 2.6 and models transient objects such as cars; EO-NeRF (2023) models shadows explicitly and uses them, across dates with different sun positions, as a cue for geometry.
+
+-   These methods fuse many dates without explicit matching, but they assume a mostly static scene; vegetation and seasonal changes break this hypothesis.
+-   How do their DSMs compare with matching pipelines (ch. 4.6) at equal computation, and how can they scale to whole cities?
+
+### 9.2 Learned matching and DSM uncertainty
+
+Žbontar and LeCun (2016) showed that a convolutional network can learn the matching cost of ch. 4.3 and feed SGM. End-to-end stereo networks followed, mostly trained on driving and synthetic scenes. Satellite benchmarks, such as the multi-view benchmark of Bosch et al. (2016) and the US3D data of Bosch et al. (2019), test them on incidental pairs taken months apart.
+
+-   Learned costs must generalise across sensors, seasons and illuminations, with little ground truth.
+-   A DSM rarely comes with a per-pixel uncertainty; combining the Cramér–Rao reasoning of ch. 5.5 with learned confidence is open.
+
+### 9.3 Self-supervised despeckling and its limits
+
+SAR2SAR, MERLIN (ch. 7.3) and Speckle2Void (Molini et al., 2021) train despeckling networks without clean images, by exploiting pairs of dates, the real and imaginary parts, or blind-spot architectures. Each relies on an independence hypothesis.
+
+-   Real SLC images have spatially correlated speckle, because of spectral weighting and oversampling; whitening helps but is not exact.
+-   Extending these ideas to polarimetric and interferometric data, where the unknown is a covariance matrix, is an active topic.
+-   Without ground truth, evaluation uses ratio images, ENL and visual inspection; better no-reference criteria are needed.
+
+### 9.4 Multi-image super-resolution
+
+Satellites revisit often and push-frame sensors take overlapping frames, so many slightly shifted, aliased views of the same scene exist. Their sub-pixel shifts (ch. 5) make it possible to recover frequencies above the Nyquist frequency of each view. The PROBA-V challenge (Märtens et al., 2019) popularised learned approaches. Nguyen and coauthors (2021) trained a multi-frame network for push-frame satellites in a self-supervised way.
+
+-   How far beyond the optical cut-off $\nu_c$ (ch. 2.2) can data-driven methods go before they invent details?
+
+### 9.5 Foundation models for Earth observation
+
+Self-supervised pre-training on large unlabelled archives has reached Earth observation. SatMAE (Cong et al., 2022) adapts masked autoencoders to temporal and multispectral data; SSL4EO-S12 (Wang et al., 2023) provides a large Sentinel-1/2 pre-training data set; Prithvi (Jakubik et al., 2023) is a model pre-trained on harmonised Landsat and Sentinel-2 data. GEO-Bench (Lacoste et al., 2023) evaluates such models on downstream tasks.
+
+-   Physical consistency (calibrated reflectances, SAR statistics) is seldom built into these models.
+-   Fusing optical and radar data with irregular dates, and measuring the benefit over strong task-specific baselines, remain open.
+
+### 9.6 Interferometry at continental scale
+
+Sentinel-1's systematic acquisitions allow automatic processing of whole continents. LiCSAR (Lazecký et al., 2020) produces interferograms for tectonic and volcanic monitoring; the European Ground Motion Service of the Copernicus programme publishes ground motion over Europe. SqueeSAR (Ferretti et al., 2011) combines persistent and distributed scatterers by estimating one phase per date from the full covariance matrix of a stack.
+
+-   Unwrapping errors propagate silently into velocities; detecting and correcting them at scale is not solved.
+-   The atmospheric phase limits millimetric accuracy; weather models and spatio-temporal filtering only partly remove it.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Neural rendering adapted to RPC cameras fuses many dates and uses shadows, but assumes static scenes.
+-   Learned matching and despeckling need ground-truth-free training and better uncertainty estimates.
+-   Sub-pixel shifts between many aliased views make multi-image super-resolution possible.
+-   Foundation models and continental-scale InSAR raise questions of physical consistency, fusion and error control.
+:::
+
+## Exercises {#ex}
+
+Exercises are sorted by level: ★ applies the course, ★★ combines results or asks for a short proof, ★★★ is open-ended. The session plan says which exercises follow which session.
+
+1.  **★ Orbit and coverage.** A satellite flies a circular orbit at 694 km. Compute its period and the number of orbits per day. An optical imager sees only on the day side, so it crosses the equator once per orbit in daylight. With a 20 km swath at nadir, how many days are needed to image the whole equator? What does this imply for the design of very high resolution missions?
+
+    *Solution*: Theorem 1.1 gives $T \approx 98.6$ min, that is 14.6 orbits per day. The daylight tracks are about $40\,075 / 14.6 \approx 2745$ km apart at the equator, so a 20 km swath needs about 137 days. Very high resolution satellites therefore point their line of sight across the track (agility) and fly in constellations, to revisit a given site within a day.
+
+2.  **★ Sampling factor and MTF.** An imager flies at $H = 500$ km with $D = 0.3$ m, $f = 3.6$ m, $p = 6$ µm, at $\lambda = 0.65$ µm. Compute the GSD, the factor $Q$, the optical and detector MTFs at the Nyquist frequency, and the Rayleigh resolution on the ground. Is the image aliased?
+
+    *Solution*: GSD $= Hp/f = 0.83$ m and $Q = \lambda f/(Dp) = 1.3$. At Nyquist $s = Q/2 = 0.65$, so Proposition 2.1 gives an optical MTF of 0.235; the detector gives $2/\pi$, and the product is 0.15. The Rayleigh resolution is $1.22\, \lambda H / D = 1.32$ m. Since $Q < 2$, frequencies between Nyquist and the cut-off alias, with a contrast below 0.15.
+
+3.  **★ NDVI under illumination and haze.** Show that NDVI is unchanged when both reflectances are multiplied by the same factor. For the vegetation of Example 1.8, compute NDVI when a haze adds 0.02 to both bands.
+
+    *Solution*: the common factor cancels in the ratio. With haze, $(0.47 - 0.07)/(0.47 + 0.07) = 0.74$ instead of 0.80: an additive bias lowers the index, which is why indices are computed on surface reflectances.
+
+4.  **★ SAR resolutions.** A SAR emits a chirp of bandwidth 50 MHz and duration 30 µs, at an incidence of 35°, with an antenna 10 m long, moving at 7.5 km/s. Compute the slant-range and ground-range resolutions, the compression ratio, the azimuth resolution and the minimum pulse repetition frequency.
+
+    *Solution*: slant range $c/(2B) = 3$ m; ground range $3 / \sin 35° = 5.2$ m; compression ratio $BT = 1500$; azimuth $L/2 = 5$ m (Theorem 3.5); the Doppler bandwidth is $2v/L = 1500$ Hz, so the pulse repetition frequency must be at least 1.5 kHz.
+
+5.  **★ Height of ambiguity and displacement.** An X-band system ($\lambda = 3.1$ cm) observes at $R = 600$ km and $\theta = 40$° with $B_\perp = 200$ m. Compute the height of ambiguity, and the phase produced by a subsidence of 1 cm along the line of sight.
+
+    *Solution*: Proposition 6.1 gives
+    $$
+    h_a = \frac{0.031 \times 600\,000 \times \sin 40°}{400} \approx 30\ \text{m}.
+    $$
+    The displacement phase is $4\pi \times 0.01 / 0.031 \approx 4.05$ rad, about two thirds of a fringe.
+
+6.  **★ Designing a stereo acquisition.** With $\delta = 0.5$ m and $B/H = 0.2$, compute the height precision for a disparity precision of 0.15 pixel, the disparity precision needed for 0.25 m, and the disparity search range for heights between 0 and 150 m.
+
+    *Solution*: $\sigma_h = 0.5 \times 0.15 / 0.2 = 0.375$ m; for 0.25 m one needs $\sigma_d = 0.1$ pixel; Proposition 4.1 gives a range of $150 \times 0.2 / 0.5 = 60$ pixels.
+
+7.  **★★ Multilook statistics.** (a) Using moment generating functions, prove that the mean of $L$ independent exponential intensities of mean $R$ follows the Gamma law of shape $L$ and mean $R$. (b) How many looks are needed for the standard deviation of the speckle to be at most 1 dB, in the sense $10 \log_{10}(1 + 1/\sqrt L) \leq 1$?
+
+    *Solution*: (a) an exponential of mean $R$ has generating function $(1 - Rs)^{-1}$. The mean of $L$ independent copies has $(1 - Rs/L)^{-L}$, which is that of the Gamma law of shape $L$ and mean $R$.
+
+    \(b) The condition is $1/\sqrt L \leq 10^{0.1} - 1 = 0.259$, so $L \geq 14.9$: fifteen looks.
+
+8.  **★★ Pixel locking, computationally.** Simulate V-shaped costs $|d - \delta|$ with a little noise for true offsets $\delta$ uniform on $[-1/2, 1/2]$, and compare the parabola fit of Proposition 5.2 with the equiangular fit through two lines of opposite slopes. Measure the error and the share of estimates near 0.
+
+    *Solution*: the parabola concentrates its estimates near integer disparities (Example 5.3); the equiangular fit is unbiased for this cost.
+
+    ```python
+    import numpy as np
+    
+    rng = np.random.default_rng(11)
+    true = rng.uniform(-0.5, 0.5, 20000)                  # true sub-pixel offsets
+    parabola = lambda cm, c0, cp: (cm - cp) / (2 * (cm - 2 * c0 + cp))
+    equiangular = lambda cm, c0, cp: (cm - cp) / (2 * (np.maximum(cm, cp) - c0))
+    noise = 0.02 * rng.standard_normal((3, true.size))
+    cm, c0, cp = (np.abs(d - true) + n for d, n in zip((-1, 0, 1), noise))   # V-shaped cost
+    for name, f in [("parabola", parabola), ("equiangular", equiangular)]:
+        est = f(cm, c0, cp)
+        print(f"{name:11s}: RMS error {np.sqrt(np.mean((est - true) ** 2)):.3f}, "
+              f"share of |estimate| < 0.1: {np.mean(np.abs(est) < 0.1):.2f} (uniform: 0.20)")
+    ```
+
+    The parabola puts a third of its estimates within 0.1 of an integer instead of a fifth, and its RMS error is five times larger.
+
+9.  **★★ Cramér–Rao bound for a periodic texture.** Let $u_1(x) = A \cos(2\pi x / P)$ on a window of $n$ pixels, $n$ a multiple of $P$, with noise $\sigma$ in the second image only. Compute the bound of Theorem 5.4.
+
+    Evaluate it for an amplitude of 20 grey levels, a period of 8 pixels, a noise of 2 grey levels and 64 pixels. What other difficulty does a periodic texture create?
+
+    *Solution*: the derivative has mean square $A^2 (2\pi/P)^2 / 2$ over a period, so
+    $$
+    \sigma_\tau \geq \frac{\sigma P}{\pi A \sqrt{2n}} \approx 0.023\ \text{pixel}.
+    $$
+    The bound is local: a shift by $P$ gives exactly the same window, so the global estimate is ambiguous modulo $P$. Repetitive textures (crop rows, façades) cause gross matching errors that no sub-pixel refinement can fix.
+
+10. **★★ Log-speckle bias.** Prove Proposition 7.1 and compute the bias in decibels to add to a log-domain estimate when $L = 4$. Check it with a Monte Carlo simulation of $10^6$ Gamma samples.
+
+    *Solution*: see the proof of Proposition 7.1. For $L = 4$, $\psi(4) - \log 4 = -0.130$, that is $-0.57$ dB; filtering $10 \log_{10} I$ and adding 0.57 dB removes the bias. The code of ch. 7.2 performs the check with $L = 1$; change `L` to 4.
+
+11. **★★ When Itoh's condition fails.** Build a 1D phase with a slope of 0.5 rad per sample, then 3.5 rad per sample. Wrap it, unwrap it with Itoh's sum and explain the result. Then, on the 2D example of ch. 6.4, add a disc of very noisy phase and count the residues inside and outside it.
+
+    *Solution*: on the steep part each wrapped difference equals $3.5 - 2\pi$, so the unwrapped slope is wrong by $-2\pi$ at every sample and the error accumulates.
+
+    ```python
+    import numpy as np
+    
+    x = np.arange(60)
+    phi = np.where(x < 30, 0.5 * x, 15 + 3.5 * (x - 30))   # slope 0.5 then 3.5 rad per sample
+    psi = np.angle(np.exp(1j * phi))                       # wrapped observation
+    rec = np.unwrap(psi)                                   # Itoh's sum of wrapped differences
+    print("max error on the gentle part: %.1e rad" % np.abs(rec[:30] - phi[:30]).max())
+    k = (rec[-1] - phi[-1]) / (2 * np.pi)
+    print("error at the last sample: %.1f rad = %.0f x 2 pi" % (rec[-1] - phi[-1], k))
+    ```
+
+    In 2D the residues concentrate in the noisy disc; least squares spreads their effect over the whole image, whereas branch cuts confine it to the disc.
+
+12. **★★ When a season is missing.** For the harmonic model with $K = 2$ (6 coefficients) and dates every 5 days over two years, compute the condition number of $A^\top A$ and the standard deviation of the fitted curve, $\sigma \sqrt{a(t)^\top (A^\top A)^{-1} a(t)}$, in mid-January and in mid-July. Repeat after removing every date from November to March.
+
+    *Hints and expected result*: build the design matrix with the function `design` of ch. 8.3. With all dates the condition number is about 18 and the curve's standard deviation about $0.2\,\sigma$ in both seasons. Without winter the condition number rises to about 210; the summer value barely changes ($0.24\,\sigma$), but in mid-January it reaches $1.6\,\sigma$. Combinations of harmonics that are small in summer and large in winter are almost unobservable, so the fit fails exactly where the data are missing.
+
+13. **★★ SBAS by hand.** Four dates $t_0, t_1, t_2, t_3$, one time unit apart, are linked by two interferograms only, $(t_0, t_1)$ measuring $a$ and $(t_2, t_3)$ measuring $b$. Compute the rank of $A$, the minimum-norm phases, and the phases given by the minimum-norm velocities. Which assumption does each solution make?
+
+    *Solution*: the graph has $K = 2$ components and $N = 3$, so the rank is 2 (Proposition 8.3).
+
+    -   Minimum-norm phases: $\varphi_1 = a$, $\varphi_2 = -b/2$, $\varphi_3 = b/2$. This assumes that the second pair has phases of zero mean, which creates a jump between $t_1$ and $t_2$.
+    -   Minimum-norm velocities: $v = (a, 0, b)$, hence $\varphi = (a, a, a + b)$. This assumes no motion between $t_1$ and $t_2$, which is more plausible for a slow deformation.
+
+14. **★★★ Fitting an RPC model.** Write a toy push-broom model: circular orbit at 700 km, constant attitude, 10 000 detectors across the track, one line per 0.1 ms. Generate correspondences between ground points (latitude, longitude, height) and pixels on a 3D grid, fit the 78 RPC coefficients by linear least squares (Proposition 2.9) and measure the maximal error on an independent grid.
+
+    *Hints and expected result*: normalise the coordinates to $[-1, 1]$ first; without normalisation the condition number of the system is astronomically large. With normalisation and a small Tikhonov term, the errors should be far below 0.01 pixel. Then add a sinusoidal attitude jitter and observe how the error grows.
+
+15. **★★★ Self-supervised despeckling.** Using the sample image `china.jpg` bundled with scikit-learn as a reflectivity map, simulate single-look SLC data (Theorem 3.7). Train a small convolutional network in PyTorch that maps the real part to a reflectivity estimate with the loss of Proposition 7.4, and compare it with the Lee filter of Theorem 7.2.
+
+    *Hints and expected result*: compare in the log domain, on a held-out crop. A network of a few layers trained on CPU for a few minutes should outperform the Lee filter in both mean squared log error and edge preservation. Then correlate the speckle spatially (convolve the complex field with a small kernel) and observe the degradation predicted in ch. 9.3.
+
+16. **★★★ Paper study.** Choose one paper cited in ch. 9, read it, and reproduce one quantitative result or figure on public data, at reduced scale if needed. Present it in ten minutes: problem, method, your result, limits, and one open question.
+
+    *Hints and expected result*: a good presentation states which hypotheses of ch. 2–8 the paper relies on, and where the reproduction differs from the published number, with an explanation.
+
+## Projects and assessment {#projects}
+
+The official assessment combines the reports and source code of the practical sessions with a project on a remote sensing subject, defended with a report, code and an oral presentation (master-mva.com); the Université Paris-Saclay table describes it as “Evaluation Continue non Intégrale”, and no weights are displayed. The subjects below are sized for that project and follow the MVA tradition of studying and reimplementing a research paper. The written exam is a proposal for self-assessment only: the official pages do not announce one.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Semi-global matching on satellite pairs (paper study: Hirschmüller, 2008).** Does SGM, with sub-pixel refinement, beat window matching on real satellite pairs, and by how much?
+    -   *Implement*: census and ZNCC costs, SGM with 8 directions, left–right check, then parabola and equiangular refinement (ch. 4.3–4.5, 5.3).
+    -   *Data*: epipolar-rectified WorldView-3 pairs with reference disparities from the US3D / Data Fusion Contest 2019 release (Bosch et al., 2019).
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
+    -   *Success criterion*: a bad-pixel rate (error above one pixel) at least halved with respect to winner-take-all, and a measured sub-pixel bias for each refinement.
+
+2.  **[Solo · ≈ 20 h] Sub-pixel registration against the Cramér–Rao bound (paper study: Guizar-Sicairos, Thurman and Fienup, 2008).** How close do practical registration methods come to the bound of Theorem 5.4 on real textures?
+    -   *Implement*: phase correlation with upsampled peak search, gradient refinement and parabola fitting (ch. 5.3–5.5); apply known Fourier shifts plus noise to real crops.
+    -   *Data*: crops of a free Sentinel-2 product (10 m bands) from the Copernicus data space.
+    -   *Deliverables*: code, report and talk as above.
+    -   *Success criterion*: an error-versus-bound plot over at least 50 crops; the best method within a factor 2 of the bound on textured crops, and an explanation of the failures on uniform ones.
+
+3.  **[Solo · ≈ 25 h] Non-local despeckling with speckle-adapted similarities (paper study: Deledalle, Denis and Tupin, 2009).** How much does a statistically correct patch similarity improve on the Lee filter?
+    -   *Implement*: the Lee filter (Theorem 7.2) and a non-local filter weighted by the likelihood ratio of Proposition 7.3, with one PPB-style iteration.
+    -   *Data*: simulated speckle on a reference image, then a free Sentinel-1 product.
+    -   *Deliverables*: code, report and talk.
+    -   *Success criterion*: on simulations, a lower mean squared log error than Lee; on real data, an ENL above 30 on homogeneous areas with a ratio image of mean within 5 % of 1 and no visible structure.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 3 · ≈ 30 h each] Ground deformation from a Sentinel-1 stack with SBAS (paper study: Berardino et al., 2002).** Measure the line-of-sight velocity of a subsiding area and its uncertainty.
+    -   *Data*: unwrapped interferograms of one Sentinel-1 frame from the public LiCSAR products (Lazecký et al., 2020), or computed with ESA's free SNAP software.
+    -   *Split*: member A builds the network and the SBAS inversion (ch. 8.5); member B detects unwrapping errors with closure phases of interferogram triplets (ch. 6.4); member C models the atmosphere and the uncertainty, and validates against an independent track or GNSS data if available.
+    -   *Deliverables*: shared code, one report of 8–10 pages, a 20-minute talk.
+    -   *Success criterion*: a velocity map with uncertainties, a quantified effect of removing inconsistent interferograms, and an agreement between two tracks or with GNSS within the stated uncertainty.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Crop-type mapping from Sentinel-2 time series (paper study: Pelletier, Webb and Petitjean, 2019).** Reproduce the comparison between a random forest and TempCNN, with an honest validation.
+    -   *Data*: the BreizhCrops benchmark (Rußwurm et al., 2020).
+    -   *Split*: member A writes the data pipeline, harmonic features and the random forest baseline (ch. 8.2, 8.4); member B trains TempCNN in PyTorch; member C studies the validation protocol (pixel, parcel and region splits) and the effect of clouds.
+    -   *Deliverables*: shared code, one report of 8–10 pages, a 20-minute talk.
+    -   *Success criterion*: overall accuracies on the region-held-out split within a few points of the published ones, and a measured gap between random and spatial splits.
+
+3.  **[Group of 3 · ≈ 30 h each] A multi-pair DSM pipeline (paper study: de Franchis et al., 2014).** Build a reduced S2P pipeline and measure what multi-pair fusion brings.
+    -   *Data*: the multi-view WorldView-3 benchmark with airborne lidar of Bosch et al. (2016).
+    -   *Split*: member A selects pairs and performs affine rectification with pointing correction (ch. 4.2); member B matches with SGM and sub-pixel refinement (ch. 4.4, 5); member C triangulates, rasterises, fuses by median and evaluates against lidar (ch. 4.5–4.6).
+    -   *Deliverables*: shared code, one report of 8–10 pages, a 20-minute talk.
+    -   *Success criterion*: median absolute height error and completeness at 1 m for one pair and for the fusion of at least five pairs, with the fusion improving both.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four exercises.
+
+1.  **Question (4 points).** Explain why a SAR antenna 10 m long gives an azimuth resolution of 5 m, whatever the range and the wavelength. State the hypotheses and say why the antenna cannot be made arbitrarily short.
+
+    *Expected*: the quadratic range history and the azimuth chirp rate $2v^2/(\lambda R_0)$; the illumination time $\lambda R_0 /(Lv)$; the Doppler bandwidth $2v/L$; the resolution $L/2$ after matched filtering (Theorem 3.5). The lower bound on the antenna area comes from the pulse repetition frequency, which must exceed $2v/L$ while the swath echoes fit between pulses.
+
+2.  **Computation (6 points).** (a) A stereo pair has $\delta = 0.7$ m and $B/H = 0.25$, and matching reaches 0.1 pixel: what is the height precision? (b) An interferometric pair has $\lambda = 5.55$ cm, $R = 850$ km, $\theta = 35$° and $B_\perp = 100$ m; the coherence is 0.6, estimated over 16 looks. Compute the height of ambiguity, the Cramér–Rao bound on the phase, and the height precision. (c) Compare the two techniques.
+
+    *Expected*: (a) 0.28 m. (b) $h_a \approx 135$ m, $\sigma_\varphi \geq 0.236$ rad, hence about 5.1 m. (c) Stereo is far more precise for heights at this baseline; interferometry would be the better tool for displacements, with about 1 mm for the same phase noise.
+
+3.  **Short proof (5 points).** Under Goodman's model, prove that the single-look intensity is exponential. Then prove that the ratio of two independent $L$-look intensities of the same reflectivity has a law that does not depend on the reflectivity, and name it.
+
+    *Expected*: polar change of variables with Jacobian $A$, then $I = A^2$ (Theorem 3.7). The ratio equals $S_1/S_2$, where $R$ cancels; each $2L S_i$ is chi-square with $2L$ degrees of freedom, so the ratio is Fisher–Snedecor with the same degrees of freedom in numerator and denominator (Proposition 7.6).
+
+4.  **Algorithm (5 points).** State and prove Itoh's condition for 1D phase unwrapping. Define a residue in 2D, explain why residues make unwrapping path-dependent, and explain why unweighted least squares underestimate the heights of a hill when residues are many.
+
+    *Expected*: the proof of Theorem 6.5; a residue is a $2 \times 2$ loop whose wrapped differences sum to $\pm 2\pi$, so the wrapped gradient is not curl-free there; least squares project this field on gradients, which spreads and shrinks the steep, inconsistent differences (ch. 6.4 code).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Modelling and correctness | 30 % | The sensor and noise models are stated and used correctly; the derivations are right. |
+| Implementation and reproducibility | 25 % | Clean code that runs from a README; fixed seeds; data access documented. |
+| Experimental evaluation | 20 % | Quantitative criteria, baselines, error bars, an honest validation split. |
+| Report | 15 % | Clear structure, figures with units, limits discussed, references precise. |
+| Oral presentation | 10 % | Ten minutes on time, one key figure, precise answers to questions. |
+
+## References {#refs}
+
+**Official references (master-mva.com course page)**
+
+-   F. Tupin, J. Inglada, J.-M. Nicolas (eds.), *Remote Sensing Imagery*, ISTE / Wiley, 2014.
+-   CNES, ONERA, IGN, *Imagerie spatiale : des principes d'acquisition au traitement des images optiques pour l'observation de la Terre*, Cépaduès, 2008, ISBN 9782854288445.
+-   D. Massonnet, J.-C. Souyris, *Imaging with Synthetic Aperture Radar*, EPFL Press, 2008.
+-   Course website: [mvaisat.wp.imt.fr](https://mvaisat.wp.imt.fr/).
+
+**Textbooks**
+
+-   J. W. Goodman, *Introduction to Fourier Optics*, 3rd ed., Roberts & Company, 2005 — PSF, MTF and diffraction (ch. 2).
+-   J. W. Goodman, *Speckle Phenomena in Optics: Theory and Applications*, Roberts & Company, 2007 — ch. 3.6.
+-   R. A. Schowengerdt, *Remote Sensing: Models and Methods for Image Processing*, 3rd ed., Academic Press, 2007.
+-   I. G. Cumming, F. H. Wong, *Digital Processing of Synthetic Aperture Radar Data: Algorithms and Implementation*, Artech House, 2005 — ch. 3.
+-   C. Oliver, S. Quegan, *Understanding Synthetic Aperture Radar Images*, Artech House, 1998 — ch. 3 and 7.
+-   D. C. Ghiglia, M. D. Pritt, *Two-Dimensional Phase Unwrapping: Theory, Algorithms, and Software*, Wiley, 1998 — ch. 6.4.
+-   R. Hartley, A. Zisserman, *Multiple View Geometry in Computer Vision*, 2nd ed., Cambridge University Press, 2004 — ch. 0.5 and 4.
+-   S. M. Kay, *Fundamentals of Statistical Signal Processing, Volume I: Estimation Theory*, Prentice Hall, 1993 — Cramér–Rao bounds (ch. 0, 5, 6).
+
+**Sensors and missions (ch. 1–3)**
+
+-   M. Drusch et al., “Sentinel-2: ESA's optical high-resolution mission for GMES operational services”, *Remote Sensing of Environment* 120, 2012.
+-   R. Torres et al., “GMES Sentinel-1 mission”, *Remote Sensing of Environment* 120, 2012.
+-   C. J. Tucker, “Red and photographic infrared linear combinations for monitoring vegetation”, *Remote Sensing of Environment* 8(2), 1979.
+-   S. K. McFeeters, “The use of the Normalized Difference Water Index (NDWI) in the delineation of open water features”, *International Journal of Remote Sensing* 17(7), 1996.
+-   R. Gupta, R. I. Hartley, “Linear pushbroom cameras”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 19(9), 1997.
+-   C. V. Tao, Y. Hu, “A comprehensive study of the rational function model for photogrammetric processing”, *Photogrammetric Engineering & Remote Sensing* 67(12), 2001.
+-   J. Grodecki, G. Dial, “Block adjustment of high-resolution satellite images described by rational polynomials”, *Photogrammetric Engineering & Remote Sensing* 69(1), 2003.
+-   L. Wald, T. Ranchin, M. Mangolini, “Fusion of satellite images of different spatial resolutions: assessing the quality of resulting images”, *Photogrammetric Engineering & Remote Sensing* 63(6), 1997.
+-   G. Vivone et al., “A critical comparison among pansharpening algorithms”, *IEEE Transactions on Geoscience and Remote Sensing* 53(5), 2015.
+-   A. Moreira et al., “A tutorial on synthetic aperture radar”, *IEEE Geoscience and Remote Sensing Magazine* 1(1), 2013.
+
+**Stereo and sub-pixel matching (ch. 4–5)**
+
+-   H. Hirschmüller, “Stereo processing by semiglobal matching and mutual information”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 30(2), 2008.
+-   D. Scharstein, R. Szeliski, “A taxonomy and evaluation of dense two-frame stereo correspondence algorithms”, *International Journal of Computer Vision* 47, 2002.
+-   R. Zabih, J. Woodfill, “Non-parametric local transforms for computing visual correspondence”, *ECCV*, 1994.
+-   C. de Franchis, E. Meinhardt-Llopis, J. Michel, J.-M. Morel, G. Facciolo, “An automatic and modular stereo pipeline for pushbroom images”, *ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial Information Sciences* II-3, 2014.
+-   C. de Franchis, E. Meinhardt-Llopis, J. Michel, J.-M. Morel, G. Facciolo, “On stereo-rectification of pushbroom images”, *IEEE International Conference on Image Processing (ICIP)*, 2014.
+-   G. Facciolo, C. de Franchis, E. Meinhardt, “MGM: a significantly more global matching for stereovision”, *British Machine Vision Conference (BMVC)*, 2015.
+-   M. Bosch, Z. Kurtz, S. Hagstrom, M. Brown, “A multiple view stereo benchmark for satellite imagery”, *IEEE Applied Imagery Pattern Recognition Workshop (AIPR)*, 2016.
+-   M. Bosch, K. Foster, G. Christie, S. Wang, G. D. Hager, M. Brown, “Semantic stereo for incidental satellite images”, *IEEE Winter Conference on Applications of Computer Vision (WACV)*, 2019.
+-   M. Shimizu, M. Okutomi, “Sub-pixel estimation error cancellation on area-based matching”, *International Journal of Computer Vision* 63(3), 2005.
+-   H. Foroosh, J. Zerubia, M. Berthod, “Extension of phase correlation to subpixel registration”, *IEEE Transactions on Image Processing* 11(3), 2002.
+-   M. Guizar-Sicairos, S. T. Thurman, J. R. Fienup, “Efficient subpixel image registration algorithms”, *Optics Letters* 33(2), 2008.
+-   J. Delon, B. Rougé, “Small baseline stereovision”, *Journal of Mathematical Imaging and Vision* 28(3), 2007.
+-   N. Sabater, J.-M. Morel, A. Almansa, “How accurate can block matches be in stereo vision?”, *SIAM Journal on Imaging Sciences* 4(1), 2011.
+
+**Interferometry (ch. 6)**
+
+-   R. Bamler, P. Hartl, “Synthetic aperture radar interferometry”, *Inverse Problems* 14(4), 1998.
+-   P. A. Rosen et al., “Synthetic aperture radar interferometry”, *Proceedings of the IEEE* 88(3), 2000.
+-   E. Rodriguez, J. M. Martin, “Theory and design of interferometric synthetic aperture radars”, *IEE Proceedings F* 139(2), 1992.
+-   F. Gatelli, A. Monti Guarnieri, F. Parizzi, P. Pasquali, C. Prati, F. Rocca, “The wavenumber shift in SAR interferometry”, *IEEE Transactions on Geoscience and Remote Sensing* 32(4), 1994.
+-   H. A. Zebker, J. Villasenor, “Decorrelation in interferometric radar echoes”, *IEEE Transactions on Geoscience and Remote Sensing* 30(5), 1992.
+-   K. Itoh, “Analysis of the phase unwrapping algorithm”, *Applied Optics* 21(14), 1982.
+-   R. M. Goldstein, H. A. Zebker, C. L. Werner, “Satellite radar interferometry: two-dimensional phase unwrapping”, *Radio Science* 23(4), 1988.
+-   D. C. Ghiglia, L. A. Romero, “Robust two-dimensional weighted and unweighted phase unwrapping that uses fast transforms and iterative methods”, *Journal of the Optical Society of America A* 11(1), 1994.
+-   C. W. Chen, H. A. Zebker, “Two-dimensional phase unwrapping with use of statistical models for cost functions in nonlinear optimization”, *Journal of the Optical Society of America A* 18(2), 2001.
+-   D. Massonnet, M. Rossi, C. Carmona, F. Adragna, G. Peltzer, K. Feigl, T. Rabaute, “The displacement field of the Landers earthquake mapped by radar interferometry”, *Nature* 364, 1993.
+-   G. Krieger et al., “TanDEM-X: a satellite formation for high-resolution SAR interferometry”, *IEEE Transactions on Geoscience and Remote Sensing* 45(11), 2007.
+-   A. Reigber, A. Moreira, “First demonstration of airborne SAR tomography using multibaseline L-band data”, *IEEE Transactions on Geoscience and Remote Sensing* 38(5), 2000.
+
+**SAR processing (ch. 7)**
+
+-   J.-S. Lee, “Digital image enhancement and noise filtering by use of local statistics”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 2(2), 1980.
+-   C.-A. Deledalle, L. Denis, F. Tupin, “Iterative weighted maximum likelihood denoising with probabilistic patch-based weights”, *IEEE Transactions on Image Processing* 18(12), 2009.
+-   C.-A. Deledalle, L. Denis, F. Tupin, A. Reigber, M. Jäger, “NL-SAR: a unified nonlocal framework for resolution-preserving (Pol)(In)SAR denoising”, *IEEE Transactions on Geoscience and Remote Sensing* 53(4), 2015.
+-   C.-A. Deledalle, L. Denis, S. Tabti, F. Tupin, “MuLoG, or how to apply Gaussian denoisers to multi-channel SAR speckle reduction?”, *IEEE Transactions on Image Processing* 26(9), 2017.
+-   E. Dalsasso, L. Denis, F. Tupin, “SAR2SAR: a semi-supervised despeckling algorithm for SAR images”, *IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing* 14, 2021.
+-   E. Dalsasso, L. Denis, F. Tupin, “As if by magic: self-supervised training of deep despeckling networks with MERLIN”, *IEEE Transactions on Geoscience and Remote Sensing* 60, 2022.
+-   A. B. Molini, D. Valsesia, G. Fracastoro, E. Magli, “Speckle2Void: deep self-supervised SAR despeckling with blind-spot convolutional neural networks”, *IEEE Transactions on Geoscience and Remote Sensing* 60, 2022.
+-   J. Lehtinen et al., “Noise2Noise: learning image restoration without clean data”, *ICML*, 2018.
+-   R. Touzi, A. Lopes, P. Bousquet, “A statistical and geometrical edge detector for SAR images”, *IEEE Transactions on Geoscience and Remote Sensing* 26(6), 1988.
+-   E. Jakeman, P. N. Pusey, “A model for non-Rayleigh sea echo”, *IEEE Transactions on Antennas and Propagation* 24(6), 1976.
+-   S. R. Cloude, E. Pottier, “An entropy based classification scheme for land applications of polarimetric SAR”, *IEEE Transactions on Geoscience and Remote Sensing* 35(1), 1997.
+
+**Time series (ch. 8)**
+
+-   N. Gorelick et al., “Google Earth Engine: planetary-scale geospatial analysis for everyone”, *Remote Sensing of Environment* 202, 2017.
+-   Z. Zhu, C. E. Woodcock, “Object-based cloud and cloud shadow detection in Landsat imagery”, *Remote Sensing of Environment* 118, 2012.
+-   O. Hagolle, M. Huc, D. Villa Pascual, G. Dedieu, “A multi-temporal method for cloud detection, applied to FORMOSAT-2, VENµS, LANDSAT and SENTINEL-2 images”, *Remote Sensing of Environment* 114(8), 2010.
+-   J. Verbesselt, R. Hyndman, G. Newnham, D. Culvenor, “Detecting trend and seasonal changes in satellite image time series”, *Remote Sensing of Environment* 114(1), 2010.
+-   E. S. Page, “Continuous inspection schemes”, *Biometrika* 41, 1954.
+-   G. V. Moustakides, “Optimal stopping times for detecting changes in distributions”, *Annals of Statistics* 14(4), 1986.
+-   C. Pelletier, G. I. Webb, F. Petitjean, “Temporal convolutional neural network for the classification of satellite image time series”, *Remote Sensing* 11(5), 2019.
+-   V. Sainte Fare Garnot, L. Landrieu, S. Giordano, N. Chehata, “Satellite image time series classification with pixel-set encoders and temporal self-attention”, *CVPR*, 2020.
+-   M. Rußwurm, C. Pelletier, M. Zollner, S. Lefèvre, M. Körner, “BreizhCrops: a time series dataset for crop type mapping”, *International Archives of the Photogrammetry, Remote Sensing and Spatial Information Sciences* XLIII-B2, 2020.
+-   D. R. Roberts et al., “Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure”, *Ecography* 40(8), 2017.
+-   W. Zhao, C.-A. Deledalle, L. Denis, H. Maître, J.-M. Nicolas, F. Tupin, “Ratio-based multitemporal SAR images denoising: RABASAR”, *IEEE Transactions on Geoscience and Remote Sensing* 57(6), 2019.
+-   K. Conradsen, A. A. Nielsen, H. Skriver, “Determining the points of change in time series of polarimetric SAR data”, *IEEE Transactions on Geoscience and Remote Sensing* 54(5), 2016.
+-   A. Ferretti, C. Prati, F. Rocca, “Permanent scatterers in SAR interferometry”, *IEEE Transactions on Geoscience and Remote Sensing* 39(1), 2001.
+-   P. Berardino, G. Fornaro, R. Lanari, E. Sansosti, “A new algorithm for surface deformation monitoring based on small baseline differential SAR interferograms”, *IEEE Transactions on Geoscience and Remote Sensing* 40(11), 2002.
+
+**Research directions (ch. 9)**
+
+-   R. Marí, G. Facciolo, T. Ehret, “Sat-NeRF: learning multi-view satellite photogrammetry with transient objects and shadow modeling using RPC cameras”, *CVPR Workshops (EarthVision)*, 2022.
+-   R. Marí, G. Facciolo, T. Ehret, “Multi-date Earth observation NeRF: the detail is in the shadows”, *CVPR Workshops (EarthVision)*, 2023.
+-   J. Žbontar, Y. LeCun, “Stereo matching by training a convolutional neural network to compare image patches”, *Journal of Machine Learning Research* 17, 2016.
+-   M. Märtens, D. Izzo, A. Krzic, D. Cox, “Super-resolution of PROBA-V images using convolutional neural networks”, *Astrodynamics* 3(4), 2019.
+-   N. L. Nguyen, J. Anger, A. Davy, P. Arias, G. Facciolo, “Self-supervised multi-image super-resolution for push-frame satellite images”, *CVPR Workshops (EarthVision)*, 2021.
+-   Y. Cong et al., “SatMAE: pre-training transformers for temporal and multi-spectral satellite imagery”, *NeurIPS*, 2022.
+-   Y. Wang et al., “SSL4EO-S12: a large-scale multimodal, multitemporal dataset for self-supervised learning in Earth observation”, *IEEE Geoscience and Remote Sensing Magazine*, 2023.
+-   J. Jakubik et al., “Foundation models for generalist geospatial artificial intelligence”, arXiv preprint, 2023.
+-   A. Lacoste et al., “GEO-Bench: toward foundation models for Earth monitoring”, *NeurIPS Datasets and Benchmarks Track*, 2023.
+-   M. Lazecký et al., “LiCSAR: an automatic InSAR tool for measuring and monitoring tectonic and volcanic activity”, *Remote Sensing* 12(15), 2020.
+-   A. Ferretti, A. Fumagalli, F. Novali, C. Prati, F. Rocca, A. Rucci, “A new algorithm for processing interferometric data-stacks: SqueeSAR”, *IEEE Transactions on Geoscience and Remote Sensing* 49(9), 2011.

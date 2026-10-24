@@ -1,0 +1,2558 @@
+---
+title: "Point Clouds and 3D Modelling (NPM3D)"
+subtitle: "M2 MVA · Semester 2 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: geometry, linear algebra and probability for 3D data](#ch0)
+-   [1. 3D perception systems](#ch1)
+-   [2. Processing and operators](#ch2)
+-   [3. Registration](#ch3)
+-   [4. Segmentation of point clouds](#ch4)
+-   [5. Modelling by primitives](#ch5)
+-   [6. Reconstruction of curves and surfaces](#ch6)
+-   [7. Rendering point clouds and meshes](#ch7)
+-   [8. Research directions and open problems](#ch8)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Point Clouds and 3D Modelling (NPM3D)
+  Official title       Nuages de Points et Modélisation 3D (NPM3D)
+  Instructors          J-E. DESCHAUD ; F. GOULETTE ; T. BOUBEKEUR (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 32 h (lectures 16 h, labs 16 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Computer Vision
+  Language             Lectures in French, course materials in English; questions may be asked in English or in French (master-mva.com)
+  Assessment           Project based on a research paper (master-mva.com): (1) choice of a paper from a list of proposals; (2) implementation and tests of the algorithm(s) it describes; (3) depending on the case, analysis of the algorithm and of its results, proposal of variants; (4) hand-in of a document explaining the method and the results, with the code. Resit: a student who failed the project may choose another project from a new list of papers proposed by the instructors. Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment). Weights: not displayed.
+  Prerequisites        Scientific: geometry, linear algebra, probability. Technical (useful for the project): programming in C, C++, Python or Matlab (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who is fluent in linear algebra and Python, and who wants to turn raw 3D scans into measurements, maps and models.
+
+**Empirical first**: put a 16-beam rotating laser scanner 2 m above a flat road. Every range it returns is accurate to a few centimetres, yet the seven rings it draws on the ground within 40 m lie between 1.2 m and 15.3 m apart (Code 1.7). Draw those points one pixel each and 86 % of the object you look at is a hole, with the back of the object showing through (Code 7.7). Point clouds are precise *and* sparse, unordered and uneven: this course builds the operators that cope with both facts.
+
+The course follows the whole chain from the sensor to the model. It explains how 3D points are acquired (ch. 1), which local operators extract normals, curvature and descriptors (ch. 2), how two scans are aligned (ch. 3), how a cloud is cut into meaningful parts (ch. 4), fitted with geometric primitives (ch. 5), turned into a surface (ch. 6) and drawn on a screen (ch. 7).
+
+Its image-side companion is [3D Computer Vision](../s1-3d-computer-vision/index.html) (camera geometry, stereo, multi-view reconstruction). Meshes and learning on shapes are developed in [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html), and LiDAR-based localisation reappears in [Robotics](../s1-robotics/index.html).
+
+### What you will be able to do
+
+-   Explain how triangulation scanners, time-of-flight sensors and mobile mapping systems produce points, and predict their sampling density and their errors.
+-   Build neighbourhoods with kd-trees or voxel grids, subsample a cloud, and estimate normals and curvature by local PCA at a justified scale.
+-   Compute covariance and histogram descriptors and use them to classify points.
+-   Derive and implement the closed-form rigid alignment of two point sets, the ICP algorithm and its point-to-plane variant, and prove their basic properties.
+-   Make registration robust (trimming, M-estimators) and global (feature matching with RANSAC), and size RANSAC with the right number of iterations.
+-   Segment a cloud by region growing, graph cuts, random forests on multi-scale features or a point-based neural network (PointNet, KPConv).
+-   Detect planes, spheres and cylinders with RANSAC and the Hough transform.
+-   Reconstruct curves and surfaces from samples with Delaunay-based methods, signed distances, marching cubes and Poisson reconstruction.
+-   Render point clouds and meshes with a z-buffer, splats and level-of-detail hierarchies, and explain holes, aliasing and show-through.
+-   Read a recent research paper on point clouds, reimplement its algorithm and evaluate it, as the course project asks.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the objective of giving a panorama of the concepts and techniques for the acquisition, processing and visualisation of 3D point clouds, together with their mathematical and algorithmic foundations.
+
+It lists seven themes (“Thèmes abordés”), matched below. The Université Paris-Saclay course detail gives the volume (16 h of lectures, 16 h of labs) and the nature of the assessment but no programme items. For the summary and schedule of the sessions, master-mva.com points to the NPM3D page on caor.minesparis.psl.eu, which these notes do not reproduce.
+
+| Official topic (master-mva.com) | Course section |
+|---|---|
+| Systèmes de perception 3D (3D perception systems) | [ch. 1](#ch1): triangulation and its depth error (Definition 1.1, Proposition 1.2), a worked depth camera (Example 1.3), pulsed and phase-shift time of flight (Definition 1.4), scanning geometry and sampling density (Definition 1.5, Proposition 1.6, Code 1.7), mobile mapping and its error budget (Definition 1.8, Proposition 1.9), artefacts (Note 1.10) |
+| Traitements et opérateurs (processing and operators) | [ch. 2](#ch2): neighbourhoods and kd-trees (2.1–2.2), subsampling and farthest-point sampling (2.3–2.4), PCA normals and their orientation (2.5–2.6), curvature and scale selection (2.7–2.8), covariance features and FPFH (2.9–2.11), outlier removal and smoothing (2.12) |
+| Recalage (registration) | [ch. 3](#ch3): closed-form rigid alignment (Theorem 3.2), ICP and its convergence (3.4–3.5), point-to-plane ICP (3.6–3.7), robust variants (3.9–3.10), global registration with features and RANSAC (3.11–3.12) |
+| Segmentation de nuages de points (point cloud segmentation) | [ch. 4](#ch4): tasks and metrics (4.1), region growing (4.2), graph cuts (4.3–4.4), multi-scale features with a random forest (4.5–4.6), PointNet and its theory (4.7–4.10), PointNet++ and KPConv (4.11–4.12), architectures and data sets (4.13) |
+| Reconstruction de courbes et surfaces (curve and surface reconstruction) | [ch. 6](#ch6): sampling conditions (6.1), crust curve reconstruction (6.2–6.3), meshes and the Euler formula (6.4–6.5), Delaunay-based surface methods (6.6), signed distances and marching cubes (6.7–6.8), RBF and MLS surfaces (6.9), Poisson reconstruction (6.10–6.11) |
+| Modélisation par primitives (modelling by primitives) | [ch. 5](#ch5): primitive fitting (5.1–5.3), RANSAC detection (5.4, Code 5.10), efficient RANSAC (5.5), Hough transform (5.6–5.7), model selection and assembly into models (5.8–5.9) |
+| Rendu de nuages de points et maillages (rendering point clouds and meshes) | [ch. 7](#ch7): projection and z-buffer (7.1–7.3), mesh rasterisation and shading (7.4–7.5), surfels and splatting (7.6–7.7), EWA splatting (7.8), level of detail and blending (7.9–7.10) |
+| “Plus de détails” and “Les intervenants” (last two items of the list) | a link to the course page and the heading of the instructors list, not topics; the instructors appear in the fiche |
+| Organisation des séances (session organisation) | the [session plan](#sessions) below is a proposal built on the official 16 h + 16 h split |
+| Mode de validation: project based on a research paper | [Projects and assessment](#projects): every solo subject follows the four official steps on a named paper |
+
+Beyond the syllabus, this page adds a review chapter ([ch. 0](#ch0)), a research chapter for self-study on learned registration, neural implicit surfaces and Gaussian splatting ([ch. 8](#ch8)), and a written-exam proposal.
+
+### Where this course fits in the programme
+
+Official prerequisites: geometry, linear algebra and probability; programming in C, C++, Python or Matlab is useful for the project. The course page on master-mva.com lists Jean-Emmanuel Deschaud and François Goulette (MINES ParisTech) and Tamy Boubekeur (Telecom ParisTech) as instructors. It also says that external auditors may attend, without any grade, assessment or certificate.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for the SVD, the spectral theorem and least squares; [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for noise models and the binomial arguments behind RANSAC; [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for the labs.
+-   **Semester 1 courses that prepare it** — [3D Computer Vision](../s1-3d-computer-vision/index.html) (projective geometry, stereo), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (distances between shapes), [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html) (meshes, learning on shapes), [Deep Learning](../s1-deep-learning/index.html) (the networks of ch. 4) and [Robotics](../s1-robotics/index.html) (localisation).
+-   **Related courses of semester 2** — [Geometry and Shape Spaces](../s2-shape-spaces/index.html), [Deformable Models and Geodesic Methods for Image Analysis](../s2-deformable-models-geodesics/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html) (airborne LiDAR) and [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) (neighbourhood graphs).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html), for which the paper-study project of this course is a rehearsal.
+
+### Course outline
+
+-   **Review: geometry, linear algebra and probability for 3D data** — rigid motions, rotations, the spectral theorem, least squares and the probability tools used later.
+-   **3D perception systems** — how triangulation, time of flight and mobile mapping produce points, and what their errors look like.
+-   **Processing and operators** — neighbourhoods, subsampling, normals, curvature, descriptors and denoising.
+-   **Registration** — aligning scans: closed form, ICP, point-to-plane, robust and global methods.
+-   **Segmentation of point clouds** — from region growing and graph cuts to random forests and point-based neural networks.
+-   **Modelling by primitives** — planes, spheres and cylinders found by RANSAC and the Hough transform.
+-   **Reconstruction of curves and surfaces** — Delaunay-based meshing, implicit functions, marching cubes and Poisson reconstruction.
+-   **Rendering point clouds and meshes** — z-buffer, shading, surfels, splatting and level of detail.
+-   **Research directions and open problems** — learned registration and odometry, large-scale segmentation, neural surfaces and Gaussian splatting (self-study).
+
+### Session plan {#sessions}
+
+**32 h in class = 8 sessions of 4 h.**
+
+The volume is the Université Paris-Saclay programme table (16 h of lectures and 16 h of labs). The split into eight sessions of 2 h of lecture followed by 2 h of lab is a proposal; the official schedule is on the course page linked from master-mva.com.
+
+Level 1 = foundations, 2 = core methods, 3 = advanced methods close to research; the level never decreases from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 4 h | 1 | ch. 0 Review: point clouds, rigid motions, spectral theorem, least squares, probability (0.1–0.8); ch. 1 3D perception systems: triangulation, time of flight, scanning geometry, mobile mapping (1.1–1.10) | Ex. 1–2; lab: simulate a scan (Code 0.8, 1.6) |
+| 2 | 4 h | 1 | ch. 2 Processing and operators: neighbourhoods, kd-trees, subsampling, PCA normals, curvature and scale, covariance features, FPFH, denoising (2.1–2.13) | Ex. 3, 4, 9, 10, 11; lab: multi-scale features (Code 2.13) |
+| 3 | 4 h | 2 | ch. 3.1–3.8 Registration: closed-form alignment, ICP and its convergence, point-to-plane ICP | Ex. 12, 13; lab: ICP (Code 3.8) |
+| 4 | 4 h | 2 | ch. 3.9–3.13 Robust and global registration with RANSAC; ch. 4.1–4.4 Segmentation: tasks and metrics, region growing, graph cuts | Ex. 5, 14, 15, 18 |
+| 5 | 4 h | 2 | ch. 4.5–4.13 Multi-scale features with a random forest, PointNet, critical points, PointNet++, KPConv | Ex. 6; lab: random forest and mini-PointNet (Code 4.6, 4.10) |
+| 6 | 4 h | 2 | ch. 5 Modelling by primitives: fitting, RANSAC, efficient RANSAC, Hough transform, model selection (5.1–5.10) | Ex. 16; lab: sequential RANSAC (Code 5.10) |
+| 7 | 4 h | 3 | ch. 6 Reconstruction of curves and surfaces: ε-samples, crust, meshes, signed distances, marching cubes, RBF, MLS, Poisson (6.1–6.12) | Ex. 7, 17; lab: crust and 2D Poisson (Code 6.3, 6.12) |
+| 8 | 4 h | 3 | ch. 7 Rendering: projection, z-buffer, rasterisation and shading, surfels, splatting, EWA, level of detail (7.1–7.10) | Ex. 8; lab: a point splatter (Code 7.7) |
+
+**Self-study, outside the 32 h** (about 4 h in total): ch. 8 Research directions and open problems — learned registration and LiDAR odometry, large-scale segmentation, neural implicit surfaces, Gaussian splatting (≈ 4 h, with Ex. 19).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) first even if the material looks familiar: the SVD argument and the Rayleigh quotient return in chapters 2, 3, 5 and 6.
+-   After each session, run the code of the chapter and change one parameter (the neighbourhood radius, the initial rotation, the RANSAC threshold) to see what breaks.
+-   Do the exercises listed in the session plan before the next session; the ★★★ ones are good starting points for the project.
+-   Python environment: NumPy, SciPy (`scipy.spatial` for kd-trees, Delaunay and Voronoi), scikit-learn and PyTorch on CPU; every code block runs in a few seconds on a laptop with synthetic data.
+-   For visual checks, export clouds as PLY or text files and open them in a point cloud viewer such as CloudCompare. Real data come as PLY, LAS/LAZ (airborne and mobile LiDAR) or E57 files; the open-source libraries PCL (Rusu & Cousins, 2011) and Open3D (Zhou, Park & Koltun, 2018) implement most operators of this course.
+-   Start choosing a paper for the project around session 4: the list of [solo subjects](#projects-solo) gives the scale to aim at.
+
+## 0. Review: geometry, linear algebra and probability for 3D data {#ch0}
+
+Every later chapter moves points with rigid motions, extracts directions from small covariance matrices, solves least-squares problems and counts the chances of random draws. This review states these tools once, with the proofs that later chapters rely on.
+
+::: def
+[Definition 0.1 — Point cloud]{.tag} A **point cloud** is a finite family
+$$
+\mathcal{X} = (x_1, \dots, x_n), \qquad x_i \in \mathbb{R}^3,
+$$
+stored without any order or connectivity.
+
+Each point may carry **attributes**: an intensity (the strength of the returned signal), a colour, a timestamp, a return number, a normal $n_i$ or a label.
+
+We write $X \in \mathbb{R}^{n \times 3}$ for the matrix whose rows are the points. Any algorithm on a cloud must give the same answer, up to the same reordering, when the rows of $X$ are permuted.
+:::
+
+::: def
+[Definition 0.2 — Rigid motions]{.tag} The **special orthogonal group** is
+$$
+SO(3) = \{ R \in \mathbb{R}^{3 \times 3} : R^\top R = I,\ \det R = 1 \}.
+$$
+
+A **rigid motion** is a map $x \mapsto R x + t$ with $R \in SO(3)$ and $t \in \mathbb{R}^3$. The rigid motions form the group $SE(3)$.
+
+In **homogeneous coordinates** a point is $(x, 1)$ and the motion is the $4 \times 4$ matrix
+$$
+T = \begin{pmatrix} R & t \\ 0 & 1 \end{pmatrix}, \qquad T^{-1} = \begin{pmatrix} R^\top & -R^\top t \\ 0 & 1 \end{pmatrix}.
+$$
+
+Composition becomes a matrix product, which is how a chain of sensor frames is handled in [ch. 1](#ch1). A rigid motion has six degrees of freedom: three for the rotation, three for the translation.
+:::
+
+For a unit vector $k$, let $[k]_\times$ be the matrix of the cross product, so that $[k]_\times v = k \times v$:
+$$
+[k]_\times = \begin{pmatrix} 0 & -k_3 & k_2 \\ k_3 & 0 & -k_1 \\ -k_2 & k_1 & 0 \end{pmatrix}.
+$$
+
+:::: prop
+[Proposition 0.3 — Rodrigues' formula and the angle of a rotation]{.tag} The rotation of angle $\theta$ about the unit axis $k$ is
+$$
+R = I + \sin\theta\, [k]_\times + (1 - \cos\theta)\, [k]_\times^2 .
+$$
+
+Conversely, every $R \in SO(3)$ is a rotation about some axis, and its angle satisfies
+$$
+\cos\theta = \frac{\operatorname{tr} R - 1}{2}.
+$$
+
+::: proof
+Split a vector $v$ into its component $v_\parallel = (k^\top v) k$ along the axis and $v_\perp = v - v_\parallel$.
+
+The rotation keeps $v_\parallel$ and turns $v_\perp$ by $\theta$ in the plane spanned by $v_\perp$ and $k \times v$. Hence
+$$
+R v = v_\parallel + \cos\theta\, v_\perp + \sin\theta\, k \times v .
+$$
+
+Since $[k]_\times^2 = k k^\top - I$, we have $v_\perp = -[k]_\times^2 v$, and the formula follows by regrouping.
+
+For the trace: $\operatorname{tr}[k]_\times = 0$ and the trace of $[k]_\times^2$ equals $-2$, so the trace of $R$ is $3 - 2(1 - \cos\theta) = 1 + 2\cos\theta$.
+
+For the converse, the eigenvalues of $R$ have modulus 1, come in conjugate pairs and multiply to 1, so $1$ is an eigenvalue; its eigenvector is the axis. [∎]{.qed}
+:::
+::::
+
+Small rotations are the workhorse of iterative registration ([ch. 3](#ch3)). For a rotation vector $\omega = \theta k$ with small $\theta$, Rodrigues' formula gives
+$$
+R \approx I + [\omega]_\times , \qquad R x \approx x + \omega \times x .
+$$
+
+:::: thm
+[Theorem 0.4 — Spectral theorem and Rayleigh quotient]{.tag} A real symmetric matrix $C \in \mathbb{R}^{d \times d}$ has an orthonormal basis of eigenvectors $u_1, \dots, u_d$ with real eigenvalues $\lambda_1 \geq \dots \geq \lambda_d$. Moreover
+$$
+\min_{\|n\| = 1} n^\top C n = \lambda_d, \qquad \max_{\|n\| = 1} n^\top C n = \lambda_1,
+$$
+attained at $n = u_d$ and $n = u_1$ respectively.
+
+::: proof
+The decomposition $C = U \Lambda U^\top$ is the spectral theorem of the refresher on linear algebra.
+
+Write $n = U a$; since $U$ is orthogonal, $\|a\| = \|n\| = 1$. Then
+$$
+n^\top C n = a^\top \Lambda a = \sum_{j} \lambda_j a_j^2 .
+$$
+
+This is a convex combination of the eigenvalues with weights $a_j^2$ summing to 1. It is therefore at least $\lambda_d$ and at most $\lambda_1$, with equality for $a = e_d$ and $a = e_1$. [∎]{.qed}
+:::
+::::
+
+This theorem is behind the normal of a plane fitted to points ([ch. 2](#ch2)), the plane primitive ([ch. 5](#ch5)) and the covariance descriptors ([ch. 2](#ch2)).
+
+:::: prop
+[Proposition 0.5 — Least squares and the SVD]{.tag} Every $M \in \mathbb{R}^{m \times d}$ has a **singular value decomposition** $M = U \Sigma V^\top$ with $U, V$ orthogonal and $\Sigma$ diagonal with non-negative entries $\sigma_1 \geq \sigma_2 \geq \dots$.
+
+For $A \in \mathbb{R}^{m \times d}$ of full column rank and $b \in \mathbb{R}^m$, the problem
+$$
+\min_{x \in \mathbb{R}^d} \|A x - b\|^2
+$$
+has the unique solution given by the **normal equations**
+$$
+A^\top A\, x^\star = A^\top b .
+$$
+
+::: proof
+The objective is a convex quadratic with gradient $2 A^\top (A x - b)$. Full column rank makes $A^\top A$ positive definite, so the only stationary point is the global minimum.
+
+The SVD is the spectral theorem applied to $M^\top M$: its eigenvectors give $V$, the square roots of its eigenvalues give $\Sigma$, and $U$ collects the normalised vectors $M v_j / \sigma_j$. [∎]{.qed}
+:::
+
+In practice one calls a QR- or SVD-based solver (`np.linalg.lstsq`) rather than forming $A^\top A$, whose condition number is the square of that of $A$.
+::::
+
+:::: prop
+[Proposition 0.6 — Propagation of covariance]{.tag} If a random vector $x$ has mean $\mu$ and covariance $\Sigma$, then $y = A x + b$ has mean $A \mu + b$ and covariance
+$$
+\operatorname{Cov}(y) = A\, \Sigma\, A^\top .
+$$
+
+For a smooth map $y = g(x)$ with small noise, the first-order approximation uses the Jacobian $J = Dg(\mu)$:
+$$
+\operatorname{Cov}(y) \approx J\, \Sigma\, J^\top .
+$$
+
+::: proof
+$y - \mathbb{E} y = A (x - \mu)$, so the covariance is the expectation of the outer product, which equals $A \Sigma A^\top$. The second statement applies the first to the Taylor expansion of $g$ at $\mu$, neglecting the second-order terms. [∎]{.qed}
+:::
+
+[Chapter 1](#ch1) uses this rule to turn errors on ranges and angles into errors on points.
+::::
+
+:::: prop
+[Proposition 0.7 — Repeated independent trials]{.tag} If each of $N$ independent trials succeeds with probability $q > 0$, the probability that at least one succeeds is $1 - (1 - q)^N$. It exceeds a target $p$ as soon as
+$$
+N \geq \frac{\log(1 - p)}{\log(1 - q)} .
+$$
+
+::: proof
+All trials fail with probability $(1 - q)^N$ by independence. The inequality $1 - (1 - q)^N \geq p$ is equivalent to $N \log(1 - q) \leq \log(1 - p)$; dividing by the negative number $\log(1 - q)$ reverses it. [∎]{.qed}
+:::
+
+This is the counting argument of RANSAC ([ch. 3](#ch3), [ch. 5](#ch5)), where a trial succeeds when a random minimal sample contains only inliers.
+::::
+
+::: ex
+[Code 0.8 — Rotations in practice]{.tag} The code builds a rotation of 60° about the axis $(1, 1, 0)$, checks that it lies in $SO(3)$ and recovers its angle from the trace. It then perturbs it and projects it back onto $SO(3)$ with the SVD, a step proved in [ch. 3](#ch3) (Theorem 3.2).
+
+```python
+import numpy as np
+
+def rodrigues(axis, theta):
+    """Rotation of angle theta about the unit axis k (Rodrigues' formula)."""
+    k = np.asarray(axis, float) / np.linalg.norm(axis)
+    K = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    return np.eye(3) + np.sin(theta) * K + (1 - np.cos(theta)) * K @ K
+
+R = rodrigues([1, 1, 0], np.pi / 3)
+print(np.round(R, 4))
+print("orthogonal:", np.allclose(R.T @ R, np.eye(3)), "| det =", round(np.linalg.det(R), 6))
+print("angle from the trace (deg):", round(np.degrees(np.arccos((np.trace(R) - 1) / 2)), 4))
+
+# Nearest rotation to a noisy matrix: projection onto SO(3) by the SVD
+rng = np.random.default_rng(0)
+M = R + 0.05 * rng.standard_normal((3, 3))
+U, s, Vt = np.linalg.svd(M)
+S = np.diag([1, 1, np.sign(np.linalg.det(U @ Vt))])
+R_hat = U @ S @ Vt
+print("||M - R||_F =", round(np.linalg.norm(M - R), 4),
+      "| ||R_hat - R||_F =", round(np.linalg.norm(R_hat - R), 4))
+```
+
+The output shows the matrix with entries $0.75$, $0.25$ and $\pm 0.6124$, an orthogonal matrix of determinant 1 and an angle of exactly 60°.
+
+The projection reduces the error:
+$$
+\|M - R\|_F = 0.0996 \ \longrightarrow\ \|\hat R - R\|_F = 0.069 .
+$$
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   A point cloud is an unordered family of points with attributes; algorithms must not depend on the order.
+-   Rigid motions $x \mapsto Rx + t$ have six degrees of freedom; small rotations are $I + [\omega]_\times$ to first order.
+-   The extreme values of $n^\top C n$ on the unit sphere are the extreme eigenvalues of $C$ (Theorem 0.4).
+-   Least squares are solved by the normal equations, numerically by QR or the SVD.
+-   Covariances propagate through linear maps as $A \Sigma A^\top$, and through smooth maps through their Jacobian.
+-   $N$ independent trials of success probability $q$ all fail with probability $(1-q)^N$.
+:::
+
+## 1. 3D perception systems {#ch1}
+
+Before processing points we must know where they come from. This chapter describes the main families of 3D sensors, derives the accuracy and the sampling density of each, and lists the artefacts that later chapters have to survive.
+
+Sensors fall into two physical principles. **Triangulation** measures an angle seen from two places a known distance apart. **Time of flight** measures how long light takes to go to the surface and back.
+
+Both can be *passive* (cameras only, as in photogrammetry and multi-view stereo) or *active* (the sensor emits a laser stripe, a projected pattern or light pulses). Active sensors work on textureless surfaces and in the dark, which is why they dominate 3D scanning.
+
+::: def
+[Definition 1.1 — Triangulation]{.tag} Two rectified pinhole cameras (or a camera and a projector) with focal length $f$ (in pixels) are separated by a **baseline** $b$ along their common $x$ axis.
+
+A point at depth $z$ appears at horizontal image positions $u_L$ and $u_R$; the **disparity** is $d = u_L - u_R$. Similar triangles give
+$$
+z = \frac{f\, b}{d} .
+$$
+
+Structured-light sensors replace the second camera by a projector whose pattern encodes the column $u_R$; laser-stripe scanners project a single plane of light.
+:::
+
+:::: prop
+[Proposition 1.2 — Depth error of triangulation]{.tag} An error $\delta d$ on the disparity produces, to first order, a depth error
+$$
+\delta z \approx \frac{z^2}{f\, b}\, \delta d .
+$$
+
+The error grows with the *square* of the distance and decreases with the baseline.
+
+::: proof
+Differentiate $z = f b / d$ with respect to $d$:
+$$
+\frac{\partial z}{\partial d} = -\frac{f b}{d^2} = -\frac{z^2}{f b},
+$$
+using $d = f b / z$. Multiply by $\delta d$ and take absolute values. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.3 — A depth camera at 1 m and at 4 m]{.tag} Take $f = 600$ px, a baseline $b = 7.5$ cm and a disparity accuracy of 0.1 px, typical orders of magnitude for a structured-light depth camera.
+
+-   At $z = 1$ m: $\delta z \approx 1 \times 0.1 / (600 \times 0.075) = 0.0022$ m.
+-   At $z = 4$ m the error is $16$ times larger.
+
+The two results are
+$$
+\delta z(1\ \text{m}) \approx 2.2\ \text{mm}, \qquad \delta z(4\ \text{m}) \approx 3.6\ \text{cm}.
+$$
+
+Triangulation is excellent at short range and quickly degrades: for large scenes one switches to time of flight.
+:::
+
+::: def
+[Definition 1.4 — Time of flight]{.tag} With $c$ the speed of light:
+
+-   a **pulsed** sensor measures the round-trip time $\tau$ of a short laser pulse, and
+    $$
+    r = \frac{c\, \tau}{2};
+    $$
+-   a **phase-shift** (amplitude-modulated) sensor emits light modulated at frequency $f_m$ and measures the phase delay $\Delta\varphi$ of the return, and
+    $$
+    r = \frac{c\, \Delta\varphi}{4 \pi f_m} \quad \text{modulo the ambiguity interval } \frac{c}{2 f_m}.
+    $$
+
+A timing resolution of 100 ps gives a range resolution of $c \times 10^{-10} / 2 = 1.5$ cm. With $f_m = 10$ MHz the ambiguity interval is 15 m, and a phase resolution of 0.1° gives about 4.2 mm.
+
+Phase-shift sensors are precise at short and medium range; pulsed sensors reach hundreds of metres. Several modulation frequencies are combined to remove the ambiguity.
+:::
+
+Time of flight gives the range along a known direction. A **laser scanner** sweeps that direction with rotating mirrors or a rotating head and returns, for every shot, a range $r$, an azimuth $\theta$ and an elevation $\varphi$.
+
+::: def
+[Definition 1.5 — Scanning geometry]{.tag} In the frame of the scanner, the shot $(r, \theta, \varphi)$ is the point
+$$
+x = r \begin{pmatrix} \cos\varphi \cos\theta \\ \cos\varphi \sin\theta \\ \sin\varphi \end{pmatrix}.
+$$
+
+A **terrestrial** scanner stands still on a tripod and sweeps both angles finely. A **rotating multi-beam LiDAR** has a fixed fan of $K$ beams at elevations $\varphi_1, \dots, \varphi_K$ and spins in azimuth. Its scan is a $K \times M$ range image whose rows are the beams.
+:::
+
+The range image is a useful by-product: neighbours in the image are usually neighbours in space, which gives cheap normals and segmentation on raw scans.
+
+:::: prop
+[Proposition 1.6 — Sampling density]{.tag} Consider shots separated by an angle $\Delta\alpha$ that hit a surface at range $r$ with incidence angle $\beta$ (between the beam and the surface normal). The distance between neighbouring points is about
+$$
+s \approx \frac{r\, \Delta\alpha}{\cos\beta} .
+$$
+
+For a sensor at height $h$ above a flat ground, the beam of depression angle $\varphi > 0$ hits the ground on a ring of radius $\rho(\varphi) = h / \tan\varphi$. Two beams $\Delta\varphi$ apart give rings separated by
+$$
+\Delta\rho \approx \frac{h\, \Delta\varphi}{\sin^2 \varphi} .
+$$
+
+::: proof
+Two beams $\Delta\alpha$ apart are $r \Delta\alpha$ apart at range $r$, measured orthogonally to the beam. On a surface tilted by $\beta$ this distance is stretched by $1 / \cos\beta$.
+
+For the rings, differentiate $\rho(\varphi) = h \cot\varphi$:
+$$
+\rho'(\varphi) = -\frac{h}{\sin^2\varphi} .
+$$
+[∎]{.qed}
+:::
+
+Density therefore falls like $1/r^2$ and collapses at grazing incidence: the ground far from a vehicle is sampled by a few sparse rings. Neighbourhoods defined by a fixed number of points ([ch. 2](#ch2)) then have very different sizes across the scene.
+::::
+
+::: ex
+[Code 1.7 — A simulated scan of a street]{.tag} A 16-beam scanner with elevations from −15° to +15° (2° apart) and an azimuth step of 0.2° stands 2 m above the ground, in front of a wall and a sphere. Rays are intersected with the three objects, and 2 cm of Gaussian noise is added to the ranges.
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+
+# A 16-beam rotating scanner, 2 m above a flat ground, in front of a wall and a sphere.
+h = 2.0
+elev = np.radians(np.linspace(-15, 15, 16))           # beam elevations
+azim = np.radians(np.arange(0, 360, 0.2))             # azimuth step 0.2 degrees
+E, A = np.meshgrid(elev, azim, indexing="ij")
+D = np.stack([np.cos(E) * np.cos(A), np.cos(E) * np.sin(A), np.sin(E)], -1).reshape(-1, 3)
+o = np.array([0.0, 0.0, h])
+
+def hit_plane(n, c):          # plane n.x = c ; returns ray parameter t (inf if missed)
+    den = D @ n
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = (c - o @ n) / den
+    return np.where((den != 0) & (t > 0), t, np.inf)
+
+def hit_sphere(center, rad):
+    oc = o - center
+    b = D @ oc
+    disc = b**2 - (oc @ oc - rad**2)
+    t = -b - np.sqrt(np.maximum(disc, 0))
+    return np.where((disc > 0) & (t > 0), t, np.inf)
+
+t = np.minimum.reduce([hit_plane(np.array([0, 0, 1.0]), 0.0),     # ground z = 0
+                       hit_plane(np.array([1.0, 0, 0]), 12.0),     # wall x = 12
+                       hit_sphere(np.array([5.0, 3.0, 1.0]), 1.0)])
+keep = t < 100.0                                                   # maximal range 100 m
+r = t[keep] + 0.02 * rng.standard_normal(keep.sum())               # range noise, 2 cm
+P = o + r[:, None] * D[keep]
+print("rays:", len(D), "| returns:", len(P))
+
+# Ground rings: beam k hits the ground at horizontal distance h / tan(-elevation)
+down = -elev[elev < 0]
+rings = h / np.tan(down)
+print("ring radii (m):", np.round(np.sort(rings), 2))
+near = np.sort(rings)[np.sort(rings) < 40]
+print("gaps between consecutive rings within 40 m (m):", np.round(np.diff(near), 2))
+```
+
+Of the 28,800 rays, 20,073 return a point; the others go to the sky. The eight downward beams draw rings of radii
+$$
+7.46,\ 8.66,\ 10.29,\ 12.63,\ 16.29,\ 22.86,\ 38.16,\ 114.58\ \text{m}.
+$$
+
+The last ring lies beyond the 100 m range. Within 40 m the gaps between rings are 1.2, 1.63, 2.34, 3.66, 6.57 and 15.3 m, while along each ring the points are only $7.5 \times 0.0035 \approx 2.6$ cm apart at 7.5 m: the sampling is extremely anisotropic.
+:::
+
+Static scans cover one viewpoint. **Mobile mapping** puts the scanner on a vehicle, a backpack or a drone and places every shot in a world frame, using a satellite receiver (GNSS) and an inertial measurement unit (IMU) whose fusion gives the pose of the platform at each instant.
+
+::: def
+[Definition 1.8 — Georeferencing a mobile scan]{.tag} Let $x_s$ be a point in the scanner frame, measured at time $t$. Let $(R_{bs}, l_{bs})$ be the fixed rotation (**boresight**) and offset (**lever arm**) from the scanner to the platform body, found by calibration. Let $(R(t), p(t))$ be the pose of the body in the world. Then
+$$
+x_w = p(t) + R(t) \big( R_{bs}\, x_s + l_{bs} \big).
+$$
+
+Each point gets its own pose, interpolated at its own timestamp: a scan taken while moving is not a rigid copy of the scene.
+:::
+
+:::: prop
+[Proposition 1.9 — Error budget of a mobile point]{.tag} To first order, the error on $x_w$ is the sum of:
+
+-   the position error $\delta p$ of the platform, transferred unchanged;
+-   the attitude error $\delta\psi$ (in radians), which moves a point at range $r$ by about $r\, \delta\psi$;
+-   the timing error $\delta t$, which moves it by $v\, \delta t$ at speed $v$;
+-   the range and angle noise of the sensor, whose covariance is $J \Sigma J^\top$ with $J$ the Jacobian of the map of Definition 1.5 (Proposition 0.6).
+
+::: proof
+Linearise the formula of Definition 1.8. A small rotation error $R(t) \to (I + [\delta\psi]_\times) R(t)$ adds $\delta\psi \times (x_w - p)$, of norm at most $r \|\delta\psi\|$. A time offset shifts $p(t)$ by $\dot p\, \delta t$. The sensor term is Proposition 0.6 applied to the spherical map. [∎]{.qed}
+:::
+::::
+
+With a heading error of 0.01° ($1.75 \times 10^{-4}$ rad), a point at 50 m moves by 8.7 mm. At 10 m/s, a synchronisation error of 1 ms moves every point by 1 cm.
+
+These numbers explain why mobile maps are refined by registering overlapping passes ([ch. 3](#ch3)) rather than trusted from GNSS and IMU alone, which can drift by decimetres when satellites are masked by buildings.
+
+::: note
+[Note 1.10 — Artefacts every pipeline must expect]{.tag}
+
+-   **Mixed points** at depth discontinuities: the beam footprint straddles a foreground edge and the background, and the sensor returns a point floating in between.
+-   **Specular and transparent surfaces** (glass, water, polished metal) return nothing or a mirrored ghost; very dark surfaces return little energy and become noisy.
+-   **Multiple returns**: in vegetation one pulse produces several echoes, a feature exploited by airborne LiDAR to see the ground under trees.
+-   **Motion distortion**: a rotating scanner on a moving vehicle typically takes 0.1 s per turn, enough to bend a scan unless each point is corrected with its own pose.
+-   **Uneven density and occlusions**, as computed above.
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   Triangulation: $z = fb/d$, depth error growing like $z^2$; precise at short range.
+-   Time of flight: $r = c\tau/2$ (pulsed) or from a phase shift with an ambiguity interval $c / (2 f_m)$.
+-   A scanner returns spherical coordinates; point spacing grows like $r / \cos\beta$, so density is very uneven.
+-   Mobile mapping composes the sensor pose, the boresight and the lever arm; attitude errors scale with range.
+-   Expect mixed points, specular gaps, multiple echoes, motion distortion and occlusions.
+:::
+
+## 2. Processing and operators {#ch2}
+
+A raw cloud is a list of coordinates. To reason about surfaces we need, for every point, its neighbours and the local shape they describe. This chapter builds neighbourhoods efficiently, thins clouds, and computes normals, curvature and descriptors, with attention to the choice of scale.
+
+### Neighbourhoods and spatial data structures
+
+::: def
+[Definition 2.1 — Neighbourhoods]{.tag} For a query point $x$ and a cloud $\mathcal{X}$:
+
+-   the **$k$-nearest neighbourhood** $\mathcal{N}_k(x)$ is the set of the $k$ points of $\mathcal{X}$ closest to $x$;
+-   the **ball neighbourhood** of radius $r$ is
+    $$
+    \mathcal{N}_r(x) = \{ x_i \in \mathcal{X} : \|x_i - x\| \leq r \}.
+    $$
+
+A $k$-neighbourhood has a fixed size but a variable extent: it is tiny in dense areas and huge on sparse ground rings. A ball has a fixed extent, hence a fixed geometric meaning, but may contain one point or a hundred thousand.
+:::
+
+Brute force costs $O(n)$ per query, hence $O(n^2)$ for all points: hopeless for clouds of $10^7$ points. Spatial data structures reduce this cost.
+
+:::: prop
+[Proposition 2.2 — The kd-tree]{.tag} A **kd-tree** (Bentley, 1975) splits the cloud recursively: at each node, choose a coordinate axis, cut at the median coordinate, and recurse on both halves until a leaf holds a few points.
+
+-   Its depth is at most $\lceil \log_2 n \rceil$ and it is built in $O(n \log n)$ time.
+-   A nearest-neighbour query descends to the leaf of $x$, then backtracks, visiting a sibling only if the ball around $x$ of radius "best distance so far" crosses the splitting plane.
+
+::: proof
+Cutting at the median halves the number of points at each level, which gives the depth.
+
+A median is found in linear time by a selection algorithm, so the construction time satisfies
+$$
+T(n) = 2\, T(n/2) + O(n),
+$$
+whose solution is $T(n) = O(n \log n)$: each of the $\log_2 n$ levels costs $O(n)$ in total.
+
+The pruning rule is exact because every point beyond the splitting plane is farther from $x$ than the plane itself. [∎]{.qed}
+:::
+
+For points spread in low dimension, Friedman, Bentley and Finkel (1977) showed that the expected query time is logarithmic. In 3D this makes all $k$-neighbourhoods of a cloud computable in roughly $O(n \log n)$.
+::::
+
+Two other structures are common. An **octree** cuts space (not the points) into eight cubes recursively; it is the natural structure for multi-resolution processing and rendering ([ch. 7](#ch7)). A **voxel hash** maps each point to the integer cell $\lfloor x / s \rfloor$; a ball query of radius $r \le s$ then reads the 27 cells around the query.
+
+### Subsampling
+
+Clouds are often far denser than needed, and denser near the sensor than far away. Subsampling reduces the cost and evens out the density.
+
+::: def
+[Definition 2.3 — Subsampling schemes]{.tag}
+
+-   **Random**: keep each point with probability $q$. Cheap, but it keeps the density imbalance.
+-   **Voxel grid**: cut space into cubes of side $s$ and keep one representative per occupied cube (the barycentre or the point closest to it). The result has spacing about $s$ everywhere.
+-   **Poisson disk**: keep a subset in which any two points are at least $\delta$ apart, and which is maximal for this property.
+-   **Farthest point sampling (FPS)**: start from any point, then repeatedly add the point farthest from the points already chosen.
+:::
+
+FPS is used inside PointNet++ ([ch. 4](#ch4)) and has a clean guarantee. The **$k$-center** problem asks for $k$ centres $c_1, \dots, c_k$ minimising the covering radius
+$$
+\rho(C) = \max_{x \in \mathcal{X}} \min_{j} \|x - c_j\| .
+$$
+
+:::: prop
+[Proposition 2.4 — FPS is a 2-approximation of $k$-center]{.tag} Let $C$ be the first $k$ points chosen by FPS and $\rho^\star$ the optimal covering radius with $k$ centres. Then
+$$
+\rho(C) \leq 2 \rho^\star .
+$$
+
+::: proof
+Let $x^\ast$ be the point farthest from $C$, at distance $\rho(C)$. It would be the $(k+1)$-st FPS point.
+
+By construction, every FPS point was chosen at distance at least $\rho(C)$ from the previous ones (the farthest distances never increase). So the $k + 1$ points $C \cup \{x^\ast\}$ are pairwise at distance at least $\rho(C)$.
+
+An optimal solution has $k$ balls of radius $\rho^\star$, so two of these $k + 1$ points fall in the same ball (pigeonhole). Their distance is at most $2\rho^\star$, hence $\rho(C) \le 2 \rho^\star$. [∎]{.qed}
+:::
+::::
+
+### Normals by local PCA
+
+Most operators need the tangent plane of the underlying surface at each point. It is estimated by fitting a plane to the neighbourhood.
+
+Let $\mathcal{N}$ be a neighbourhood of $m$ points, with centroid and covariance
+$$
+\bar x = \frac{1}{m} \sum_{x_i \in \mathcal{N}} x_i, \qquad C = \frac{1}{m} \sum_{x_i \in \mathcal{N}} (x_i - \bar x)(x_i - \bar x)^\top .
+$$
+
+:::: thm
+[Theorem 2.5 — The best-fitting plane]{.tag} Among all planes $\{x : n^\top (x - c) = 0\}$ with $\|n\| = 1$, the sum of squared distances
+$$
+E(n, c) = \sum_{x_i \in \mathcal{N}} \big( n^\top (x_i - c) \big)^2
+$$
+is minimised by a plane through the centroid, $c = \bar x$, whose normal is an eigenvector of $C$ for its smallest eigenvalue $\lambda_3$. The minimal value is $m \lambda_3$.
+
+::: proof
+For fixed $n$, $E$ depends on $c$ only through $d = n^\top c$ and equals the sum of the squares of $n^\top x_i - d$.
+
+This is minimised by the mean value $d = n^\top \bar x$, so the optimal plane passes through $\bar x$.
+
+Then
+$$
+E(n, \bar x) = \sum_i n^\top (x_i - \bar x)(x_i - \bar x)^\top n = m\, n^\top C n ,
+$$
+and Theorem 0.4 shows that its minimum over unit vectors is $m \lambda_3$, at the eigenvector of $\lambda_3$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — normal by PCA]{.tag}
+$$
+n(x) = \text{eigenvector of } \operatorname{Cov}\big(\mathcal{N}(x)\big) \text{ for its smallest eigenvalue}
+$$
+:::
+
+The eigenvector is defined up to sign. A consistent orientation is needed for shading ([ch. 7](#ch7)) and for Poisson reconstruction ([ch. 6](#ch6)).
+
+::: prop
+[Proposition 2.6 — Orienting normals]{.tag}
+
+-   **Towards the sensor**: when the scanner position $o$ is known, flip $n_i$ so that $n_i^\top (o - x_i) > 0$. This is exact for every point seen from a single station.
+-   **By propagation** (Hoppe et al., 1992): build a neighbourhood graph with edge weights $1 - |n_i^\top n_j|$, compute a minimum spanning tree, orient one seed (for example the highest point, whose normal points up) and traverse the tree, flipping $n_j$ when $n_i^\top n_j < 0$.
+
+The weights favour edges between nearly parallel normals, along which the sign is unambiguous. Propagation still fails across thin structures, where both sides of a sheet share neighbours.
+:::
+
+### Curvature and the choice of scale
+
+The other two eigenvalues measure how far the neighbourhood is from a plane.
+
+::: def
+[Definition 2.7 — Surface variation]{.tag} With the eigenvalues $\lambda_1 \geq \lambda_2 \geq \lambda_3 \geq 0$ of the local covariance, the **surface variation** (Pauly, Gross & Kobbelt, 2002) is
+$$
+\sigma(x) = \frac{\lambda_3}{\lambda_1 + \lambda_2 + \lambda_3} \in \left[0, \tfrac{1}{3}\right].
+$$
+
+It is $0$ on a plane and $1/3$ for isotropically scattered points. It behaves like a curvature, but depends on the neighbourhood size.
+:::
+
+The next computation makes that dependence explicit and gives a rule for choosing the radius.
+
+:::: prop
+[Proposition 2.8 — Curvature, noise and the optimal radius]{.tag} Near a point where the surface is locally $z = \frac{\kappa}{2}(x^2 + y^2)$, take the points of a disk of radius $r$ uniformly, and add Gaussian noise of standard deviation $\sigma$ along the normal. To leading order
+$$
+\frac{\lambda_3}{\lambda_1} \approx \frac{\kappa^2 r^2}{12} + \frac{4 \sigma^2}{r^2}.
+$$
+
+The right-hand side is minimal for
+$$
+r^\star = 48^{1/4} \sqrt{\sigma / \kappa} .
+$$
+
+::: proof
+For a uniform point of the disk, $\rho^2 = x^2 + y^2$ is uniform on $[0, r^2]$, so
+$$
+\mathbb{E}[x^2] = \frac{r^2}{4}, \qquad \operatorname{Var}(\rho^2) = \frac{r^4}{12} .
+$$
+
+Hence $\lambda_1 \approx r^2/4$, and the variance along the normal is that of $\frac{\kappa}{2}\rho^2$ plus the noise:
+$$
+\lambda_3 \approx \frac{\kappa^2 r^4}{48} + \sigma^2 .
+$$
+
+Divide, then set the derivative $2ar - 2b/r^3$ to zero, with $a = \kappa^2/12$ and $b = 4\sigma^2$. This gives $r^4 = b/a = 48 \sigma^2 / \kappa^2$. [∎]{.qed}
+:::
+::::
+
+Small radii are dominated by noise, large radii by curvature. For $\sigma = 1$ cm and a radius of curvature of 0.5 m ($\kappa = 2$ m⁻¹), the rule gives
+$$
+r^\star \approx 2.63 \times \sqrt{0.005} \approx 0.19\ \text{m}.
+$$
+
+Mitra and Nguyen (2003) derive rigorous bounds of the same nature for the error of PCA normals, with density as a third factor.
+
+### Descriptors
+
+The eigenvalues describe the *dimensionality* of the neighbourhood: one dominant direction for a pole or a cable, two for a wall, three for foliage.
+
+::: def
+[Definition 2.9 — Covariance features]{.tag} With $\lambda_1 \geq \lambda_2 \geq \lambda_3 > 0$ and $n$ the PCA normal, define
+
+-   linearity $L = (\lambda_1 - \lambda_2)/\lambda_1$, planarity $P = (\lambda_2 - \lambda_3)/\lambda_1$, sphericity $S = \lambda_3 / \lambda_1$;
+-   omnivariance $(\lambda_1 \lambda_2 \lambda_3)^{1/3}$ and eigenentropy $-\sum_j e_j \log e_j$, where $e_j$ are the eigenvalues divided by their sum;
+-   verticality $1 - |n_z|$, which is $0$ on the ground and $1$ on a façade.
+
+Computed at several radii and stacked with the height, they form the classical feature vector for point classification (Demantké et al., 2011; Weinmann et al., 2015), used in [ch. 4](#ch4).
+:::
+
+::: prop
+[Proposition 2.10 — Dimensionality features]{.tag} The three features satisfy $L + P + S = 1$ and lie in $[0, 1]$.
+
+They take the values $(1, 0, 0)$ on a segment, $(0, 1, 0)$ on a uniformly sampled disk and $(0, 0, 1)$ on a uniformly sampled ball. The sum telescopes, and the three cases have covariance spectra proportional to $(1, 0, 0)$, $(1, 1, 0)$ and $(1, 1, 1)$.
+:::
+
+Demantké and coauthors (2011) choose, for each point, the radius at which the entropy of dimensionality features of this type (built from the square roots of the eigenvalues) is minimal: the scale at which the neighbourhood looks most clearly 1D, 2D or 3D.
+
+Covariance features ignore how normals vary inside the neighbourhood. Histogram descriptors capture this, and are used to match points between scans ([ch. 3](#ch3)).
+
+::: def
+[Definition 2.11 — Point feature histograms (PFH, FPFH)]{.tag} For a pair of oriented points $(p_s, n_s)$ and $(p_t, n_t)$ at distance $d$, build the **Darboux frame**
+$$
+u = n_s, \qquad v = u \times \frac{p_t - p_s}{d}, \qquad w = u \times v .
+$$
+
+The pair is described by three angles: $\alpha = v^\top n_t$, $\phi = u^\top (p_t - p_s) / d$ and $\theta = \operatorname{atan2}(w^\top n_t,\, u^\top n_t)$.
+
+A **simplified histogram** SPFH($p$) bins these angles over the pairs $(p, p_i)$ with $p_i$ in the neighbourhood. The **fast PFH** of Rusu, Blodow and Beetz (2009) adds the neighbours' histograms, weighted by inverse distance:
+$$
+\mathrm{FPFH}(p) = \mathrm{SPFH}(p) + \frac{1}{k} \sum_{i=1}^{k} \frac{\mathrm{SPFH}(p_i)}{\|p_i - p\|} .
+$$
+
+The angles are dot products of vectors that turn together under a rigid motion, so the descriptor is invariant to rotations and translations.
+:::
+
+### Outliers and noise
+
+::: def
+[Definition 2.12 — Outlier removal and smoothing]{.tag}
+
+-   **Statistical outlier removal**: compute for each point the mean distance $\bar d_i$ to its $k$ nearest neighbours, then the mean $\mu$ and standard deviation $s$ of these values over the cloud. Remove the points with $\bar d_i > \mu + \alpha s$, typically with $\alpha$ between 1 and 3.
+-   **Radius outlier removal**: remove the points with fewer than $m$ neighbours within radius $r$.
+-   **Projection smoothing**: move each point onto its PCA plane, $x_i \leftarrow x_i - n_i n_i^\top (x_i - \bar x_i)$. Moving least squares (Alexa et al., 2003) refines this with weighted fits and a polynomial height function.
+-   **Bilateral smoothing**: move $x_i$ along $n_i$ by a weighted mean of the offsets $n_i^\top (x_j - x_i)$, with weights decreasing both with $\|x_j - x_i\|$ and with the offset itself, so that sharp edges are preserved.
+:::
+
+::: ex
+[Code 2.13 — Normals and features at two scales]{.tag} A toy street contains a noisy ground (label 0), a thin pole of radius 8 cm (label 1) and a bush (label 2). The code compares 20-nearest neighbourhoods with balls of radius 0.5 m, then subsamples the cloud on a 0.2 m grid.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+
+rng = np.random.default_rng(0)
+# A toy street: ground (label 0), a thin pole (1), a bush (2)
+g = np.c_[rng.uniform(-3, 3, (3000, 2)), 0.01 * rng.standard_normal(3000)]
+th, z = rng.uniform(0, 2 * np.pi, 800), rng.uniform(0, 3, 800)
+p = np.c_[0.08 * np.cos(th) + 1.0, 0.08 * np.sin(th) - 1.0, z]
+b = rng.normal(0, 1, (1200, 3)); b /= np.linalg.norm(b, axis=1, keepdims=True)
+b = b * rng.uniform(0, 0.6, (1200, 1)) ** (1 / 3) + [-1.0, 1.0, 0.7]
+X = np.r_[g, p, b]
+y = np.r_[np.zeros(3000), np.ones(800), 2 * np.ones(1200)].astype(int)
+tree = cKDTree(X)
+
+def pca_features(neigh_lists):
+    """Linearity, planarity, sphericity and normal from each local covariance."""
+    F, N = np.zeros((len(X), 3)), np.zeros((len(X), 3))
+    for i, nb in enumerate(neigh_lists):
+        Q = X[nb] - X[nb].mean(0)
+        lam, vec = np.linalg.eigh(Q.T @ Q / len(nb))      # ascending order
+        l3, l2, l1 = np.maximum(lam, 1e-12)
+        F[i] = [(l1 - l2) / l1, (l2 - l3) / l1, l3 / l1]
+        N[i] = vec[:, 0]                                  # smallest eigenvector
+    return F, N
+
+for name, nbs in [("k = 20", tree.query(X, k=20)[1]),
+                  ("r = 0.5 m", tree.query_ball_point(X, r=0.5))]:
+    F, N = pca_features(nbs)
+    print(name)
+    for c, cls in enumerate(["ground", "pole", "bush"]):
+        print(f"  {cls:6s} lin/plan/sph =", np.round(F[y == c].mean(0), 2))
+    err = np.degrees(np.arccos(np.abs(N[y == 0] @ [0, 0, 1])))
+    print("  ground normals, median angular error:", round(np.median(err), 2), "deg")
+
+# Voxel-grid subsampling: one barycentre per occupied 0.2 m cell
+keys = np.floor(X / 0.2).astype(int)
+_, inv, cnt = np.unique(keys, axis=0, return_inverse=True, return_counts=True)
+sub = np.zeros((len(cnt), 3)); np.add.at(sub, inv.ravel(), X); sub /= cnt[:, None]
+print("points:", len(X), "-> after the 0.2 m grid:", len(sub))
+```
+
+With 20 neighbours the pole looks *planar*: 20 points span only a few centimetres of its height, less than its diameter. The averages $(L, P, S)$ are
+
+| Class | $k = 20$ | $r = 0.5$ m |
+|---|---|---|
+| ground | (0.41, 0.58, 0.01) | (0.30, 0.67, 0.03) |
+| pole | (0.37, 0.52, 0.11) | (0.91, 0.02, 0.08) |
+| bush | (0.33, 0.29, 0.38) | (0.15, 0.35, 0.50) |
+
+At 0.5 m the three classes separate, and the median error of the ground normals falls from 1.29° to 0.43°. The grid reduces the 5,000 points to 1,842.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   $k$-neighbourhoods adapt to density, balls keep a geometric meaning; kd-trees and voxel hashes make both fast.
+-   Voxel grids even out density; farthest point sampling is a 2-approximation of the $k$-center problem.
+-   The normal is the eigenvector of the smallest eigenvalue of the local covariance (Theorem 2.5); orientation needs the sensor position or a propagation.
+-   Scale matters: noise favours large neighbourhoods, curvature small ones, with an optimum near $48^{1/4}\sqrt{\sigma/\kappa}$.
+-   Linearity, planarity, sphericity and verticality at several scales describe the local shape; FPFH describes it invariantly for matching.
+-   Remove outliers statistically, then smooth by projection or bilateral filtering.
+:::
+
+## 3. Registration {#ch3}
+
+A scanner sees a scene from one place. To model a building, a street or an object we must bring many scans into one frame, and a moving robot must estimate its motion from successive scans. This chapter solves the alignment problem: first with known correspondences in closed form, then by iterating closest points, then robustly and globally.
+
+::: def
+[Definition 3.1 — Rigid registration]{.tag} Given a **source** cloud $\mathcal{P} = (p_i)$ and a **target** cloud $\mathcal{Q}$, rigid registration seeks
+$$
+\min_{R \in SO(3),\ t \in \mathbb{R}^3} \ \sum_{i} \operatorname{dist}\big(R p_i + t,\ \mathcal{Q}\big)^2 ,
+$$
+where the distance is to the closest point (or to the surface) of $\mathcal{Q}$.
+
+The clouds overlap only partly, are sampled at different places, and are noisy. When pairs $(p_i, q_i)$ are known to correspond, the distance becomes $\|R p_i + t - q_i\|$, and the problem has a closed-form solution.
+:::
+
+### Alignment with known correspondences
+
+Write $\bar p, \bar q$ for the centroids, $p_i' = p_i - \bar p$ and $q_i' = q_i - \bar q$ for the centred points, and
+$$
+H = \sum_i p_i' \, q_i'^\top \in \mathbb{R}^{3 \times 3}, \qquad H = U \Sigma V^\top \ \text{(SVD)}.
+$$
+
+:::: thm
+[Theorem 3.2 — Closed-form rigid alignment (Arun, Huang & Blostein, 1987; Horn, 1987; Umeyama, 1991)]{.tag} The minimisers of
+$$
+E(R, t) = \sum_i \|R p_i + t - q_i\|^2 \quad \text{over } R \in SO(3),\ t \in \mathbb{R}^3
+$$
+are
+$$
+R^\star = V S U^\top, \quad S = \operatorname{diag}\big(1, 1, \det(V U^\top)\big), \quad t^\star = \bar q - R^\star \bar p .
+$$
+
+::: proof
+*Translation.* For fixed $R$, $E$ is a convex quadratic in $t$ with gradient $2 \sum_i (R p_i + t - q_i)$. It vanishes at $t = \bar q - R \bar p$: the optimal motion maps the centroid onto the centroid.
+
+*Reduction to a trace.* Substituting, $E$ becomes the sum of the squares of $\|R p_i' - q_i'\|$. Since $\|R p_i'\| = \|p_i'\|$,
+$$
+E = \sum_i \big(\|p_i'\|^2 + \|q_i'\|^2\big) - 2 \sum_i q_i'^\top R\, p_i' .
+$$
+
+The last sum equals $\operatorname{tr}(R H)$, so we must maximise $\operatorname{tr}(R H)$ over rotations.
+
+*Maximisation.* With $H = U \Sigma V^\top$, set $Z = V^\top R U$, an orthogonal matrix. Then
+$$
+\operatorname{tr}(R H) = \operatorname{tr}(Z \Sigma) = \sum_j \sigma_j Z_{jj} \leq \sum_j \sigma_j ,
+$$
+because the entries of an orthogonal matrix are at most 1 in absolute value. Equality holds for $Z = I$, that is $R = V U^\top$.
+
+*Reflections.* If $\det(V U^\top) = -1$, then $V U^\top$ is a reflection, and every rotation $R$ gives a matrix $Z$ with $\det Z = -1$.
+
+Over such matrices, with the ordering $\sigma_1 \ge \sigma_2 \ge \sigma_3$, the maximum of the sum of $\sigma_j Z_{jj}$ is $\sigma_1 + \sigma_2 - \sigma_3$, attained at $Z = S$ (Umeyama, 1991). This gives $R^\star = V S U^\top$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — rigid alignment by SVD]{.tag}
+$$
+H = \sum_i (p_i - \bar p)(q_i - \bar q)^\top = U \Sigma V^\top \ \Longrightarrow\ R^\star = V S U^\top,\quad t^\star = \bar q - R^\star \bar p
+$$
+:::
+
+The reflection case is not exotic: it happens when the points are nearly coplanar ($\sigma_3 \approx 0$) or very noisy. Forgetting the correction then returns a mirror image.
+
+::: ex
+[Example 3.3 — Alignment in the plane, by hand]{.tag} In 2D the rotation by $\theta$ gives
+$$
+\operatorname{tr}(R H) = \cos\theta\, (H_{xx} + H_{yy}) + \sin\theta\, (H_{xy} - H_{yx}),
+$$
+so the best angle is
+$$
+\theta^\star = \operatorname{atan2}\big(H_{xy} - H_{yx},\ H_{xx} + H_{yy}\big).
+$$
+
+Take $p = (0,0), (1,0), (0,1)$ and $q = (1,2), (1,3), (0,2)$.
+
+-   Centroids: $\bar p = (1/3, 1/3)$ and $\bar q = (2/3, 7/3)$.
+-   Centred points:
+    $$
+    p' = (-\tfrac13, -\tfrac13),\ (\tfrac23, -\tfrac13),\ (-\tfrac13, \tfrac23), \qquad q' = (\tfrac13, -\tfrac13),\ (\tfrac13, \tfrac23),\ (-\tfrac23, -\tfrac13).
+    $$
+-   Entries of $H$: $H_{xx} = \frac13$, $H_{yy} = -\frac13$, $H_{xy} = \frac23$, $H_{yx} = -\frac23$.
+-   Angle: $\operatorname{atan2}(4/3, 0)$, a quarter turn.
+-   Translation: $R^\star \bar p = (-\frac13, \frac13)$, so $t^\star = \bar q - R^\star \bar p = (1, 2)$.
+
+The data were generated by exactly this motion:
+$$
+\theta^\star = 90°, \qquad t^\star = (1, 2).
+$$
+:::
+
+### Iterative closest point
+
+Without correspondences, the natural idea is to guess them: match each source point to its closest target point, align, and repeat.
+
+::: def
+[Definition 3.4 — ICP (Besl & McKay, 1992; Zhang, 1994)]{.tag} Start from an initial motion $T_0 = (R_0, t_0)$. For $k = 0, 1, \dots$:
+
+1.  **Match**: for each $i$, let $j_{k+1}(i)$ be the index of the point of $\mathcal{Q}$ closest to $T_k p_i$ (kd-tree, [ch. 2](#ch2));
+2.  **Align**: let $T_{k+1}$ minimise the sum of the squares of $\|T p_i - q_{j_{k+1}(i)}\|$ (Theorem 3.2);
+3.  stop when the cost no longer decreases by more than a tolerance.
+:::
+
+:::: thm
+[Theorem 3.5 — Monotone convergence of ICP]{.tag} Let $e(T, j)$ be the sum of the squares of $\|T p_i - q_{j(i)}\|$. The costs $e(T_k, j_k)$ are non-increasing and converge.
+
+If ties in the matching step are broken by keeping the current match, ICP reaches a fixed point after finitely many iterations.
+
+::: proof
+The matching step chooses, for each $i$ separately, the closest point, so
+$$
+e(T_k, j_{k+1}) \leq e(T_k, j_k).
+$$
+
+The alignment step minimises over $T$ with $j_{k+1}$ fixed, so $e(T_{k+1}, j_{k+1}) \leq e(T_k, j_{k+1})$. A non-increasing sequence of non-negative numbers converges.
+
+For finiteness, let $F(j)$ be the minimum of $e(T, j)$ over $T$; after each alignment the cost is $F(j_k)$. If the matching does not change, the motion does not change either: a fixed point. Otherwise some point found a strictly closer match, and
+$$
+F(j_{k+1}) \leq e(T_k, j_{k+1}) < e(T_k, j_k) = F(j_k).
+$$
+
+$F$ takes finitely many values (there are finitely many matchings), so it cannot decrease strictly forever. [∎]{.qed}
+:::
+::::
+
+The theorem guarantees convergence, not correctness. ICP converges to a *local* minimum, and its basin of attraction is limited: a rotation of a few tens of degrees or a small overlap is enough to lock it into a wrong alignment. ICP is therefore a *fine* registration method, started from a coarse estimate (GNSS/IMU, odometry, or the global methods below).
+
+### Point-to-plane ICP
+
+Matching to the closest *point* penalises sliding along the surface, although two samplings of the same plane never coincide. Chen and Medioni (1992) penalise only the distance to the tangent plane at the target.
+
+::: def
+[Definition 3.6 — Point-to-plane cost]{.tag} With $n_i$ the normal at the matched target point $q_i$,
+$$
+E_{\text{plane}}(R, t) = \sum_i \big( (R p_i + t - q_i)^\top n_i \big)^2 .
+$$
+
+The cost is zero as soon as every source point lies on the tangent plane of its match, whatever its position within that plane.
+:::
+
+:::: prop
+[Proposition 3.7 — The linearised point-to-plane step]{.tag} Write a small motion as $R \approx I + [\omega]_\times$ and $t$, with unknown $\xi = (\omega, t) \in \mathbb{R}^6$. Then $E_{\text{plane}}$ becomes the linear least-squares problem
+$$
+\min_{\xi} \sum_i \big( a_i^\top \xi - b_i \big)^2, \qquad a_i = \begin{pmatrix} p_i \times n_i \\ n_i \end{pmatrix}, \quad b_i = (q_i - p_i)^\top n_i ,
+$$
+solved by the $6 \times 6$ normal equations (Proposition 0.5).
+
+::: proof
+To first order, $R p_i + t - q_i = p_i - q_i + \omega \times p_i + t$.
+
+Take the inner product with $n_i$ and use the identity
+$$
+(\omega \times p_i)^\top n_i = \omega^\top (p_i \times n_i).
+$$
+
+The residual becomes $a_i^\top \xi - b_i$. [∎]{.qed}
+:::
+
+The rotation found is turned into an exact rotation with Rodrigues' formula (Proposition 0.3), and the step is repeated with new matches (Low, 2004).
+::::
+
+The $6 \times 6$ matrix $\sum_i a_i a_i^\top$ shows when registration is ill-posed. On a single plane all $n_i$ are equal: translations within the plane and rotations about its normal leave the cost unchanged, and the matrix has rank 3. In a straight corridor the translation along the axis is unobservable.
+
+LiDAR odometry monitors the eigenvalues of this matrix to detect such degenerate places.
+
+::: ex
+[Code 3.8 — Point-to-point versus point-to-plane ICP]{.tag} A bumpy, non-symmetric patch is sampled twice (4,000 and 3,000 points, at different places). The second sample is rotated by 20°, translated by about 20 cm and given 5 mm of noise. Both variants run 30 iterations.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+from scipy.spatial.transform import Rotation
+
+rng = np.random.default_rng(1)
+
+def surface(n):                       # a bumpy, non-symmetric patch with its normals
+    u = rng.uniform(-1, 1, (n, 2))
+    z = 0.3 * np.sin(2 * u[:, 0]) * np.cos(3 * u[:, 1]) + 0.2 * u[:, 0] ** 2
+    dzdx = 0.6 * np.cos(2 * u[:, 0]) * np.cos(3 * u[:, 1]) + 0.4 * u[:, 0]
+    dzdy = -0.9 * np.sin(2 * u[:, 0]) * np.sin(3 * u[:, 1])
+    nrm = np.c_[-dzdx, -dzdy, np.ones(n)]
+    return np.c_[u, z], nrm / np.linalg.norm(nrm, axis=1, keepdims=True)
+
+def kabsch(P, Q):
+    """R, t minimising sum ||R p_i + t - q_i||^2 (Theorem 3.2)."""
+    mp, mq = P.mean(0), Q.mean(0)
+    U, _, Vt = np.linalg.svd((P - mp).T @ (Q - mq))
+    S = np.diag([1, 1, np.sign(np.linalg.det(Vt.T @ U.T))])
+    R = Vt.T @ S @ U.T
+    return R, mq - R @ mp
+
+Q, NQ = surface(4000)                                   # reference ("model") scan
+R0 = Rotation.from_rotvec(np.radians(20) * np.array([0.3, 0.2, 0.93])).as_matrix()
+P = (surface(3000)[0] @ R0.T) + [0.15, -0.10, 0.05]     # new scan, other samples
+P += 0.005 * rng.standard_normal(P.shape)
+tree = cKDTree(Q)
+
+def icp(P, plane, iters=30):
+    R, t, rms = np.eye(3), np.zeros(3), []
+    for _ in range(iters):
+        X = P @ R.T + t
+        d, j = tree.query(X)
+        rms.append(np.sqrt(np.mean(d ** 2)))
+        if plane:                                       # linearised point-to-plane step
+            n = NQ[j]
+            A = np.c_[np.cross(X, n), n]
+            b = np.einsum("ij,ij->i", Q[j] - X, n)
+            x = np.linalg.lstsq(A, b, rcond=None)[0]
+            dR = Rotation.from_rotvec(x[:3]).as_matrix()
+            R, t = dR @ R, dR @ t + x[3:]
+        else:                                           # point-to-point step
+            dR, dt = kabsch(X, Q[j])
+            R, t = dR @ R, dR @ t + dt
+    return R, rms
+
+for plane in (False, True):
+    R, rms = icp(P, plane)
+    ang = np.degrees(Rotation.from_matrix(R @ R0).magnitude())
+    print("point-to-plane" if plane else "point-to-point",
+          "| RMS at iterations 1, 5, 10, 30:", " ".join(f"{rms[i]:.4f}" for i in (0, 4, 9, 29)),
+          f"| residual rotation error: {ang:.3f} deg")
+```
+
+| Variant | RMS, iteration 1 | 5 | 10 | 30 | Rotation error |
+|---|---|---|---|---|---|
+| point-to-point | 0.1713 | 0.0633 | 0.0361 | 0.0205 | 0.339° |
+| point-to-plane | 0.1713 | 0.0199 | 0.0199 | 0.0199 | 0.047° |
+
+Point-to-plane has converged after five iterations; point-to-point is still crawling after thirty. The floor of about 2 cm is the distance between the two different samplings, not an alignment error.
+:::
+
+### Robust registration
+
+Real scans contain points with no counterpart: parts seen from one station only, moving cars, noise. Their closest-point residuals are large and pull the least-squares solution away.
+
+::: def
+[Definition 3.9 — Robust ICP variants]{.tag}
+
+-   **Rejection** (Rusinkiewicz & Levoy, 2001): discard pairs farther than a threshold, pairs whose normals disagree, and pairs whose target lies on the boundary of $\mathcal{Q}$.
+-   **Trimmed ICP** (Chetverikov et al., 2002): keep only the fraction $\eta$ of pairs with the smallest residuals, $\eta$ being an estimate of the overlap.
+-   **M-estimators**: replace the square by a function $\rho$ that grows more slowly, and minimise the sum of $\rho(r_i)$. Examples are Huber's function, quadratic up to $c$ and linear beyond, and the Cauchy function $\frac{c^2}{2} \log(1 + r^2/c^2)$.
+:::
+
+:::: prop
+[Proposition 3.10 — Iteratively reweighted least squares]{.tag} Suppose $\rho(r) = \phi(r^2)$ with $\phi$ concave and non-decreasing, and let $r_i(\theta)$ be the residuals of the parameters $\theta$.
+
+Given $\theta_k$, set the weights $w_i = \phi'(r_i(\theta_k)^2)$ and let $\theta_{k+1}$ minimise the weighted sum of $w_i\, r_i(\theta)^2$. Then
+$$
+\sum_i \rho\big(r_i(\theta_{k+1})\big) \leq \sum_i \rho\big(r_i(\theta_k)\big).
+$$
+
+::: proof
+Concavity gives the tangent bound
+$$
+\phi(s) \leq \phi(s_0) + \phi'(s_0)(s - s_0).
+$$
+
+Applied to each $s = r_i(\theta)^2$ at $s_0 = r_i(\theta_k)^2$, it bounds the robust cost by a constant plus the weighted least-squares cost. The bound is tight at $\theta_k$.
+
+Minimising the bound cannot increase it, and the robust cost lies below the bound: this is the majorise–minimise principle. [∎]{.qed}
+:::
+::::
+
+For the Cauchy function the weight is $1/(1 + r^2/c^2)$: a pair with residual $3c$ counts ten times less than a perfect pair. Each robust ICP iteration is therefore a weighted Theorem 3.2 or a weighted Proposition 3.7.
+
+### Global registration
+
+When no initial guess is available, correspondences are found by comparing descriptors instead of positions.
+
+::: def
+[Definition 3.11 — Feature-based registration with RANSAC]{.tag}
+
+1.  Compute a descriptor such as FPFH (Definition 2.11) at keypoints of both clouds, and match each keypoint to its nearest neighbour in descriptor space, keeping mutual matches.
+2.  Repeat: draw three matches at random, compute the motion they define (Theorem 3.2), and count the matches it brings within a distance $\varepsilon$, called **inliers**.
+3.  Keep the motion with the most inliers, refit it on all its inliers, then refine with ICP.
+:::
+
+Most descriptor matches are wrong, so the number of draws matters.
+
+:::: thm
+[Theorem 3.12 — How many RANSAC iterations]{.tag} If a fraction $w$ of the matches are correct and a minimal sample has $s$ elements, then $N$ independent samples contain at least one all-inlier sample with probability at least $p$ as soon as
+$$
+N \geq \frac{\log(1 - p)}{\log(1 - w^s)} .
+$$
+
+::: proof
+A sample of $s$ matches drawn independently is all-inlier with probability $q = w^s$; apply Proposition 0.7. Drawing without replacement from a large set changes $q$ only slightly. [∎]{.qed}
+:::
+::::
+
+For $p = 0.99$ and $s = 3$ the required number of draws explodes as $w$ decreases:
+
+| Inlier ratio $w$ | 0.5 | 0.3 | 0.1 | 0.05 |
+|---|---|---|---|---|
+| Iterations $N$ | 35 | 169 | 4,603 | 36,840 |
+
+Since $w$ is unknown, implementations start with a large $N$ and decrease it each time a better consensus raises the estimate of $w$ (the adaptive rule used in Code 5.10).
+
+::: note
+[Note 3.13 — Beyond two scans]{.tag}
+
+-   **Variants of the cost**: Generalized-ICP (Segal, Haehnel & Thrun, 2009) models both clouds as local Gaussians and contains point-to-point and point-to-plane as special cases. The normal distributions transform (Biber & Straßer, 2003) registers a cloud to a voxel grid of Gaussians.
+-   **Other global methods**: 4PCS (Aiger, Mitra & Cohen-Or, 2008) matches coplanar four-point bases, and TEASER (Yang, Shi & Carlone, 2021) gives certifiable solutions under many outliers.
+-   **Many scans**: pairwise motions are combined in a **pose graph** and adjusted jointly so that loops close consistently.
+-   **LiDAR odometry** registers each new scan to a map built from the previous ones, in real time; see [ch. 8](#ch8).
+-   **Evaluation**: rotation error (the angle of the relative rotation, via the trace formula), translation error, and RMS of point-to-point or point-to-plane distances on the overlap.
+:::
+
+::: recap
+Key takeaways — chapter 3
+
+-   With known correspondences: centre both sets, take the SVD of the cross-covariance, $R^\star = V S U^\top$, $t^\star = \bar q - R^\star \bar p$; the matrix $S$ removes reflections.
+-   ICP alternates closest-point matching and closed-form alignment; its cost decreases monotonically to a *local* minimum.
+-   Point-to-plane ICP linearises to a $6 \times 6$ system and converges much faster; its rank reveals degenerate scenes.
+-   Outliers are handled by rejection, trimming or M-estimators solved by reweighted least squares.
+-   Global registration matches descriptors and needs about $\log(1-p)/\log(1-w^3)$ RANSAC draws.
+:::
+
+## 4. Segmentation of point clouds {#ch4}
+
+A registered cloud is still a single list of points. Segmentation cuts it into meaningful parts: smooth surface patches, objects, or semantic classes such as ground, building, vegetation and car. This chapter goes from geometric criteria to learned classifiers, and ends with neural networks that consume raw points.
+
+::: def
+[Definition 4.1 — Segmentation tasks and their metrics]{.tag}
+
+-   **Geometric segmentation** partitions the cloud into connected regions that are smooth or belong to one primitive.
+-   **Semantic segmentation** assigns a class label $y_i \in \{1, \dots, C\}$ to every point.
+-   **Instance segmentation** also separates objects of the same class (this car, that car).
+
+For semantic segmentation, with $\mathrm{TP}_c$, $\mathrm{FP}_c$, $\mathrm{FN}_c$ the true positives, false positives and false negatives of class $c$,
+$$
+\mathrm{IoU}_c = \frac{\mathrm{TP}_c}{\mathrm{TP}_c + \mathrm{FP}_c + \mathrm{FN}_c}, \qquad \mathrm{mIoU} = \frac{1}{C} \sum_c \mathrm{IoU}_c .
+$$
+
+The overall accuracy is dominated by large classes such as the ground; the mean IoU weighs every class equally and is the standard benchmark score.
+:::
+
+### Geometric segmentation
+
+::: def
+[Definition 4.2 — Region growing with a smoothness constraint (Rabbani, van den Heuvel & Vosselman, 2006)]{.tag} Compute normals and the residual of each local plane fit, or the surface variation (ch. 2). Sort the points by increasing residual. While some point is unlabelled:
+
+1.  start a new region from the flattest unlabelled point, and put it in a queue of seeds;
+2.  pop a seed; add each unlabelled neighbour whose normal makes an angle below $\theta_{\max}$ with the seed's normal;
+3.  among the added neighbours, those with a residual below a threshold become seeds;
+4.  when the queue is empty, close the region.
+
+Each point enters at most once, so the cost is $O(nk)$ for $k$ neighbours per point after the neighbour search.
+:::
+
+Region growing returns smooth patches: planes of a façade, a road surface, the cylinder of a pole. A simpler variant, **Euclidean clustering**, keeps the connected components of the graph that joins points closer than $r$. After the ground has been removed it separates isolated objects such as cars and pedestrians.
+
+Both methods decide locally. A global formulation instead balances how well each point fits a label against how coherent the labels of neighbours are.
+
+::: def
+[Definition 4.3 — Labelling energy with a Potts prior]{.tag} On a neighbourhood graph $(V, E)$ of the cloud, a labelling $y = (y_i)$ has energy
+$$
+\mathcal{E}(y) = \sum_{i \in V} U_i(y_i) + \beta \sum_{(i,j) \in E} \mathbb{1}[y_i \neq y_j] ,
+$$
+where the **data term** $U_i(c)$ is the cost of giving label $c$ to point $i$ (for example minus the log-probability returned by a classifier) and $\beta > 0$ penalises label changes between neighbours.
+:::
+
+:::: thm
+[Theorem 4.4 — Exact binary labelling by a minimum cut (Greig, Porteous & Seheult, 1989)]{.tag} For two labels, the minimum of $\mathcal{E}$ is computed exactly by a minimum $s$–$t$ cut, hence in polynomial time.
+
+For more labels and the Potts prior, minimisation is NP-hard. The α-expansion algorithm of Boykov, Veksler and Zabih (2001) solves a sequence of binary cuts and returns a labelling whose energy is at most twice the minimum.
+
+::: proof
+*Sketch for two labels* $\{0, 1\}$. Build a graph with a source $s$, a sink $t$ and one node per point.
+
+Add an edge $s \to i$ of capacity $U_i(1)$, an edge $i \to t$ of capacity $U_i(0)$, and edges $i \leftrightarrow j$ of capacity $\beta$ for every pair of neighbours.
+
+An $s$–$t$ cut puts each node on the source side (label 0) or on the sink side (label 1). Its cost is the sum of the capacities it severs: $U_i(1)$ for the points labelled 1, $U_i(0)$ for the points labelled 0, and $\beta$ for each pair of neighbours with different labels.
+
+That is exactly $\mathcal{E}(y)$. A minimum cut, computable by max-flow, therefore minimises the energy. [∎]{.qed}
+:::
+::::
+
+### Classification with hand-crafted features
+
+The classical supervised pipeline computes, for every point, the features of Definition 2.9 at several scales and trains a standard classifier on labelled points.
+
+::: def
+[Definition 4.5 — Multi-scale feature classification]{.tag}
+
+1.  Choose radii $r_1 < \dots < r_S$, or a pyramid of voxel grids as in Hackel, Wegner and Schindler (2016), which keeps the neighbour search cheap on large scenes.
+2.  For every point and scale compute linearity, planarity, sphericity, verticality and the other features of Definition 2.9; add the height above the ground and, when present, intensity and colour.
+3.  Train a **random forest** (Breiman, 2001): an average of decision trees, each grown on a bootstrap sample with random subsets of features at each split.
+4.  Optionally regularise the predicted labels with the energy of Definition 4.3.
+
+Weinmann, Jutzi, Hinz and Mallet (2015) compare neighbourhood definitions, feature sets and classifiers systematically in this pipeline.
+:::
+
+::: ex
+[Code 4.6 — One scale or three?]{.tag} Two toy street scans with four classes (ground, pole, bush, façade) are generated with different layouts. A random forest is trained on the first and tested on the second, with features at one radius, at three radii, and at three radii plus the height.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+from sklearn.ensemble import RandomForestClassifier
+
+def scene(seed):
+    """Toy street with labels: ground 0, pole 1, bush 2, facade 3."""
+    rng = np.random.default_rng(seed)
+    g = np.c_[rng.uniform(-3, 3, (3000, 2)), 0.01 * rng.standard_normal(3000)]
+    th, z = rng.uniform(0, 2 * np.pi, 600), rng.uniform(0, 3, 600)
+    c = rng.uniform(-2, 2, 2)
+    p = np.c_[0.08 * np.cos(th) + c[0], 0.08 * np.sin(th) + c[1], z]
+    b = rng.normal(0, 1, (1200, 3)); b /= np.linalg.norm(b, axis=1, keepdims=True)
+    b = b * rng.uniform(0, 0.6, (1200, 1)) ** (1 / 3) + [*rng.uniform(-2, 2, 2), 0.7]
+    f = np.c_[np.full(1500, 3.0), rng.uniform(-3, 3, 1500), rng.uniform(0, 4, 1500)]
+    f[:, 0] += 0.01 * rng.standard_normal(1500)
+    y = np.repeat([0, 1, 2, 3], [3000, 600, 1200, 1500])
+    return np.r_[g, p, b, f], y
+
+def features(X, radii=(0.25, 0.5, 1.0)):
+    """Per radius: linearity, planarity, sphericity, verticality; then the height."""
+    tree, F = cKDTree(X), []
+    for r in radii:
+        out = np.zeros((len(X), 4))
+        for i, nb in enumerate(tree.query_ball_point(X, r)):
+            Q = X[nb] - X[nb].mean(0)
+            lam, vec = np.linalg.eigh(Q.T @ Q / len(nb))
+            l3, l2, l1 = np.maximum(lam, 1e-12)
+            out[i] = [(l1 - l2) / l1, (l2 - l3) / l1, l3 / l1, 1 - abs(vec[2, 0])]
+        F.append(out)
+    return np.hstack(F + [X[:, 2:3]])
+
+(Xtr, ytr), (Xte, yte) = scene(0), scene(1)       # train on one scan, test on another
+Ftr, Fte = features(Xtr), features(Xte)
+for name, cols in [("one scale (0.25 m)", slice(0, 4)),
+                   ("three scales", slice(0, 12)),
+                   ("three scales + height", slice(0, 13))]:
+    clf = RandomForestClassifier(n_estimators=100, random_state=0).fit(Ftr[:, cols], ytr)
+    pred = clf.predict(Fte[:, cols])
+    iou = [np.sum((pred == c) & (yte == c)) / np.sum((pred == c) | (yte == c)) for c in range(4)]
+    print(f"{name:22s} IoU ground/pole/bush/facade = {np.round(iou, 3)}  mIoU = {np.mean(iou):.3f}")
+```
+
+| Features | ground | pole | bush | façade | mIoU |
+|---|---|---|---|---|---|
+| one scale (0.25 m) | 0.962 | 0.876 | 0.858 | 0.979 | 0.919 |
+| three scales | 0.982 | 0.945 | 0.940 | 0.991 | 0.965 |
+| three scales + height | 0.994 | 0.980 | 0.979 | 0.999 | 0.988 |
+
+Each added piece of context helps, the most on the small classes (pole, bush), which is exactly what the mean IoU rewards. On real scans the scores are far lower: classes are many, unbalanced and similar.
+:::
+
+### Learning directly on points
+
+Hand-crafted features fix the description in advance. Deep networks learn it, but a cloud is neither a grid (no convolution) nor a sequence (no order). The architecture must be insensitive to the order of the points.
+
+::: def
+[Definition 4.7 — Symmetric set functions and PointNet]{.tag} A function $f(x_1, \dots, x_n)$ is **permutation invariant** if $f(x_{\pi(1)}, \dots, x_{\pi(n)}) = f(x_1, \dots, x_n)$ for every permutation $\pi$.
+
+**PointNet** (Qi, Su, Mo & Guibas, 2017) computes
+$$
+f(\mathcal{X}) = \gamma\Big( \max_{i = 1, \dots, n} h(x_i) \Big),
+$$
+where $h : \mathbb{R}^3 \to \mathbb{R}^K$ is a multilayer perceptron applied to every point with shared weights, the maximum is taken coordinate by coordinate, and $\gamma$ is another perceptron.
+
+For segmentation, the global vector $\max_i h(x_i)$ is concatenated to each point's own features and a third shared perceptron predicts one label per point.
+:::
+
+The maximum is symmetric, so $f$ is permutation invariant by construction. The next theorem shows that nothing essential is lost.
+
+:::: thm
+[Theorem 4.8 — Universal approximation of set functions (Qi et al., 2017)]{.tag} Let $f$ be a function on the sets of $n$ points of $[0, 1]^3$, continuous for the Hausdorff distance $d_H$.
+
+For every $\varepsilon > 0$ there exist a continuous $h$ and a continuous $\gamma$ such that, for every such set $\mathcal{X}$,
+$$
+\Big| f(\mathcal{X}) - \gamma\big( \max_{x \in \mathcal{X}} h(x) \big) \Big| < \varepsilon .
+$$
+
+::: proof
+*Sketch.* The domain is compact for $d_H$, so $f$ is uniformly continuous: there is $\delta > 0$ such that sets at Hausdorff distance below $\delta$ have values closer than $\varepsilon$.
+
+Cut the cube into $K$ small cells of diameter below $\delta$, and let $h_k$ be a continuous approximation of the indicator of cell $k$. Then $v = \max_i h(x_i) \in [0, 1]^K$ approximately records which cells are occupied.
+
+Any $n$-point set that meets every occupied cell and stays inside their union is within $\delta$ of $\mathcal{X}$ in Hausdorff distance, so $f$ differs by less than $\varepsilon$ on it.
+
+Defining $\gamma(v)$ as $f$ of such a set for each occupancy pattern, extended continuously between the vertices of $[0, 1]^K$, gives the bound. [∎]{.qed}
+:::
+::::
+
+Zaheer and coauthors (2017, "Deep Sets") prove a sum-decomposition $\rho(\sum_i \phi(x_i))$ of the same kind. The max version has an extra property: robustness to missing points.
+
+:::: prop
+[Proposition 4.9 — Critical points]{.tag} Let $v = \max_{x \in \mathcal{X}} h(x) \in \mathbb{R}^K$. There is a subset $\mathcal{C} \subseteq \mathcal{X}$ with at most $K$ points, the **critical set**, such that every set $\mathcal{T}$ with
+$$
+\mathcal{C} \subseteq \mathcal{T} \subseteq \{ x \in \mathbb{R}^3 : h(x) \leq v \text{ coordinatewise} \}
+$$
+has the same global feature $v$, hence the same output.
+
+::: proof
+For each coordinate $k$, choose a point of $\mathcal{X}$ where the $k$-th coordinate of $h$ reaches its maximum $v_k$.
+
+Let $\mathcal{C}$ be the set of these at most $K$ points.
+
+Any such $\mathcal{T}$ contains a point reaching $v_k$ for each $k$, and no point exceeding it. So its coordinatewise maximum is $v$. [∎]{.qed}
+:::
+
+Removing non-critical points, or adding points below $v$, does not change the output: PointNet tolerates sparse or partial clouds better than a dense-grid network. Its weakness is the opposite: each point is processed alone, so local geometry enters only through the final maximum.
+::::
+
+::: ex
+[Code 4.10 — A minimal PointNet]{.tag} Four classes of shapes (sphere, cube, cylinder, cone), 128 noisy points each, randomly rotated about the vertical axis and scaled. A PointNet with a shared perceptron $3 \to 32 \to 64 \to 128$ is trained for 20 epochs on 600 shapes and tested on 300.
+
+```python
+import numpy as np, torch, torch.nn as nn
+torch.set_num_threads(1); torch.manual_seed(0); rng = np.random.default_rng(0)
+
+def sample(kind, n=128):
+    """n noisy points on a sphere, cube, cylinder or cone, randomly turned and scaled."""
+    if kind == 0:
+        x = rng.normal(size=(n, 3)); x /= np.linalg.norm(x, axis=1, keepdims=True)
+    elif kind == 1:
+        x = rng.uniform(-1, 1, (n, 3)); f = rng.integers(0, 3, n)
+        x[np.arange(n), f] = rng.choice([-1.0, 1.0], n)
+    else:
+        th, z = rng.uniform(0, 2 * np.pi, n), rng.uniform(-1, 1, n)
+        rad = np.ones(n) if kind == 2 else (1 - z) / 2
+        x = np.c_[rad * np.cos(th), rad * np.sin(th), z]
+    a = rng.uniform(0, 2 * np.pi)                        # random rotation about z
+    Rz = np.array([[np.cos(a), -np.sin(a), 0], [np.sin(a), np.cos(a), 0], [0, 0, 1]])
+    return (x @ Rz.T) * rng.uniform(0.7, 1.3) + 0.02 * rng.normal(size=(n, 3))
+
+def dataset(m):
+    y = rng.integers(0, 4, m)
+    X = np.stack([sample(k) for k in y])
+    return torch.tensor(X, dtype=torch.float32), torch.tensor(y)
+
+class PointNet(nn.Module):
+    """Shared per-point MLP h, symmetric max-pooling, then a classifier gamma."""
+    def __init__(self, k=4):
+        super().__init__()
+        self.h = nn.Sequential(nn.Linear(3, 32), nn.ReLU(), nn.Linear(32, 64),
+                               nn.ReLU(), nn.Linear(64, 128))
+        self.gamma = nn.Sequential(nn.ReLU(), nn.Linear(128, 32), nn.ReLU(), nn.Linear(32, k))
+    def forward(self, x):                                # x: (batch, n_points, 3)
+        return self.gamma(self.h(x).max(dim=1).values)
+
+Xtr, ytr = dataset(600); Xte, yte = dataset(300)
+net = PointNet(); opt = torch.optim.Adam(net.parameters(), lr=2e-3)
+for epoch in range(20):
+    perm = torch.randperm(len(Xtr))
+    for i in range(0, len(Xtr), 50):
+        b = perm[i:i + 50]
+        loss = nn.functional.cross_entropy(net(Xtr[b]), ytr[b])
+        opt.zero_grad(); loss.backward(); opt.step()
+with torch.no_grad():
+    acc = (net(Xte).argmax(1) == yte).float().mean().item()
+    same = torch.allclose(net(Xte), net(Xte[:, torch.randperm(128)]), atol=1e-5)
+print(f"test accuracy (sphere/cube/cylinder/cone): {acc:.3f}")
+print("output unchanged when the points are reordered:", same)
+```
+
+The network classifies all 300 test shapes correctly (accuracy 1.000), and shuffling the points leaves its outputs unchanged, as Definition 4.7 guarantees. Training takes a few seconds on one CPU core.
+:::
+
+### Local structure: hierarchies and point convolutions
+
+::: def
+[Definition 4.11 — PointNet++ (Qi, Yi, Su & Guibas, 2017)]{.tag} A **set abstraction** layer maps a set of points with features to a smaller set:
+
+1.  **sample** $m$ centres by farthest point sampling (Proposition 2.4);
+2.  **group** the points within radius $r$ of each centre (ball query);
+3.  apply a small PointNet to each group, on coordinates relative to the centre, which gives one feature vector per centre.
+
+Stacking layers with growing radii builds a hierarchy, like the pyramid of a convolutional network. For segmentation, features are propagated back to all points by inverse-distance interpolation from the three nearest centres.
+:::
+
+Grouping with several radii at once ("multi-scale grouping") makes the network robust to density changes, the learned counterpart of the multi-scale features of Definition 4.5.
+
+::: def
+[Definition 4.12 — Kernel point convolution, KPConv (Thomas et al., 2019)]{.tag} A kernel is a set of $K$ **kernel points** $\tilde x_1, \dots, \tilde x_K$ in a ball of radius $r$, each carrying a weight matrix $W_k$. The convolution of the input features $f_i$ at a point $x$ is
+$$
+(\mathcal{F} * g)(x) = \sum_{x_i \in \mathcal{N}_r(x)} g(x_i - x)\, f_i, \qquad g(y) = \sum_{k=1}^{K} \max\Big(0,\ 1 - \frac{\|y - \tilde x_k\|}{\sigma}\Big) W_k .
+$$
+
+Each neighbour contributes through the kernel points close to its relative position, with a linear correlation of influence $\sigma$. In the *deformable* version, the network also predicts shifts of the kernel points at each location. Between layers the cloud is subsampled on voxel grids of growing size (Definition 2.3).
+:::
+
+KPConv is a genuine convolution: the same filter is applied at every location, and it depends on relative positions only, so it is translation equivariant.
+
+::: note
+[Note 4.13 — Other architectures and benchmark data]{.tag}
+
+-   **Graph-based**: DGCNN (Wang et al., 2019) recomputes $k$-nearest-neighbour graphs in feature space at every layer (EdgeConv).
+-   **Sparse voxels**: networks such as MinkowskiNet (Choy, Gwak & Savarese, 2019) voxelise the cloud and convolve only on occupied voxels.
+-   **Attention**: point transformers (Zhao et al., 2021) replace the fixed kernel by attention weights within local neighbourhoods.
+-   **Data sets**: ModelNet40 for shape classification (Wu et al., 2015); S3DIS for indoor scenes (Armeni et al., 2016); Semantic3D (Hackel et al., 2017), Paris-Lille-3D (Roynard, Deschaud & Goulette, 2018) and SemanticKITTI (Behley et al., 2019) for outdoor LiDAR.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Report per-class IoU and mIoU; overall accuracy hides the small classes.
+-   Region growing on normals and curvature gives smooth patches; Euclidean clustering separates objects once the ground is removed.
+-   A Potts energy balances data fit and coherence; two labels are solved exactly by a minimum cut, several within a factor 2 by α-expansion.
+-   Multi-scale covariance features with a random forest are a strong, fast baseline.
+-   PointNet is a shared perceptron followed by a max: permutation invariant, universal for continuous set functions, determined by at most $K$ critical points.
+-   PointNet++ adds a sampling–grouping hierarchy; KPConv defines true convolutions on points with kernel points.
+:::
+
+## 5. Modelling by primitives {#ch5}
+
+Man-made scenes are mostly planes, cylinders, spheres and cones: walls, pipes, tanks, columns. Describing a scan by a few such primitives compresses it by orders of magnitude and turns points into an editable model. This chapter fits primitives, detects them in clutter with RANSAC and the Hough transform, and chooses between them.
+
+::: def
+[Definition 5.1 — Primitives and their distances]{.tag}
+
+-   **Plane** $\{x : n^\top x = d\}$, 3 parameters; distance $|n^\top x - d|$. Least-squares fit: Theorem 2.5.
+-   **Sphere** of centre $c$ and radius $r$, 4 parameters; distance $\big|\, \|x - c\| - r \,\big|$.
+-   **Cylinder** of unit axis $a$ through $c$ and radius $r$, 5 parameters; distance $\big|\, \|(I - a a^\top)(x - c)\| - r \,\big|$.
+-   **Cone** (apex, axis, angle, 6 parameters) and **torus** (7 parameters) complete the usual list.
+
+A point is an **inlier** of a primitive if its distance is below a threshold $\varepsilon$ and, when normals are available, its normal deviates from the primitive's normal by less than an angle $\alpha$.
+:::
+
+The geometric distance makes sphere and cylinder fitting non-linear. A change of unknowns makes the sphere linear.
+
+:::: prop
+[Proposition 5.2 — Algebraic sphere fit]{.tag} The condition $\|x - c\|^2 = r^2$ is equivalent to
+$$
+\|x\|^2 = 2 c^\top x + d, \qquad d = r^2 - \|c\|^2 ,
+$$
+which is linear in the unknowns $(c, d)$. Least squares over all points (Proposition 0.5) gives $c$ and $d$, then $r = \sqrt{d + \|c\|^2}$.
+
+::: proof
+Expand $\|x - c\|^2 = \|x\|^2 - 2 c^\top x + \|c\|^2$ and rearrange. [∎]{.qed}
+:::
+
+The algebraic residual $\|x\|^2 - 2c^\top x - d$ equals $(\|x - c\| - r)(\|x - c\| + r)$, about $2r$ times the geometric one near the sphere. The fit is excellent on well-covered spheres but biased on small caps; it then serves as the start of a Gauss–Newton refinement of the geometric distance.
+::::
+
+:::: prop
+[Proposition 5.3 — A cylinder from two oriented points]{.tag} Let $(p_1, n_1)$ and $(p_2, n_2)$ be two points of a cylinder with non-parallel normals. Then:
+
+-   the axis direction is $a = n_1 \times n_2 / \|n_1 \times n_2\|$;
+-   after projection on the plane orthogonal to $a$, the axis is the intersection point of the two lines $p_k + s\, n_k$;
+-   the radius is the distance from $p_1$ to the axis.
+
+::: proof
+Every normal of a cylinder is orthogonal to its axis, so $a$ is orthogonal to $n_1$ and $n_2$.
+
+The normal line at a point of a cylinder meets the axis orthogonally. In the cross-section plane the cylinder is a circle, and its normal lines all pass through the centre. [∎]{.qed}
+:::
+
+Two oriented points also determine a sphere (where the normal lines meet). Oriented samples therefore make minimal samples smaller, which matters for RANSAC.
+::::
+
+### Detection with RANSAC
+
+::: def
+[Definition 5.4 — RANSAC shape detection (Fischler & Bolles, 1981)]{.tag}
+
+1.  Draw a **minimal sample**: 3 points for a plane, 2 oriented points for a cylinder or a sphere.
+2.  Compute the candidate primitive; its **score** is its number of inliers.
+3.  Repeat $N$ times, with $N$ updated by Theorem 3.12 using the best inlier ratio found so far.
+4.  Refit the best candidate on its inliers by least squares, keep it, remove its inliers, and start again (**sequential RANSAC**) until no candidate has enough support.
+:::
+
+On large scenes a single primitive holds a tiny fraction of the points, and Theorem 3.12 becomes prohibitive. Schnabel, Wahl and Klein (2007) draw the samples *locally*.
+
+:::: prop
+[Proposition 5.5 — Localised sampling]{.tag} Suppose the first point is drawn uniformly, and the other $s - 1$ points are drawn in the octree cell of the first. If a shape holds a fraction $w$ of the points, and fills a fraction $\eta$ of each cell it crosses, the probability that a sample is all-inlier becomes
+$$
+q = w\, \eta^{s - 1} \quad \text{instead of} \quad w^s .
+$$
+
+::: proof
+The first point is an inlier with probability $w$. Given that, its cell is one the shape crosses, so each of the other draws is an inlier with probability $\eta$, independently. [∎]{.qed}
+:::
+::::
+
+Take $10^6$ points, a plane of $1{,}000$ points and samples of size 3. Uniform sampling needs about $4.6 \times 10^9$ draws for $p = 0.99$. With cells in which the plane holds half of the points, $q = 10^{-3} \times 0.25$ and
+$$
+N \approx \frac{4.6}{2.5 \times 10^{-4}} \approx 18{,}400 \text{ draws}.
+$$
+
+Efficient RANSAC also estimates scores on random subsets of the cloud, and keeps only the largest connected component of the inliers, so that two separate walls in the same plane become two primitives.
+
+### The Hough transform
+
+RANSAC samples the data and tests parameters. The Hough transform does the reverse: every point votes for all the primitives that pass through it, in a discretised parameter space.
+
+::: def
+[Definition 5.6 — Hough transform for planes]{.tag} Parametrise a plane by its unit normal in spherical angles and its distance $\rho$ to the origin:
+$$
+n(\theta, \phi) = (\cos\theta \sin\phi,\ \sin\theta \sin\phi,\ \cos\phi), \qquad n(\theta, \phi)^\top x = \rho .
+$$
+
+Discretise $(\theta, \phi, \rho)$ into an accumulator. Each point $x$ adds one vote, for every angle cell, to the $\rho$-cell containing $n(\theta, \phi)^\top x$. Planes are the peaks of the accumulator.
+:::
+
+:::: prop
+[Proposition 5.7 — Cost and resolution of the Hough transform]{.tag} With $N_\theta \times N_\phi$ angle cells, $n$ points cast $n N_\theta N_\phi$ votes.
+
+If the angle cells have width $\Delta\alpha$, the points of a plane of diameter $D$ vote, in the cell nearest to the true normal, for values of $\rho$ spread over an interval of width at most $D\, \Delta\alpha / 2$, plus the noise.
+
+::: proof
+The first claim is a count. For the second, let $n$ be the true normal, $n'$ the normal of the cell, at an angle of at most $\Delta\alpha / 2$, and $c$ the centre of the plane patch. For a point $x$ of the patch, $n^\top(x - c) = 0$, so
+$$
+|n'^\top x - n'^\top c| = |(n' - n)^\top (x - c)| \leq \|n' - n\| \, \frac{D}{2} \leq \frac{\Delta\alpha}{2} \cdot \frac{D}{2} .
+$$
+The interval of values has twice this half-width. [∎]{.qed}
+:::
+::::
+
+With 1° cells, a 10 m façade spreads its votes over 8.7 cm of $\rho$: finer $\rho$-cells split the peak, coarser ones merge nearby planes. Cells of 1° also make $360 \times 90 = 32{,}400$ angle cells, hence $3 \times 10^{10}$ votes for $10^6$ points. Randomised variants and better accumulator designs (Borrmann et al., 2011) reduce both problems.
+
+### Choosing between primitives
+
+::: def
+[Definition 5.8 — Penalised model selection]{.tag} Inlier counts favour complex shapes: a sphere of radius 100 m fits a 2 m wall patch as well as a plane does. Among candidate models $M$ with $k_M$ parameters and residuals $r_i$ on the same points, choose the one minimising
+$$
+\operatorname{cost}(M) = \sum_i \frac{r_i^2}{\sigma^2} + k_M \log m ,
+$$
+with $\sigma$ the noise level and $m$ the number of points (a BIC-type penalty). When residuals are equal, the plane (3 parameters) beats the sphere (4).
+:::
+
+::: note
+[Note 5.9 — From primitives to models]{.tag} Detected primitives are linked into an **adjacency graph** (two primitives are adjacent if their inliers are close). Intersections of adjacent planes give edges and corners, from which building or CAD models are assembled.
+
+Examples are the hybrid city models of Lafarge and Mallet (2012) and the polygonal surface reconstruction of PolyFit (Nan & Wonka, 2017), which selects faces from the arrangement of detected planes by integer programming.
+:::
+
+::: ex
+[Code 5.10 — Sequential RANSAC on a room corner, and a sphere fit]{.tag} A floor and two walls (2,000, 1,500 and 1,000 points with 1 cm noise) are mixed with 1,900 clutter points, 30 % of the cloud. Three planes are extracted in turn with the adaptive number of iterations. Then a sphere is fitted algebraically to a noisy half sphere.
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+
+# A room corner: floor z=0, two walls x=0 and y=0, plus 30 % clutter
+def patch(axis, n):
+    P = rng.uniform(0, 4, (n, 3)); P[:, axis] = 0.01 * rng.standard_normal(n); return P
+X = np.r_[patch(2, 2000), patch(0, 1500), patch(1, 1000), rng.uniform(0, 4, (1900, 3))]
+
+def ransac_plane(X, eps=0.03, p=0.99, max_iter=10_000):
+    """Plane with the largest consensus set; iteration count updated adaptively."""
+    best, N, k = np.zeros(len(X), bool), max_iter, 0
+    while k < N:
+        a, b, c = X[rng.choice(len(X), 3, replace=False)]
+        n = np.cross(b - a, c - a)
+        if np.linalg.norm(n) < 1e-9:
+            k += 1; continue
+        n /= np.linalg.norm(n)
+        inl = np.abs((X - a) @ n) < eps
+        if inl.sum() > best.sum():
+            best = inl
+            w = inl.mean()                                    # current inlier ratio
+            N = min(max_iter, int(np.ceil(np.log(1 - p) / np.log(1 - w ** 3))))
+        k += 1
+    Q = X[best] - X[best].mean(0)                             # least-squares refit
+    n = np.linalg.svd(Q, full_matrices=False)[2][-1]
+    return n, best, k
+
+rest = X.copy()
+for found in range(3):                                        # sequential RANSAC
+    n, inl, k = ransac_plane(rest)
+    print(f"plane {found + 1}: normal {np.round(np.abs(n), 3)}, "
+          f"{inl.sum()} inliers, {k} iterations")
+    rest = rest[~inl]
+print("points left:", len(rest))
+
+# Algebraic sphere fit: |x|^2 = 2 c.x + (r^2 - |c|^2) is linear in (c, d)
+S = rng.normal(size=(500, 3)); S /= np.linalg.norm(S, axis=1, keepdims=True)
+S = 0.5 * S[S[:, 2] > 0] + [1, 2, 3]                       # upper half only
+S += 0.005 * rng.standard_normal(S.shape)
+A = np.c_[2 * S, np.ones(len(S))]
+sol = np.linalg.lstsq(A, (S ** 2).sum(1), rcond=None)[0]
+c = sol[:3]; r = np.sqrt(sol[3] + c @ c)
+print("sphere centre", np.round(c, 3), "radius", round(r, 3))
+```
+
+The floor is found first (2,006 inliers, with a few clutter points within 3 cm), after 148 iterations: its inlier ratio $w \approx 0.31$ gives $N = 147$ by Theorem 3.12. The walls follow with 1,490 and 989 inliers in 116 and 115 iterations; 1,915 points remain.
+
+The sphere fit returns centre $(1.000, 1.999, 3.001)$ and radius $0.500$ from half a sphere.
+:::
+
+::: recap
+Key takeaways — chapter 5
+
+-   Planes are fitted by PCA, spheres linearly in $(c, \, r^2 - \|c\|^2)$, cylinders from two oriented points.
+-   RANSAC detects primitives in clutter; sequential RANSAC extracts them one by one.
+-   Localised sampling turns the success probability $w^s$ into $w \eta^{s-1}$: the key to efficient RANSAC on large scenes.
+-   The Hough transform votes in parameter space; its cost and its resolution trade-offs grow with the number of angle cells.
+-   Penalise the number of parameters when choosing between primitives.
+:::
+
+## 6. Reconstruction of curves and surfaces {#ch6}
+
+Points are samples; most applications need the continuous object they come from: a mesh to render, measure or print, or a function whose zero set is the surface. This chapter asks when samples determine a curve or a surface, and builds reconstructions from Delaunay triangulations and from implicit functions, up to Poisson reconstruction.
+
+### Sampling conditions and curve reconstruction
+
+::: def
+[Definition 6.1 — Medial axis, local feature size, ε-sample (Amenta & Bern, 1999)]{.tag} Let $\Gamma$ be a smooth closed curve or surface.
+
+-   Its **medial axis** is the closure of the set of points of space with at least two closest points on $\Gamma$.
+-   The **local feature size** $\operatorname{lfs}(x)$ of $x \in \Gamma$ is the distance from $x$ to the medial axis.
+-   A finite set $S \subset \Gamma$ is an **$\varepsilon$-sample** if every $x \in \Gamma$ has a sample within distance $\varepsilon \operatorname{lfs}(x)$.
+
+The local feature size is small near sharp bends and thin parts, where dense sampling is needed, and large on flat regions, where sparse sampling suffices.
+:::
+
+The **Voronoi cell** of a sample is the set of points closer to it than to any other sample. The **Delaunay triangulation** is the dual structure: it joins two samples when their cells touch, and no sample lies inside the circumscribed circle of any of its triangles.
+
+::: def
+[Definition 6.2 — The crust (Amenta, Bern & Eppstein, 1998)]{.tag} Given samples $S$ of a curve in the plane:
+
+1.  compute the vertices $V$ of the Voronoi diagram of $S$;
+2.  compute the Delaunay triangulation of $S \cup V$;
+3.  keep the Delaunay edges whose two ends both belong to $S$.
+
+For a dense sample the Voronoi vertices lie near the medial axis. Adding them destroys every Delaunay edge that cuts across the shape, while edges between neighbours along the curve survive. Amenta, Bern and Eppstein prove that for an $\varepsilon$-sample with $\varepsilon$ below an explicit constant, the crust joins exactly the samples that are adjacent along the curve.
+:::
+
+::: ex
+[Code 6.3 — Crust versus nearest neighbours]{.tag} Two hundred random samples of the flower curve $r = 1 + 0.3 \cos 5\theta$ are reconstructed by the crust and by the naive rule "join each sample to its two nearest neighbours".
+
+```python
+import numpy as np
+from scipy.spatial import Delaunay, Voronoi
+
+rng = np.random.default_rng(0)
+# 200 random samples of the flower r = 1 + 0.3 cos(5 theta)
+th = rng.uniform(0, 2 * np.pi, 200)               # random positions on the curve
+S = np.c_[(1 + 0.3 * np.cos(5 * th)) * np.cos(th), (1 + 0.3 * np.cos(5 * th)) * np.sin(th)]
+
+def crust(S):
+    """2D crust: Delaunay edges between samples that survive adding the Voronoi vertices."""
+    V = Voronoi(S).vertices
+    T = Delaunay(np.r_[S, V]).simplices
+    E = set()
+    for tri in T:
+        for a, b in [(tri[0], tri[1]), (tri[1], tri[2]), (tri[0], tri[2])]:
+            if a < len(S) and b < len(S):
+                E.add((min(a, b), max(a, b)))
+    return E
+
+E = crust(S)
+deg = np.bincount(np.array(list(E)).ravel(), minlength=len(S))
+order = np.argsort(th)                           # true cyclic order along the curve
+pos = np.empty(len(S), int); pos[order] = np.arange(len(S))
+good = sum((pos[a] - pos[b]) % len(S) in (1, len(S) - 1) for a, b in E)
+print(f"{len(E)} crust edges, all degrees 2: {np.all(deg == 2)}, "
+      f"edges joining consecutive samples: {good}")
+
+# The naive alternative: join each sample to its 2 nearest neighbours
+D = np.linalg.norm(S[:, None] - S[None], axis=-1); np.fill_diagonal(D, np.inf)
+nn2 = np.argsort(D, axis=1)[:, :2]
+bad = sum((pos[i] - pos[j]) % len(S) not in (1, len(S) - 1) for i in range(len(S)) for j in nn2[i])
+print("2-nearest-neighbour graph: wrong links =", bad)
+```
+
+The crust returns 200 edges, every sample has degree 2, and all 200 edges join consecutive samples: a correct closed polygon.
+
+The nearest-neighbour rule makes 98 wrong links out of 400. With random sampling, both nearest neighbours of a point often lie on the same side of it along the curve.
+:::
+
+### Meshes
+
+A surface reconstruction is usually delivered as a triangle mesh.
+
+::: def
+[Definition 6.4 — Triangle mesh]{.tag} A **triangle mesh** is a set of vertices in $\mathbb{R}^3$ and of triangles on these vertices, glued along shared edges.
+
+It is a closed **2-manifold** when every edge belongs to exactly two triangles and the triangles around each vertex form a single fan. It is **orientable** when its triangles can be ordered consistently, so that each shared edge is traversed in opposite directions by its two triangles. A closed orientable surface has a **genus** $g$, its number of handles: 0 for a sphere, 1 for a torus.
+:::
+
+:::: prop
+[Proposition 6.5 — Counting with the Euler formula]{.tag} A closed orientable triangle mesh with $V$ vertices, $E$ edges and $F$ triangles satisfies the Euler formula $V - E + F = 2 - 2g$. Consequently
+$$
+E = 3V - 6 + 6g, \qquad F = 2V - 4 + 4g ,
+$$
+and the average vertex degree $2E / V$ tends to 6 when $V$ is large.
+
+::: proof
+Each triangle has three edges and each edge borders two triangles, so $3F = 2E$.
+
+Substitute $F = 2E/3$ in the Euler formula to get $V - E/3 = 2 - 2g$, that is $E = 3V - 6 + 6g$. Then $F = 2E/3$ gives the second formula. [∎]{.qed}
+:::
+
+The icosahedron ($V = 12$, $g = 0$) has $E = 30$ and $F = 20$. A mesh of a million vertices has about two million triangles: a useful rule for budgeting memory.
+::::
+
+::: note
+[Note 6.6 — Delaunay-based surface reconstruction]{.tag} In 3D the crust generalises to surfaces: the Voronoi cells of a dense sample are long and thin along the normal, and their extreme vertices, the **poles**, approximate the medial axis.
+
+-   The **cocone** algorithm (Amenta, Choi, Dey & Leekha, 2002) and the **power crust** (Amenta, Choi & Kolluri, 2001) select Delaunay triangles or Voronoi faces using these poles, with guarantees for $\varepsilon$-samples.
+-   **α-shapes** (Edelsbrunner & Mücke, 1994) keep the Delaunay simplices with an empty circumscribed ball of radius at most $\alpha$.
+-   **Ball pivoting** (Bernardini et al., 1999) rolls a ball of radius $\rho$ over the samples and creates a triangle whenever it rests on three of them.
+
+These methods interpolate the samples. This is accurate on clean data, but noise and holes produce rough or incomplete meshes, which motivates the implicit methods below.
+:::
+
+### Implicit surfaces
+
+An implicit method computes a function $f : \mathbb{R}^3 \to \mathbb{R}$ that is negative inside and positive outside, and extracts the surface as its zero set. Noise is averaged and holes are filled by the smoothness of $f$.
+
+::: def
+[Definition 6.7 — Signed distance to tangent planes (Hoppe et al., 1992)]{.tag} Estimate an oriented tangent plane $(o_i, n_i)$ at each sample by PCA, and orient the normals by propagation (Theorem 2.5, Proposition 2.6). For a query $x$, let $o_i$ be the closest plane centre and set
+$$
+f(x) = n_i^\top (x - o_i) .
+$$
+
+This approximates the signed distance near the surface; it is left undefined far from the samples, so that holes are not closed arbitrarily.
+:::
+
+::: def
+[Definition 6.8 — Marching cubes (Lorensen & Cline, 1987)]{.tag} Sample $f$ at the vertices of a regular grid. In each cube, the signs of $f$ at its 8 corners select one of $2^8 = 256$ cases (15 up to symmetries) from a table of triangle patterns. The vertices of the triangles lie on the cube edges where the sign changes, at the zero of the linear interpolation:
+$$
+x = x_a + \frac{f(x_a)}{f(x_a) - f(x_b)}\, (x_b - x_a).
+$$
+
+Some face configurations are ambiguous and can leave holes; the asymptotic decider (Nielson & Hamann, 1991) or a split of each cube into tetrahedra removes them.
+:::
+
+::: def
+[Definition 6.9 — RBF and MLS implicit surfaces]{.tag}
+
+-   **Radial basis functions** (Carr et al., 2001): $f(x) = \sum_j w_j\, \varphi(\|x - c_j\|) + \pi(x)$ with $\pi$ a polynomial of low degree. The weights solve the interpolation conditions $f(x_i) = 0$ at the samples and $f(x_i \pm \delta n_i) = \pm \delta$ at off-surface points.
+-   **Implicit moving least squares**: with a Gaussian weight $\theta$ of width $h$,
+    $$
+    f(x) = \frac{\sum_i \theta(\|x - x_i\|)\, n_i^\top (x - x_i)}{\sum_i \theta(\|x - x_i\|)} ,
+    $$
+    a smooth blend of the tangent planes of Definition 6.7 (Kolluri, 2008). It is the surface model of the IMLS-SLAM odometry (Deschaud, 2018).
+:::
+
+### Poisson surface reconstruction
+
+Kazhdan, Bolitho and Hoppe (2006) reconstruct the **indicator function** $\chi$ of the solid ($1$ inside, $0$ outside) from oriented samples. The key observation is that the gradient of a smoothed indicator is a smoothed field of normals.
+
+:::: prop
+[Proposition 6.10 — The gradient of the smoothed indicator]{.tag} Let $M$ be a solid with smooth boundary $\partial M$, inward unit normal $N(p)$, and let $\tilde F$ be a smooth, rapidly decaying filter. Then
+$$
+\nabla \big( \chi_M * \tilde F \big)(q) = \int_{\partial M} \tilde F(q - p)\, N(p)\, \mathrm{d}p .
+$$
+
+::: proof
+Differentiate under the integral,
+$$
+\nabla_q (\chi_M * \tilde F)(q) = \int_M \nabla_q \tilde F(q - p)\, \mathrm{d}p ,
+$$
+and use $\nabla_q \tilde F(q - p) = -\nabla_p \tilde F(q - p)$.
+
+The divergence theorem, applied to each component, turns the integral of $-\nabla_p \tilde F(q - p)$ over $M$ into the boundary integral of $-\tilde F(q - p)$ times the *outward* normal. The outward normal is $-N$. [∎]{.qed}
+:::
+
+The boundary integral is approximated from the samples $s_i$ with normals $N_i$ and area weights $a_i$ (the surface each sample represents):
+$$
+V(q) = \sum_i a_i\, \tilde F(q - s_i)\, N_i \approx \nabla(\chi_M * \tilde F)(q) .
+$$
+::::
+
+The field $V$ is in general not a gradient, so we look for the function whose gradient is closest to it.
+
+:::: thm
+[Theorem 6.11 — Poisson equation]{.tag} On a domain $\Omega$, the minimisers of
+$$
+J(\chi) = \int_\Omega \|\nabla \chi - V\|^2
+$$
+over functions with prescribed boundary values are exactly the solutions of
+$$
+\Delta \chi = \nabla \cdot V \ \text{ in } \Omega .
+$$
+
+::: proof
+$J$ is convex. For a test function $\varphi$ vanishing on $\partial\Omega$, expand $J(\chi + t\varphi)$ and differentiate at $t = 0$:
+$$
+\frac{\mathrm{d}}{\mathrm{d}t} J(\chi + t \varphi)\Big|_{t=0} = 2 \int_\Omega (\nabla\chi - V) \cdot \nabla\varphi = -2 \int_\Omega \varphi\, \big( \Delta \chi - \nabla \cdot V \big),
+$$
+by integration by parts, the boundary term vanishing with $\varphi$.
+
+A convex functional is minimal exactly where this derivative is zero for every $\varphi$, that is where $\Delta\chi - \nabla\cdot V = 0$. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — Poisson reconstruction]{.tag}
+$$
+\Delta \chi = \nabla \cdot V, \qquad \text{surface} = \{ \chi = \gamma \}, \quad \gamma = \text{mean of } \chi \text{ at the samples}
+$$
+:::
+
+In practice the equation is discretised on an adaptive octree with B-spline bases, which makes the linear system sparse and its size proportional to the surface, not the volume. The iso-value $\gamma$ is the average of $\chi$ at the samples, which absorbs any global scaling of $V$.
+
+Screened Poisson reconstruction (Kazhdan & Hoppe, 2013) adds a term pulling $\chi$ towards $\gamma$ at the samples, which reduces the over-smoothing of thin details.
+
+::: ex
+[Code 6.12 — Poisson reconstruction in 2D]{.tag} Four hundred noisy oriented samples of the flower curve are splatted with a Gaussian filter on a $161 \times 161$ grid. The Poisson equation is solved with zero boundary values by a sparse solver, and the curve is extracted at the iso-value.
+
+```python
+import numpy as np
+import scipy.sparse as sp
+from scipy.sparse.linalg import spsolve
+import contourpy
+
+rng = np.random.default_rng(0)
+# Oriented samples of the "flower" r = 1 + 0.3 cos(5 theta), with noise
+th = np.sort(rng.uniform(0, 2 * np.pi, 400))
+r, dr = 1 + 0.3 * np.cos(5 * th), -1.5 * np.sin(5 * th)
+P = np.c_[r * np.cos(th), r * np.sin(th)]
+T = np.c_[dr * np.cos(th) - r * np.sin(th), dr * np.sin(th) + r * np.cos(th)]
+Nout = np.c_[T[:, 1], -T[:, 0]] / np.linalg.norm(T, axis=1, keepdims=True)
+P += 0.01 * rng.standard_normal(P.shape)
+ds = 0.5 * (np.linalg.norm(np.roll(P, -1, 0) - P, axis=1)
+            + np.linalg.norm(np.roll(P, 1, 0) - P, axis=1))   # arc length per sample
+
+# 1. Splat the inward normals on a grid: V ~ grad(indicator)
+m, L = 161, 2.0
+g = np.linspace(-L, L, m); h = g[1] - g[0]
+XX, YY = np.meshgrid(g, g, indexing="ij")
+sig = 1.5 * h
+V = np.zeros((m, m, 2))
+for p, n, w in zip(P, -Nout, ds):
+    G = np.exp(-((XX - p[0]) ** 2 + (YY - p[1]) ** 2) / (2 * sig ** 2)) / (2 * np.pi * sig ** 2)
+    V += w * G[..., None] * n
+
+# 2. Solve the Poisson equation  Laplacian(chi) = div V, chi = 0 on the border
+div = np.gradient(V[..., 0], h, axis=0) + np.gradient(V[..., 1], h, axis=1)
+I = sp.identity(m - 2)
+D2 = sp.diags([1, -2, 1], [-1, 0, 1], shape=(m - 2, m - 2), dtype=float) / h ** 2
+Lap = sp.kron(D2, I) + sp.kron(I, D2)
+chi = np.zeros((m, m))
+chi[1:-1, 1:-1] = spsolve(Lap.tocsc(), div[1:-1, 1:-1].ravel()).reshape(m - 2, m - 2)
+
+# 3. Iso-value = mean of chi at the samples, then extract the curve
+ij = np.clip(np.round((P + L) / h).astype(int), 0, m - 1)
+iso = chi[ij[:, 0], ij[:, 1]].mean()
+line = max(contourpy.contour_generator(XX, YY, chi).lines(iso), key=len)
+x, y = line[:, 0], line[:, 1]
+area = 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+print(f"chi inside ~ {chi[m // 2, m // 2]:.3f}, outside ~ {chi[5, 5]:.3f}, iso = {iso:.3f}")
+print(f"area of the reconstruction {area:.4f} vs exact {np.pi * 1.045:.4f}")
+rho = np.hypot(x, y); phi = np.arctan2(y, x)
+print(f"max radial error: {np.max(np.abs(rho - (1 + 0.3 * np.cos(5 * phi)))):.4f}")
+```
+
+The solution is about 1.38 inside and 0 outside, not 1: noise lengthens the sample spacing and so inflates the weights $a_i$. Choosing the iso-value at the samples (0.651, about half the jump) cancels this global scale.
+
+The reconstruction is accurate:
+$$
+\text{area } 3.2832 \ \text{vs exact } 3.2830, \qquad \text{max radial error } 0.027 .
+$$
+
+The radial error is below three times the noise level of 1 cm.
+:::
+
+::: recap
+Key takeaways — chapter 6
+
+-   Sampling density must follow the local feature size; $\varepsilon$-samples make reconstruction provable.
+-   The crust keeps the Delaunay edges that survive the insertion of the Voronoi vertices, and recovers curves exactly from dense samples.
+-   Closed triangle meshes satisfy $V - E + F = 2 - 2g$, hence about $2V$ triangles.
+-   Delaunay-based methods interpolate; implicit methods (signed distances, RBF, MLS) approximate, and marching cubes extracts the zero set.
+-   Poisson reconstruction solves $\Delta\chi = \nabla\cdot V$ from a field of splatted normals and extracts the iso-value at the samples.
+:::
+
+## 7. Rendering point clouds and meshes {#ch7}
+
+Every step of the pipeline is checked by looking at the data, and many applications end with an image: inspection, virtual visits, simulation. This chapter explains how a mesh or a cloud becomes pixels, why a naive point display fails, and how splatting and level-of-detail hierarchies fix it.
+
+::: def
+[Definition 7.1 — Pinhole projection]{.tag} A camera with rotation $R$, translation $t$, focal length $f$ (in pixels) and principal point $(u_0, v_0)$ maps a world point $x$ to camera coordinates $(X, Y, Z) = R x + t$, then to the pixel
+$$
+u = f \frac{X}{Z} + u_0, \qquad v = f \frac{Y}{Z} + v_0 .
+$$
+
+The depth $Z > 0$ is kept for visibility. In matrix form this is $K [R \mid t]$ followed by division by $Z$, as in [3D Computer Vision](../s1-3d-computer-vision/index.html).
+:::
+
+:::: prop
+[Proposition 7.2 — Projected size]{.tag} A small disk of radius $\rho$ at depth $Z$, facing the camera, projects to a disk of radius about
+$$
+r_{\text{px}} \approx \frac{f \rho}{Z}
+$$
+pixels. A disk tilted by an angle $\beta$ from the viewing direction projects to an ellipse with axes $f\rho/Z$ and $f\rho \cos\beta / Z$.
+
+::: proof
+Two points at distance $\rho$ in a plane of constant depth $Z$ are mapped $f\rho/Z$ pixels apart by Definition 7.1. Tilting the disk shortens one of its diameters by $\cos\beta$ in the direction of view, to first order in $\rho / Z$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 7.3 — The z-buffer (Catmull, 1974)]{.tag} Keep, for every pixel, the smallest depth drawn so far and the corresponding colour. Each primitive is rasterised into the pixels it covers; a pixel is overwritten only if the new depth is smaller.
+
+The result does not depend on the drawing order, and the cost is proportional to the number of pixels covered by all primitives.
+:::
+
+### Meshes: rasterisation and shading
+
+A triangle is rasterised by testing pixel centres against its three edges. Inside the triangle, attributes such as depth, colour and normal are interpolated from the vertices.
+
+:::: prop
+[Proposition 7.4 — Perspective-correct interpolation]{.tag} On the image of a planar triangle, $1/Z$ is an affine function of the pixel coordinates $(u, v)$. So is $a/Z$ for any attribute $a$ that is affine on the triangle in space. The attribute at a pixel is therefore the ratio of two screen-space interpolations:
+$$
+a = \frac{\operatorname{interp}(a / Z)}{\operatorname{interp}(1 / Z)} .
+$$
+
+::: proof
+The plane of the triangle satisfies $\alpha X + \beta Y + \gamma Z = \delta$ with $\delta \neq 0$ when the plane avoids the camera centre.
+
+Substitute $X = (u - u_0) Z / f$ and $Y = (v - v_0) Z / f$, then divide by $\delta Z$: $1/Z$ is affine in $(u, v)$.
+
+An attribute affine in space is affine in $(X, Y, Z)$; divided by $Z$, it becomes affine in $X/Z$, $Y/Z$ and $1/Z$, each of which is affine in $(u, v)$. [∎]{.qed}
+:::
+
+Interpolating $a$ itself linearly on the screen makes textures swim on slanted surfaces.
+::::
+
+::: def
+[Definition 7.5 — Local shading]{.tag} With unit normal $n$, unit direction to the light $l$, unit direction to the viewer $e$ and the half-vector $h = (l + e)/\|l + e\|$, the **Blinn–Phong** model gives the intensity
+$$
+I = k_a + k_d \max(0, n^\top l) + k_s \max(0, n^\top h)^{s} .
+$$
+
+The three terms are the ambient, diffuse (Lambert) and specular parts; $s$ controls the size of highlights. Phong (1975) introduced the specular term with the reflected light direction, and Blinn (1977) replaced it by the half-vector. **Gouraud** shading evaluates $I$ at the vertices and interpolates it; **Phong** shading interpolates the normal and evaluates $I$ at each pixel, which keeps highlights sharp.
+:::
+
+Shading needs oriented normals: this is why the orientation step of [ch. 2](#ch2) matters even when no surface is reconstructed.
+
+### Rendering points directly
+
+A cloud can be rendered without a mesh by giving each point an extent on the surface.
+
+::: def
+[Definition 7.6 — Surfels and splatting (Pfister et al., 2000; Zwicker et al., 2001)]{.tag} A **surfel** is a point with a normal, a radius $\rho$ and a colour: a small oriented disk approximating the surface around the sample.
+
+**Splatting** draws each surfel as its projected footprint (Proposition 7.2) into the z-buffer. To cover the surface without holes, the disks must overlap: $\rho$ is chosen from the local spacing, for example the distance to the $k$-th nearest neighbour.
+:::
+
+::: ex
+[Code 7.7 — Holes and show-through]{.tag} Three thousand random points on a unit sphere (normal = position) are seen from 4 m with $f = 300$ px on a $200 \times 200$ image. Three renderings are compared: one pixel per point, square splats of a fixed radius based on the mean spacing, and splats whose radius is the distance to the 4th nearest neighbour.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+rng = np.random.default_rng(0)
+
+# 3000 surfels on the unit sphere (position = normal), seen by a pinhole camera
+N = 3000
+X = rng.normal(size=(N, 3)); X /= np.linalg.norm(X, axis=1, keepdims=True)
+W, f, cam = 200, 300.0, np.array([0.0, 0.0, -4.0])   # image size, focal (px), centre
+Z = X[:, 2] - cam[2]                                  # depth along the optical axis
+u, v = f * X[:, 0] / Z + W / 2, f * X[:, 1] / Z + W / 2
+back = ((X - cam) * X).sum(1) > 0                     # normal points away from the camera
+
+def splat(radius_px):
+    """Z-buffer: each point covers a square of half-width radius_px (in pixels)."""
+    depth, who = np.full((W, W), np.inf), np.full((W, W), -1)
+    for k in range(N):
+        r = int(np.ceil(radius_px[k]))
+        i0, i1 = max(int(v[k]) - r, 0), min(int(v[k]) + r + 1, W)
+        j0, j1 = max(int(u[k]) - r, 0), min(int(u[k]) + r + 1, W)
+        closer = Z[k] < depth[i0:i1, j0:j1]
+        depth[i0:i1, j0:j1][closer] = Z[k]
+        who[i0:i1, j0:j1][closer] = k
+    return who
+
+# True silhouette: pixels whose viewing ray meets the sphere
+jj, ii = np.meshgrid(np.arange(W) + 0.5, np.arange(W) + 0.5)
+d = np.stack([(jj - W / 2) / f, (ii - W / 2) / f, np.ones_like(jj)], -1)
+d /= np.linalg.norm(d, axis=-1, keepdims=True)
+inside = (d @ cam) ** 2 - (cam @ cam - 1) > 0
+
+s = np.sqrt(4 * np.pi / N)                            # mean spacing if samples were regular
+d4 = cKDTree(X).query(X, k=5)[0][:, -1]               # distance to the 4th neighbour
+for name, rad in [("1-pixel points", np.zeros(N)),
+                  ("fixed r = f s / 2z", f * s / (2 * Z)),
+                  ("adaptive r = f d4 / z", f * d4 / Z)]:
+    who = splat(rad)
+    holes = np.mean(who[inside] < 0)
+    seen = who[inside & (who >= 0)]
+    print(f"{name:22s} holes {100 * holes:5.1f} % | pixels showing a back-facing "
+          f"point {100 * np.mean(back[seen]):5.1f} %")
+```
+
+| Rendering | Holes in the silhouette | Pixels showing a back-facing point |
+|---|---|---|
+| 1-pixel points | 86.4 % | 62.3 % |
+| fixed radius $f s / 2Z$ | 0.5 % | 7.7 % |
+| adaptive radius $f d_4 / Z$ | 0.0 % | 0.0 % |
+
+With one pixel per point most of the sphere is empty, and most visible pixels belong to its *back*, seen through the gaps. A fixed radius based on the mean spacing still leaves random gaps through which the back shows. Radii adapted to the local spacing close the surface.
+:::
+
+Square splats of constant colour give a blocky image and aliasing at a distance. Gaussian kernels give smooth blending, and their projection has a closed form.
+
+:::: prop
+[Proposition 7.8 — Projection of Gaussian splats (EWA, Zwicker et al., 2001)]{.tag} Let $G_V$ be the Gaussian density of covariance $V$.
+
+-   Under an affine map $u = J x + c$ with $J$ invertible, the image of $G_V$ is, up to the constant factor $|\det J|^{-1}$, the Gaussian $G_{J V J^\top}$ centred at $c$.
+-   Gaussians compose under convolution: $G_A * G_B = G_{A + B}$.
+
+Hence a surfel with a Gaussian kernel of covariance $V$, mapped to the screen by the local affine approximation $J$ of the projection and filtered by a pixel low-pass filter $G_I$, is drawn with the Gaussian of covariance
+$$
+J V J^\top + I .
+$$
+
+::: proof
+If $x$ has density $G_V$ then $u = Jx + c$ is Gaussian with covariance $J V J^\top$ (Proposition 0.6), and the change of variables gives the factor $|\det J|^{-1}$.
+
+The convolution of two densities is the density of the sum of independent variables, and covariances of independent variables add. [∎]{.qed}
+:::
+
+The term $I$ guarantees a footprint of at least one pixel, which removes aliasing when many surfels fall in one pixel. The same formula, with learned Gaussians, is the core of 3D Gaussian splatting ([ch. 8](#ch8)).
+::::
+
+### Level of detail
+
+Large clouds hold billions of points, far more than the pixels of a screen.
+
+::: def
+[Definition 7.9 — Bounding-sphere hierarchy (QSplat, Rusinkiewicz & Levoy, 2000)]{.tag} Build a tree whose leaves are the points and whose internal nodes store a bounding sphere of their children, with an average normal and colour. To render, traverse the tree from the root:
+
+-   skip a node whose sphere is outside the view (frustum culling) or entirely back-facing;
+-   draw a node as one splat when its projected radius is below a threshold of $\tau$ pixels, or when it is a leaf;
+-   otherwise visit its children.
+:::
+
+The number of splats drawn depends on the screen area covered and on $\tau$, not on the size of the cloud. Lowering $\tau$ while the camera is still refines the image progressively. Octree-based viewers stream the nodes from disk in the same way.
+
+::: note
+[Note 7.10 — Quality and current practice]{.tag}
+
+-   Overlapping splats are best **blended**: accumulate kernel-weighted colours and normals, then normalise and shade per pixel (deferred shading; Botsch et al., 2005).
+-   Coarse meshes can be refined at render time; Phong tessellation (Boubekeur & Alexa, 2008) curves each triangle using its vertex normals, so silhouettes look smooth.
+-   Neural rendering optimises the splats themselves against photographs; see [ch. 8](#ch8).
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   Projection divides by depth: a splat of radius $\rho$ covers about $f\rho/Z$ pixels.
+-   The z-buffer resolves visibility pixel by pixel, independently of the drawing order.
+-   Perspective-correct interpolation interpolates $a/Z$ and $1/Z$; shading needs oriented normals.
+-   Points drawn as pixels leave holes and show hidden surfaces; surfels with radii adapted to the local spacing close the surface.
+-   Gaussian splats project to Gaussians of covariance $JVJ^\top$, plus $I$ after the anti-aliasing filter.
+-   Hierarchies of bounding spheres render huge clouds at a cost set by the screen, not by the data.
+:::
+
+## 8. Research directions and open problems {#ch8}
+
+This chapter is for self-study. It points to active research lines that extend each chapter of the course, with the questions that remain open. It is also a reservoir of papers for the course project.
+
+### Learned and certifiable registration, LiDAR odometry
+
+Learning has entered registration at two levels. Learned descriptors replace FPFH in the pipeline of Definition 3.11. End-to-end networks go further: Deep Closest Point (Wang & Solomon, 2019) computes soft correspondences with attention and back-propagates through the SVD of Theorem 3.2.
+
+Predator (Huang et al., 2021) focuses on scans with low overlap, and GeoTransformer (Qin et al., 2022) encodes pairwise distances and angles, which are invariant to rigid motions.
+
+At the other end, TEASER (Yang, Shi & Carlone, 2021) minimises a *truncated* least-squares cost, robust to a large majority of outliers. A semidefinite relaxation can then certify that the solution found is globally optimal.
+
+For mobile robots and mapping vehicles, registration becomes **LiDAR odometry**. LOAM (Zhang & Singh, 2014) registers edge and plane features. IMLS-SLAM (Deschaud, 2018) registers each scan to an implicit MLS surface of the map (Definition 6.9).
+
+CT-ICP (Dellenbach, Deschaud, Jacquet & Goulette, 2022) estimates a pose at the beginning and at the end of each scan, which corrects the motion distortion of Note 1.10. KISS-ICP (Vizzo et al., 2023) shows that a carefully tuned point-to-point ICP with an adaptive threshold is competitive with far more complex systems.
+
+Open questions include:
+
+-   degenerate places (tunnels, corridors, open fields), detected through the rank of the matrix of Proposition 3.7 but not yet handled reliably;
+-   moving objects, which violate the rigidity assumption;
+-   learned descriptors that transfer between sensors of different resolutions (Proposition 1.6);
+-   certifiable methods fast enough for real time.
+
+### Large-scale semantic segmentation
+
+Outdoor scans contain billions of points. Superpoint graphs (Landrieu & Simonovsky, 2018) first partition the cloud into geometrically homogeneous parts, then classify the parts with a graph network. RandLA-Net (Hu et al., 2020) shows that random subsampling, combined with local feature aggregation, is enough to process large scenes efficiently.
+
+Transformer architectures now lead most benchmarks; Point Transformer V3 (Wu et al., 2024) trades exact neighbourhoods for serialised point orderings to scale up.
+
+Annotation is the bottleneck: labelling a scan point by point takes hours. Self-supervised pre-training on unlabelled clouds, by contrastive learning (PointContrast, Xie et al., 2020) or masked auto-encoding (Point-MAE, Pang et al., 2022), reduces the labels needed.
+
+Domain shift between sensors, cities and seasons, long-tailed classes and calibrated uncertainty remain largely open. Work by Thomas, Deschaud, Goulette and coauthors (KPConv, 2019) and the Paris-Lille-3D data set (Roynard, Deschaud & Goulette, 2018) are reference points for this line.
+
+### Neural implicit surfaces
+
+Occupancy Networks (Mescheder et al., 2019) and DeepSDF (Park et al., 2019) represent a shape by a neural network $f_\theta(x)$, an occupancy probability or a signed distance, learned over collections of shapes. The surface is extracted by marching cubes (Definition 6.8).
+
+A true signed distance satisfies the **eikonal equation** $\|\nabla f\| = 1$. Gropp and coauthors (2020) fit a network to a single raw cloud by asking $f$ to vanish at the samples while penalising the deviation from this equation:
+$$
+\min_\theta \ \sum_i |f_\theta(x_i)| + \lambda\, \mathbb{E}_x \big( \|\nabla f_\theta(x)\| - 1 \big)^2 .
+$$
+
+Shape As Points (Peng et al., 2021) makes Poisson reconstruction (Theorem 6.11) differentiable by solving it spectrally, so that the oriented points themselves can be learned.
+
+Open questions: theoretical guarantees comparable to those of $\varepsilon$-samples, sharp features, and very large scenes.
+
+### Neural rendering and Gaussian splatting
+
+NeRF (Mildenhall et al., 2020) represents a scene by a network mapping a position and a direction to a density and a colour, and renders it by integrating along rays. It produces photorealistic views but is slow to train and to render.
+
+**3D Gaussian splatting** (Kerbl, Kopanas, Leimkühler & Drettakis, 2023) returns to points. The scene is a cloud of anisotropic 3D Gaussians, initialised from the sparse cloud of structure-from-motion and projected with the EWA formula of Proposition 7.8. Each Gaussian $i$ has a projected opacity $\alpha_i$ and a colour $c_i$.
+
+::: def
+[Definition 8.1 — Alpha compositing of sorted splats]{.tag} With the splats covering a pixel sorted from front to back, the colour of the pixel is
+$$
+C = \sum_{i} c_i\, \alpha_i \prod_{j < i} (1 - \alpha_j) .
+$$
+
+This is differentiable in all the parameters of the Gaussians (position, covariance, opacity, colour), which are optimised by gradient descent so that the rendered images match the photographs.
+:::
+
+Gaussian splatting renders in real time at high quality. Extracting accurate surfaces from it, controlling its memory footprint, and relighting are active questions; the point-based graphics of [ch. 7](#ch7) is its direct ancestor.
+
+### Generating and comparing point clouds
+
+Generative models of point clouds, based on normalising flows (PointFlow, Yang et al., 2019) or diffusion (Luo & Hu, 2021), need a distance between clouds to train and to evaluate. Optimal transport gives the earth mover's distance; the cheaper Chamfer distance is the most common choice.
+
+::: def
+[Definition 8.2 — Chamfer distance]{.tag} For two finite clouds $\mathcal{X}$ and $\mathcal{Y}$,
+$$
+d_{\mathrm{CD}}(\mathcal{X}, \mathcal{Y}) = \frac{1}{|\mathcal{X}|} \sum_{x \in \mathcal{X}} \min_{y \in \mathcal{Y}} \|x - y\|^2 + \frac{1}{|\mathcal{Y}|} \sum_{y \in \mathcal{Y}} \min_{x \in \mathcal{X}} \|x - y\|^2 .
+$$
+
+It is computed with two kd-tree queries, but it is not a metric (no triangle inequality) and it is insensitive to how points are distributed within a region. The tools of [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) give finer comparisons.
+:::
+
+::: recap
+Key takeaways — chapter 8
+
+-   Registration research splits between learned correspondences and certifiable robust estimation; LiDAR odometry adds continuous-time motion and scan-to-map registration.
+-   Large-scale segmentation relies on efficient sampling, transformers and self-supervised pre-training; domain shift and labels are the open problems.
+-   Neural implicit surfaces learn signed distances with eikonal regularisation; differentiable Poisson solvers bridge them with ch. 6.
+-   Gaussian splatting is EWA splatting with learned Gaussians and alpha compositing.
+-   Chamfer and transport distances compare clouds for generation and evaluation.
+:::
+
+## Exercises {#ex}
+
+1.  **★ Depth error of a stereo rig.** A stereo rig has $f = 1000$ px and baseline $b = 0.3$ m, and matches disparities to 0.25 px. Compute the depth error at 10 m and at 20 m. Which baseline gives 5 cm at 20 m?
+
+    *Solution*: by Proposition 1.2, $\delta z = z^2 \delta d / (f b)$, which gives $100 \times 0.25 / 300 \approx 8.3$ cm at 10 m and four times more, 33 cm, at 20 m.
+
+    Solving for the baseline:
+    $$
+    b = \frac{z^2\, \delta d}{f\, \delta z} = \frac{400 \times 0.25}{1000 \times 0.05} = 2\ \text{m}.
+    $$
+
+2.  **★ Phase-shift ambiguity.** A phase-shift scanner modulates at 5 MHz. What is its ambiguity interval? It adds a second frequency of 4.5 MHz: over which range can the two phases together identify the distance?
+
+    *Solution*: the interval is $c / (2 f_m) = 3 \times 10^8 / 10^7 = 30$ m. The pair of phases repeats only when both do, which happens with the beat frequency $f_1 - f_2 = 0.5$ MHz: the combined interval is
+    $$
+    \frac{c}{2 (f_1 - f_2)} = 300\ \text{m}.
+    $$
+
+3.  **★ Farthest point sampling by hand.** On the line, take the points $0, 1, 2, 3, 10$. Run FPS from $0$ with $k = 3$ and compute the covering radius. Compare with the best possible radius with 3 centres anywhere on the line.
+
+    *Solution*: FPS picks 0, then 10 (the farthest), then 3 (at distance 3 from the set $\{0, 10\}$). The points 1 and 2 are then at distance 1, so $\rho = 1$.
+
+    Centres at $0.5$, $2.5$ and $10$ give $\rho^\star = 0.5$. The ratio is exactly 2: the bound of Proposition 2.4 is tight.
+
+4.  **★ A normal by hand.** Compute the PCA normal and the surface variation of the four points $(1, 0, 0)$, $(-1, 0, 0)$, $(0, 1, 0.1)$, $(0, -1, -0.1)$.
+
+    *Solution*: the centroid is $0$. The covariance has $C_{xx} = C_{yy} = 0.5$, $C_{zz} = 0.005$, $C_{yz} = 0.05$, and $0$ elsewhere.
+
+    The $(y, z)$ block has trace $0.505$ and determinant $0$, so the eigenvalues are $0.5, 0.505, 0$. The eigenvector of $0$ solves $0.5 y + 0.05 z = 0$:
+    $$
+    n = \frac{(0, -0.1, 1)}{\sqrt{1.01}}, \qquad \sigma = 0 .
+    $$
+    The four points lie exactly on the plane $z = 0.1\, y$.
+
+5.  **★ RANSAC budgets.** With $p = 0.99$, how many iterations are needed to detect a plane holding 20 % of the points with 3-point samples? A cylinder holding 20 % with samples of 2 oriented points? A cylinder holding 5 %?
+
+    *Solution*: Theorem 3.12 gives $N = 574$ for the plane ($w^3 = 0.008$), $N = 113$ for the cylinder ($w^2 = 0.04$), and $N = 1{,}840$ for the cylinder at 5 %. Smaller minimal samples, made possible by normals, pay off quickly.
+
+6.  **★ Pooling and invariance.** For a shared map $h$, compare the pooled features $\max_i h(x_i)$, $\sum_i h(x_i)$ and $\frac1n \sum_i h(x_i)$. Which are permutation invariant? Which are unchanged when every point is duplicated?
+
+    *Solution*: all three are permutation invariant, since max, sum and mean are symmetric. Duplicating every point leaves the max and the mean unchanged and doubles the sum. Max and mean are therefore insensitive to the sampling density, which suits clouds whose density varies (ch. 1).
+
+7.  **★ Euler characteristic.** A closed orientable triangle mesh has $V = 10{,}000$ and $F = 20{,}000$. What is its genus? Same question with $V = 5{,}000$ and $F = 9{,}996$.
+
+    *Solution*: $E = 3F/2 = 30{,}000$, so $V - E + F = 0 = 2 - 2g$ and $g = 1$, a torus. In the second case $E = 14{,}994$ and $V - E + F = 2$, so $g = 0$, a sphere (Proposition 6.5).
+
+8.  **★ Perspective-correct interpolation.** A segment goes from a point $A$ at depth 1 (attribute $a = 0$) to a point $B$ at depth 3 ($a = 1$). Which value of $a$ appears at the midpoint of its image?
+
+    *Solution*: interpolate $1/Z$ and $a/Z$ on the screen (Proposition 7.4): $1/Z = (1 + 1/3)/2 = 2/3$ and $a/Z = (0 + 1/3)/2 = 1/6$, so
+    $$
+    a = \frac{1/6}{2/3} = 0.25 .
+    $$
+    The image midpoint shows the point a quarter of the way along the segment, at depth 1.5, not the true midpoint.
+
+9.  **★★ Optimal neighbourhood radius.** Using Proposition 2.8, compute the optimal radius for a scanner noise of 5 mm on a surface with radius of curvature 2 m, and the corresponding value of $\lambda_3 / \lambda_1$. Why does a real implementation also need a lower bound on the number of points?
+
+    *Solution*: with $\kappa = 0.5$ m⁻¹ and $\sigma = 0.005$ m, $r^\star = 48^{1/4} \sqrt{0.01} \approx 0.26$ m.
+
+    At the optimum, $ar^2 = b/r^2$, so the ratio is $2\sqrt{ab} = 2 \kappa \sigma / \sqrt{3} \approx 0.0029$. The proposition assumes uniform dense sampling; with few points the eigenvalues are themselves noisy, so the radius must also contain enough points (Mitra & Nguyen, 2003).
+
+10. **★★ Statistical outlier removal (Python).** Generate a 2 m × 2 m noisy plane of 4,750 points and 250 uniform outliers in a box around it. Apply the filter of Definition 2.12 with 8 neighbours and $\alpha \in \{1, 2, 3\}$, and report precision and recall.
+
+    *Solution*:
+
+    ```python
+    import numpy as np
+    from scipy.spatial import cKDTree
+
+    rng = np.random.default_rng(0)
+    plane = np.c_[rng.uniform(0, 2, (4750, 2)), 0.005 * rng.standard_normal(4750)]
+    noise = rng.uniform([0, 0, -0.5], [2, 2, 0.5], (250, 3))       # 5 % outliers
+    X = np.r_[plane, noise]
+    is_out = np.r_[np.zeros(4750, bool), np.ones(250, bool)]
+
+    d, _ = cKDTree(X).query(X, k=9)                  # itself + 8 neighbours
+    dbar = d[:, 1:].mean(1)                          # mean distance to the 8 neighbours
+    mu, s = dbar.mean(), dbar.std()
+    for alpha in (1.0, 2.0, 3.0):
+        removed = dbar > mu + alpha * s
+        prec = (removed & is_out).sum() / max(removed.sum(), 1)
+        rec = (removed & is_out).sum() / is_out.sum()
+        print(f"alpha = {alpha}: removed {removed.sum():4d}, precision {prec:.3f}, recall {rec:.3f}")
+    ```
+
+    Precision is 1.000 for the three values: no plane point is removed. Recall falls from 0.844 ($\alpha = 1$) to 0.728 and 0.616. The outliers that survive lie close to the plane, where they are geometrically indistinguishable from noise; projection smoothing then absorbs them.
+
+11. **★★ Orienting normals by a spanning tree (Python).** Implement Proposition 2.6: PCA normals with random signs, a minimum spanning tree of the 10-nearest-neighbour graph with weights $1 - |n_i^\top n_j|$, and propagation from the highest point. Test on a sphere and on a thin plate whose two faces are 2 cm apart.
+
+    *Solution*:
+
+    ```python
+    import numpy as np
+    from scipy.spatial import cKDTree
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import minimum_spanning_tree, breadth_first_order
+
+    rng = np.random.default_rng(0)
+
+    def orient(X, k=10):
+        """PCA normals with random signs, then Hoppe-style propagation along an MST."""
+        _, idx = cKDTree(X).query(X, k=k)
+        N = np.zeros_like(X)
+        for i, nb in enumerate(idx):
+            Q = X[nb] - X[nb].mean(0)
+            N[i] = np.linalg.eigh(Q.T @ Q)[1][:, 0]
+        N *= rng.choice([-1.0, 1.0], (len(X), 1))                  # unknown signs
+        rows = np.repeat(np.arange(len(X)), k - 1); cols = idx[:, 1:].ravel()
+        w = 1 - np.abs(np.einsum("ij,ij->i", N[rows], N[cols])) + 1e-9
+        T = minimum_spanning_tree(coo_matrix((w, (rows, cols)), shape=(len(X),) * 2))
+        seed = np.argmax(X[:, 2])                                  # highest point: normal up
+        if N[seed, 2] < 0:
+            N[seed] *= -1
+        order, pred = breadth_first_order(T, seed, directed=False)
+        for v in order[1:]:
+            if N[v] @ N[pred[v]] < 0:
+                N[v] *= -1
+        return N
+
+    S = rng.normal(size=(3000, 3)); S /= np.linalg.norm(S, axis=1, keepdims=True)
+    print("sphere: outward normals", np.mean(np.einsum("ij,ij->i", orient(S), S) > 0))
+
+    # A thin plate: two parallel faces 2 cm apart, sampled every ~3 cm
+    u = rng.uniform(0, 1, (1500, 2))
+    P = np.r_[np.c_[u, np.zeros(1500)], np.c_[rng.uniform(0, 1, (1500, 2)), np.full(1500, 0.02)]]
+    out = np.r_[-np.ones(1500), np.ones(1500)]                     # true outward n_z
+    Np = orient(P)
+    print("thin plate: correct normals", np.mean(np.sign(Np[:, 2]) == out))
+    ```
+
+    On the sphere, 100 % of the normals point outwards. On the plate only 49.6 % are correct: the neighbourhood graph joins the two faces, so propagation gives both the same sign and one face is entirely wrong. The fix is a neighbourhood smaller than the thickness, or the sensor position.
+
+12. **★★ The best rotation in the plane.** Show that for 2D point sets the minimum of $E$ in Theorem 3.2 is
+    $$
+    \sum_i \|p_i'\|^2 + \sum_i \|q_i'\|^2 - 2 \sqrt{(H_{xx} + H_{yy})^2 + (H_{xy} - H_{yx})^2} ,
+    $$
+    and evaluate it on Example 3.3.
+
+    *Solution*: by the proof of Theorem 3.2 we maximise $A \cos\theta + B \sin\theta$ with $A = H_{xx} + H_{yy}$ and $B = H_{xy} - H_{yx}$. Its maximum is $\sqrt{A^2 + B^2}$ by the Cauchy–Schwarz inequality, at $\theta^\star = \operatorname{atan2}(B, A)$.
+
+    In Example 3.3, both sums of squared norms equal $4/3$ and $\sqrt{A^2 + B^2} = 4/3$, so the minimum is $4/3 + 4/3 - 8/3 = 0$: the motion is exact.
+
+13. **★★ Point-to-plane ICP on a plane.** Suppose all target normals are equal to $n$ and the source points span a plane orthogonal to $n$. Show that the matrix $\sum_i a_i a_i^\top$ of Proposition 3.7 has rank exactly 3, and describe its kernel.
+
+    *Solution*: $a_i^\top \xi = p_i^\top (n \times \omega) + n^\top t$.
+
+    It vanishes for every $i$ when $\omega$ is parallel to $n$ and $t$ is orthogonal to $n$: a 3-dimensional kernel (rotation about $n$, translations in the plane).
+
+    Conversely, if $a_i^\top \xi = 0$ for all $i$, the affine function $p \mapsto p^\top (n \times \omega) + n^\top t$ vanishes on the plane.
+
+    Since $n \times \omega$ is orthogonal to $n$, this forces it to be $0$, then $n^\top t = 0$. The kernel is exactly the space above, so the rank is $6 - 3 = 3$.
+
+14. **★★ Weights of robust ICP.** Write the Huber and Cauchy functions as $\rho(r) = \phi(r^2)$, check that $\phi$ is concave, and compute the IRLS weights of Proposition 3.10. How much does a residual of $3c$ count relative to a perfect match?
+
+    *Solution*: for Huber, $\phi(s) = s/2$ for $s \le c^2$ and $c\sqrt{s} - c^2/2$ beyond; for Cauchy, $\phi(s) = \frac{c^2}{2} \log(1 + s / c^2)$. Both are concave and non-decreasing. Up to a factor 2 the weights are
+    $$
+    w_{\text{Huber}}(r) = \min\Big(1, \frac{c}{|r|}\Big), \qquad w_{\text{Cauchy}}(r) = \frac{1}{1 + r^2/c^2} .
+    $$
+    At $r = 3c$: one third for Huber and one tenth for Cauchy.
+
+15. **★★ A graph cut on a chain.** Four points in a row have data costs $(U_i(0), U_i(1))$ equal to (0, 2), (0.5, 1), (1.5, 0.4) and (2, 0), and neighbours are consecutive points. Find the labelling of minimal Potts energy (Definition 4.3) for $\beta$ = 0, 1, 2 and 3.
+
+    *Solution*: a labelling with two or more changes is never optimal here, so compare the monotone ones. With $\beta = 0$, choose the cheaper label pointwise: 0011, energy 0.9.
+
+    For $\beta = 1$, 0011 costs $0.9 + 1 = 1.9$, against 2.4 for 0111, 3 for 0001 and 3.4 for 1111. For $\beta = 2$, 0011 still wins with 2.9.
+
+    For $\beta = 3$, 0011 costs 3.9 and the constant labelling 1111, at 3.4, wins: a strong prior erases the small region.
+
+16. **★★ The budget of a Hough transform.** For a 20 m façade and angle cells of 0.5°, over how many centimetres of $\rho$ do its votes spread (Proposition 5.7)? How many votes do $10^7$ points cast over a hemisphere of normals?
+
+    *Solution*: $20 \times 0.0087 / 2 \approx 8.7$ cm, plus the noise. The hemisphere has $720 \times 180 = 129{,}600$ angle cells, hence about $1.3 \times 10^{12}$ votes. This is why practical detectors use RANSAC, randomised Hough transforms or votes restricted by normals: a point with a known normal votes for a single angle cell.
+
+17. **★★ Screened Poisson.** Add to the functional of Theorem 6.11 the term $\alpha \int_\Omega w\, (\chi - \gamma)^2$, where $w \ge 0$ concentrates near the samples. Derive the new Euler–Lagrange equation and explain its effect.
+
+    *Solution*: the first variation gains $2\alpha \int_\Omega w (\chi - \gamma) \varphi$, so the equation becomes
+    $$
+    \Delta \chi - \alpha\, w\, (\chi - \gamma) = \nabla \cdot V .
+    $$
+    Near the samples, $\chi$ is pulled towards the iso-value $\gamma$, so the extracted surface passes closer to the data. This is the screened Poisson equation of Kazhdan and Hoppe (2013), which preserves thin details that plain Poisson smooths out.
+
+18. **★★★ The basin of convergence of ICP.** Using Code 3.8, measure the success rate of point-to-point and point-to-plane ICP (final rotation error below 1°) as a function of the initial rotation angle, from 10° to 90°, and of the overlap, obtained by cropping the source. Propose and test a strategy that enlarges the basin.
+
+    *Hints and expected result*: run 20 random axes per angle. Both variants succeed at small angles, and the success rate drops beyond a few tens of degrees on this bumpy patch; reducing the overlap makes the drop earlier unless pairs are trimmed (Definition 3.9).
+
+    Multi-start over a grid of initial rotations, coarse-to-fine subsampling (Definition 2.3), or a global initialisation by FPFH and RANSAC (Definition 3.11) all enlarge the basin. Report a curve of success rate against angle for each strategy.
+
+19. **★★★ From EWA to Gaussian splatting.** A 3D Gaussian of covariance $\Sigma$ is seen by a camera of rotation $W$, with $J$ the Jacobian of the perspective map at its centre. Show that its screen footprint has covariance $J W \Sigma W^\top J^\top$, the upper $2 \times 2$ block being kept. Then write a small 2D experiment that fits a set of 2D Gaussians to a target image by gradient descent on Definition 8.1.
+
+    *Hints and expected result*: the first part is Proposition 7.8 applied twice: the rotation $W$ maps $\Sigma$ to $W \Sigma W^\top$, and the local affine approximation of the projection maps it again by $J$. For the experiment, in PyTorch, parametrise each covariance as $L L^\top$ with $L$ lower triangular, so that it stays positive semi-definite.
+
+    Sort the Gaussians by a learned depth, composite them, and minimise the squared error to a synthetic image of a few disks. With about 50 Gaussians the error should fall steadily and the disks appear; Kerbl et al. (2023) add densification and pruning of Gaussians, which you can imitate.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) is a project based on a research paper, in four steps: choose a paper from the instructors' proposals, implement and test its algorithm(s), analyse the algorithm and its results and propose variants when relevant, and hand in a document explaining the method and the results together with the code. A student who fails may take a new paper from a new list.
+
+The Université Paris-Saclay course detail describes the assessment as partial continuous assessment; no weights are displayed. The solo subjects below follow the four official steps on named papers. The group subjects train the same skills at a larger scale. Every subject is evaluated with the [rubric](#projects-rubric) at the end of this section, on its stated success criterion; the written exam is a self-assessment proposal, not part of the official assessment.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: Poisson surface reconstruction.** Reproduce Kazhdan, Bolitho and Hoppe (2006) on synthetic shapes.
+    -   *Question*: how does accuracy depend on noise, sampling density and grid resolution, compared with the signed distance of Hoppe et al. (1992)?
+    -   *Work*: extend Code 6.12 to 3D on a regular grid of $64^3$ to $128^3$ cells; extract the surface with marching cubes (Definition 6.8, implemented or taken from a library); test on a sphere, a torus and a union of boxes with 0–2 % noise.
+    -   *Success criterion*: Chamfer distance (Definition 8.2) to the true surface below 1 % of the bounding-box diagonal at 1 % noise, and a curve of error against noise for both methods.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 2 and 6.
+
+2.  **[Solo · ≈ 20 h] Paper study: efficient RANSAC.** Reimplement Schnabel, Wahl and Klein (2007).
+    -   *Work*: octree-localised sampling (Proposition 5.5), planes, spheres and cylinders from oriented points (Propositions 5.2–5.3), inlier connectivity, and plain sequential RANSAC as a baseline.
+    -   *Data*: synthetic scenes of $10^5$ to $10^6$ points (a room with pipes, a tank, columns) with clutter, where the true primitives are known.
+    -   *Success criterion*: every primitive detected with at least 90 % of its points, and a speed-up of at least 10 over the baseline at $10^6$ points.
+    -   *Deliverables*: code, report, talk. Chapters 2 and 5.
+
+3.  **[Solo · ≈ 20 h] Paper study: Generalized-ICP.** Reimplement Segal, Haehnel and Thrun (2009) and compare it with point-to-point and point-to-plane ICP.
+    -   *Work*: local covariances from ch. 2, the GICP cost minimised by Gauss–Newton on rigid motions, and two scans simulated from different poses with Code 1.7.
+    -   *Success criterion*: success-rate curves against the initial rotation (as in Exercise 18) and final errors for the three variants, with the paper's qualitative ordering confirmed or explained.
+    -   *Deliverables*: code, report, talk. Chapters 1, 2 and 3.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] LiDAR odometry on simulated drives.** Build a scan-to-map odometry in the spirit of IMLS-SLAM (Deschaud, 2018) and CT-ICP (Dellenbach et al., 2022).
+    -   *Work*: a simulator of a vehicle driving a synthetic street, extending Code 1.7 with motion distortion; scan-to-map point-to-plane ICP on a voxel map; per-point motion compensation.
+    -   *Split*: one member writes the simulator and the ground truth, one the registration and the map, one the motion compensation and the evaluation.
+    -   *Success criterion*: drift below 1 % of the distance travelled on a 200 m loop with 2 cm noise; an ablation without motion compensation.
+    -   *Deliverables*: code, a 6–8 page report, a 15-minute talk. Chapters 1, 2 and 3.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Semantic segmentation of an urban scan.** Compare multi-scale features with a random forest (Weinmann et al., 2015; Hackel, Wegner & Schindler, 2016) with a point network (PointNet++ or KPConv, Thomas et al., 2019).
+    -   *Data*: a public urban LiDAR data set such as Paris-Lille-3D (Roynard, Deschaud & Goulette, 2018), with training and test areas kept apart; the synthetic scenes of Code 4.6 for debugging.
+    -   *Split*: features and forest; network (free GPU tier); graph-cut regularisation (Theorem 4.4) and evaluation.
+    -   *Success criterion*: per-class IoU and mIoU on the held-out area for the three pipelines, with an analysis of the classes where each one fails.
+    -   *Deliverables*: code, report, talk. Chapters 2 and 4.
+
+3.  **[Group of 2–3 · ≈ 30 h each] A point-based renderer with level of detail.** Implement the hierarchy of QSplat (Rusinkiewicz & Levoy, 2000) with Gaussian splats (Proposition 7.8) and normalised blending.
+    -   *Split*: hierarchy and traversal; splatting, blending and shading; evaluation and an interactive viewer.
+    -   *Success criterion*: images without holes or show-through (as measured in Code 7.7), and curves of image error against a full-resolution reference and of the number of splats against the threshold $\tau$.
+    -   *Deliverables*: code, report, talk with a live demonstration. Chapters 2 and 7.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic devices, four exercises.
+
+1.  **Question (4 points).** Compare triangulation and time-of-flight sensors: give the range formula of each and the depth error of triangulation, and say which you would use to scan a 50 m façade, and why. *Expected*: $z = fb/d$ and $\delta z \approx z^2 \delta d / (fb)$; pulsed $r = c\tau/2$ and phase shift with its ambiguity interval; for 50 m the quadratic growth rules out short-baseline triangulation, so a pulsed or multi-frequency phase-shift scanner is the answer.
+
+2.  **Question (6 points).** (a) Align the points (0, 0), (2, 0), (0, 1) to the points (3, 1), (3, −1), (4, 1) in closed form. (b) A global registration finds 40 % of correct matches: how many 3-match RANSAC draws give a 99 % success probability? *Expected*: centroids (2/3, 1/3) and (10/3, 1/3); $H_{xx} + H_{yy} = 0$ and $H_{xy} - H_{yx} = -10/3$, so $\theta^\star = -90°$ and $t^\star = (3, 1)$; (b) $N = 70$ by Theorem 3.12.
+
+3.  **Question (5 points).** Prove that the costs of ICP are non-increasing, and explain why ICP may nevertheless return a wrong alignment. *Expected*: the two inequalities of Theorem 3.5, one for matching and one for alignment; the limit is only a local minimum, whose basin depends on the initial rotation, the overlap and the symmetries of the scene; remedies are a global initialisation and robust weights.
+
+4.  **Question (5 points).** State the variational problem of Poisson reconstruction, derive its Euler–Lagrange equation, and explain why normals must be consistently oriented and how the iso-value is chosen. *Expected*: minimise the integral of $\|\nabla\chi - V\|^2$, first variation and integration by parts giving $\Delta\chi = \nabla\cdot V$; a flipped normal reverses its contribution to $V$ and creates spurious surface sheets; the iso-value is the mean of $\chi$ at the samples, which absorbs the scale of $V$.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Understanding of the paper | 20 % | The problem, the assumptions and the key idea are stated correctly, in the student's own words and notation |
+| Implementation | 25 % | The algorithm is implemented from the paper, runs on the data, and is checked on a case with a known answer |
+| Experiments | 25 % | Clear protocol, baselines from the course, the success criterion reached or the gap explained |
+| Analysis and variants | 15 % | Failure cases identified, at least one variant proposed and tested (official step 3) |
+| Report and talk | 15 % | A 4–6 page report and a talk that a classmate can follow; figures with units and captions |
+
+## References {#refs}
+
+**Official references (master-mva.com)**
+
+-   J. Gallice (ed.), *Images de profondeur*, Hermès Science, 2001.
+-   F. Goulette, *Modélisation 3D automatique*, Presses de l'École des Mines, 1998.
+-   J.-E. Deschaud, *Traitement de nuages de points denses et modélisation 3D d'environnements par système mobile LiDAR/Caméra*, PhD thesis, MINES ParisTech, 2010.
+-   M. Gross and H. Pfister (eds.), *Point-Based Graphics*, Morgan Kaufmann, 2007.
+
+**Textbooks and surveys**
+
+-   M. Botsch, L. Kobbelt, M. Pauly, P. Alliez and B. Lévy, *Polygon Mesh Processing*, A K Peters, 2010.
+-   T. K. Dey, *Curve and Surface Reconstruction: Algorithms with Mathematical Analysis*, Cambridge University Press, 2007.
+-   R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*, 2nd ed., Cambridge University Press, 2004.
+-   G. Vosselman and H.-G. Maas (eds.), *Airborne and Terrestrial Laser Scanning*, Whittles Publishing, 2010.
+-   T. Akenine-Möller, E. Haines, N. Hoffman, A. Pesce, M. Iwanicki and S. Hillaire, *Real-Time Rendering*, 4th ed., CRC Press, 2018.
+-   M. Berger, A. Tagliasacchi, L. M. Seversky, P. Alliez, G. Guennebaud, J. A. Levine, A. Sharf and C. T. Silva, "A survey of surface reconstruction from point clouds", *Computer Graphics Forum* 36(1), 2017.
+-   F. Pomerleau, F. Colas and R. Siegwart, "A review of point cloud registration algorithms for mobile robotics", *Foundations and Trends in Robotics* 4(1), 2015.
+-   Y. Guo, H. Wang, Q. Hu, H. Liu, L. Liu and M. Bennamoun, "Deep learning for 3D point clouds: a survey", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 43(12), 2021.
+
+**Sensors, data structures and operators (ch. 1–2)**
+
+-   J. L. Bentley, "Multidimensional binary search trees used for associative searching", *Communications of the ACM* 18(9), 1975.
+-   J. H. Friedman, J. L. Bentley and R. A. Finkel, "An algorithm for finding best matches in logarithmic expected time", *ACM Transactions on Mathematical Software* 3(3), 1977.
+-   T. F. Gonzalez, "Clustering to minimize the maximum intercluster distance", *Theoretical Computer Science* 38, 1985.
+-   H. Hoppe, T. DeRose, T. Duchamp, J. McDonald and W. Stuetzle, "Surface reconstruction from unorganized points", *SIGGRAPH*, 1992.
+-   M. Pauly, M. Gross and L. Kobbelt, "Efficient simplification of point-sampled surfaces", *IEEE Visualization*, 2002.
+-   N. J. Mitra and A. Nguyen, "Estimating surface normals in noisy point cloud data", *ACM Symposium on Computational Geometry*, 2003.
+-   J. Demantké, C. Mallet, N. David and B. Vallet, "Dimensionality based scale selection in 3D lidar point clouds", *ISPRS Archives* XXXVIII-5/W12 (Laser Scanning), 2011.
+-   R. B. Rusu, N. Blodow and M. Beetz, "Fast point feature histograms (FPFH) for 3D registration", *IEEE ICRA*, 2009.
+-   M. Alexa, J. Behr, D. Cohen-Or, S. Fleishman, D. Levin and C. T. Silva, "Computing and rendering point set surfaces", *IEEE Transactions on Visualization and Computer Graphics* 9(1), 2003.
+-   R. B. Rusu and S. Cousins, "3D is here: Point Cloud Library (PCL)", *IEEE ICRA*, 2011.
+-   Q.-Y. Zhou, J. Park and V. Koltun, "Open3D: a modern library for 3D data processing", arXiv:1801.09847, 2018.
+
+**Registration (ch. 3)**
+
+-   K. S. Arun, T. S. Huang and S. D. Blostein, "Least-squares fitting of two 3-D point sets", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 9(5), 1987.
+-   B. K. P. Horn, "Closed-form solution of absolute orientation using unit quaternions", *Journal of the Optical Society of America A* 4(4), 1987.
+-   S. Umeyama, "Least-squares estimation of transformation parameters between two point patterns", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 13(4), 1991.
+-   P. J. Besl and N. D. McKay, "A method for registration of 3-D shapes", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 14(2), 1992.
+-   Y. Chen and G. Medioni, "Object modelling by registration of multiple range images", *Image and Vision Computing* 10(3), 1992.
+-   Z. Zhang, "Iterative point matching for registration of free-form curves and surfaces", *International Journal of Computer Vision* 13(2), 1994.
+-   S. Rusinkiewicz and M. Levoy, "Efficient variants of the ICP algorithm", *3-D Digital Imaging and Modeling (3DIM)*, 2001.
+-   D. Chetverikov, D. Svirko, D. Stepanov and P. Krsek, "The trimmed iterative closest point algorithm", *ICPR*, 2002.
+-   K.-L. Low, "Linear least-squares optimization for point-to-plane ICP surface registration", Technical Report TR04-004, University of North Carolina at Chapel Hill, 2004.
+-   P. Biber and W. Straßer, "The normal distributions transform: a new approach to laser scan matching", *IEEE/RSJ IROS*, 2003.
+-   A. Segal, D. Haehnel and S. Thrun, "Generalized-ICP", *Robotics: Science and Systems*, 2009.
+-   D. Aiger, N. J. Mitra and D. Cohen-Or, "4-points congruent sets for robust pairwise surface registration", *ACM Transactions on Graphics* 27(3), 2008.
+-   H. Yang, J. Shi and L. Carlone, "TEASER: fast and certifiable point cloud registration", *IEEE Transactions on Robotics* 37(2), 2021.
+-   P. J. Huber, "Robust estimation of a location parameter", *Annals of Mathematical Statistics* 35(1), 1964.
+-   M. A. Fischler and R. C. Bolles, "Random sample consensus: a paradigm for model fitting with applications to image analysis and automated cartography", *Communications of the ACM* 24(6), 1981.
+
+**Segmentation and learning (ch. 4)**
+
+-   T. Rabbani, F. A. van den Heuvel and G. Vosselman, "Segmentation of point clouds using smoothness constraint", *ISPRS Archives* 36(5), 2006.
+-   D. M. Greig, B. T. Porteous and A. H. Seheult, "Exact maximum a posteriori estimation for binary images", *Journal of the Royal Statistical Society B* 51(2), 1989.
+-   Y. Boykov, O. Veksler and R. Zabih, "Fast approximate energy minimization via graph cuts", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 23(11), 2001.
+-   L. Breiman, "Random forests", *Machine Learning* 45(1), 2001.
+-   M. Weinmann, B. Jutzi, S. Hinz and C. Mallet, "Semantic point cloud interpretation based on optimal neighborhoods, relevant features and efficient classifiers", *ISPRS Journal of Photogrammetry and Remote Sensing* 105, 2015.
+-   T. Hackel, J. D. Wegner and K. Schindler, "Fast semantic segmentation of 3D point clouds with strongly varying density", *ISPRS Annals* III-3, 2016.
+-   C. R. Qi, H. Su, K. Mo and L. J. Guibas, "PointNet: deep learning on point sets for 3D classification and segmentation", *CVPR*, 2017.
+-   C. R. Qi, L. Yi, H. Su and L. J. Guibas, "PointNet++: deep hierarchical feature learning on point sets in a metric space", *NeurIPS*, 2017.
+-   M. Zaheer, S. Kottur, S. Ravanbakhsh, B. Póczos, R. Salakhutdinov and A. Smola, "Deep sets", *NeurIPS*, 2017.
+-   H. Thomas, C. R. Qi, J.-E. Deschaud, B. Marcotegui, F. Goulette and L. J. Guibas, "KPConv: flexible and deformable convolution for point clouds", *ICCV*, 2019.
+-   Y. Wang, Y. Sun, Z. Liu, S. E. Sarma, M. M. Bronstein and J. M. Solomon, "Dynamic graph CNN for learning on point clouds", *ACM Transactions on Graphics* 38(5), 2019.
+-   C. Choy, J. Gwak and S. Savarese, "4D spatio-temporal ConvNets: Minkowski convolutional neural networks", *CVPR*, 2019.
+-   H. Zhao, L. Jiang, J. Jia, P. Torr and V. Koltun, "Point transformer", *ICCV*, 2021.
+-   Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang and J. Xiao, "3D ShapeNets: a deep representation for volumetric shapes", *CVPR*, 2015.
+-   I. Armeni, O. Sener, A. R. Zamir, H. Jiang, I. Brilakis, M. Fischer and S. Savarese, "3D semantic parsing of large-scale indoor spaces", *CVPR*, 2016.
+-   T. Hackel, N. Savinov, L. Ladicky, J. D. Wegner, K. Schindler and M. Pollefeys, "Semantic3D.net: a new large-scale point cloud classification benchmark", *ISPRS Annals* IV-1/W1, 2017.
+-   X. Roynard, J.-E. Deschaud and F. Goulette, "Paris-Lille-3D: a large and high-quality ground-truth urban point cloud dataset for automatic segmentation and classification", *International Journal of Robotics Research* 37(6), 2018.
+-   J. Behley, M. Garbade, A. Milioto, J. Quenzel, S. Behnke, C. Stachniss and J. Gall, "SemanticKITTI: a dataset for semantic scene understanding of LiDAR sequences", *ICCV*, 2019.
+
+**Primitives (ch. 5)**
+
+-   R. Schnabel, R. Wahl and R. Klein, "Efficient RANSAC for point-cloud shape detection", *Computer Graphics Forum* 26(2), 2007.
+-   D. Borrmann, J. Elseberg, K. Lingemann and A. Nüchter, "The 3D Hough transform for plane detection in point clouds: a review and a new accumulator design", *3D Research* 2(2), 2011.
+-   F. Lafarge and C. Mallet, "Creating large-scale city models from 3D-point clouds: a robust approach with hybrid representation", *International Journal of Computer Vision* 99(1), 2012.
+-   L. Nan and P. Wonka, "PolyFit: polygonal surface reconstruction from point clouds", *ICCV*, 2017.
+
+**Reconstruction (ch. 6)**
+
+-   N. Amenta, M. Bern and D. Eppstein, "The crust and the β-skeleton: combinatorial curve reconstruction", *Graphical Models and Image Processing* 60(2), 1998.
+-   N. Amenta and M. Bern, "Surface reconstruction by Voronoi filtering", *Discrete & Computational Geometry* 22(4), 1999.
+-   N. Amenta, S. Choi and R. K. Kolluri, "The power crust", *ACM Symposium on Solid Modeling and Applications*, 2001.
+-   N. Amenta, S. Choi, T. K. Dey and N. Leekha, "A simple algorithm for homeomorphic surface reconstruction", *International Journal of Computational Geometry & Applications* 12(1–2), 2002.
+-   H. Edelsbrunner and E. P. Mücke, "Three-dimensional alpha shapes", *ACM Transactions on Graphics* 13(1), 1994.
+-   F. Bernardini, J. Mittleman, H. Rushmeier, C. Silva and G. Taubin, "The ball-pivoting algorithm for surface reconstruction", *IEEE Transactions on Visualization and Computer Graphics* 5(4), 1999.
+-   W. E. Lorensen and H. E. Cline, "Marching cubes: a high resolution 3D surface construction algorithm", *SIGGRAPH*, 1987.
+-   G. M. Nielson and B. Hamann, "The asymptotic decider: resolving the ambiguity in marching cubes", *IEEE Visualization*, 1991.
+-   J. C. Carr, R. K. Beatson, J. B. Cherrie, T. J. Mitchell, W. R. Fright, B. C. McCallum and T. R. Evans, "Reconstruction and representation of 3D objects with radial basis functions", *SIGGRAPH*, 2001.
+-   R. Kolluri, "Provably good moving least squares", *ACM Transactions on Algorithms* 4(2), 2008.
+-   M. Kazhdan, M. Bolitho and H. Hoppe, "Poisson surface reconstruction", *Eurographics Symposium on Geometry Processing*, 2006.
+-   M. Kazhdan and H. Hoppe, "Screened Poisson surface reconstruction", *ACM Transactions on Graphics* 32(3), 2013.
+
+**Rendering (ch. 7)**
+
+-   E. Catmull, *A Subdivision Algorithm for Computer Display of Curved Surfaces*, PhD thesis, University of Utah, 1974.
+-   B. T. Phong, "Illumination for computer generated pictures", *Communications of the ACM* 18(6), 1975.
+-   J. F. Blinn, "Models of light reflection for computer synthesized pictures", *SIGGRAPH*, 1977.
+-   H. Pfister, M. Zwicker, J. van Baar and M. Gross, "Surfels: surface elements as rendering primitives", *SIGGRAPH*, 2000.
+-   S. Rusinkiewicz and M. Levoy, "QSplat: a multiresolution point rendering system for large meshes", *SIGGRAPH*, 2000.
+-   M. Zwicker, H. Pfister, J. van Baar and M. Gross, "Surface splatting", *SIGGRAPH*, 2001.
+-   M. Botsch, A. Hornung, M. Zwicker and L. Kobbelt, "High-quality surface splatting on today's GPUs", *Eurographics Symposium on Point-Based Graphics*, 2005.
+-   T. Boubekeur and M. Alexa, "Phong tessellation", *ACM Transactions on Graphics* 27(5), 2008.
+
+**Research directions (ch. 8)**
+
+-   J. Zhang and S. Singh, "LOAM: lidar odometry and mapping in real-time", *Robotics: Science and Systems*, 2014.
+-   J.-E. Deschaud, "IMLS-SLAM: scan-to-model matching based on 3D data", *IEEE ICRA*, 2018.
+-   P. Dellenbach, J.-E. Deschaud, B. Jacquet and F. Goulette, "CT-ICP: real-time elastic LiDAR odometry with loop closure", *IEEE ICRA*, 2022.
+-   I. Vizzo, T. Guadagnino, B. Mersch, L. Wiesmann, J. Behley and C. Stachniss, "KISS-ICP: in defense of point-to-point ICP — simple, accurate, and robust registration if done the right way", *IEEE Robotics and Automation Letters* 8(2), 2023.
+-   Y. Wang and J. M. Solomon, "Deep closest point: learning representations for point cloud registration", *ICCV*, 2019.
+-   S. Huang, Z. Gojcic, M. Usvyatsov, A. Wieser and K. Schindler, "PREDATOR: registration of 3D point clouds with low overlap", *CVPR*, 2021.
+-   Z. Qin, H. Yu, C. Wang, Y. Guo, Y. Peng and K. Xu, "Geometric transformer for fast and robust point cloud registration", *CVPR*, 2022.
+-   L. Landrieu and M. Simonovsky, "Large-scale point cloud semantic segmentation with superpoint graphs", *CVPR*, 2018.
+-   Q. Hu, B. Yang, L. Xie, S. Rosa, Y. Guo, Z. Wang, N. Trigoni and A. Markham, "RandLA-Net: efficient semantic segmentation of large-scale point clouds", *CVPR*, 2020.
+-   X. Wu, L. Jiang, P.-S. Wang, Z. Liu, X. Liu, Y. Qiao, W. Ouyang, T. He and H. Zhao, "Point Transformer V3: simpler, faster, stronger", *CVPR*, 2024.
+-   S. Xie, J. Gu, D. Guo, C. R. Qi, L. Guibas and O. Litany, "PointContrast: unsupervised pre-training for 3D point cloud understanding", *ECCV*, 2020.
+-   Y. Pang, W. Wang, F. E. H. Tay, W. Liu, Y. Tian and L. Yuan, "Masked autoencoders for point cloud self-supervised learning", *ECCV*, 2022.
+-   L. Mescheder, M. Oechsle, M. Niemeyer, S. Nowozin and A. Geiger, "Occupancy networks: learning 3D reconstruction in function space", *CVPR*, 2019.
+-   J. J. Park, P. Florence, J. Straub, R. Newcombe and S. Lovegrove, "DeepSDF: learning continuous signed distance functions for shape representation", *CVPR*, 2019.
+-   A. Gropp, L. Yariv, N. Haim, M. Atzmon and Y. Lipman, "Implicit geometric regularization for learning shapes", *ICML*, 2020.
+-   S. Peng, C. M. Jiang, Y. Liao, M. Niemeyer, M. Pollefeys and A. Geiger, "Shape as points: a differentiable Poisson solver", *NeurIPS*, 2021.
+-   B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi and R. Ng, "NeRF: representing scenes as neural radiance fields for view synthesis", *ECCV*, 2020.
+-   B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, "3D Gaussian splatting for real-time radiance field rendering", *ACM Transactions on Graphics* 42(4), 2023.
+-   G. Yang, X. Huang, Z. Hao, M.-Y. Liu, S. Belongie and B. Hariharan, "PointFlow: 3D point cloud generation with continuous normalizing flows", *ICCV*, 2019.
+-   S. Luo and W. Hu, "Diffusion probabilistic models for 3D point cloud generation", *CVPR*, 2021.

@@ -1,0 +1,2451 @@
+---
+title: "Object Recognition and Computer Vision"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: images, filters, least squares and gradient descent](#ch0)
+-   [1. Camera geometry](#ch1)
+-   [2. Local invariant features](#ch2)
+-   [3. Correspondence and robust estimation](#ch3)
+-   [4. Efficient visual search](#ch4)
+-   [5. Category-level recognition: bags of features, sparse coding and dictionary learning](#ch5)
+-   [6. Neural networks and optimisation methods](#ch6)
+-   [7. Convolutional neural networks for visual recognition](#ch7)
+-   [8. Motion and human actions](#ch8)
+-   [9. 3D object recognition](#ch9)
+-   [10. Weakly-supervised learning for visual recognition](#ch10)
+-   [11. Research directions and open problems](#ch11)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Object Recognition and Computer Vision
+  Official title       Object recognition and computer vision
+  Instructors          G. VAROL, I. LAPTEV, J. PONCE, C. SCHMID, J. SIVIC, M. AUBRY, (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 30 h (lectures 30 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Computer Vision
+  Language             English: all materials and lectures are in English; reports of the assignments and of the final project may be written in French or in English (master-mva.com)
+  Assessment           Three programming assignments (50% of the grade) and a research-oriented final project, including a report and a presentation (50% of the grade) (master-mva.com) · Université Paris-Saclay: “Evaluation Continue non Intégrale” (partial continuous assessment)
+  Prerequisites        Basic linear algebra, analysis and probability (master-mva.com)
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who wants to understand, and to build, the systems that recognise objects, scenes and actions in photographs and videos.
+
+**Empirical first**: photograph the same building from two street corners. Compared pixel by pixel, the two images look unrelated; yet a few hundred local feature matches, filtered by RANSAC, recover the geometric relation between the views in milliseconds. In 2012, a convolutional network cut the top-5 error of the ImageNet challenge from 26.2 % (the second-best entry) to 15.3 % (Krizhevsky, Sutskever and Hinton, 2012). This course explains both successes, and where each still fails.
+
+The course goes from the geometry of a single camera to networks that learn from weak labels. It follows the official themes in order: instance-level recognition, category-level recognition, neural networks, convolutional networks, motion and actions, 3D objects and weak supervision.
+
+It shares tools with [Deep Learning](../s1-deep-learning/index.html), [3D Computer Vision](../s1-3d-computer-vision/index.html) and [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html), taught in the same semester.
+
+### What you will be able to do
+
+-   Model image formation with the pinhole camera, and estimate cameras, homographies and fundamental matrices from point correspondences.
+-   Detect corners and blobs (Harris, difference of Gaussians), describe them with SIFT, and prove which transformations each step is covariant or invariant to.
+-   Match features robustly with the ratio test and RANSAC, and size RANSAC for a given outlier rate.
+-   Build a large-scale visual search engine with visual words, inverted files and product quantisation.
+-   Encode images with bags of features, spatial pyramids and sparse codes, and learn a dictionary.
+-   Derive backpropagation, and train networks with stochastic gradient methods and a sound initialisation.
+-   Design and analyse convolutional networks for classification and detection: receptive fields, equivariance, residual connections, IoU and non-maximum suppression.
+-   Estimate optical flow, and explain the main families of action-recognition models.
+-   Align 3D shapes (Kabsch, ICP), estimate an object pose from 2D–3D matches, and classify point clouds with a permutation-invariant network.
+-   Learn localisation from image-level labels with multiple-instance learning and class activation maps, and explain contrastive and language supervision.
+-   Read, reimplement and extend a recent computer vision paper, as the final project requires.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents automated object recognition — and, more generally, scene analysis — from photographs and videos as the great challenge of computer vision. Its objective is to give a coherent introductory overview of the image, object and scene models, and of the methods and algorithms, used today to address this challenge.
+
+The same page announces 10 lectures of 3 hours each, with all materials and lectures in English, and lists seven themes. The Université Paris-Saclay course detail gives 30 h of lectures and an assessment type, and displays no list of contents. Each theme, and each part of a composite theme, has a row below.
+
+| Official topic | Course section |
+|---|---|
+| Instance-level recognition: camera geometry | [ch. 1](#ch1): homogeneous coordinates, pinhole camera and calibration (Definitions 1.1–1.2, Algorithm 1.5), homographies (Theorem 1.6), epipolar geometry and the eight-point algorithm (Theorem 1.9, Algorithm 1.10), triangulation |
+| Instance-level recognition: local-invariant features | [ch. 2](#ch2): covariance and invariance (Definition 2.1), Harris corners (Proposition 2.3), scale selection (Theorem 2.5), difference of Gaussians, SIFT (Algorithm 2.7, Proposition 2.8), affine regions |
+| Instance-level recognition: correspondence | [ch. 3](#ch3): matching and the ratio test (Definition 3.1), RANSAC and its iteration count (Algorithm 3.3, Proposition 3.4), Hough voting (Definition 3.7) |
+| Instance-level recognition: efficient visual search | [ch. 4](#ch4): visual words and k-means, tf-idf, inverted files, vocabulary trees, spatial re-ranking and query expansion, product quantisation (Definitions 4.1–4.7, Proposition 4.8) |
+| Category-level recognition: bags of features | [ch. 5](#ch5): coding and pooling (Definition 5.1), histogram intersection kernel (Proposition 5.2), spatial pyramid matching (Definition 5.3), VLAD and Fisher vectors |
+| Category-level recognition: sparse coding and dictionary learning | [ch. 5](#ch5): lasso codes, soft-thresholding and ISTA (Definition 5.4, Proposition 5.5, Algorithm 5.6), dictionary learning (Definition 5.7, Proposition 5.8) |
+| Neural networks, optimization methods | [ch. 6](#ch6): multilayer perceptrons, backpropagation (Theorem 6.3), SGD, momentum and Adam (Definition 6.4), convergence of SGD (Theorem 6.5), initialisation and regularisation |
+| Convolutional neural networks for visual recognition | [ch. 7](#ch7): convolutional layers, equivariance (Proposition 7.3), receptive fields, residual networks, transfer learning, detection (IoU, AP, NMS) and segmentation |
+| Motion and human actions | [ch. 8](#ch8): optical flow, aperture problem, Lucas–Kanade and Horn–Schunck (Theorem 8.3, Definition 8.4), action recognition from interest points and trajectories to two-stream, 3D and transformer networks |
+| 3D object recognition | [ch. 9](#ch9): 3D representations, pose from 2D–3D matches, Kabsch alignment and ICP (Theorem 9.3, Algorithm 9.4), PointNet (Proposition 9.5), multi-view and CAD-based recognition |
+| Weakly-supervised learning for visual recognition | [ch. 10](#ch10): multiple-instance learning and pooling (Propositions 10.3–10.4), weakly supervised detection (Definition 10.5), class activation maps (Proposition 10.6), contrastive and language supervision, narrated video |
+| Organisation: 10 lectures of 3 hours each | [Session plan](#sessions): 10 sessions of 3 h, one or two themes per session |
+
+Beyond the official themes, these notes add the evaluation of detectors (ch. 7), a self-contained review of the mathematical tools (ch. 0) and a self-study chapter on research directions (ch. 11).
+
+### Where this course fits in the programme
+
+The official prerequisites are basic linear algebra, analysis and probability. The course is taught in the first period of semester 1 by Gül Varol (ENPC), Ivan Laptev (INRIA), Jean Ponce (ENS Ulm), Cordelia Schmid (INRIA), Josef Sivic (INRIA) and Mathieu Aubry (ENPC), as listed on master-mva.com.
+
+-   **Preparation** — the refreshers [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, least squares, gradient descent), [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Bayes' rule, binomial and chi-square laws) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the language of the assignments).
+-   **Related courses in semester 1** — [Deep Learning](../s1-deep-learning/index.html), [3D Computer Vision](../s1-3d-computer-vision/index.html), [The Machine Intelligence of Images](../s1-machine-intelligence-images/index.html), [Convex Optimization](../s1-convex-optimization/index.html), [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html).
+-   **Courses that build on it or share its tools in semester 2** —[Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html), [AI and Computer Vision for Cultural Heritage](../s2-ai-cultural-heritage/index.html), [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html), [Multimodal Explainable AI](../s2-multimodal-xai/index.html) and [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html).
+-   **Research** — the final project is a first research experience, and a natural step towards a vision topic for the [research internship](../s3-research-internship/index.html).
+
+### Course outline
+
+-   **Review: images, filters, least squares and gradient descent** — the four tools used everywhere else, with their short proofs.
+-   **Camera geometry** — the pinhole camera, calibration, homographies, epipolar geometry and triangulation.
+-   **Local invariant features** — Harris corners, scale space, scale selection, SIFT and affine regions.
+-   **Correspondence and robust estimation** — matching, the ratio test, RANSAC and Hough voting.
+-   **Efficient visual search** — visual words, inverted files, vocabulary trees and product quantisation.
+-   **Category-level recognition** — bags of features, kernels, spatial pyramids, sparse coding and dictionary learning.
+-   **Neural networks and optimisation methods** — backpropagation, stochastic gradient methods, initialisation and regularisation.
+-   **Convolutional neural networks** — equivariance, receptive fields, residual networks, transfer, detection and segmentation.
+-   **Motion and human actions** — optical flow and the families of action-recognition models.
+-   **3D object recognition** — pose estimation, rigid alignment, point-cloud networks and recognition with 3D models.
+-   **Weakly-supervised learning** — multiple-instance learning, weakly supervised detection, class activation maps, contrastive and language supervision.
+-   **Research directions and open problems** — foundation models, geometry and learning, video and language (self-study).
+
+### Session plan {#sessions}
+
+**30 h in class = 10 sessions of 3 h.**
+
+The volume is that of the Université Paris-Saclay programme table (30 h of lectures), and it matches the organisation announced on master-mva.com, 10 lectures of 3 hours each. The split of the themes into sessions below is a proposal; it follows the official order of the themes, which is also the order of difficulty.
+
+Level 1 = foundations (reviews, definitions, first worked examples), 2 = core methods and their proofs, 3 = advanced material close to current research; the level never decreases from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: convolution, Gaussian derivatives, SVD, gradient descent; ch. 1 homogeneous coordinates, pinhole camera, vanishing points, calibration (Definition 1.1 to Algorithm 1.5) | Ex. 1 |
+| 2 | 3 h | 1 | ch. 1 Homographies, epipolar geometry, the eight-point algorithm, triangulation (Theorem 1.6 to Proposition 1.11) | Ex. 2, 9, 14 |
+| 3 | 3 h | 2 | ch. 2 Local invariant features: Harris, scale space and scale selection, difference of Gaussians, SIFT, affine regions | Ex. 3, 10 |
+| 4 | 3 h | 2 | ch. 3 Matching, RANSAC, Hough voting; ch. 4 visual words, tf-idf, inverted files, vocabulary trees, product quantisation | Ex. 4, 5, 17 |
+| 5 | 3 h | 2 | ch. 5 Bags of features, histogram kernels, spatial pyramids, sparse coding, dictionary learning | Ex. 11, 15 |
+| 6 | 3 h | 2 | ch. 6 Multilayer perceptrons, backpropagation, SGD and Adam, convergence, initialisation, regularisation | Ex. 12 |
+| 7 | 3 h | 2 | ch. 7 Convolutional layers, equivariance, receptive fields, ResNets, transfer, detection and segmentation | Ex. 6 |
+| 8 | 3 h | 3 | ch. 8 Optical flow, Lucas–Kanade, Horn–Schunck, action recognition | Ex. 7 |
+| 9 | 3 h | 3 | ch. 9 3D representations, pose estimation, Kabsch and ICP, PointNet, recognition with CAD models | Ex. 13 |
+| 10 | 3 h | 3 | ch. 10 Multiple-instance learning, weakly supervised detection, class activation maps, contrastive and language supervision | Ex. 8, 16 |
+
+**Self-study, outside the 30 h** (about 4 h in total): ch. 11 Research directions and open problems (≈ 3 h) · Exercise 18 on repeatability under viewpoint change (≈ 1 h).
+
+### How to study this module
+
+-   Read the chapters in order: each one uses only the previous ones, and ch. 0 can be skipped by a reader fluent in SVD and convolution.
+-   After each session, do the exercises listed in its row of the session plan, then run the Python block of the chapter and change one parameter.
+-   The Python environment is the one of the [scientific Python refresher](../s0-refresher-python-scientific-computing/index.html): NumPy, SciPy, scikit-learn and PyTorch on CPU. Every code block runs in less than 20 seconds on a laptop CPU, with synthetic data or the digits data set bundled with scikit-learn.
+-   Start the final project early (see [Projects and assessment](#projects)): choose a paper after session 7, once the instance-level, category-level and deep learning tools are in place.
+-   Keep a page of formulas: projection $P = K[R \mid t]$, epipolar constraint, RANSAC iteration count, receptive field recursion, Lucas–Kanade normal equations.
+
+## 0. Review: images, filters, least squares and gradient descent {#ch0}
+
+Every later chapter uses the same few tools: images as arrays, linear filtering, the singular value decomposition and gradient descent. This review states them once, with the short proofs that the course relies on.
+
+The refreshers on [linear algebra and optimisation](../s0-refresher-linear-algebra-optimization/index.html) and on [scientific Python](../s0-refresher-python-scientific-computing/index.html) cover the same ground at a slower pace.
+
+::: def
+[Definition 0.1 — Digital image, convolution]{.tag}
+A grey-level image is a function $I : \mathbb{Z}^2 \to \mathbb{R}$, stored as an $H \times W$ array; a colour image has three such channels. Positions are written $x = (x_1, x_2)$, row first.
+
+The convolution of $I$ with a kernel $k$ of finite support is
+$$
+(I * k)(x) = \sum_{y \in \mathbb{Z}^2} I(x - y)\, k(y).
+$$
+Deep learning libraries implement the cross-correlation $\sum_y I(x + y)\, k(y)$, which is the convolution with the flipped kernel.
+:::
+
+:::: prop
+[Proposition 0.2 — Linear shift-equivariant operators are convolutions]{.tag}
+Let $\tau_a$ be the translation $(\tau_a I)(x) = I(x - a)$. Let $T$ be a linear operator on finitely supported images that commutes with every translation: $T \tau_a = \tau_a T$. Let $k = T\delta_0$ be its response to a unit impulse at the origin. Then
+$$
+T I = I * k \quad \text{for every image } I.
+$$
+
+::: proof
+-   Write $I = \sum_y I(y)\, \delta_y$, where $\delta_y = \tau_y \delta_0$ is the impulse at $y$.
+-   By linearity, $TI = \sum_y I(y)\, T\delta_y$.
+-   By equivariance, $T\delta_y = \tau_y T\delta_0 = \tau_y k$, that is, $(T\delta_y)(x) = k(x - y)$.
+-   Hence $(TI)(x) = \sum_y I(y)\, k(x - y)$, which is $(I * k)(x)$ after the change of variable $y \mapsto x - y$. [∎]{.qed}
+:::
+::::
+
+This is why convolution is the natural first layer of a vision model: it is the only linear way to process every position of the image identically (ch. 7).
+
+::: def
+[Definition 0.3 — Gaussian smoothing and image derivatives]{.tag}
+The Gaussian kernel of scale $\sigma$ is
+$$
+G_\sigma(x) = \frac{1}{2\pi\sigma^2} \exp\Big(-\frac{\|x\|^2}{2\sigma^2}\Big).
+$$
+It is separable, a product of two one-dimensional Gaussians. It satisfies the semigroup property
+$$
+G_\sigma * G_\tau = G_{\sqrt{\sigma^2 + \tau^2}},
+$$
+because the sum of two independent centred Gaussian vectors has the sum of their covariances.
+
+Derivatives commute with convolution, $\partial_{1}(G_\sigma * I) = (\partial_{1} G_\sigma) * I$. Image gradients are therefore computed with *derivative-of-Gaussian* filters, which differentiate and denoise in one pass.
+:::
+
+:::: prop
+[Proposition 0.4 — Homogeneous least squares]{.tag}
+Let $A \in \mathbb{R}^{m \times n}$ have the singular value decomposition $A = U \Sigma V^\top$, with singular values $\sigma_1 \geq \dots \geq \sigma_n \geq 0$ and right singular vectors $v_1, \dots, v_n$. Then
+$$
+\min_{\|x\| = 1} \|Ax\|^2 = \sigma_n^2, \quad \text{attained at } x = \pm v_n .
+$$
+
+When $m < n$, as for a minimal sample, the missing singular values are set to 0, and the minimum is 0.
+
+::: proof
+-   Write $x = \sum_i c_i v_i$; since $V$ is orthogonal, $\|x\| = 1$ means $\sum_i c_i^2 = 1$.
+-   Since $A v_i = \sigma_i u_i$ with orthonormal $u_i$ (and $A v_i = 0$ for $i > m$), we get $\|Ax\|^2 = \sum_i \sigma_i^2 c_i^2$.
+-   This weighted average of the $\sigma_i^2$ is at least $\sigma_n^2$, with equality for $c = \pm e_n$. [∎]{.qed}
+:::
+::::
+
+Every estimation problem of ch. 1 — camera, homography, fundamental matrix, triangulation — reduces to this proposition. Stack one or two linear equations per correspondence into a matrix $A$, and take its last right singular vector.
+
+::: prop
+[Proposition 0.5 — Best low-rank approximation (Eckart–Young)]{.tag}
+If $A = \sum_i \sigma_i u_i v_i^\top$, the matrix of rank at most $r$ closest to $A$ in Frobenius norm is the truncated sum
+$$
+A_r = \sum_{i \leq r} \sigma_i\, u_i v_i^\top .
+$$
+We use it to project an estimated fundamental matrix onto the matrices of rank 2 (ch. 1). A proof is in Golub and Van Loan (2013).
+:::
+
+:::: prop
+[Proposition 0.6 — Descent lemma]{.tag}
+Let $f : \mathbb{R}^d \to \mathbb{R}$ be differentiable with an $L$-Lipschitz gradient. For all $\theta$ and $\theta'$,
+$$
+f(\theta') \leq f(\theta) + \nabla f(\theta)^\top (\theta' - \theta) + \frac{L}{2}\|\theta' - \theta\|^2 .
+$$
+Consequently, the gradient step $\theta^+ = \theta - \frac1L \nabla f(\theta)$ decreases $f$:
+$$
+f(\theta^+) \leq f(\theta) - \frac{1}{2L}\, \|\nabla f(\theta)\|^2 .
+$$
+
+::: proof
+-   Let $h = \theta' - \theta$. By the fundamental theorem of calculus,
+$$
+f(\theta') - f(\theta) - \nabla f(\theta)^\top h = \int_0^1 \big(\nabla f(\theta + sh) - \nabla f(\theta)\big)^\top h \, ds .
+$$
+-   By Cauchy–Schwarz and the Lipschitz bound, the integrand is at most $L s \|h\|^2$, which integrates to $\frac{L}{2}\|h\|^2$.
+-   Substituting $h = -\frac1L \nabla f(\theta)$ gives the second inequality. [∎]{.qed}
+:::
+::::
+
+Sparse coding (ch. 5) and the analysis of stochastic gradient descent (ch. 6) both start from this inequality.
+
+The three facts above can be checked numerically in a few lines.
+
+```python
+import numpy as np
+from scipy import ndimage
+
+rng = np.random.default_rng(0)
+I = rng.random((64, 64))
+
+# 1. Convolution commutes with (circular) translations
+k = rng.random((5, 5))
+conv = lambda img: ndimage.convolve(img, k, mode="wrap")
+shift = lambda img: np.roll(img, (3, -2), axis=(0, 1))
+print("equivariance error:", np.abs(conv(shift(I)) - shift(conv(I))).max())
+
+# 2. Derivative-of-Gaussian gradient of a linear ramp 0.5 x + 0.25 y
+y, x = np.mgrid[0:64, 0:64].astype(float)
+ramp = 0.5 * x + 0.25 * y
+gx = ndimage.gaussian_filter(ramp, 2.0, order=(0, 1))   # d/dx (along columns)
+gy = ndimage.gaussian_filter(ramp, 2.0, order=(1, 0))   # d/dy (along rows)
+print("gradient at the centre:", gx[32, 32].round(3), gy[32, 32].round(3))
+
+# 3. Homogeneous least squares: minimise ||A x|| subject to ||x|| = 1
+A = rng.normal(size=(20, 4))
+x_true = np.array([1.0, -2.0, 0.5, 1.0]) / np.sqrt(6.25)
+A -= np.outer(A @ x_true, x_true)           # x_true is now an exact null vector
+A += 1e-3 * rng.normal(size=A.shape)        # small noise
+_, s, Vt = np.linalg.svd(A)
+x_hat = Vt[-1] * np.sign(Vt[-1] @ x_true)   # fix the sign ambiguity
+print("smallest singular value:", s[-1].round(5))
+print("error on x:", np.linalg.norm(x_hat - x_true).round(5))
+```
+
+The equivariance error is exactly zero, the filtered gradient of the ramp is $(0.5, 0.25)$, and the last right singular vector recovers the null vector to $2 \times 10^{-4}$.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   Linear, shift-equivariant operators are exactly the convolutions (Proposition 0.2).
+-   Image gradients are computed with derivative-of-Gaussian filters, and Gaussian blurs compose by adding variances.
+-   Homogeneous least squares is solved by the last right singular vector (Proposition 0.4); rank constraints are imposed by truncating the SVD.
+-   A gradient step of size $1/L$ decreases an $L$-smooth function by at least $\|\nabla f\|^2 / (2L)$.
+::::
+
+## 1. Camera geometry {#ch1}
+
+Instance-level recognition asks whether *this* object — this book cover, this façade — appears in an image. A rigid object obeys the laws of perspective, so geometry gives the strongest test: a correct set of matches must be explained by a camera. This chapter builds the camera model and the constraints between two views.
+
+::: def
+[Definition 1.1 — Homogeneous coordinates]{.tag}
+A point $(x, y)$ of the plane is represented by any vector $\lambda (x, y, 1)^\top$ with $\lambda \neq 0$. We write $\tilde{x} \sim (x, y, 1)^\top$ for equality up to a non-zero scale. Vectors $(x, y, 0)^\top$ represent *points at infinity*, that is, directions.
+
+A line $\{ax + by + c = 0\}$ is the vector $l = (a, b, c)^\top$, and the point $\tilde{x}$ lies on $l$ if and only if
+$$
+l^\top \tilde{x} = 0 .
+$$
+The line through two points is $\tilde{x} \times \tilde{y}$, and the intersection of two lines is $l \times m$. Points of space use four homogeneous coordinates, $\tilde{X} \sim (X, Y, Z, 1)^\top$.
+:::
+
+::: def
+[Definition 1.2 — Pinhole camera]{.tag}
+In the camera frame — centre at the origin, optical axis along $Z$ — a point $(X, Y, Z)$ with $Z > 0$ projects to $(fX/Z,\ fY/Z)$ on the image plane at focal distance $f$.
+
+In pixel coordinates, with a world-to-camera rotation $R$ and translation $t$:
+$$
+\tilde{x} \sim P \tilde{X}, \qquad P = K\,[R \mid t], \qquad K = \begin{pmatrix} f_x & s & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \end{pmatrix}.
+$$
+The matrix $K$ holds the *intrinsic* parameters: focal lengths in pixels, skew $s$ (usually 0) and principal point $(c_x, c_y)$.
+
+$R$ and $t$ are the *extrinsic* parameters. The $3 \times 4$ matrix $P$ is defined up to scale and has 11 degrees of freedom.
+:::
+
+::: ex
+[Example 1.3 — Projecting by hand]{.tag}
+Take $f_x = f_y = 800$ px, the principal point $(320, 240)$, zero skew, and the point $(0.5, -0.2, 4)$, in metres, in the camera frame.
+
+-   $u = 800 \times 0.5 / 4 + 320 = 420$.
+-   $v = 800 \times (-0.2) / 4 + 240 = 200$.
+
+Moving the point to depth 8 m halves its offset from the principal point:
+$$
+(420, 200) \ \longrightarrow\ (370, 220).
+$$
+This $1/Z$ shrinking is why the apparent size of an object says nothing about its true size without knowing its depth.
+:::
+
+:::: prop
+[Proposition 1.4 — Camera centre and vanishing points]{.tag}
+Let $P = K[R \mid t]$ with $K$ invertible.
+
+1.  The camera centre $C = -R^\top t$ spans the kernel of $P$: $P\,(C^\top, 1)^\top = 0$.
+2.  All lines of space with direction $d$ project to image lines through a common point, the *vanishing point*
+$$
+\tilde{v} \sim K R\, d .
+$$
+
+::: proof
+1.  $P (C^\top, 1)^\top = K(RC + t) = K(-t + t) = 0$, and $P$ has rank 3, so its kernel has dimension one.
+2.  A point $X_0 + \lambda d$ of the line has homogeneous coordinates proportional to $(X_0/\lambda + d,\ 1/\lambda)$, which tend to $(d, 0)$ as $\lambda \to \infty$. Their images tend to $P(d^\top, 0)^\top = KRd$, whatever $X_0$. [∎]{.qed}
+:::
+::::
+
+Vanishing points calibrate a camera from a single image of a building. With zero skew and square pixels, the principal point is the orthocentre of the triangle formed by the vanishing points of three orthogonal directions, and the focal length follows (Hartley and Zisserman, 2004).
+
+::: thm
+[Algorithm 1.5 — Calibration by the direct linear transform]{.tag}
+Input: $n \geq 6$ correspondences $X_i \leftrightarrow x_i$ between known 3D points of a calibration object, not all on one plane, and their images. For coplanar points the system below is degenerate; a planar target is handled by the homography method described after the algorithm.
+
+1.  Normalise the coordinates with similarities $T$ (image) and $T_3$ (space) that centre each point set and scale its mean distance to $\sqrt2$ and $\sqrt3$.
+2.  Each correspondence gives, through $\tilde{x}_i \times P\tilde{X}_i = 0$, two independent linear equations in the 12 entries of $P$.
+
+    Stack them into $Ap = 0$, with $A$ of size $2n \times 12$, and take for $p$ the last right singular vector of $A$ (Proposition 0.4). Undo the normalisation: $P = T^{-1} \hat{P}\, T_3$.
+3.  Factor the left $3 \times 3$ block of $P$ as $KR$ by an RQ decomposition, with a positive diagonal for $K$ and the sign of $P$ chosen so that $\det R = 1$.
+
+    Then $t = K^{-1} p_4$, where $p_4$ is the last column of $P$.
+4.  Refine all the parameters, together with lens distortion, by minimising the reprojection error $\sum_i \|x_i - \pi(P\tilde{X}_i)\|^2$ with the Levenberg–Marquardt algorithm, where $\pi$ divides by the third coordinate.
+:::
+
+In practice one films a planar checkerboard in several positions (Zhang, 2000). Each view gives a homography between the board and the image, and each homography gives two linear constraints on $K$.
+
+:::: thm
+[Theorem 1.6 — When two views are related by a homography]{.tag}
+A homography is an invertible $3 \times 3$ matrix $H$ acting on homogeneous image points, defined up to scale; it has 8 degrees of freedom.
+
+1.  The images of a *plane* that contains neither camera centre are related by a homography, $\tilde{x}' \sim H \tilde{x}$.
+2.  Two views taken from the *same centre*, by a camera rotating about its optical centre, are related for every scene point by
+$$
+H = K' R\, K^{-1} .
+$$
+
+::: proof
+1.  Choose world coordinates in which the plane is $Z = 0$, and let $r_1, r_2$ be the first two columns of $R$.
+    -   A point $(X, Y, 0)$ of the plane projects to $K[r_1\ r_2\ t]\,(X, Y, 1)^\top$.
+    -   So the map from the plane to the image is the $3 \times 3$ matrix $H_1 = K[r_1\ r_2\ t]$, invertible when the plane does not contain the camera centre.
+    -   With $H_2$ the analogous matrix of the second camera, $\tilde{x}' \sim H_2 H_1^{-1} \tilde{x}$.
+2.  Put the common centre at the origin and take the axes of the first camera as world axes.
+    -   Then $\tilde{x} \sim K X$ and $\tilde{x}' \sim K' R X$ for every point $X$.
+    -   Eliminating $X \sim K^{-1}\tilde{x}$ gives $\tilde{x}' \sim K' R K^{-1} \tilde{x}$. [∎]{.qed}
+:::
+::::
+
+Part 1 is why a book cover, a painting or a façade can be verified with a homography. Part 2 is the basis of panorama stitching.
+
+::: thm
+[Algorithm 1.7 — Estimating a homography (normalised DLT)]{.tag}
+From $n \geq 4$ correspondences $x_i \leftrightarrow y_i$:
+
+1.  Compute similarities $T$ and $T'$ that centre each point set and scale its mean distance to the centroid to $\sqrt{2}$ (Hartley's normalisation).
+2.  Each normalised correspondence gives two rows of the equation $\tilde{y} \times H\tilde{x} = 0$. Stack them in a $2n \times 9$ matrix and take its last right singular vector as $\hat{H}$.
+3.  Undo the normalisation: $H = T'^{-1} \hat{H}\, T$.
+:::
+
+Without step 1, pixel coordinates of order $10^3$ make the columns of the system differ by six orders of magnitude, and the solution becomes very sensitive to noise (Hartley, 1997). The code fits a homography to 50 correspondences corrupted by 0.5 px of noise.
+
+```python
+import numpy as np
+rng = np.random.default_rng(1)
+np.set_printoptions(suppress=True, precision=4)
+
+def normalise(p):
+    """Similarity T: centroid to 0, mean distance to sqrt(2) (Hartley)."""
+    c = p.mean(0)
+    s = np.sqrt(2) / np.linalg.norm(p - c, axis=1).mean()
+    return np.array([[s, 0, -s * c[0]], [0, s, -s * c[1]], [0, 0, 1]])
+
+def dlt_homography(x, y):
+    """H with y ~ H x from n >= 4 correspondences (n x 2 arrays)."""
+    Tx, Ty = normalise(x), normalise(y)
+    xh = np.c_[x, np.ones(len(x))] @ Tx.T
+    yh = np.c_[y, np.ones(len(y))] @ Ty.T
+    rows = []
+    for (a, b, c), (u, v, w) in zip(xh, yh):      # two rows of y x (H x) = 0
+        rows.append([0, 0, 0, -w*a, -w*b, -w*c, v*a, v*b, v*c])
+        rows.append([w*a, w*b, w*c, 0, 0, 0, -u*a, -u*b, -u*c])
+    h = np.linalg.svd(np.array(rows))[2][-1]       # Proposition 0.4
+    H = np.linalg.inv(Ty) @ h.reshape(3, 3) @ Tx   # undo the normalisation
+    return H / H[2, 2]
+
+def apply(H, x):
+    p = np.c_[x, np.ones(len(x))] @ H.T
+    return p[:, :2] / p[:, 2:]
+
+H_true = np.array([[1.1, 0.05, 30], [-0.08, 0.95, 12], [2e-4, -1e-4, 1]])
+x = rng.uniform(0, 640, size=(50, 2))
+y = apply(H_true, x) + rng.normal(scale=0.5, size=(50, 2))   # 0.5 px noise
+H = dlt_homography(x, y)
+err = np.linalg.norm(apply(H, x) - y, axis=1)
+print("estimated H:\n", H)
+print("mean reprojection error (px):", err.mean().round(3))
+```
+
+The mean residual is 0.59 px. For two-dimensional Gaussian noise of standard deviation 0.5 px per coordinate, the mean distance is $0.5\sqrt{\pi/2} \approx 0.63$ px: the fit is as good as the data allow.
+
+::: def
+[Definition 1.8 — Epipolar geometry]{.tag}
+Two cameras with distinct centres $C$ and $C'$ observe a point $X$. The *baseline* $CC'$ and the point $X$ span the *epipolar plane* of $X$.
+
+-   The *epipoles* $e$ and $e'$ are the images of each camera centre in the other view.
+-   The *epipolar line* of $x$ in the second view is the intersection of the epipolar plane with the second image plane. It passes through $e'$ and contains the match $x'$.
+
+Searching for the match of a point therefore reduces from a 2D search to a 1D search along a line.
+:::
+
+:::: thm
+[Theorem 1.9 — Essential and fundamental matrices]{.tag}
+Let the cameras be $P = K[I \mid 0]$ and $P' = K'[R \mid t]$, and let $[t]_\times$ be the matrix of the map $v \mapsto t \times v$. Define
+$$
+E = [t]_\times R, \qquad F = K'^{-\top} E\, K^{-1} .
+$$
+Then every pair of matching image points satisfies the *epipolar constraint*:
+
+::: key
+[Key result — the epipolar constraint]{.tag}
+$$
+\tilde{x}'^\top F\, \tilde{x} = 0 .
+$$
+:::
+
+Moreover $F$ has rank 2, $Fe = 0$ and $F^\top e' = 0$, and the epipolar line of $x$ in the second view is $l' = F\tilde{x}$.
+
+::: proof
+-   Let $\hat{x} = K^{-1}\tilde{x}$ and $\hat{x}' = K'^{-1}\tilde{x}'$ be the normalised coordinates. In the two camera frames, the scene point is $X = \lambda \hat{x}$ and $X' = RX + t = \lambda' \hat{x}'$, with depths $\lambda, \lambda' > 0$.
+-   The vectors $X'$, $t$ and $RX$ lie in one plane, since $X' = RX + t$.
+
+    So $X'$ is orthogonal to $t \times RX$, that is, $X'^\top [t]_\times R X = 0$.
+-   Dividing by $\lambda\lambda'$ gives $\hat{x}'^\top E \hat{x} = 0$; substituting the normalised coordinates gives the constraint on $F$.
+-   $[t]_\times$ has rank 2, its kernel being spanned by $t$, while $R$, $K$ and $K'$ are invertible: $F$ has rank 2.
+-   The first epipole is the image of $C' = -R^\top t$, so $e \sim K R^\top t$ and $Fe \sim K'^{-\top} [t]_\times t = 0$. The case of $e'$ is symmetric. [∎]{.qed}
+:::
+::::
+
+::: thm
+[Algorithm 1.10 — The normalised eight-point algorithm]{.tag}
+1.  Normalise both point sets as in Algorithm 1.7.
+2.  Each correspondence gives one linear equation $\tilde{x}'^\top F \tilde{x} = 0$ in the 9 entries of $F$. With $n \geq 8$ matches, take the last right singular vector of the $n \times 9$ system (Proposition 0.4).
+3.  Enforce rank 2 by setting the smallest singular value of the estimate to zero (Proposition 0.5), then undo the normalisation: $F = T'^\top \hat{F}\, T$.
+:::
+
+With calibrated cameras, $E$ has 5 degrees of freedom and two equal non-zero singular values (Exercise 9). Five correspondences then suffice (Nistér, 2004), which matters inside RANSAC (ch. 3).
+
+::: prop
+[Proposition 1.11 — Linear triangulation]{.tag}
+Given $P$, $P'$ and a match $x \leftrightarrow x'$, each of the conditions $\tilde{x} \times P\tilde{X} = 0$ and $\tilde{x}' \times P'\tilde{X} = 0$ gives two independent linear equations in $\tilde{X} \in \mathbb{R}^4$.
+
+The stacked $4 \times 4$ system has rank 3 for exact data, and its least-squares solution is the last right singular vector (Proposition 0.4).
+:::
+
+With noise, the two back-projected rays do not meet. The statistically optimal estimate minimises the reprojection error in both images. Refining all cameras and all points jointly in this way is *bundle adjustment*, the core of structure from motion (Snavely, Seitz and Szeliski, 2006).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   A camera is the projective map $P = K[R \mid t]$; its centre spans the kernel of $P$, and parallel lines meet at the vanishing point $KRd$.
+-   Views of a plane, and views from a rotating camera, are related by a homography (Theorem 1.6).
+-   General pairs of views obey the epipolar constraint $\tilde{x}'^\top F \tilde{x} = 0$, with $F$ of rank 2 (Theorem 1.9).
+-   Cameras, homographies and fundamental matrices are estimated linearly by SVD after Hartley's normalisation, then refined by minimising the reprojection error.
+::::
+
+## 2. Local invariant features {#ch2}
+
+Two photographs of the same object differ by viewpoint, scale, rotation, lighting and occlusion. Local features sidestep most of these nuisances: detect many small distinctive regions in a *covariant* way, describe each one by an *invariant* vector, and match the vectors.
+
+::: def
+[Definition 2.1 — Covariant detector, invariant descriptor]{.tag}
+Let $g$ be a transformation of the image plane, such as a rotation, a scaling or an affine map.
+
+-   A detector is *covariant* if, whenever it detects the region $R$ in $I$, it detects $g(R)$ in the transformed image $I \circ g^{-1}$.
+-   A descriptor $\phi$ is *invariant* if it gives the same vector for corresponding regions:
+$$
+\phi\big(g(R),\, I \circ g^{-1}\big) = \phi(R, I).
+$$
+
+Covariance of the detector makes regions *repeatable*; invariance of the descriptor makes them *matchable*.
+:::
+
+::: def
+[Definition 2.2 — Structure tensor]{.tag}
+For an image $I$ with gradient $\nabla I$ and a Gaussian window $w$ centred at $x_0$, the structure tensor, or second-moment matrix, is
+$$
+M = \sum_x w(x - x_0)\, \nabla I(x)\, \nabla I(x)^\top \in \mathbb{R}^{2 \times 2}.
+$$
+It is symmetric positive semi-definite, with eigenvalues $\lambda_1 \geq \lambda_2 \geq 0$.
+:::
+
+:::: prop
+[Proposition 2.3 — Harris corners]{.tag}
+Let $E(h) = \sum_x w(x - x_0)\,\big(I(x + h) - I(x)\big)^2$ measure how much the window changes under a small shift $h$.
+
+1.  To second order, $E(h) \approx h^\top M h$. The window changes in every direction iff $\lambda_2$ is large: a *corner*. One large eigenvalue means an *edge*, two small ones a *flat* region.
+2.  The Harris response, with $\kappa \in [0.04, 0.06]$,
+$$
+R = \det M - \kappa\, (\operatorname{tr} M)^2 = \lambda_1\lambda_2 - \kappa\,(\lambda_1 + \lambda_2)^2,
+$$
+is invariant to rotations of the image about $x_0$.
+
+::: proof
+1.  The Taylor expansion $I(x + h) - I(x) = \nabla I(x)^\top h + O(\|h\|^2)$ gives $E(h) = h^\top M h + O(\|h\|^3)$. Over unit vectors $h$, the minimum and maximum of $h^\top M h$ are $\lambda_2$ and $\lambda_1$.
+2.  Take $x_0 = 0$ and $J = I \circ Q^\top$ for a rotation $Q$. The chain rule gives $\nabla J(Qx) = Q \nabla I(x)$. Since the Gaussian window is radial, the change of variable $y = Qx$ gives $M_J = Q M_I Q^\top$. This matrix has the same eigenvalues, hence the same determinant and trace. [∎]{.qed}
+:::
+::::
+
+The code detects corners on a synthetic image of two rectangles.
+
+```python
+import numpy as np
+from scipy import ndimage
+
+# Synthetic image: two bright rectangles on a dark background
+I = np.zeros((100, 100))
+I[20:50, 20:50] = 1.0
+I[60:85, 55:90] = 1.0
+
+def harris(I, sigma_d=1.0, sigma_i=2.0, kappa=0.05):
+    Ix = ndimage.gaussian_filter(I, sigma_d, order=(0, 1))
+    Iy = ndimage.gaussian_filter(I, sigma_d, order=(1, 0))
+    Sxx = ndimage.gaussian_filter(Ix * Ix, sigma_i)    # entries of the structure tensor
+    Syy = ndimage.gaussian_filter(Iy * Iy, sigma_i)
+    Sxy = ndimage.gaussian_filter(Ix * Iy, sigma_i)
+    return Sxx * Syy - Sxy**2 - kappa * (Sxx + Syy)**2
+
+R = harris(I)
+peaks = (R == ndimage.maximum_filter(R, size=7)) & (R > 0.1 * R.max())
+print("corners (row, col):", np.argwhere(peaks).tolist())
+print("response on an edge / in a flat zone:", R[35, 20].round(5), R[5, 5].round(5))
+
+# Scale selection: scale-normalised Laplacian at the centre of a Gaussian blob of std 4
+yy, xx = np.mgrid[-50:51, -50:51]
+blob = np.exp(-(xx**2 + yy**2) / (2 * 4.0**2))
+sigmas = np.linspace(1, 10, 91)
+resp = [-(s**2) * ndimage.gaussian_laplace(blob, s)[50, 50] for s in sigmas]
+print("selected scale:", sigmas[int(np.argmax(resp))].round(2))
+```
+
+The detector returns the eight corners, each one pixel inside the rectangle. The response is negative on the edges and zero in flat zones, as Proposition 2.3 predicts.
+
+The Harris detector is not covariant to scaling: a sharp corner seen from far away becomes a rounded curve when the image is enlarged. Scale covariance needs a representation of the image at all scales.
+
+::: def
+[Definition 2.4 — Gaussian scale space]{.tag}
+The scale space of $I$ is the family of blurred images $L(\cdot, \sigma) = G_\sigma * I$, for $\sigma > 0$. It solves the heat equation
+$$
+\partial_\sigma L = \sigma\, \Delta L ,
+$$
+and by the semigroup property (Definition 0.3) coarse scales can be computed from fine ones. Derivatives are compared across scales after *normalisation*: $\sigma^2 \Delta L$ is the scale-normalised Laplacian.
+:::
+
+:::: thm
+[Theorem 2.5 — Automatic scale selection (Lindeberg, 1998)]{.tag}
+Let $I = G_s$ be a Gaussian blob of size $s$. At its centre, the scale-normalised Laplacian response
+$$
+\sigma \mapsto \sigma^2\, |\Delta L(0, \sigma)|
+$$
+is maximal exactly at $\sigma = s$.
+
+More generally, let $I'(x) = I(x/c)$ be a copy of the image enlarged by a factor $c$. Every extremum at $(x, \sigma)$ for the original image corresponds to an extremum at $(cx, c\sigma)$ for $I'$: scale selection is covariant.
+
+::: proof
+-   By the semigroup property, $L(\cdot, \sigma) = G_s * G_\sigma = G_\tau$ with $\tau^2 = s^2 + \sigma^2$.
+-   Differentiating the Gaussian twice,
+$$
+\Delta G_\tau(x) = G_\tau(x)\,\Big(\frac{\|x\|^2}{\tau^4} - \frac{2}{\tau^2}\Big), \qquad \Delta G_\tau(0) = -\frac{1}{\pi \tau^4} .
+$$
+-   With $u = \sigma^2$, the response is $\varphi(u) = u / \big(\pi (s^2 + u)^2\big)$, and
+$$
+\varphi'(u) = \frac{s^2 - u}{\pi\, (s^2 + u)^3} .
+$$
+It is positive for $u < s^2$ and negative after, so the maximum is at $\sigma = s$, with value $1/(4\pi s^2)$.
+-   For the enlarged image, the change of variable $x = cy$ in the convolution gives $L'(cy, c\sigma) = L(y, \sigma)$. Second derivatives in $x$ carry a factor $c^{-2}$, which the normalisation $(c\sigma)^2$ exactly compensates. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 2.6 — Difference of Gaussians]{.tag}
+For $k > 1$ close to 1,
+$$
+G_{k\sigma} - G_\sigma \approx (k - 1)\, \sigma^2\, \Delta G_\sigma .
+$$
+The difference of two consecutive levels of a Gaussian pyramid therefore approximates the scale-normalised Laplacian, up to the constant factor $k - 1$, at the cost of one subtraction.
+
+::: proof
+The heat equation of Definition 2.4 gives $\partial_\sigma G_\sigma = \sigma \Delta G_\sigma$, and a first-order expansion in $\sigma$ gives
+$$
+G_{k\sigma} - G_\sigma \approx (k\sigma - \sigma)\, \sigma\Delta G_\sigma = (k - 1)\,\sigma^2\, \Delta G_\sigma .
+$$
+[∎]{.qed}
+:::
+::::
+
+::: thm
+[Algorithm 2.7 — SIFT (Lowe, 2004)]{.tag}
+1.  **Detection.** Build a Gaussian pyramid with three scales per octave ($k = 2^{1/3}$), take differences of consecutive levels, and keep the extrema over the 26 neighbours in position and scale.
+2.  **Refinement.** Fit a quadratic to locate each extremum to sub-pixel and sub-scale accuracy. Reject points of low contrast, and edge points whose Hessian $H$ has a ratio of principal curvatures above $r = 10$, that is, $\operatorname{tr}(H)^2 / \det H > (r + 1)^2 / r$.
+3.  **Orientation.** Build a 36-bin histogram of gradient orientations around the point, weighted by gradient magnitude, and assign its peak as the orientation. Secondary peaks above 80 % of the maximum create additional keypoints.
+4.  **Descriptor.** In the frame given by the position, scale and orientation, a $4 \times 4$ grid of 8-bin orientation histograms gives a 128-dimensional vector. Normalise it to unit length, clip its entries at 0.2, and normalise again.
+:::
+
+:::: prop
+[Proposition 2.8 — Invariances of the SIFT descriptor]{.tag}
+The descriptor is invariant to rotations and scalings of the image, because it is computed in the frame given by the detected orientation and scale. It is also invariant to affine changes of intensity $I \mapsto aI + b$ with $a > 0$.
+
+::: proof
+The constant $b$ disappears in the gradient. The factor $a$ leaves gradient orientations unchanged and multiplies every histogram entry by $a$, which the normalisation to unit length removes. The clipping is applied after this normalisation, so the whole descriptor is unchanged. [∎]{.qed}
+:::
+::::
+
+Clipping limits the influence of a few large gradients, caused for instance by saturation, which the affine model of intensity does not cover.
+
+::: ex
+[Example 2.9 — Scale selection in numbers]{.tag}
+In the code above, a Gaussian blob of standard deviation 4 px is detected at the scale
+$$
+\sigma = 4.0 .
+$$
+After downsampling by 2, the same blob has size 2 px and is detected at $\sigma = 2$. The descriptor window, proportional to $\sigma$, covers the same part of the object in both images: this is the covariance required by Definition 2.1.
+:::
+
+::: note
+[Affine regions and learned features]{.tag}
+Under a strong change of viewpoint, a small planar patch undergoes an affine map, not a similarity. Harris-Affine and Hessian-Affine detectors (Mikolajczyk and Schmid, 2004) iterate scale selection and a transformation of the local frame by $M^{1/2}$, until the structure tensor of the patch becomes isotropic. Detectors and descriptors are now also learned end to end, for instance SuperPoint (DeTone, Malisiewicz and Rabinovich, 2018); ch. 11 returns to them.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   Detectors must be covariant and descriptors invariant to the transformations between views (Definition 2.1).
+-   The structure tensor $M$ classifies corners, edges and flat regions; the Harris response is rotation invariant.
+-   Scale is selected at the extrema of the scale-normalised Laplacian (Theorem 2.5), which a difference of Gaussians approximates cheaply.
+-   SIFT combines DoG detection, a dominant orientation and a normalised 128-dimensional histogram of gradients, invariant to similarity transforms and affine intensity changes.
+::::
+
+## 3. Correspondence and robust estimation {#ch3}
+
+Matching descriptors gives *putative* correspondences, a large fraction of which are wrong: repeated textures, occlusions and features without a counterpart all produce false matches. This chapter turns putative matches into a verified geometric relation.
+
+::: def
+[Definition 3.1 — Matching strategies]{.tag}
+For a descriptor $d$ of the first image, let $d_1$ and $d_2$ be its nearest and second-nearest neighbours among the descriptors of the second image.
+
+-   *Nearest neighbour*: accept $d \leftrightarrow d_1$.
+-   *Mutual nearest neighbours*: also require $d$ to be the nearest neighbour of $d_1$.
+-   *Ratio test* (Lowe, 2004): accept only if
+$$
+\frac{\|d - d_1\|}{\|d - d_2\|} < \rho, \qquad \rho \approx 0.8 .
+$$
+
+The ratio test measures distinctiveness: a feature on a repeated pattern has a close second neighbour and is rejected. Lowe reports that $\rho = 0.8$ eliminates 90 % of the false matches while discarding less than 5 % of the correct ones.
+:::
+
+:::: prop
+[Proposition 3.2 — Least squares does not survive outliers]{.tag}
+Fit a translation $a$ to matches $x_i \leftrightarrow y_i$, $i = 1, \dots, n$, by minimising $\sum_i \|y_i - x_i - a\|^2$. The solution is the mean displacement
+$$
+\hat{a} = \frac1n \sum_{i=1}^n (y_i - x_i),
+$$
+so a single wrong match displaced by $D$ moves $\hat{a}$ by $D/n$, without bound as $D$ grows.
+
+::: proof
+The objective is a convex quadratic in $a$, with gradient $-2\sum_i (y_i - x_i - a)$; it vanishes at $\hat{a}$. Replacing one displacement by another one at distance $D$ changes the mean by $D/n$ in norm. [∎]{.qed}
+:::
+::::
+
+The *breakdown point* of least squares is therefore 0: an arbitrarily small fraction of outliers can make the estimate arbitrarily bad. The code at the end of this chapter shows the same failure for a homography.
+
+::: thm
+[Algorithm 3.3 — RANSAC (Fischler and Bolles, 1981)]{.tag}
+Input: $n$ putative matches, a model that can be fitted to minimal samples of size $s$ (4 for a homography, 7 or 8 for a fundamental matrix), and an inlier threshold $t$.
+
+1.  Draw a random minimal sample and fit the model to it.
+2.  Count the *inliers*, the matches whose residual is below $t$.
+3.  Keep the model with the largest inlier set, and repeat for $N$ iterations.
+4.  Refit the model by least squares on all the inliers of the best model.
+:::
+
+:::: prop
+[Proposition 3.4 — How many RANSAC iterations?]{.tag}
+Let $w$ be the fraction of inliers, and draw samples independently. The probability that at least one of $N$ samples contains only inliers is $1 - (1 - w^s)^N$. It exceeds a confidence level $p$ as soon as
+
+::: key
+[Key result — the number of RANSAC iterations]{.tag}
+$$
+N \geq \frac{\log(1 - p)}{\log(1 - w^s)} .
+$$
+:::
+
+
+::: proof
+-   A sample is free of outliers with probability $w^s$ when drawing with replacement; without replacement the probability is slightly smaller for small $n$.
+-   The $N$ independent samples all fail with probability $(1 - w^s)^N$.
+-   Take logarithms in $(1 - w^s)^N \leq 1 - p$, and divide by the negative number $\log(1 - w^s)$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.5 — Sizing RANSAC]{.tag}
+For a confidence $p = 0.99$, the minimal number of iterations is:
+
+| Model | $s$ | $w = 0.7$ | $w = 0.5$ | $w = 0.3$ |
+|---|---|---|---|---|
+| line, or similarity from 2 points | 2 | 7 | 17 | 49 |
+| homography | 4 | 17 | 72 | 567 |
+| fundamental matrix, 7 points | 7 | 54 | 588 | 21 055 |
+| fundamental matrix, 8 points | 8 | 78 | 1 177 | 70 188 |
+
+The cost grows exponentially with $s$, which is why minimal solvers such as the seven-point and five-point algorithms matter. Since $w$ is unknown, implementations update $N$ each time a larger inlier set is found.
+:::
+
+::: prop
+[Proposition 3.6 — Choosing the threshold]{.tag}
+Assume the points $x$ of the first image are exact, and the inlier positions $y$ in the second image carry independent Gaussian noise of standard deviation $\sigma$ on each coordinate. With the true model, the squared transfer error $e^2 = \|y - H(x)\|^2$ is then distributed as $\sigma^2 \chi^2_2$, the sum of two squared standard Gaussians. A threshold that keeps 95 % of the inliers is therefore
+$$
+t^2 = 5.99\, \sigma^2 ,
+$$
+since 5.99 is the 0.95 quantile of the $\chi^2_2$ law. When both images are noisy, the same quantile applies to the reprojection error of the optimal correction (Hartley and Zisserman, 2004, ch. 4).
+:::
+
+::: def
+[Definition 3.7 — Hough voting]{.tag}
+A match between two features with position, scale and orientation determines, on its own, a similarity transformation with 4 parameters. Each match *votes* for its transformation in a coarse 4D histogram. Bins with many votes give groups of mutually consistent matches, which are then verified by fitting an affine transformation (Lowe, 2004).
+
+Voting costs $O(n)$ and tolerates a much larger fraction of outliers than RANSAC with 4-point samples, which would need about 46 000 iterations at $w = 0.1$.
+:::
+
+The code runs RANSAC on 200 matches, half of which are outliers, and compares it with a least-squares fit on all matches.
+
+```python
+import numpy as np
+rng = np.random.default_rng(2)
+
+def dlt(x, y):                       # minimal DLT (coordinates already in [0, 1])
+    A = []
+    for (a, b), (u, v) in zip(x, y):
+        A.append([0, 0, 0, -a, -b, -1, v*a, v*b, v])
+        A.append([a, b, 1, 0, 0, 0, -u*a, -u*b, -u])
+    H = np.linalg.svd(np.array(A))[2][-1].reshape(3, 3)
+    return H / H[2, 2]
+
+def apply(H, x):
+    p = np.c_[x, np.ones(len(x))] @ H.T
+    return p[:, :2] / p[:, 2:]
+
+def ransac(x, y, thresh, p=0.99, max_iter=10_000):
+    best, N, it = np.zeros(len(x), bool), max_iter, 0
+    while it < N:
+        idx = rng.choice(len(x), 4, replace=False)          # minimal sample
+        inliers = np.linalg.norm(apply(dlt(x[idx], y[idx]), x) - y, axis=1) < thresh
+        if inliers.sum() > best.sum():
+            best, w = inliers, inliers.mean()
+            N = min(max_iter, np.log(1 - p) / np.log(1 - w**4 + 1e-12))  # Prop. 3.4
+        it += 1
+    for _ in range(3):                                       # refit on all inliers, re-classify
+        H = dlt(x[best], y[best])
+        best = np.linalg.norm(apply(H, x) - y, axis=1) < thresh
+    return H, best, it
+
+# 200 putative matches, 50 % outliers, 1 px noise at a 640 px image scale
+H_true = np.array([[1.05, 0.1, 0.05], [-0.05, 0.9, 0.1], [0.2, -0.1, 1.0]])
+x = rng.uniform(0, 1, (200, 2))
+y = apply(H_true, x) + rng.normal(scale=1 / 640, size=(200, 2))
+outlier = rng.random(200) < 0.5
+y[outlier] = rng.uniform(0, 1, (outlier.sum(), 2))
+H, inl, iters = ransac(x, y, thresh=np.sqrt(5.99) / 640)
+print("iterations:", iters, "| inliers kept:", inl.sum(), "| true inliers:", (~outlier).sum())
+print("false inliers:", (inl & outlier).sum(), "| max |H - H_true|:", np.abs(H - H_true).max().round(4))
+H_ls = dlt(x, y)                                             # plain least squares on all matches
+print("least squares on all matches, max |H - H_true|:", np.abs(H_ls - H_true).max().round(2))
+```
+
+RANSAC keeps 91 of the 97 true inliers, about the 95 % expected from Proposition 3.6, and accepts no outlier. It runs 437 iterations rather than the 72 of Example 3.5: a model fitted to four noisy points finds fewer inliers than the true model. The best minimal model has 64 inliers, so the running estimate is $w = 0.32$ instead of 0.49. The least-squares fit on all matches is useless, with entries off by 1.76.
+
+::: note
+[Beyond the basic loop]{.tag}
+PROSAC draws the most distinctive matches first (Chum and Matas, 2005). LO-RANSAC re-estimates the model from the current inliers inside the loop (Chum, Matas and Kittler, 2003); the three refits at the end of the code are a crude version of it. Finally, M-estimators replace the square by a robust loss such as Huber's, and are solved by iteratively reweighted least squares from the RANSAC estimate.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   The ratio test keeps distinctive matches; geometry must still remove the remaining false ones.
+-   Least squares has breakdown point 0; RANSAC tolerates a majority of outliers.
+-   RANSAC needs $\log(1 - p) / \log(1 - w^s)$ iterations, exponential in the sample size $s$ (Proposition 3.4).
+-   The inlier threshold follows from the noise level through the $\chi^2_2$ law; Hough voting is a linear-time alternative for large outlier rates.
+-   Instance-level recognition accepts an object when enough matches are geometrically verified.
+::::
+
+## 4. Efficient visual search {#ch4}
+
+Matching a query image against one database image costs about $10^6$ descriptor comparisons, with 1 000 features on each side. Against a million images, that is $10^{12}$ comparisons per query. Large-scale search borrows the tools of text retrieval (Sivic and Zisserman, 2003): quantise descriptors into *visual words*, index the words, and verify geometry only for the best candidates.
+
+::: def
+[Definition 4.1 — Visual vocabulary]{.tag}
+A vocabulary is a set of $K$ centroids $c_1, \dots, c_K \in \mathbb{R}^d$, learned by k-means on descriptors $x_1, \dots, x_N$ of training images. It minimises
+$$
+J(c, a) = \sum_{i=1}^N \|x_i - c_{a_i}\|^2, \qquad a_i \in \{1, \dots, K\}.
+$$
+The quantiser maps a descriptor to its nearest centroid, its *visual word*; the cells of the quantiser are the Voronoi regions of the centroids.
+:::
+
+:::: prop
+[Proposition 4.2 — Lloyd's algorithm decreases the k-means objective]{.tag}
+Alternate (i) assigning each $x_i$ to its nearest centroid and (ii) replacing each centroid by the mean of its assigned points. Then $J$ never increases, and it is constant after finitely many iterations.
+
+::: proof
+-   Step (i) minimises $J$ over the assignment $a$ for fixed centroids, term by term.
+-   Step (ii) minimises $J$ over $c$ for a fixed assignment: the gradient of $c \mapsto \sum_{i \in S}\|x_i - c\|^2$ is $2\sum_{i \in S}(c - x_i)$, which vanishes at the mean.
+-   So $J$ is non-increasing. It takes finitely many values, one per assignment, so it is eventually constant. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 4.3 — Bag of visual words and tf-idf]{.tag}
+Let image $d$ have $n_d$ features, of which $n_{wd}$ are quantised to the word $w$.
+
+Among the $N$ database images, let $N_w$ contain the word $w$. The image is represented by the vector of weights
+$$
+t_{wd} = \frac{n_{wd}}{n_d}\, \log\frac{N}{N_w} .
+$$
+The first factor is the *term frequency*. The second, the *inverse document frequency*, down-weights frequent and uninformative words. Images are ranked by the cosine similarity of their normalised vectors, and the most frequent words are often removed altogether (a *stop list*).
+:::
+
+::: prop
+[Proposition 4.4 — Cost of an inverted file]{.tag}
+An inverted file stores, for each word $w$, the list of the $N_w$ images that contain it, with their weights. Scoring a query touches only the lists of its own words:
+$$
+\text{cost} = \sum_{w \in \text{query}} N_w .
+$$
+Assume $N$ images with $n$ features each, spread evenly over $K$ words. A list then holds about $Nn/K$ entries.
+
+A query with $q$ words therefore costs about $qNn/K$ operations, against $qNn$ descriptor comparisons for exhaustive matching: a speed-up of order $K$.
+:::
+
+::: ex
+[Example 4.5 — A million images]{.tag}
+Take $N = 10^6$ images with $n = 10^3$ features each, and $K = 10^6$ words.
+
+-   Exhaustive matching: $10^3 \times 10^9 = 10^{12}$ descriptor distances per query.
+-   Inverted file: about $Nn/K = 10^3$ entries per list, so about $10^6$ score updates per query.
+
+The reduction by a factor of a million is what made search in feature films and in large photo collections interactive (Sivic and Zisserman, 2003; Nistér and Stewénius, 2006).
+:::
+
+::: def
+[Definition 4.6 — Vocabulary tree]{.tag}
+Quantising into $10^6$ words by brute force costs $10^6$ distance computations per descriptor. A *vocabulary tree* (Nistér and Stewénius, 2006) applies k-means with a small branching factor $b$ recursively, down to depth $L$:
+$$
+K = b^L \ \text{leaves}, \qquad bL \ \text{distances per descriptor}.
+$$
+With $b = 10$ and $L = 6$, a descriptor reaches one of $10^6$ words after 60 distance computations.
+:::
+
+::: note
+[Spatial re-ranking and query expansion]{.tag}
+A bag of words ignores geometry. The top of the ranked list is therefore re-ranked by fitting a transformation to the matched words with RANSAC (ch. 3) and counting the inliers (Philbin et al., 2007). Verified results then serve as new queries; this *query expansion* retrieves views that the original query could not reach (Chum et al., 2007). Both steps exploit the rigidity of the instance.
+:::
+
+::: def
+[Definition 4.7 — Product quantisation (Jégou, Douze and Schmid, 2011)]{.tag}
+Split $x \in \mathbb{R}^d$ into $m$ sub-vectors $x = (x^1, \dots, x^m)$ of dimension $d/m$, and quantise each one with its own codebook of $k^*$ centroids learned by k-means.
+
+The code of $x$ is the $m$-tuple of indices, stored in $m \log_2 k^*$ bits. The product quantiser
+$$
+q(x) = \big(q_1(x^1), \dots, q_m(x^m)\big)
+$$
+has an implicit codebook of $(k^*)^m$ centroids, which is never stored.
+:::
+
+:::: prop
+[Proposition 4.8 — Asymmetric distance computation]{.tag}
+For a query $y$, which is not quantised, and a database vector $x$ stored by its code,
+$$
+\|y - q(x)\|^2 = \sum_{j=1}^m \big\|y^j - q_j(x^j)\big\|^2 .
+$$
+After computing $m$ tables of the $k^*$ distances between $y^j$ and the centroids of codebook $j$, each database distance costs $m$ look-ups and additions.
+
+::: proof
+The squared Euclidean norm is additive over a partition of the coordinates into blocks, and the $j$-th block of $q(x)$ is the centroid $q_j(x^j)$. [∎]{.qed}
+:::
+::::
+
+For SIFT descriptors ($d = 128$) with $m = 8$ and $k^* = 256$, each vector takes 64 bits instead of 4 096 bits in single precision, and the implicit codebook has $2^{64}$ centroids. The code implements k-means and product quantisation on synthetic descriptors that lie near an 8-dimensional subspace.
+
+```python
+import numpy as np
+rng = np.random.default_rng(3)
+
+def kmeans(X, k, iters=20):
+    """Lloyd's algorithm (Proposition 4.2): assign, then recentre."""
+    C = X[rng.choice(len(X), k, replace=False)]
+    for _ in range(iters):
+        lab = ((X[:, None, :] - C[None]) ** 2).sum(-1).argmin(1)
+        C = np.array([X[lab == j].mean(0) if np.any(lab == j) else C[j] for j in range(k)])
+    return C
+
+d, m, ks = 32, 8, 64                   # dimension, sub-vectors, centroids per sub-quantiser
+ds = d // m
+basis = rng.normal(size=(8, d))        # data near an 8-dimensional subspace, like real descriptors
+X = rng.normal(size=(10000, 8)) @ basis + 0.3 * rng.normal(size=(10000, d))
+Q = rng.normal(size=(100, 8)) @ basis + 0.3 * rng.normal(size=(100, d))
+
+# One k-means per sub-space; each database vector becomes m one-byte codes
+books, codes = [], np.empty((len(X), m), dtype=np.uint8)
+for j in range(m):
+    sub = X[:, j * ds:(j + 1) * ds]
+    books.append(kmeans(sub[:3000], ks))
+    codes[:, j] = ((sub[:, None, :] - books[j][None]) ** 2).sum(-1).argmin(1)
+
+def adc(q):
+    """Asymmetric distances: m tables of ks entries, then m look-ups per database vector."""
+    tables = [((books[j] - q[j * ds:(j + 1) * ds]) ** 2).sum(1) for j in range(m)]
+    return sum(tables[j][codes[:, j]] for j in range(m))
+
+hits = [np.argmin(((X - q) ** 2).sum(1)) in np.argsort(adc(q))[:10] for q in Q]
+print(f"memory per vector: {m} bytes instead of {4 * d} bytes (float32)")
+print("recall@10 of the exact nearest neighbour:", np.mean(hits))
+```
+
+With 8 bytes per vector instead of 128, the exact nearest neighbour is ranked among the first ten for 89 % of the queries. Combined with a coarse quantiser that selects a few cells to scan, this is the IVFADC scheme of Jégou, Douze and Schmid (2011), which later systems scaled to billions of vectors (Johnson, Douze and Jégou, 2019).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   Quantising descriptors into visual words turns image matching into text retrieval; Lloyd's algorithm learns the vocabulary.
+-   tf-idf weighting and an inverted file make query cost proportional to the lists of the query words, a speed-up of order $K$.
+-   Vocabulary trees quantise into $b^L$ words with $bL$ distance computations.
+-   Spatial re-ranking and query expansion restore the geometry ignored by the bag of words.
+-   Product quantisation compresses vectors to a few bytes and computes distances with table look-ups.
+::::
+
+## 5. Category-level recognition: bags of features, sparse coding and dictionary learning {#ch5}
+
+Category-level recognition asks whether an image contains *a* car, any car. Geometric verification no longer applies, because two different cars are not related by a homography. From 2004 to 2012, the dominant answer was statistical: describe the image by the distribution of its local features, and learn a classifier on that description.
+
+::: def
+[Definition 5.1 — Coding and pooling]{.tag}
+Let an image give local descriptors $x_1, \dots, x_n$, and let $D = [d_1, \dots, d_K]$ be a dictionary.
+
+-   *Coding* maps each descriptor $x_i$ to a code $\alpha_i \in \mathbb{R}^K$. Hard assignment uses the one-hot vector of the nearest atom.
+-   *Pooling* aggregates the codes over a region $S$ of the image: *sum pooling* computes $\sum_{i \in S} \alpha_i$, and *max pooling* takes the maximum over $i \in S$, coordinate by coordinate.
+
+With hard assignment and sum pooling over the whole image, the result is the bag of visual words of Definition 4.3 (Csurka et al., 2004).
+:::
+
+:::: prop
+[Proposition 5.2 — Histogram intersection is a positive definite kernel]{.tag}
+For histograms $h, h' \in \mathbb{R}_{\geq 0}^K$,
+$$
+k(h, h') = \sum_{j=1}^K \min(h_j, h'_j)
+$$
+is a positive definite kernel, so it can be used in a support vector machine.
+
+::: proof
+-   For $a, b \geq 0$,
+$$
+\min(a, b) = \int_0^\infty \mathbb{1}[t \leq a]\,\mathbb{1}[t \leq b]\, dt .
+$$
+-   This is the inner product in $L^2(\mathbb{R}_+)$ of the indicator functions of $[0, a]$ and $[0, b]$, and a kernel of the form $\langle \phi(a), \phi(b) \rangle$ is positive definite.
+-   A sum of positive definite kernels is positive definite. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 5.3 — Spatial pyramid matching (Lazebnik, Schmid and Ponce, 2006)]{.tag}
+At levels $\ell = 0, \dots, L$, divide the image into $2^\ell \times 2^\ell$ cells and compute a bag of features in each cell. Let $I_\ell$ be the sum over the cells of level $\ell$ of the intersection kernels. The pyramid kernel is
+$$
+k_L = \frac{1}{2^L}\, I_0 + \sum_{\ell = 1}^{L} \frac{1}{2^{L - \ell + 1}}\, I_\ell ,
+$$
+so that matches found in finer cells count more. It reinjects the coarse layout of the scene — sky at the top, road at the bottom — into an orderless representation, and it is positive definite as a positive combination of kernels.
+:::
+
+::: def
+[Definition 5.4 — Sparse coding]{.tag}
+Given a dictionary $D \in \mathbb{R}^{d \times K}$ with unit-norm columns and $\lambda > 0$, the sparse code of $x$ is
+$$
+\alpha^\star(x) \in \arg\min_{\alpha \in \mathbb{R}^K}\ \tfrac12\|x - D\alpha\|^2 + \lambda\|\alpha\|_1 .
+$$
+This is the lasso (Tibshirani, 1996): the $\ell_1$ penalty sets many coordinates exactly to zero, so $x$ is explained by a few atoms. Unlike hard assignment, the code keeps several atoms with graded weights, which reduces the quantisation error.
+:::
+
+:::: prop
+[Proposition 5.5 — Soft-thresholding]{.tag}
+In one dimension, the solution of $\min_a \tfrac12 (z - a)^2 + \lambda|a|$ is
+
+::: key
+[Key result — soft-thresholding]{.tag}
+$$
+S_\lambda(z) = \operatorname{sign}(z)\, \max(|z| - \lambda,\ 0).
+$$
+:::
+
+If $D$ has orthonormal columns, the sparse code is therefore $\alpha^\star = S_\lambda(D^\top x)$, coordinate by coordinate.
+
+::: proof
+-   The objective is strictly convex, so $a$ is optimal iff $0 \in a - z + \lambda\, \partial|a|$, where $\partial|a| = \{\operatorname{sign}(a)\}$ if $a \neq 0$ and $[-1, 1]$ if $a = 0$.
+-   If $|z| \leq \lambda$, the point $a = 0$ is optimal, since $z \in \lambda[-1, 1]$.
+-   If $z > \lambda$, the point $a = z - \lambda > 0$ satisfies $a - z + \lambda = 0$; the case $z < -\lambda$ is symmetric.
+-   If $D^\top D = I$, then
+$$
+\|x - D\alpha\|^2 = \|D^\top x - \alpha\|^2 + \|x\|^2 - \|D^\top x\|^2 ,
+$$
+and the problem separates over the coordinates. [∎]{.qed}
+:::
+::::
+
+::: thm
+[Algorithm 5.6 — ISTA, iterative shrinkage-thresholding]{.tag}
+For a general dictionary, let $L = \|D\|_2^2$, the largest eigenvalue of $D^\top D$, and iterate
+$$
+\alpha^{t+1} = S_{\lambda/L}\Big(\alpha^t - \tfrac{1}{L}\, D^\top (D\alpha^t - x)\Big).
+$$
+Each iteration is a gradient step on the smooth term, which is $L$-smooth (Proposition 0.6), followed by the exact minimisation of the $\ell_1$ term (Proposition 5.5). The objective converges at the rate $O(1/t)$, and at the rate $O(1/t^2)$ for the accelerated variant FISTA (Beck and Teboulle, 2009).
+:::
+
+::: def
+[Definition 5.7 — Dictionary learning]{.tag}
+Given training descriptors $x_1, \dots, x_N$, learn the dictionary together with the codes:
+$$
+\min_{D \in \mathcal{C},\ \alpha_1, \dots, \alpha_N}\ \sum_{i=1}^N \tfrac12\|x_i - D\alpha_i\|^2 + \lambda\|\alpha_i\|_1 ,
+$$
+where $\mathcal{C}$ is the set of matrices whose columns have norm at most 1. Without this constraint, scaling $D$ up and the codes down would drive the penalty to zero.
+:::
+
+:::: prop
+[Proposition 5.8 — Alternate minimisation]{.tag}
+The objective of Definition 5.7 is not jointly convex, but it is convex in the codes for a fixed $D$, and convex in $D \in \mathcal{C}$ for fixed codes. Alternating exact minimisations over the two blocks therefore produces a non-increasing sequence of objective values.
+
+::: proof
+-   For fixed $D$, each term is a lasso problem, convex in $\alpha_i$.
+-   For fixed codes, $D \mapsto \sum_i \|x_i - D\alpha_i\|^2$ is a convex quadratic, and $\mathcal{C}$ is convex.
+-   Each block step minimises the objective over its block, so it cannot increase it.
+-   Joint convexity fails already in dimension one: with $x = 1$, the loss $(x - D\alpha)^2$ vanishes at $(1, 1)$ and at $(-1, -1)$ but equals 1 at their midpoint. [∎]{.qed}
+:::
+::::
+
+K-SVD updates the atoms one at a time with a rank-one SVD (Aharon, Elad and Bruckstein, 2006). Online dictionary learning processes one mini-batch at a time and scales to millions of patches (Mairal, Bach, Ponce and Sapiro, 2009). Dictionaries learned on natural image patches resemble oriented edge detectors, like the receptive fields of the primary visual cortex (Olshausen and Field, 1996).
+
+Sparse codes, max-pooled over a spatial pyramid and fed to a *linear* SVM, matched non-linear kernel SVMs on bags of features at a fraction of the cost (Yang et al., 2009). The code compares these representations on the 8 × 8 digits bundled with scikit-learn, using all 4 × 4 patches as local descriptors.
+
+```python
+import numpy as np
+from sklearn.datasets import load_digits
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import train_test_split
+rng = np.random.default_rng(5)
+
+imgs, y = load_digits(return_X_y=True)
+imgs = imgs.reshape(-1, 8, 8) / 16.0
+# all 4 x 4 patches (5 x 5 positions), centred: shape (n, 25, 16)
+P = np.stack([imgs[:, i:i + 4, j:j + 4].reshape(len(imgs), 16)
+              for i in range(5) for j in range(5)], 1)
+P = P - P.mean(-1, keepdims=True)
+cell = np.array([(i > 2) * 2 + (j > 2) for i in range(5) for j in range(5)])  # 2 x 2 grid
+
+def pyramid(F, pool):
+    """Level 0 (whole image) + level 1 (2 x 2 cells) pooling of patch codes F: (n, 25, K)."""
+    return np.concatenate([pool(F, 1)] + [pool(F[:, cell == c], 1) for c in range(4)], 1)
+
+def ista(X, D, lam, iters=50):
+    """Lasso codes for every row of X (Algorithm 5.6), step 1/L with L = ||D||_2^2."""
+    L = np.linalg.norm(D, 2) ** 2
+    A = np.zeros((len(X), D.shape[1]))
+    for _ in range(iters):
+        Z = A - (A @ D.T - X) @ D / L
+        A = np.sign(Z) * np.maximum(np.abs(Z) - lam / L, 0)          # soft-thresholding
+    return A
+
+K, flat = 32, P.reshape(-1, 16)
+train = flat[rng.choice(len(flat), 2000, replace=False)]
+# (a) bag of features: k-means vocabulary, hard assignment, sum pooling
+C = train[rng.choice(len(train), K, replace=False)]
+for _ in range(20):
+    lab = ((train[:, None] - C[None]) ** 2).sum(-1).argmin(1)
+    C = np.array([train[lab == k].mean(0) if np.any(lab == k) else C[k] for k in range(K)])
+H = np.eye(K)[((P[..., None, :] - C) ** 2).sum(-1).argmin(-1)]       # one-hot codes
+# (b) sparse coding: alternate ISTA codes and least-squares dictionary updates
+D = train[:K].T / np.linalg.norm(train[:K], axis=1)
+for _ in range(5):
+    A = ista(train, D, lam=0.05)
+    D = np.linalg.lstsq(A, train, rcond=None)[0].T
+    D /= np.maximum(np.linalg.norm(D, axis=0), 1e-8)
+S = np.abs(ista(flat, D, lam=0.05)).reshape(len(imgs), 25, K)
+
+feats = {"raw pixels": imgs.reshape(len(imgs), -1),
+         "BoF, sum pooling, level 0": H.sum(1),
+         "BoF, spatial pyramid": pyramid(H, np.sum),
+         "sparse codes, max pooling, pyramid": pyramid(S, np.max)}
+for name, F in feats.items():
+    F = F / np.linalg.norm(F, axis=1, keepdims=True)                 # L2-normalise
+    Ftr, Fte, ytr, yte = train_test_split(F, y, test_size=0.3, random_state=0, stratify=y)
+    acc = LinearSVC(C=1.0, max_iter=20000).fit(Ftr, ytr).score(Fte, yte)
+    print(f"{name:36s} test accuracy {acc:.3f}")
+```
+
+The orderless bag of features loses information (88.0 % against 96.3 % for raw pixels). The spatial pyramid recovers it (96.1 %), and sparse codes with max pooling do best (98.9 %).
+
+::: note
+[VLAD and Fisher vectors]{.tag}
+Hard assignment keeps only counts, the zeroth-order statistics of the descriptors in each cell. VLAD stores first-order statistics, the sum of the residuals $x_i - c_k$ of the descriptors assigned to each centroid, in a vector of dimension $Kd$ (Jégou et al., 2010). Fisher vectors add second-order statistics under a Gaussian mixture model (Perronnin, Sánchez and Mensink, 2010). With power and L2 normalisation, they were the state of the art for large-scale image classification just before convolutional networks (Sánchez et al., 2013).
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   Category-level pipelines code local descriptors on a dictionary, pool the codes over regions, and train a classifier.
+-   Histogram intersection is positive definite; spatial pyramids add coarse layout to orderless bags.
+-   Sparse coding solves a lasso per descriptor, by soft-thresholding iterations (ISTA); dictionaries are learned by alternate minimisation.
+-   Richer codes (sparse codes, VLAD, Fisher vectors) let linear classifiers match kernel machines.
+::::
+
+## 6. Neural networks and optimisation methods {#ch6}
+
+The pipelines of ch. 5 learn only their last stage, the classifier; descriptors, coding and pooling are designed by hand. Neural networks learn every stage jointly, by gradient descent on a loss computed from the labels. This chapter covers the model, the computation of its gradient and the optimisers.
+
+::: def
+[Definition 6.1 — Multilayer perceptron and cross-entropy]{.tag}
+A multilayer perceptron with $L$ layers computes $a_0 = x$ and, for $\ell = 1, \dots, L$,
+$$
+z_\ell = W_\ell\, a_{\ell - 1} + b_\ell, \qquad a_\ell = \sigma(z_\ell),
+$$
+with a non-linearity $\sigma$ applied coordinatewise — usually the ReLU $\sigma(u) = \max(u, 0)$ — and none on the last layer. For $C$ classes, the output $z_L \in \mathbb{R}^C$ is turned into probabilities by the softmax, and the loss for the true class $y$ is the cross-entropy:
+$$
+p = \operatorname{softmax}(z_L), \qquad \mathcal{L} = -\log p_y .
+$$
+:::
+
+One hidden layer already suffices to approximate any continuous function on a compact set: Cybenko (1989) and Hornik (1991) prove it for sigmoidal and bounded activations, and Leshno et al. (1993) for every non-polynomial one, the ReLU included. Depth makes such approximations far more economical, and it is what makes features reusable across tasks.
+
+:::: prop
+[Proposition 6.2 — Gradient of the softmax cross-entropy]{.tag}
+With $Y = e_y$ the one-hot encoding of the true class,
+$$
+\nabla_{z_L} \mathcal{L} = p - Y .
+$$
+
+::: proof
+$\mathcal{L} = -z_{L,y} + \log \sum_c e^{z_{L,c}}$, so the derivative with respect to $z_{L,c}$ is
+$$
+\frac{\partial \mathcal{L}}{\partial z_{L,c}} = -\mathbb{1}[c = y] + \frac{e^{z_{L,c}}}{\sum_{c'} e^{z_{L,c'}}} = p_c - Y_c .
+$$
+[∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 6.3 — Backpropagation]{.tag}
+Let $\delta_\ell = \partial \mathcal{L} / \partial z_\ell$. Then $\delta_L = p - Y$ by Proposition 6.2, and for $\ell = L, \dots, 1$:
+$$
+\frac{\partial \mathcal{L}}{\partial W_\ell} = \delta_\ell\, a_{\ell-1}^\top, \qquad \frac{\partial \mathcal{L}}{\partial b_\ell} = \delta_\ell, \qquad \delta_{\ell - 1} = \big(W_\ell^\top \delta_\ell\big) \odot \sigma'(z_{\ell - 1}).
+$$
+All the gradients are obtained in one backward pass, whose cost is of the same order as the forward pass.
+
+::: proof
+-   $z_\ell$ depends linearly on $W_\ell$: the derivative of $z_{\ell,i}$ with respect to $W_{\ell,ij}$ is $a_{\ell-1,j}$. The chain rule gives the first two formulas.
+-   $z_\ell = W_\ell\, \sigma(z_{\ell-1}) + b_\ell$ has Jacobian $J = W_\ell \operatorname{diag}(\sigma'(z_{\ell-1}))$ with respect to $z_{\ell-1}$. The chain rule $\delta_{\ell-1} = J^\top \delta_\ell$ gives the recursion.
+-   Each step costs one product by $W_\ell^\top$ and one outer product, the same order as the product $W_\ell a_{\ell-1}$ of the forward pass. [∎]{.qed}
+:::
+::::
+
+Reverse-mode automatic differentiation, as in PyTorch, applies the same recursion to any computation graph.
+
+::: def
+[Definition 6.4 — Stochastic gradient methods]{.tag}
+Let $f(\theta) = \frac1N \sum_i \mathcal{L}_i(\theta)$ be the training loss. A mini-batch $B$ of size $b$, drawn uniformly, gives an unbiased estimate $g = \frac1b \sum_{i \in B} \nabla \mathcal{L}_i(\theta)$ of the gradient.
+
+-   *SGD*: $\theta \leftarrow \theta - \eta\, g$, with learning rate $\eta$.
+-   *Momentum*: $v \leftarrow \mu v - \eta g$, then $\theta \leftarrow \theta + v$, with $\mu \approx 0.9$.
+-   *Adam* (Kingma and Ba, 2015) keeps running averages $m$ of $g$ and $s$ of $g^2$, with rates $\beta_1 = 0.9$ and $\beta_2 = 0.999$.
+
+    It corrects their bias at step $t$, and updates each coordinate by
+$$
+\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^t)}{\sqrt{s / (1 - \beta_2^t)} + \epsilon} .
+$$
+
+AdamW applies weight decay directly to $\theta$ rather than through $g$ (Loshchilov and Hutter, 2019).
+:::
+
+:::: thm
+[Theorem 6.5 — SGD on a smooth non-convex loss]{.tag}
+Assume that $f$ is bounded below by $f^\star$, that $\nabla f$ is $L$-Lipschitz, and that the stochastic gradients satisfy $\mathbb{E}\|g - \nabla f(\theta)\|^2 \leq \sigma^2$.
+
+Then SGD with a constant step $\eta \leq 1/L$ satisfies, after $T$ steps,
+$$
+\frac{1}{T}\sum_{t=0}^{T-1} \mathbb{E}\,\|\nabla f(\theta_t)\|^2 \ \leq\ \frac{2\,(f(\theta_0) - f^\star)}{\eta T} + L \eta \sigma^2 .
+$$
+
+::: proof
+-   The descent lemma (Proposition 0.6) with $\theta_{t+1} = \theta_t - \eta g_t$ gives
+$$
+f(\theta_{t+1}) \leq f(\theta_t) - \eta\, \nabla f(\theta_t)^\top g_t + \frac{L\eta^2}{2}\|g_t\|^2 .
+$$
+-   Conditionally on $\theta_t$, the gradient estimate is unbiased, $\mathbb{E}[g_t] = \nabla f(\theta_t)$, and its second moment is bounded:
+$$
+\mathbb{E}\|g_t\|^2 = \|\nabla f(\theta_t)\|^2 + \mathbb{E}\|g_t - \nabla f(\theta_t)\|^2 \leq \|\nabla f(\theta_t)\|^2 + \sigma^2 .
+$$
+-   Since $\eta \leq 1/L$, we have $-\eta + L\eta^2/2 \leq -\eta/2$, hence
+$$
+\mathbb{E} f(\theta_{t+1}) \leq \mathbb{E} f(\theta_t) - \frac{\eta}{2}\,\mathbb{E}\|\nabla f(\theta_t)\|^2 + \frac{L\eta^2\sigma^2}{2} .
+$$
+-   Sum over $t = 0, \dots, T-1$, use $f(\theta_T) \geq f^\star$, and divide by $\eta T/2$. [∎]{.qed}
+:::
+::::
+
+The first term is the rate of deterministic gradient descent; the second is a noise floor proportional to the step. This explains learning-rate decay schedules, and the effect of the batch size: averaging $b$ independent per-example gradients divides their variance by $b$ (Bottou, Curtis and Nocedal, 2018).
+
+:::: prop
+[Proposition 6.6 — He initialisation]{.tag}
+Consider a ReLU layer $z_\ell = W_\ell\, \sigma(z_{\ell-1})$ with $n$ inputs. Assume the weights are i.i.d., centred, of variance $v$, independent of $z_{\ell-1}$, and that the coordinates of $z_{\ell-1}$ are identically distributed and symmetric around 0. Then
+$$
+\operatorname{Var}(z_{\ell,i}) = \frac{n v}{2}\, \operatorname{Var}(z_{\ell-1,j}) ,
+$$
+so the choice $v = 2/n$ keeps the scale of the pre-activations constant through depth (He et al., 2015).
+
+::: proof
+-   $z_{\ell,i} = \sum_j W_{ij}\, a_j$ with independent centred weights, so
+$$
+\operatorname{Var}(z_{\ell,i}) = n v\, \mathbb{E}[a_j^2] .
+$$
+-   For $z$ symmetric around 0,
+$$
+\mathbb{E}[\max(z, 0)^2] = \tfrac12\, \mathbb{E}[z^2] = \tfrac12 \operatorname{Var}(z) .
+$$
+[∎]{.qed}
+:::
+::::
+
+::: note
+[Regularisation and normalisation]{.tag}
+-   *Weight decay* adds $\frac{\lambda}{2}\|\theta\|^2$ to the loss.
+-   *Data augmentation* — random crops, flips, colour changes — encodes invariances that the model should have; in vision it is the most effective regulariser.
+-   *Dropout* sets each hidden unit to zero with probability $p$ during training (Srivastava et al., 2014).
+-   *Batch normalisation* standardises each channel with the mean and variance of the mini-batch, then applies a learned affine map (Ioffe and Szegedy, 2015). It allows much larger learning rates.
+:::
+
+The code implements Theorem 6.3 in NumPy, checks it against a finite difference, and trains with momentum on the two-moons data set.
+
+```python
+import numpy as np
+from sklearn.datasets import make_moons
+rng = np.random.default_rng(0)
+X, y = make_moons(400, noise=0.2, random_state=0)
+Y = np.eye(2)[y]                                      # one-hot targets
+
+def init(sizes):                                      # He initialisation (Proposition 6.6)
+    return [(rng.normal(0, np.sqrt(2 / a), (a, b)), np.zeros(b)) for a, b in zip(sizes, sizes[1:])]
+
+def forward(params, X):
+    acts = [X]
+    for i, (W, b) in enumerate(params):
+        z = acts[-1] @ W + b
+        acts.append(np.maximum(z, 0) if i < len(params) - 1 else z)
+    return acts
+
+def loss_and_grads(params, X, Y):
+    acts = forward(params, X)
+    z = acts[-1] - acts[-1].max(1, keepdims=True)
+    p = np.exp(z) / np.exp(z).sum(1, keepdims=True)  # softmax
+    loss = -np.mean(np.sum(Y * np.log(p), 1))
+    delta = (p - Y) / len(X)                          # Proposition 6.2
+    grads = []
+    for i in reversed(range(len(params))):            # backward pass (Theorem 6.3)
+        grads.append((acts[i].T @ delta, delta.sum(0)))
+        if i > 0:
+            delta = (delta @ params[i][0].T) * (acts[i] > 0)
+    return loss, grads[::-1]
+
+params = init([2, 32, 32, 2])
+loss, grads = loss_and_grads(params, X, Y)
+eps = 1e-6
+params[0][0][0, 0] += eps                             # finite-difference check of one weight
+loss_eps, _ = loss_and_grads(params, X, Y)
+params[0][0][0, 0] -= eps
+print(f"backprop {grads[0][0][0, 0]:.6f}   finite difference {(loss_eps - loss) / eps:.6f}")
+
+vel = [(np.zeros_like(W), np.zeros_like(b)) for W, b in params]
+for step in range(2000):                              # mini-batch SGD with momentum 0.9
+    idx = rng.choice(len(X), 32, replace=False)
+    _, grads = loss_and_grads(params, X[idx], Y[idx])
+    for (W, b), (gW, gb), (vW, vb) in zip(params, grads, vel):
+        vW *= 0.9; vW -= 0.05 * gW; W += vW
+        vb *= 0.9; vb -= 0.05 * gb; b += vb
+print("training accuracy:", (forward(params, X)[-1].argmax(1) == y).mean())
+```
+
+The backpropagated derivative and the finite difference agree to six decimals, and the network separates the two moons with 97.5 % training accuracy.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   The gradient of the softmax cross-entropy with respect to the logits is $p - Y$; backpropagation propagates it through the layers at the cost of one forward pass.
+-   SGD converges to stationary points of smooth non-convex losses, up to a noise floor proportional to the step (Theorem 6.5).
+-   Momentum and Adam accelerate training; He initialisation keeps activations at a constant scale.
+-   Data augmentation, weight decay, dropout and batch normalisation control overfitting and ease optimisation.
+::::
+
+## 7. Convolutional neural networks for visual recognition {#ch7}
+
+A fully connected layer from a 224 × 224 colour image to the 112 × 112 × 64 feature map of a standard first layer would need about $10^{11}$ weights (Example 7.2). Convolutional networks build in two properties of images, locality and the equivalence of positions. Since 2012 they have dominated recognition (Krizhevsky, Sutskever and Hinton, 2012).
+
+::: def
+[Definition 7.1 — Convolutional layer]{.tag}
+A convolutional layer maps an input $X$ with $C_{\text{in}}$ channels to an output $Y$ with $C_{\text{out}}$ channels:
+$$
+Y_{c'}(x) = b_{c'} + \sum_{c=1}^{C_{\text{in}}} \sum_{u \in \{-r, \dots, r\}^2} W_{c',c}(u)\, X_c(s x + u),
+$$
+with kernel size $k = 2r + 1$ and stride $s$. With a padding of $p$ pixels, an input of width $n$ gives an output of width
+$$
+\Big\lfloor \frac{n + 2p - k}{s} \Big\rfloor + 1 ,
+$$
+and the layer has $k^2 C_{\text{in}} C_{\text{out}} + C_{\text{out}}$ parameters, whatever the size of the image.
+:::
+
+::: ex
+[Example 7.2 — Counting]{.tag}
+Apply to a $224 \times 224 \times 3$ image 64 filters of size $7 \times 7$, with stride 2 and padding 3, as in the first layer of a ResNet.
+
+-   Output width: $\lfloor (224 + 6 - 7)/2 \rfloor + 1 = 112$, so the output is $112 \times 112 \times 64$.
+-   Parameters: $7 \cdot 7 \cdot 3 \cdot 64$ weights and 64 biases, that is, 9 472.
+
+A fully connected layer between the same input (150 528 values) and output (802 816 values) would need
+$$
+150\,528 \times 802\,816 \approx 1.2 \times 10^{11} \ \text{weights}.
+$$
+:::
+
+:::: prop
+[Proposition 7.3 — Equivariance and invariance]{.tag}
+Let $\tau_a$ translate every channel by $a$, with circular boundary conditions and stride 1.
+
+1.  A convolutional layer followed by a pointwise non-linearity commutes with $\tau_a$, and so does any stack $\Phi$ of such layers: $\Phi(\tau_a X) = \tau_a \Phi(X)$.
+2.  Global average or max pooling of the output is invariant to translations of the input.
+
+::: proof
+1.  Each output channel is a sum of convolutions plus a constant, and commutes with $\tau_a$ (Proposition 0.2). A pointwise map $\sigma$ satisfies $\sigma(\tau_a X) = \tau_a\sigma(X)$. A composition of maps that commute with $\tau_a$ commutes with $\tau_a$.
+2.  The mean and the maximum over all positions do not depend on the order of the positions, and $\tau_a$ only permutes them. [∎]{.qed}
+:::
+::::
+
+Strides and pooling break exact equivariance: a one-pixel shift of the input can change the output of a strided layer, a form of aliasing (Zhang, 2019). Recognition networks are therefore only approximately shift-invariant, and data augmentation fills the gap.
+
+:::: prop
+[Proposition 7.4 — Receptive field]{.tag}
+Stack layers with kernel sizes $k_\ell$ and strides $s_\ell$, and let $j_\ell = s_1 \cdots s_\ell$ be the distance, in input pixels, between adjacent units of layer $\ell$ (with $j_0 = 1$).
+
+The receptive field $r_\ell$ — the width of the input region that can influence one unit of layer $\ell$ — satisfies
+
+::: key
+[Key result — the receptive field recursion]{.tag}
+$$
+r_0 = 1, \qquad r_\ell = r_{\ell - 1} + (k_\ell - 1)\, j_{\ell - 1} .
+$$
+:::
+
+
+::: proof
+A unit of layer $\ell$ sees $k_\ell$ adjacent units of layer $\ell - 1$, whose centres are $j_{\ell-1}$ input pixels apart; these centres span $(k_\ell - 1)\, j_{\ell-1}$ pixels.
+
+Each of these units sees $r_{\ell-1}$ pixels around its centre, so the union has width $r_{\ell-1} + (k_\ell - 1)\, j_{\ell-1}$. [∎]{.qed}
+:::
+::::
+
+Three $3 \times 3$ convolutions with stride 1 have the receptive field $1 + 2 + 2 + 2 = 7$ of a single $7 \times 7$ layer. They use $27C^2$ weights instead of $49C^2$ for $C$ channels, and three non-linearities instead of one: this is the design principle of VGG networks (Simonyan and Zisserman, 2015).
+
+::: def
+[Definition 7.5 — Residual block (He et al., 2016)]{.tag}
+A residual block computes
+$$
+x_{\ell + 1} = x_\ell + F_\ell(x_\ell),
+$$
+where $F_\ell$ is a small stack of convolutions, batch normalisations and ReLUs. A ResNet chains dozens of such blocks.
+:::
+
+:::: prop
+[Proposition 7.6 — Residual connections carry the gradient]{.tag}
+For a chain of residual blocks from $x_\ell$ to $x_L$, with gradients written as row vectors,
+$$
+\frac{\partial \mathcal{L}}{\partial x_\ell} = \frac{\partial \mathcal{L}}{\partial x_L} \Big(I + \frac{\partial F_{L-1}}{\partial x_{L-1}}\Big) \cdots \Big(I + \frac{\partial F_\ell}{\partial x_\ell}\Big).
+$$
+Expanding the product, the gradient contains the direct term $\partial \mathcal{L} / \partial x_L$, which no weight can attenuate.
+
+::: proof
+Apply the chain rule, with the Jacobian $I + \partial F_m / \partial x_m$ of each block. [∎]{.qed}
+:::
+::::
+
+::: note
+[Architectures and transfer]{.tag}
+-   LeNet-5 read handwritten digits with alternating convolutional and subsampling layers (LeCun et al., 1998).
+-   AlexNet scaled the recipe to ImageNet with ReLUs, dropout, data augmentation and GPUs (Krizhevsky, Sutskever and Hinton, 2012).
+-   VGG networks stacked $3 \times 3$ convolutions, and ResNets trained 152 layers thanks to residual connections.
+-   Vision transformers cut the image into $16 \times 16$ patches treated as the tokens of a transformer; with enough pre-training data they match or exceed CNNs (Dosovitskiy et al., 2021).
+
+Features of a network pre-trained on ImageNet transfer to other tasks: retraining only the last layers works with few labelled images (Oquab et al., 2014).
+:::
+
+The code trains a small CNN with global average pooling on the 8 × 8 digits, and checks Proposition 7.3 on a circular convolution.
+
+```python
+import torch, torch.nn as nn
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+torch.manual_seed(0)
+
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32).reshape(-1, 1, 8, 8)
+y = torch.tensor(y)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+
+net = nn.Sequential(
+    nn.Conv2d(1, 16, 3, padding=1), nn.ReLU(),     # 16 x 8 x 8
+    nn.Conv2d(16, 32, 3, padding=1), nn.ReLU(),    # 32 x 8 x 8
+    nn.MaxPool2d(2),                               # 32 x 4 x 4
+    nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(),    # 64 x 4 x 4
+    nn.AdaptiveAvgPool2d(1), nn.Flatten(),         # global average pooling -> 64
+    nn.Linear(64, 10))
+print("parameters:", sum(p.numel() for p in net.parameters()))
+opt = torch.optim.AdamW(net.parameters(), lr=3e-3, weight_decay=1e-4)
+for epoch in range(30):
+    perm = torch.randperm(len(Xtr))
+    for i in range(0, len(Xtr), 64):
+        idx = perm[i:i + 64]
+        loss = nn.functional.cross_entropy(net(Xtr[idx]), ytr[idx])
+        opt.zero_grad(); loss.backward(); opt.step()
+with torch.no_grad():
+    print(f"test accuracy: {(net(Xte).argmax(1) == yte).float().mean():.3f}")
+    # Proposition 7.3: a circular convolution commutes with a circular shift
+    conv = nn.Conv2d(1, 4, 3, padding=1, padding_mode="circular")
+    s = lambda t: torch.roll(t, shifts=(1, 2), dims=(2, 3))
+    print("equivariance error:", (conv(s(Xte[:5])) - s(conv(Xte[:5]))).abs().max().item())
+```
+
+With 23 946 parameters, the network reaches about 98 % test accuracy, against 96 % for a linear classifier on raw pixels (ch. 5). The equivariance error of the circular convolution is exactly zero.
+
+::: def
+[Definition 7.7 — Object detection and its evaluation]{.tag}
+A detector outputs boxes with class labels and confidence scores. The overlap of two boxes is their *intersection over union*
+$$
+\operatorname{IoU}(A, B) = \frac{|A \cap B|}{|A \cup B|} .
+$$
+A detection is a true positive if its IoU with a not-yet-matched ground-truth box of the same class exceeds a threshold, 0.5 for PASCAL VOC (Everingham et al., 2010). Sorting detections by score gives a precision–recall curve, and the *average precision* (AP) is the area under it. COCO averages AP over IoU thresholds from 0.5 to 0.95 (Lin et al., 2014).
+:::
+
+::: thm
+[Algorithm 7.8 — Non-maximum suppression]{.tag}
+Detectors fire several times around each object. Greedy NMS sorts the boxes by score, keeps the best one, removes every remaining box whose IoU with it exceeds a threshold (typically 0.5), and repeats on the boxes that are left.
+:::
+
+```python
+import numpy as np
+
+def iou(a, B):
+    """IoU between box a and each row of B; boxes are (x1, y1, x2, y2)."""
+    w = np.clip(np.minimum(a[2], B[:, 2]) - np.maximum(a[0], B[:, 0]), 0, None)
+    h = np.clip(np.minimum(a[3], B[:, 3]) - np.maximum(a[1], B[:, 1]), 0, None)
+    area = lambda r: (r[..., 2] - r[..., 0]) * (r[..., 3] - r[..., 1])
+    return w * h / (area(a) + area(B) - w * h)
+
+def nms(boxes, scores, thr=0.5):
+    """Greedy non-maximum suppression (Algorithm 7.8)."""
+    order, keep = np.argsort(-scores), []
+    while len(order):
+        i, order = order[0], order[1:]
+        keep.append(int(i))
+        order = order[iou(boxes[i], boxes[order]) < thr]
+    return keep
+
+boxes = np.array([[0, 0, 10, 10], [1, 1, 11, 11], [5, 5, 15, 15], [20, 20, 30, 30]], float)
+scores = np.array([0.9, 0.8, 0.7, 0.6])
+print("IoU of box 0 with boxes 1-3:", iou(boxes[0], boxes[1:]).round(3))
+print("boxes kept by NMS:", nms(boxes, scores))
+```
+
+Boxes 0 and 2 overlap on a $5 \times 5$ square, so their IoU is $25/175 \approx 0.143$; box 1, shifted by one pixel, has IoU 0.681 with box 0 and is suppressed. NMS keeps boxes 0, 2 and 3.
+
+::: note
+[Detector and segmenter families]{.tag}
+-   *Two-stage*: R-CNN classifies CNN features of about 2 000 region proposals (Girshick et al., 2014). Faster R-CNN learns the proposals with a region proposal network that shares the convolutional features, around reference boxes called anchors (Ren et al., 2015).
+-   *One-stage*: YOLO predicts boxes and classes densely on a grid in a single pass (Redmon et al., 2016).
+-   *Set prediction*: DETR predicts a set of boxes with a transformer, matched to the ground truth by the Hungarian algorithm, and needs no NMS (Carion et al., 2020).
+-   *Segmentation*: fully convolutional networks predict a label per pixel (Long, Shelhamer and Darrell, 2015), and Mask R-CNN adds a mask branch to Faster R-CNN (He et al., 2017).
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   Convolutional layers share weights across positions: the parameter count does not depend on the image size.
+-   Stacks of convolutions and pointwise non-linearities are translation equivariant, and global pooling makes them invariant (Proposition 7.3), up to aliasing by strides.
+-   Receptive fields grow by $(k_\ell - 1)\, j_{\ell-1}$ per layer; residual connections keep gradients alive in very deep networks.
+-   Detection is evaluated by IoU and average precision; NMS removes duplicate detections.
+::::
+
+## 8. Motion and human actions {#ch8}
+
+A video adds time. Motion separates objects from the background, reveals 3D structure, and is the main cue for recognising what people do. This chapter first estimates the motion between two frames, the optical flow, then studies models that recognise human actions.
+
+::: def
+[Definition 8.1 — Optical flow and brightness constancy]{.tag}
+The optical flow is a field $u(x) = (u_1, u_2)$ that gives, for each pixel $x$ of frame $t$, its displacement to frame $t + 1$. The *brightness constancy* assumption states that a moving point keeps its intensity:
+$$
+I(x + u(x),\, t + 1) = I(x, t).
+$$
+For small displacements, a first-order expansion gives the *optical flow constraint equation*
+$$
+\nabla I(x, t)^\top u(x) + I_t(x, t) = 0 ,
+$$
+where $I_t$ is the temporal derivative.
+:::
+
+:::: prop
+[Proposition 8.2 — The aperture problem]{.tag}
+At a pixel where $\nabla I \neq 0$, the constraint equation determines only the component of the flow along the gradient, the *normal flow*:
+$$
+u_n = \frac{\nabla I^\top u}{\|\nabla I\|} = -\frac{I_t}{\|\nabla I\|} .
+$$
+Any vector orthogonal to $\nabla I$ can be added to $u$ without violating the constraint.
+
+::: proof
+The constraint is one linear equation in two unknowns. Its solutions form the line $\{u : \nabla I^\top u = -I_t\}$, whose direction is orthogonal to $\nabla I$. Dividing the equation by $\|\nabla I\|$ gives the normal component. [∎]{.qed}
+:::
+::::
+
+Seen through a small aperture, a straight edge looks the same whatever its motion along the edge: this is the barber-pole illusion.
+
+:::: thm
+[Theorem 8.3 — Lucas–Kanade (1981)]{.tag}
+Assume the flow is constant, equal to $u$, in a window with weights $w$ around $x_0$, and minimise the weighted squared residual of the constraint:
+$$
+E(u) = \sum_x w(x - x_0)\, \big(\nabla I(x)^\top u + I_t(x)\big)^2 .
+$$
+Let $M$ be the structure tensor of Definition 2.2, and $b = \sum_x w(x - x_0)\, I_t(x)\, \nabla I(x)$. The minimiser is unique if and only if $M$ is invertible, and then
+
+::: key
+[Key result — the Lucas–Kanade flow]{.tag}
+$$
+u^\star = -M^{-1} b .
+$$
+:::
+
+
+::: proof
+-   $E$ is a convex quadratic: $E(u) = u^\top M u + 2 b^\top u + \text{const}$, with gradient $2(Mu + b)$.
+-   If $M$ is invertible, it is positive definite, $E$ is strictly convex, and its unique minimiser solves $Mu = -b$.
+-   If $M$ is singular, take $v \neq 0$ with $Mv = 0$.
+
+    Then $\sum_x w\, (\nabla I^\top v)^2 = v^\top M v = 0$, so $\nabla I^\top v = 0$ on the window, and adding $v$ to a minimiser leaves $E$ unchanged. [∎]{.qed}
+:::
+::::
+
+The points that can be tracked reliably are therefore those where both eigenvalues of $M$ are large — the corners of ch. 2. This is the criterion of the KLT tracker, "good features to track" (Shi and Tomasi, 1994). Large motions violate the linearisation; they are handled coarse to fine on a Gaussian pyramid, and by iterating the estimate after warping, as in the code below.
+
+::: def
+[Definition 8.4 — Horn–Schunck flow]{.tag}
+Horn and Schunck (1981) estimate a dense field by minimising a global energy that adds a smoothness term to the constraint:
+$$
+E(u) = \int \Big(\big(\nabla I^\top u + I_t\big)^2 + \alpha^2 \big(\|\nabla u_1\|^2 + \|\nabla u_2\|^2\big)\Big)\, dx .
+$$
+The smoothness term fills in the flow where the aperture problem leaves it undetermined.
+
+Modern variational methods replace the squares by robust penalties. FlowNet (Dosovitskiy et al., 2015) showed that a network trained on synthetic data can estimate flow; its successors, such as RAFT (Teed and Deng, 2020), are now the most accurate methods. Accuracy is measured by the average *end-point error*, the mean of $\|u - u^{\text{gt}}\|$ over pixels.
+:::
+
+```python
+import numpy as np
+from scipy import ndimage
+rng = np.random.default_rng(4)
+
+I0 = ndimage.gaussian_filter(rng.random((128, 128)), 3.0)        # smooth random texture
+d_true = np.array([0.6, -0.4])                                   # (row, column) motion in pixels
+I1 = ndimage.shift(I0, d_true, order=3, mode="wrap")             # I1(x) = I0(x - d)
+
+def structure(I, sigma=1.0, window=6.0):
+    """Gradients and window-averaged structure tensor M (Definition 2.2)."""
+    Iy = ndimage.gaussian_filter(I, sigma, order=(1, 0))
+    Ix = ndimage.gaussian_filter(I, sigma, order=(0, 1))
+    w = lambda f: ndimage.gaussian_filter(f, window)
+    M = np.array([[w(Iy * Iy), w(Iy * Ix)], [w(Ix * Iy), w(Ix * Ix)]]).transpose(2, 3, 0, 1)
+    return Iy, Ix, w, M
+
+def lucas_kanade(I0, I1, n_iter=3):
+    Iy, Ix, w, M = structure(I0)
+    d = np.zeros(I0.shape + (2,))
+    grid = np.indices(I0.shape).astype(float)
+    for _ in range(n_iter):                                       # Gauss-Newton refinement
+        warped = ndimage.map_coordinates(I1, grid + d.transpose(2, 0, 1), order=3, mode="wrap")
+        It = ndimage.gaussian_filter(warped - I0, 1.0)
+        b = -np.stack([w(Iy * It), w(Ix * It)], -1)
+        d += np.linalg.solve(M, b[..., None])[..., 0]             # normal equations (Theorem 8.3)
+    return d
+
+flow = lucas_kanade(I0, I1)
+print("median flow (row, col):", np.median(flow.reshape(-1, 2), 0).round(3), " true:", d_true)
+
+# Aperture problem: on vertical stripes the structure tensor is singular
+stripes = np.tile(np.sin(np.arange(128) / 3.0), (128, 1))
+print("eigenvalues of M on stripes:", np.linalg.eigvalsh(structure(stripes)[3][64, 64]).round(6))
+```
+
+The estimated motion, $(0.599, -0.400)$, matches the true one to a thousandth of a pixel. On vertical stripes one eigenvalue of $M$ vanishes: the vertical component of the motion is invisible, which is the aperture problem.
+
+::: def
+[Definition 8.5 — Action recognition tasks]{.tag}
+-   *Action classification* assigns a label, such as "running" or "opening a door", to a trimmed clip. Standard benchmarks are UCF101, with 13 320 clips of 101 classes (Soomro, Zamir and Shah, 2012), and Kinetics (Kay et al., 2017).
+-   *Temporal localisation* finds the start and end of each action in an untrimmed video.
+-   *Spatio-temporal localisation* also tracks the actor with a box in every frame.
+:::
+
+::: note
+[Hand-crafted video features]{.tag}
+-   *Space-time interest points* extend the Harris detector to $(x, y, t)$: the $3 \times 3$ spatio-temporal structure tensor must have three large eigenvalues, which selects points where the motion changes (Laptev, 2005).
+-   Around them, histograms of oriented gradients (HOG) and of optical flow (HOF) describe appearance and motion. Encoded as bags of features (ch. 5), they classify actions in feature films (Laptev et al., 2008).
+-   *Dense trajectories* track densely sampled points with the optical flow over 15 frames and describe the volume around each track. With camera-motion compensation and Fisher vectors, they remained the reference hand-crafted method, competitive with the first deep models (Wang and Schmid, 2013).
+:::
+
+::: def
+[Definition 8.6 — Deep video architectures]{.tag}
+-   *Two-stream networks* run one 2D CNN on an RGB frame and another on a stack of optical-flow fields, and average their class scores (Simonyan and Zisserman, 2014).
+-   *3D CNNs* convolve in space and time with $k \times k \times k$ kernels (Tran et al., 2015). Extending their temporal extent to long clips improves recognition (Varol, Laptev and Schmid, 2018).
+-   *I3D* inflates the $k \times k$ filters of an ImageNet-trained 2D network into $k \times k \times k$ filters, so that the 3D network starts from good image features (Carreira and Zisserman, 2017).
+-   *Video transformers* such as ViViT apply attention to spatio-temporal patches (Arnab et al., 2021).
+:::
+
+:::: prop
+[Proposition 8.7 — Inflation preserves image features]{.tag}
+Let $w$ be a 2D filter, and define the 3D filter $W(\cdot, \tau) = w / k$ for each of the $k$ temporal offsets $\tau$.
+
+On a "boring" video $V$ that repeats the same frame $I$, the 3D convolution with $W$ equals the 2D convolution of $I$ with $w$ at every time whose temporal window lies inside the clip. With zero padding in time, the first and last $(k - 1)/2$ frames differ.
+
+::: proof
+-   At a time $t$ whose window lies inside the clip, $(V * W)(x, t) = \sum_\tau \sum_u I(x - u)\, w(u)/k$, because every frame of the window equals $I$.
+-   The inner sum does not depend on $\tau$, so the $k$ terms of the outer sum average to $(I * w)(x)$.
+-   Pointwise non-linearities and spatial pooling act frame by frame on identical frames, so by induction the inflated network reproduces the activations of the 2D network. [∎]{.qed}
+:::
+::::
+
+Human pose is another strong cue for actions. Rendered images of synthetic bodies provide training data for body-part segmentation and depth estimation without manual annotation (Varol et al., 2017).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   Brightness constancy gives one equation per pixel for two unknowns: only the normal flow is observable locally (aperture problem).
+-   Lucas–Kanade solves $Mu = -b$ in a window and works where the structure tensor is well conditioned, at corners.
+-   Horn–Schunck regularises the flow globally; learned networks now give the most accurate flow.
+-   Action recognition moved from interest points and dense trajectories with bag-of-features encoding to two-stream, 3D-convolutional and transformer networks.
+::::
+
+## 9. 3D object recognition {#ch9}
+
+Objects are three-dimensional. Recognising one fully means recovering its category, its 3D pose and sometimes its shape, from images or from 3D sensors. This chapter combines the geometry of ch. 1 with the learned features of ch. 7.
+
+::: def
+[Definition 9.1 — Representations of 3D shape]{.tag}
+-   *Point clouds*: unordered finite subsets of $\mathbb{R}^3$, produced by lidars and depth cameras.
+-   *Meshes*: vertices and triangular faces, the format of CAD models.
+-   *Voxel grids*: occupancy values on a regular 3D grid, convenient for 3D convolutions but cubic in memory.
+-   *Multi-view images*: renderings of the object from several viewpoints.
+-   *Implicit functions*: a signed distance or occupancy function from $\mathbb{R}^3$ to $\mathbb{R}$, often parametrised by a neural network.
+:::
+
+::: prop
+[Proposition 9.2 — Pose from 2D–3D correspondences]{.tag}
+With a calibrated camera, the pose $(R, t)$ of a known object has 6 degrees of freedom, and each 2D–3D correspondence gives two equations.
+
+-   Three correspondences give finitely many poses, up to four for the P3P problem.
+-   Six or more, not all coplanar, give a linear solution by the DLT of Algorithm 1.5.
+-   EPnP solves the problem for any $n \geq 4$ correspondences in $O(n)$ operations (Lepetit, Moreno-Noguer and Fua, 2009).
+
+In practice the correspondences come from matched features or from a network, and the pose is estimated inside RANSAC (ch. 3).
+:::
+
+:::: thm
+[Theorem 9.3 — Optimal rigid alignment (Kabsch, 1976)]{.tag}
+Let $p_1, \dots, p_n$ and $q_1, \dots, q_n$ be corresponding points of $\mathbb{R}^3$, with centroids $\bar{p}$ and $\bar{q}$, and let
+$$
+H = \sum_i (p_i - \bar{p})(q_i - \bar{q})^\top = U\Sigma V^\top .
+$$
+The minimiser of $\sum_i \|Rp_i + t - q_i\|^2$ over rotations $R$ and translations $t$ is
+
+::: key
+[Key result — the Kabsch rotation]{.tag}
+$$
+R^\star = V \operatorname{diag}\big(1, 1, \det(VU^\top)\big)\, U^\top, \qquad t^\star = \bar{q} - R^\star \bar{p} .
+$$
+:::
+
+
+::: proof
+-   For a fixed $R$, the best $t$ is the mean of the $q_i - Rp_i$, that is, $\bar{q} - R\bar{p}$.
+
+    With centred points $p'_i$ and $q'_i$, it remains to minimise $\sum_i \|Rp'_i - q'_i\|^2$.
+-   Since $\|Rp'_i\| = \|p'_i\|$, this equals a constant minus $2\sum_i q_i'^\top R p'_i = 2\operatorname{tr}(RH)$. We therefore maximise
+$$
+\operatorname{tr}(RH) = \operatorname{tr}(\Sigma\, V^\top R U) .
+$$
+-   $Z = V^\top R U$ is orthogonal, so $|Z_{ii}| \leq 1$ and $\operatorname{tr}(\Sigma Z) \leq \sum_i \sigma_i$, with equality at $Z = I$, that is, $R = VU^\top$. It is a rotation when $\det(VU^\top) = 1$.
+-   Otherwise $\det Z = -1$ for every rotation $R$. The maximum of $\sum_i \sigma_i Z_{ii}$ over such $Z$ is $\sigma_1 + \sigma_2 - \sigma_3$, attained at $Z = \operatorname{diag}(1, 1, -1)$; Umeyama (1991) gives a complete argument. [∎]{.qed}
+:::
+::::
+
+::: thm
+[Algorithm 9.4 — Iterative closest point (Besl and McKay, 1992)]{.tag}
+To align a cloud $P$ to a cloud $Q$ without known correspondences, start from an initial pose and alternate:
+
+1.  match each transformed point $Rp_i + t$ to its nearest neighbour $q_{\pi(i)}$ in $Q$, with a k-d tree;
+2.  update $(R, t)$ by Theorem 9.3 on the pairs $(p_i, q_{\pi(i)})$.
+
+The objective $\sum_i \min_j \|Rp_i + t - q_j\|^2$ never increases, because each step minimises it over one block of variables, as for k-means (Proposition 4.2). ICP converges to a local minimum, so it needs a rough initial pose, for instance from RANSAC on feature matches.
+:::
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+from scipy.spatial.transform import Rotation
+rng = np.random.default_rng(5)
+
+def kabsch(P, Q):
+    """R, t minimising sum ||R p_i + t - q_i||^2 over rotations (Theorem 9.3)."""
+    p0, q0 = P.mean(0), Q.mean(0)
+    U, _, Vt = np.linalg.svd((P - p0).T @ (Q - q0))
+    D = np.diag([1.0, 1.0, np.sign(np.linalg.det(Vt.T @ U.T))])   # no reflection
+    R = Vt.T @ D @ U.T
+    return R, q0 - R @ p0
+
+def icp(P, Q, iters=40):
+    """Iterative closest point (Algorithm 9.4)."""
+    tree, R, t = cKDTree(Q), np.eye(3), np.zeros(3)
+    for _ in range(iters):
+        _, nn = tree.query(P @ R.T + t)          # closest-point correspondences
+        R, t = kabsch(P, Q[nn])
+    return R, t
+
+P = rng.normal(size=(500, 3)) * [3.0, 2.0, 1.0]                     # anisotropic cloud
+R_true = Rotation.from_euler("xyz", [10, -15, 20], degrees=True).as_matrix()
+Q = P @ R_true.T + [0.5, -0.2, 0.3] + 0.01 * rng.normal(size=P.shape)
+err = lambda R: np.degrees(Rotation.from_matrix(R.T @ R_true).magnitude()).round(4)
+R, t = kabsch(P, Q)                                                 # known correspondences
+print("Kabsch rotation error (deg):", err(R))
+Q = Q[rng.permutation(len(Q))]                                      # correspondences now unknown
+R, t = icp(P, Q)
+print("ICP rotation error (deg):", err(R), " translation:", t.round(3))
+```
+
+Kabsch recovers the rotation to about 0.01°. ICP, started from the identity, reaches the same solution without correspondences, because the initial rotation is moderate and the cloud is anisotropic.
+
+:::: prop
+[Proposition 9.5 — Permutation-invariant networks (PointNet)]{.tag}
+A function of an unordered point set must satisfy $f(x_{\pi(1)}, \dots, x_{\pi(n)}) = f(x_1, \dots, x_n)$ for every permutation $\pi$. PointNet (Qi et al., 2017) uses
+$$
+f(X) = \gamma\Big(\max_{i = 1, \dots, n} h(x_i)\Big),
+$$
+with multilayer perceptrons $h$ and $\gamma$, and the maximum taken coordinate by coordinate. Such an $f$ is permutation invariant. Qi et al. also prove that functions of this form approximate any continuous set function, for the Hausdorff distance, arbitrarily well.
+
+::: proof
+The coordinatewise maximum of a finite family does not depend on the order of its elements. [∎]{.qed}
+:::
+::::
+
+The code trains a small PointNet to tell spheres, cubes and cylinders apart, each shape seen under a random orthogonal transformation.
+
+```python
+import torch, torch.nn as nn
+torch.manual_seed(0)
+
+def sample(kind, n=128):
+    """n points on a sphere (0), a cube (1) or a cylinder (2)."""
+    if kind == 0:
+        x = torch.randn(n, 3)
+        return x / x.norm(dim=1, keepdim=True)
+    if kind == 1:
+        x = torch.rand(n, 3) * 2 - 1
+        x[torch.arange(n), torch.randint(3, (n,))] = torch.sign(torch.randn(n))
+        return x
+    theta, z = torch.rand(n) * 2 * torch.pi, torch.rand(n) * 2 - 1
+    return torch.stack([theta.cos(), theta.sin(), z], 1)
+
+def batch(m):
+    y = torch.randint(3, (m,))
+    X = torch.stack([sample(int(k)) for k in y])
+    R = torch.linalg.qr(torch.randn(m, 3, 3))[0]        # random orthogonal transform per shape
+    return X @ R, y
+
+class PointNet(nn.Module):                              # f(X) = g(max_i h(x_i)), Prop. 9.5
+    def __init__(self):
+        super().__init__()
+        self.h = nn.Sequential(nn.Linear(3, 64), nn.ReLU(), nn.Linear(64, 128), nn.ReLU())
+        self.g = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 3))
+    def forward(self, X):                               # X: (batch, points, 3)
+        return self.g(self.h(X).max(dim=1).values)
+
+net = PointNet()
+opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+for step in range(300):
+    X, y = batch(32)
+    loss = nn.functional.cross_entropy(net(X), y)
+    opt.zero_grad(); loss.backward(); opt.step()
+X, y = batch(300)
+with torch.no_grad():
+    acc = (net(X).argmax(1) == y).float().mean().item()
+    gap = (net(X) - net(X[:, torch.randperm(X.shape[1])])).abs().max().item()
+print(f"test accuracy {acc:.3f}; largest output change under a point permutation {gap:.1e}")
+```
+
+The three shapes are separated almost perfectly, and permuting the points changes the output by exactly 0, as Proposition 9.5 guarantees.
+
+::: note
+[Recognition with 3D models]{.tag}
+-   *Multi-view CNNs* render a mesh from several viewpoints, run a 2D CNN on each view and pool across views (Su et al., 2015). Voxel CNNs apply 3D convolutions to occupancy grids (Maturana and Scherer, 2015).
+-   *Alignment with CAD models*: Aubry et al. (2014) learn discriminative part detectors from renderings of a large collection of chair models. They detect chairs in photographs together with the best-matching 3D model and its viewpoint.
+-   *6D pose of known objects*: CosyPose combines single-view pose estimates from several views into one consistent scene (Labbé et al., 2020).
+-   *Human bodies*: parametric models such as SMPL reduce body shape and pose to a few parameters (Loper et al., 2015), which networks can estimate from a single image (Varol et al., 2018).
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   3D shape is represented by point clouds, meshes, voxels, multiple views or implicit functions, each suited to different models.
+-   The pose of a known object follows from 2D–3D matches (PnP inside RANSAC).
+-   The optimal rotation between matched 3D points comes from one SVD, with a determinant correction (Theorem 9.3); ICP alternates matching and alignment.
+-   Point-cloud networks must be permutation invariant, which a symmetric pooling such as the maximum guarantees.
+::::
+
+## 10. Weakly-supervised learning for visual recognition {#ch10}
+
+Boxes and masks are expensive to annotate, object by object and image by image, and video multiplies the cost by the number of frames. Images and videos, however, come with weak signals: image-level tags, captions, subtitles, narration. Weakly supervised learning extracts localised recognition from such signals.
+
+::: def
+[Definition 10.1 — Levels of supervision]{.tag}
+-   *Full supervision*: the desired output is annotated — boxes for detection, masks for segmentation, temporal segments for actions.
+-   *Weak supervision*: a coarser annotation is given — image-level labels, points, scribbles or video-level labels — and the model must infer the finer output.
+-   *Noisy supervision*: labels come from text attached to the data, such as captions or narration, and are often wrong or misaligned in time.
+-   *Self-supervision*: no human label; the training signal is built from the data themselves.
+:::
+
+::: def
+[Definition 10.2 — Multiple-instance learning (Dietterich, Lathrop and Lozano-Pérez, 1997)]{.tag}
+Training examples are *bags* $B = \{x_1, \dots, x_n\}$ of instances with a bag label $Y \in \{0, 1\}$. A bag is positive if and only if at least one of its instances is positive:
+$$
+Y = \max_i y_i .
+$$
+In vision, a bag is an image and its instances are candidate regions: the image label says that the object is somewhere, not where. A model scores the instances, $s_i = f(x_i)$, and a pooling function aggregates the scores into a bag score, trained with the bag labels.
+:::
+
+:::: prop
+[Proposition 10.3 — Max pooling selects one instance]{.tag}
+If the bag score is $S = \max_i s_i$ and the maximum is attained at a unique $i^\star$, then
+$$
+\frac{\partial S}{\partial s_i} = \mathbb{1}[i = i^\star] .
+$$
+Training with max pooling therefore updates only the highest-scoring instance of each bag. On positive bags, it reinforces the current best region: this is how localisation emerges from image labels.
+
+::: proof
+On a neighbourhood of the scores where the argmax does not change, $S$ coincides with $s_{i^\star}$. [∎]{.qed}
+:::
+::::
+
+The same property is the weakness of max pooling. An early mistake — the most discriminative part, such as a face instead of the whole person, or a context region, such as water for boats — is reinforced rather than corrected.
+
+:::: prop
+[Proposition 10.4 — Log-sum-exp pooling interpolates mean and max]{.tag}
+For scores $s_1, \dots, s_n$ with mean $\bar{s}$, and $r > 0$, let
+$$
+\operatorname{LSE}_r(s) = \frac1r \log\Big(\frac1n \sum_{i=1}^n e^{r s_i}\Big).
+$$
+Then
+$$
+\max\Big(\bar{s},\ \max_i s_i - \frac{\log n}{r}\Big) \ \leq\ \operatorname{LSE}_r(s) \ \leq\ \max_i s_i ,
+$$
+so $\operatorname{LSE}_r$ tends to the maximum as $r \to \infty$; it also tends to the mean as $r \to 0$. Its gradient is the softmax of $rs$, spread over all high-scoring instances.
+
+::: proof
+-   Upper bound: each $e^{r s_i}$ is at most $e^{r \max s}$.
+-   Lower bound by the maximum: the sum is at least $e^{r \max s}$, and the factor $1/n$ costs $(\log n)/r$.
+-   Lower bound by the mean: by Jensen's inequality for the convex exponential, $\frac1n \sum_i e^{r s_i} \geq e^{r \bar{s}}$.
+-   As $r \to 0$, $\frac1n \sum_i e^{r s_i} = 1 + r\bar{s} + O(r^2)$, hence $\operatorname{LSE}_r(s) \to \bar{s}$. [∎]{.qed}
+:::
+::::
+
+The code trains an instance scorer from bag labels only, with the three poolings. A bag holds ten points of the plane and is positive when one of them lies near $(2, 2)$.
+
+```python
+import math, torch, torch.nn as nn
+torch.manual_seed(0)
+
+def make_bags(m, n=10):
+    """Bags of n points in the plane; a bag is positive iff one point lies near (2, 2)."""
+    X = 1.5 * torch.randn(m, n, 2)
+    near = (X - torch.tensor([2.0, 2.0])).norm(dim=-1) < 1.0
+    X[near] = X[near] - 3.0                                   # keep negatives away from (2, 2)
+    y, k = torch.randint(2, (m,)), torch.randint(n, (m,))
+    pos = y == 1
+    X[pos, k[pos]] = torch.tensor([2.0, 2.0]) + 0.3 * torch.randn(int(pos.sum()), 2)
+    return X, y, k                                           # k = index of the key instance
+
+def pool(s, kind, r=5.0):
+    if kind == "max":
+        return s.max(1).values
+    if kind == "mean":
+        return s.mean(1)
+    return (torch.logsumexp(r * s, 1) - math.log(s.shape[1])) / r   # LSE, Proposition 10.4
+
+for kind in ["mean", "lse", "max"]:
+    torch.manual_seed(0)
+    f = nn.Sequential(nn.Linear(2, 32), nn.ReLU(), nn.Linear(32, 1))  # instance scorer
+    opt = torch.optim.Adam(f.parameters(), lr=1e-2)
+    for step in range(300):
+        X, y, _ = make_bags(128)
+        loss = nn.functional.binary_cross_entropy_with_logits(pool(f(X).squeeze(-1), kind), y.float())
+        opt.zero_grad(); loss.backward(); opt.step()
+    X, y, k = make_bags(2000)
+    with torch.no_grad():
+        s = f(X).squeeze(-1)
+        bag_acc = ((pool(s, kind) > 0).long() == y).float().mean().item()
+        found = (s[y == 1].argmax(1) == k[y == 1]).float().mean().item()
+    print(f"{kind:>4} pooling: bag accuracy {bag_acc:.3f}, key instance ranked first {found:.3f}")
+```
+
+Mean pooling dilutes the single positive instance among ten, and classifies only 80 % of the bags correctly. Max and LSE pooling classify about 97 % of the bags and rank the key instance first in about 98 % of the positive bags, although no instance label was ever used.
+
+::: def
+[Definition 10.5 — Weakly supervised deep detection network (Bilen and Vedaldi, 2016)]{.tag}
+For an image with $R$ region proposals and $C$ classes, a CNN produces two score matrices $x^{\text{c}}, x^{\text{d}} \in \mathbb{R}^{C \times R}$. A softmax over classes answers "what is in region $r$?", and a softmax over regions answers "which region shows class $c$?":
+$$
+\sigma^{\text{cls}}_{cr} = \frac{e^{x^{\text{c}}_{cr}}}{\sum_{c'} e^{x^{\text{c}}_{c'r}}}, \qquad \sigma^{\text{det}}_{cr} = \frac{e^{x^{\text{d}}_{cr}}}{\sum_{r'} e^{x^{\text{d}}_{cr'}}} .
+$$
+The image-level score of class $c$ is
+$$
+y_c = \sum_{r=1}^R \sigma^{\text{cls}}_{cr}\, \sigma^{\text{det}}_{cr} \in [0, 1],
+$$
+trained by binary cross-entropy on the image labels. At test time, the products rank the regions.
+:::
+
+:::: prop
+[Proposition 10.6 — Class activation maps (Zhou et al., 2016)]{.tag}
+Let a CNN end with feature maps $f_k(x)$, $k = 1, \dots, K$, on a grid $\Omega$, followed by global average pooling and a linear classifier with weights $w^c_k$. Define the class activation map
+$$
+M_c(x) = \sum_{k=1}^K w^c_k\, f_k(x) .
+$$
+Then the class score is the spatial average of the map, $s_c = \frac{1}{|\Omega|} \sum_{x \in \Omega} M_c(x)$. The map shows where the evidence for class $c$ lies, and thresholding it gives a box or a mask.
+
+::: proof
+$s_c = \sum_k w^c_k\, \frac{1}{|\Omega|}\sum_{x} f_k(x)$; exchange the two finite sums. [∎]{.qed}
+:::
+::::
+
+Oquab et al. (2015) obtained localisation from image labels with global max pooling over the score maps of a fully convolutional network: the multiple-instance view of Proposition 10.3, applied to positions.
+
+::: def
+[Definition 10.7 — Contrastive learning]{.tag}
+Encode two augmented views of each of $N$ images. For a view with normalised embedding $z$, its positive partner $z^+$ is the other view of the same image, and the other images give the negatives. With a temperature $\tau$, the InfoNCE loss is
+$$
+\mathcal{L} = -\log \frac{\exp(\langle z, z^+ \rangle / \tau)}{\sum_{j=1}^{N} \exp(\langle z, z_j \rangle / \tau)} ,
+$$
+the cross-entropy of identifying the positive among $N$ candidates. Van den Oord, Li and Vinyals (2018) show that $\log N - \mathcal{L}$ lower-bounds the mutual information between the two views.
+:::
+
+SimCLR learns ImageNet features in this way that a linear classifier uses almost as well as supervised ones (Chen et al., 2020). CLIP applies the same loss to 400 million image–caption pairs collected on the web, with an image encoder and a text encoder (Radford et al., 2021). Classification then needs no training: embed a prompt such as "a photo of a dog" for each class and pick the closest one, which is *zero-shot* recognition.
+
+::: note
+[Learning from narrated video]{.tag}
+Instructional videos come with a narration that mentions the actions shown, loosely aligned in time. Discriminative clustering under ordering constraints labels actions from scripts (Bojanowski et al., 2014). Narrated instruction videos reveal the steps of a task without supervision (Alayrac et al., 2016). HowTo100M learns a joint text–video embedding from 136 million clips with automatic speech transcripts (Miech et al., 2019).
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 10
+:::
+
+-   Multiple-instance learning treats an image as a bag of regions labelled only at the bag level.
+-   Max pooling localises by reinforcing the best instance, at the risk of locking onto discriminative parts; LSE pooling interpolates between mean and max.
+-   WSDDN and class activation maps turn image-level classifiers into detectors and localisers.
+-   Contrastive and language supervision (SimCLR, CLIP, narrated video) learn representations without manual labels, and enable zero-shot recognition.
+::::
+
+## 11. Research directions and open problems {#ch11}
+
+This chapter is for self-study, after the ten sessions. It points to active research lines that extend each theme of the course, and to questions that remain open. It cites only published work, with authors and year, so that each line can be followed from its source.
+
+### Visual foundation models
+
+Self-supervised vision transformers learn features that transfer without labels. Work by Caron and coauthors (2021) shows that their attention maps segment objects without any mask supervision. DINOv2 (Oquab and coauthors, 2024) scales this recipe into general-purpose frozen features, and masked autoencoders reconstruct hidden patches as a pretext task (He and coauthors, 2022).
+
+Segment Anything (Kirillov and coauthors, 2023) segments any object from a point or a box prompt, trained on a data engine that alternates model predictions and human corrections. The open questions concern what such features fail to encode: fine geometry, counting, spatial relations, and robustness to distribution shifts such as the corruptions of ImageNet-C (Hendrycks and Dietterich, 2019).
+
+### Vision and language
+
+CLIP (ch. 10) made recognition open-vocabulary. Visual language models such as Flamingo connect a frozen image encoder to a language model and answer questions about images from a few examples (Alayrac and coauthors, 2022). Narrated videos train video question answering without manual annotation (Yang and coauthors, 2021).
+
+Grounding remains open: a model can describe an image fluently without localising what it describes, and it can describe objects that are not there. Long videos, of minutes or hours, remain hard for every current architecture.
+
+### Geometry and learning
+
+Neural radiance fields represent a scene by a network that maps a 3D point and a viewing direction to a colour and a density, trained from posed images by differentiable volume rendering (Mildenhall and coauthors, 2020). 3D Gaussian splatting replaces the network by explicit Gaussians and renders in real time (Kerbl and coauthors, 2023).
+
+DUSt3R regresses dense 3D point maps directly from pairs of uncalibrated images, bypassing the explicit camera estimation of ch. 1 (Wang and coauthors, 2024). Learned matchers such as SuperGlue (Sarlin and coauthors, 2020) and LoFTR (Sun and coauthors, 2021) replace the ratio test and part of RANSAC (ch. 3). A recurring open question is when learned components beat classical geometry such as COLMAP (Schönberger and Frahm, 2016), and how to give them calibrated uncertainty.
+
+### Search, synthesis and robustness
+
+Billion-scale similarity search on GPUs builds on product quantisation (Johnson, Douze and Jégou, 2019), and graph-based indexes offer another trade-off between speed and recall (Malkov and Yashunin, 2020). Synthetic data, such as rendered human bodies, provide unlimited labels (Varol and coauthors, 2017), but the gap between synthetic and real images is still closed by fine-tuning rather than by theory.
+
+### Open problems
+
+-   Learning to localise rare categories from weak or noisy labels, with guarantees on what multiple-instance learning can recover.
+-   Recognising actions over long time scales, and anticipating them, from narrated or unlabelled video.
+-   Reconciling learned 3D reconstruction with the exact geometry of ch. 1: consistency, scale and uncertainty.
+-   Evaluating recognition beyond benchmark accuracy: robustness, spatial reasoning and calibration.
+-   Reducing the data and energy needed to train visual foundation models.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 11
+:::
+
+-   Self-supervised and language-supervised models now provide the features used across recognition tasks.
+-   Learned 3D methods (radiance fields, Gaussian splatting, point-map regression) revisit the geometry of ch. 1.
+-   Grounding, long-video understanding, robustness and the cost of training are the main open problems.
+::::
+
+## Exercises {#ex}
+
+1.  **★ Projecting by hand.** A camera has $K$ with $f_x = f_y = 800$, principal point $(320, 240)$, zero skew, and $R = I$, $t = 0$.
+
+    (a) Project the point $(1, 0.5, 5)$. (b) Compute the vanishing point of the direction $d = (1, 0, 1)$.
+
+    *Solution*: (a) $u = 800 \times 1/5 + 320 = 480$ and $v = 800 \times 0.5/5 + 240 = 320$, so the image point is $(480, 320)$.
+
+    (b) By Proposition 1.4, $\tilde{v} \sim Kd = (800 + 320,\ 240,\ 1)$, so the vanishing point is
+    $$
+    (1120, 240),
+    $$
+    outside the 640-pixel-wide image, on the horizon row of the camera.
+
+2.  **★ Homography of a panning camera.** Same $K$; the camera rotates by $\theta = 10°$ about its vertical axis, with
+    $$
+    R = \begin{pmatrix} \cos\theta & 0 & \sin\theta \\ 0 & 1 & 0 \\ -\sin\theta & 0 & \cos\theta \end{pmatrix}.
+    $$
+    Where does the homography of Theorem 1.6 send the principal point?
+
+    *Solution*: $K^{-1}(320, 240, 1)^\top = (0, 0, 1)^\top$, and $R(0, 0, 1)^\top = (\sin\theta, 0, \cos\theta)^\top$. Applying $K$ and dividing by $\cos\theta$ gives
+    $$
+    (800 \tan\theta + 320,\ 240) = (461.1,\ 240).
+    $$
+    A pan of 10° moves the image content by about 141 pixels horizontally.
+
+3.  **★ Harris by hand.** A window of four pixels with uniform weights has gradients $(1, 0), (1, 0), (0, 1), (0, 1)$. Compute $M$ and the Harris response for $\kappa = 0.05$. Repeat with four gradients equal to $(1, 0)$, and with the first configuration rotated by 45°.
+
+    *Solution*: in the first case $M = \operatorname{diag}(2, 2)$ and $R = 4 - 0.05 \times 16 = 3.2 > 0$: a corner.
+
+    In the second case $M = \operatorname{diag}(4, 0)$ and $R = -0.8 < 0$: an edge. After a rotation by 45°, the gradients become $(1, 1)/\sqrt2$ twice and $(-1, 1)/\sqrt2$ twice, and $M$ is again $\operatorname{diag}(2, 2)$, as Proposition 2.3 predicts.
+
+4.  **★ Sizing RANSAC.** With $p = 0.99$ and 40 % of outliers, how many iterations do the 4-point homography, the 7-point and the 8-point fundamental matrix solvers need?
+
+    *Solution*: with $w = 0.6$, Proposition 3.4 gives $N = \lceil \log 0.01 / \log(1 - 0.6^s) \rceil$:
+    $$
+    N = 34 \ (s = 4), \qquad 163 \ (s = 7), \qquad 272 \ (s = 8).
+    $$
+
+5.  **★ tf-idf by hand.** A database has four images over the words $a, b, c$: image 1 = $\{a, a, b\}$, image 2 = $\{a, c\}$, image 3 = $\{a, b, b\}$, image 4 = $\{a, a, a\}$. Rank them for the query $\{a, b, c\}$ by the cosine similarity of tf-idf vectors.
+
+    *Solution*: the idf weights are $\log(4/4) = 0$ for $a$, $\log 2$ for $b$ and $\log 4 = 2\log 2$ for $c$.
+
+    The query vector is proportional to $(0, 1, 2)$.
+
+    Images 1 and 3 are proportional to $(0, 1, 0)$, image 2 to $(0, 0, 1)$, and image 4 has a zero vector. The scores are $2/\sqrt5 \approx 0.894$ for image 2, $1/\sqrt5 \approx 0.447$ for images 1 and 3, and 0 for image 4. The word $a$, present everywhere, plays no role.
+
+6.  **★ CNN arithmetic.** An input of size $32 \times 32 \times 3$ goes through a $5 \times 5$ convolution with 6 filters (no padding), a $2 \times 2$ max pooling with stride 2, a $5 \times 5$ convolution with 16 filters, and a second pooling. Give the output shapes, the parameter counts and the final receptive field.
+
+    *Solution*: shapes $28 \times 28 \times 6$, $14 \times 14 \times 6$, $10 \times 10 \times 16$ and $5 \times 5 \times 16$. Parameters: $5 \cdot 5 \cdot 3 \cdot 6 + 6 = 456$ and $5 \cdot 5 \cdot 6 \cdot 16 + 16 = 2416$.
+
+    By Proposition 7.4, the receptive field grows as $1 \to 5 \to 6 \to 14 \to 16$, with jumps $1, 1, 2, 2, 4$: each final unit sees a $16 \times 16$ patch.
+
+7.  **★ Lucas–Kanade in a window.** In a window with uniform weights, two pixels have $\nabla I = (1, 0)$ and $I_t = -0.5$, and two have $\nabla I = (0, 1)$ and $I_t = 0.3$. Compute the flow. What happens if all four pixels have $\nabla I = (1, 0)$ and $I_t = -0.5$?
+
+    *Solution*: $M = \operatorname{diag}(2, 2)$ and $b = \sum I_t \nabla I = (-1, 0.6)$, so $u^\star = -M^{-1}b = (0.5, -0.3)$.
+
+    In the second case $M = \operatorname{diag}(4, 0)$ is singular. Only the normal flow $u_n = 0.5$ along the first axis is determined (Proposition 8.2); the second component is arbitrary.
+
+8.  **★ Gradients of LSE pooling.** Show that the gradient of $\operatorname{LSE}_r$ is $\operatorname{softmax}(rs)$, and compute it for $s = (2, 1, 0)$ with $r = 1$ and $r = 5$.
+
+    *Solution*: differentiating $\frac1r \log \sum_i e^{rs_i}$ gives $e^{rs_i} / \sum_j e^{rs_j}$; the constant $-\frac1r\log n$ does not matter.
+
+    For $r = 1$, the gradient is $(0.665, 0.245, 0.090)$; for $r = 5$, it is $(0.9933, 0.0067, 0.00005)$. Large $r$ behaves like max pooling (Proposition 10.3), small $r$ spreads the update.
+
+9.  **★★ Singular values of the essential matrix.** Prove that $E = [t]_\times R$ has singular values $(\|t\|, \|t\|, 0)$. How should a noisy estimate of $E$ be projected onto the essential matrices?
+
+    *Solution*: since $RR^\top = I$ and $[t]_\times^\top = -[t]_\times$,
+    $$
+    EE^\top = [t]_\times RR^\top [t]_\times^\top = -[t]_\times^2 .
+    $$
+    For any $v$, $t \times (t \times v) = (t^\top v)\, t - \|t\|^2 v$, so $-[t]_\times^2 = \|t\|^2 I - tt^\top$.
+
+    Its eigenvalues are $\|t\|^2$ (twice, on $t^\perp$) and 0 (on $t$), which gives the singular values.
+
+    The closest essential matrix in Frobenius norm replaces the singular values $(\sigma_1, \sigma_2, \sigma_3)$ of the estimate by $(\bar\sigma, \bar\sigma, 0)$, with $\bar\sigma = (\sigma_1 + \sigma_2)/2$.
+
+10. **★★ Scale selection in one dimension.** For a 1D Gaussian blob of standard deviation $s$, find the scale that maximises $\sigma^\gamma |L''(0, \sigma)|$. For which $\gamma$ is $\sigma = s$ selected? Compare with Theorem 2.5.
+
+    *Hints and expected result*: $L(\cdot, \sigma) = G_\tau$ with $\tau^2 = s^2 + \sigma^2$, and $G_\tau''(0) = -1/(\sqrt{2\pi}\, \tau^3)$. With $u = \sigma^2$, maximise $u^{\gamma/2}(s^2 + u)^{-3/2}$; the derivative of the logarithm vanishes at
+    $$
+    u = \frac{\gamma\, s^2}{3 - \gamma} .
+    $$
+    With $\gamma = 2$, the selected scale is $\sigma = \sqrt2\, s$; $\sigma = s$ needs $\gamma = 3/2$.
+
+    In 2D the same computation gives $u = \gamma s^2 / (4 - \gamma)$, so $\gamma = 2$ selects $\sigma = s$. In every case the selected scale is proportional to $s$, so covariance holds.
+
+11. **★★ The spatial pyramid kernel is positive definite.** Prove that the kernel of Definition 5.3 is positive definite, and give an explicit feature map for histograms with integer entries.
+
+    *Solution*: each $I_\ell$ is a sum of intersection kernels, positive definite by Proposition 5.2, and $k_L$ is a combination of them with positive weights. For an integer $a \leq A$, let $u(a) \in \{0, 1\}^A$ have $a$ leading ones; then $\min(a, b) = u(a)^\top u(b)$.
+
+    Concatenating, over all cells and words, the vectors $u(h_j)$ multiplied by the square root of the level weight gives an explicit map $\Phi$ with $k_L(h, h') = \Phi(h)^\top \Phi(h')$.
+
+12. **★★ Backpropagation through a convolution.** For a 1D convolution layer $y = x * k$ (finite signals, zero padding) and a loss $\mathcal{L}$, express $\partial\mathcal{L}/\partial x$ and $\partial\mathcal{L}/\partial k$ in terms of $g = \partial\mathcal{L}/\partial y$.
+
+    *Solution*: $y(n) = \sum_m x(n - m)\, k(m)$, so $y(n)$ depends on $x(p)$ with coefficient $k(n - p)$, and on $k(m)$ with coefficient $x(n - m)$. Hence
+    $$
+    \frac{\partial\mathcal{L}}{\partial x(p)} = \sum_n g(n)\, k(n - p), \qquad \frac{\partial\mathcal{L}}{\partial k(m)} = \sum_n g(n)\, x(n - m).
+    $$
+    The first is the cross-correlation of $g$ with $k$, a convolution with the flipped kernel (the "transposed convolution"); the second is the cross-correlation of $g$ with $x$. The backward pass therefore costs two convolutions, as Theorem 6.3 predicts.
+
+13. **★★ Kabsch and reflections.** Let $q_i = Sp_i$ with $S = \operatorname{diag}(1, 1, -1)$, where the centred points $p_i$ have covariance $\operatorname{diag}(a, b, c)$ with $a > b > c > 0$. Compute $H$, its SVD, the unconstrained orthogonal minimiser and the rotation of Theorem 9.3.
+
+    *Solution*: $H = n \operatorname{diag}(a, b, -c)$, so one can take $U = I$, $\Sigma = n\operatorname{diag}(a, b, c)$ and $V = S$. The unconstrained minimiser $VU^\top = S$ is a reflection with zero residual, not a rotation.
+
+    Since $\det(VU^\top) = -1$, Theorem 9.3 gives $R^\star = S\, S = I$, with residual $\sum_i \|p_i - Sp_i\|^2 = 4\sum_i z_i^2 = 4nc$. The correction flips the axis of smallest variance, which costs least.
+
+14. **★★ Normalised eight-point algorithm (Python).** Draw 100 points uniformly in the box $[-2, 2] \times [-1.5, 1.5] \times [4, 10]$ of the first camera frame, and view them with two cameras ($K$ as in Exercise 1, second camera rotated by 15° about the vertical axis and translated by $(1, 0.1, 0.2)$). Add 0.5 px of noise to both images, and implement Algorithm 1.10 with and without normalisation. Compare the median distance of the points to their epipolar lines.
+
+    *Hints and expected result*: build each row as the Kronecker product of $\tilde{x}'$ and $\tilde{x}$, take the last right singular vector, project to rank 2 with an SVD, and undo the normalisation with $F = T'^\top \hat{F} T$. With normalisation, the median epipolar distance is about 0.4–0.5 px, at the noise level. Without it, it is a few pixels (1.5–2.6 px over five seeds in our runs).
+
+Measure also the distance of the *noise-free* points to the epipolar lines of each noisy estimate. It is about 0.1 px with normalisation, but stays at a few pixels without it: the error lies in the estimated $F$, not in the data. On exact data, both versions recover $F$ to machine precision.
+
+15. **★★ Dictionary size and pooling (Python).** In the code of ch. 5, vary the number of atoms $K \in \{16, 32, 64\}$, and compare sum and max pooling of the sparse codes over the spatial pyramid.
+
+    *Hints and expected result*: put the dictionary learning and the evaluation inside a loop over $K$ and over the pooling function. With max pooling, accuracy rises from about 96 % at $K = 16$ to about 99 % at $K = 32$ and $64$. With 16 atoms the two poolings are equivalent; from 32 atoms, max pooling is better (about 98.9 % against 97.0 % at $K = 32$), as Yang et al. (2009) observed on real images.
+
+16. **★★★ Class activation maps on synthetic images (Python).** Generate $32 \times 32$ images of noise, each with a bright horizontal bar as a distractor; in half of them, add a bright $6 \times 6$ square, and label the image by the presence of the square. Train a small CNN ending with global average pooling, compute the class activation map of Proposition 10.6, and measure how often its maximum falls inside the square.
+
+    *Hints and expected result*: three convolutional layers with one pooling, 400 Adam steps on batches of 64, are enough. The image-level accuracy is close to 100 %, and the maximum of the map falls within 4 pixels of the centre of the square in more than 90 % of the positive images, although no position was given. Then make the square always appear next to the bar, and check whether the map still points at the square or moves to the bar — the failure mode discussed after Proposition 10.3.
+
+17. **★★★ Designing a billion-scale search engine.** You must index $10^9$ SIFT descriptors on one server with 64 GB of RAM and answer a query in a few milliseconds. Propose a design based on ch. 4, with memory and time estimates.
+
+    *Hints and expected result*: raw descriptors take 512 GB in single precision, so compression is mandatory. Product quantisation with $m = 8$ bytes per vector uses 8 GB. Exhaustive asymmetric distances would cost $8 \times 10^9$ look-ups per query, about seconds.
+
+    A coarse quantiser with $2^{16}$ cells and an inverted file reduces the scan: visiting 64 cells touches about $10^6$ vectors, that is, $8 \times 10^6$ look-ups, a few milliseconds. Encoding the residual to the coarse centroid improves accuracy (the IVFADC scheme of Jégou, Douze and Schmid, 2011); re-ranking the best few hundred candidates with finer codes recovers precision.
+
+18. **★★★ Repeatability under viewpoint change.** Take a textured image (a synthetic random texture or any photograph), warp it by affine maps that simulate a growing tilt of the viewing direction, and measure the repeatability of Harris corners and of difference-of-Gaussian blobs: the fraction of points detected in the reference image whose transformed position is detected again within 2 pixels.
+
+    *Hints and expected result*: use the ground-truth affine maps to transfer points, and plot repeatability against the tilt. Both detectors degrade as the tilt grows, because they are covariant to similarities only. Adding affine adaptation by the structure tensor, as in the note of ch. 2, flattens the curve; compare your curves with those of Mikolajczyk and Schmid (2004).
+
+## Projects and assessment {#projects}
+
+Officially, the course is assessed by three programming assignments, worth 50 % of the grade, and by a research-oriented final project, including a report and a presentation, worth the other 50 % (master-mva.com); the Université Paris-Saclay record lists partial continuous assessment. The solo subjects below are sized like an assignment or a light final project, and the group subjects like a full final project. Each subject is graded with the rubric at the end of this section, against its stated success criterion. The written exam is a self-assessment proposal, since the official assessment includes no written exam.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Panorama stitching from scratch.** Question: how accurately can a rotating camera be registered from local features alone?
+    -   Implement Harris or DoG detection, a simple gradient-histogram descriptor, ratio-test matching, normalised DLT and RANSAC; warp and blend at least three of your own photographs taken from one point.
+    -   Success criterion: inlier reprojection error below 1 px, and a mosaic without visible seams.
+    -   Deliverables: code, a 4–6 page report with the error statistics, a 10-minute talk. Chapters: ch. 1, 2, 3.
+    -   Evaluation: the rubric below, with weight on the RANSAC analysis.
+
+2.  **[Solo · ≈ 20 h] Paper study: Video Google (Sivic and Zisserman, 2003).** Question: how much do vocabulary size, tf-idf weighting and spatial re-ranking contribute to retrieval?
+    -   Data: the public Oxford Buildings data set (Philbin et al., 2007), with SIFT features from OpenCV or VLFeat.
+    -   Implement k-means vocabularies of several sizes, an inverted file, tf-idf scoring and RANSAC re-ranking of the top 100 results.
+    -   Success criterion: a curve of mean average precision against vocabulary size, and a measured gain from re-ranking.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters: ch. 2, 3, 4.
+
+3.  **[Solo · ≈ 20 h] Paper study: class activation maps (Zhou et al., 2016).** Question: how well does a classifier trained with image labels localise objects?
+    -   Data: CUB-200-2011 birds, which provide boxes for evaluation only (Wah et al., 2011); a pre-trained ResNet-18 fine-tuned on a free GPU tier.
+    -   Compute class activation maps, threshold them into boxes, and measure the fraction of images with IoU above 0.5; compare max, average and LSE pooling.
+    -   Success criterion: reproduce the qualitative finding that global average pooling localises the whole object better than global max pooling.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters: ch. 7, 10.
+
+4.  **[Solo · ≈ 20 h] Optical flow, classical against learned.** Question: where does Lucas–Kanade fail, and does a coarse-to-fine pyramid fix it?
+    -   Data: the public MPI-Sintel training set, with ground-truth flow (Butler et al., 2012).
+    -   Implement pyramidal Lucas–Kanade and Horn–Schunck, measure the average end-point error by region (textured, untextured, occlusion boundaries), and compare with published RAFT numbers.
+    -   Success criterion: a measured reduction of the end-point error by the pyramid on pixels moving more than 5 px, and error maps whose large errors coincide with a small eigenvalue $\lambda_2$ of the structure tensor (report the correlation), as Proposition 8.2 predicts.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters: ch. 2, 8.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Two-stream action recognition on UCF101.** Question: how much does motion add to appearance for action classification?
+    -   Data: UCF101, split 1 (Soomro, Zamir and Shah, 2012); a free GPU tier. Computing the flow of all 13 320 clips is the bottleneck: sample 5 frame pairs per clip, or restrict the study to the first 25 classes.
+    -   Member 1 computes optical flow and trains the flow stream; member 2 fine-tunes an ImageNet-pretrained RGB stream; member 3 inflates the RGB network into a small 3D CNN (Proposition 8.7) and runs the fusion and the evaluation.
+    -   Success criterion: report the accuracy of each stream and of their fusion, and a measured gain from fusion, as in Simonyan and Zisserman (2014).
+    -   Deliverables: code, a joint 6–8 page report, a 15-minute talk with a short individual part each. Chapters: ch. 7, 8.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Paper study: weakly supervised detection (Bilen and Vedaldi, 2016).** Question: can a detector be trained with image labels only?
+    -   Data: PASCAL VOC 2007 (Everingham et al., 2010), with region proposals from selective search or edge boxes, and an ImageNet-pretrained backbone.
+    -   Member 1 builds the proposal pipeline and the evaluation (CorLoc and AP); member 2 implements the two-stream WSDDN head of Definition 10.5; member 3 studies the failure modes (parts, context) and a fix such as a spatial regulariser or LSE pooling.
+    -   Success criterion: reach, with the same backbone, a CorLoc within a few points of the value reported by Bilen and Vedaldi (2016), and explain the main failure modes with examples.
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Chapters: ch. 7, 10.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Point clouds against multiple views on ModelNet10.** Question: which 3D representation is most accurate and most robust?
+    -   Data: ModelNet10 (Wu et al., 2015).
+    -   Member 1 trains a PointNet on sampled point clouds; member 2 trains a multi-view CNN on rendered views; member 3 builds the robustness benchmark (missing points, noise, rotations) and an ICP-based nearest-shape baseline.
+    -   Success criterion: test accuracies for the three methods and robustness curves, with the effect of rotation augmentation measured.
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Chapters: ch. 3, 7, 9.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet of notes allowed, no electronic devices, four exercises.
+
+1.  **Question (5 points).** Describe the full pipeline of instance-level recognition, from two images to a verified detection: detection, description, matching, robust estimation. For each step, state the invariance or the robustness it provides. *Expected*: covariant detection with scale selection; an invariant descriptor (rotation by the dominant orientation, illumination by normalisation); the ratio test; RANSAC with a homography or a fundamental matrix; acceptance on the number of inliers; the number of RANSAC iterations as a function of the inlier ratio.
+
+2.  **Computation (5 points).** A camera has $f = 1000$ px, principal point $(500, 400)$ and zero skew. (a) Project the point $(0.2, -0.1, 2)$ given in the camera frame. (b) The camera pans by 5° about its vertical axis: where does the principal point go? (c) How many RANSAC iterations does a homography need at 60 % of outliers and confidence 0.99?
+
+    *Expected*: (a) $(600, 350)$; (b) $(1000\tan 5° + 500,\ 400) \approx (587.5, 400)$; (c) $w^4 = 0.0256$, so $N = \lceil \log 0.01 / \log 0.9744 \rceil = 178$.
+
+3.  **Short proof (5 points).** Prove that the Lucas–Kanade problem has a unique solution if and only if the structure tensor of the window is invertible, and give the solution. Explain why corners are good features to track, and relate the result to the aperture problem. *Expected*: the argument of Theorem 8.3 (quadratic form, normal equations, kernel of $M$ forces $\nabla I^\top v = 0$); both eigenvalues large at corners; on an edge $M$ has rank 1 and only the normal flow is determined.
+
+4.  **Convolutional networks (5 points).** (a) Prove that a convolutional layer with circular padding and stride 1 commutes with translations, and that global average pooling makes a network invariant. (b) Compute the receptive field and the parameter count of three stacked $3 \times 3$ convolutions with 64 channels, and compare with one $7 \times 7$ convolution. *Expected*: (a) Proposition 7.3; (b) receptive field 7 in both cases; $3 \times (9 \cdot 64 \cdot 64 + 64) = 110\,784$ against $49 \cdot 64 \cdot 64 + 64 = 200\,768$ parameters, and three non-linearities against one.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of the implementation | 25 % | The method of the paper or chapter is implemented faithfully, and tested on a case with a known answer |
+| Experimental methodology | 25 % | Clear protocol, public data, baselines, several seeds or splits, honest error bars |
+| Understanding of the method | 20 % | The report explains why the method works, states its assumptions and links them to the course results |
+| Analysis of failures | 15 % | Failure cases are shown, explained and, when possible, fixed |
+| Report and presentation | 15 % | Clear structure, readable figures, the main result stated in one sentence, questions answered precisely |
+
+## References {#refs}
+
+Official references (master-mva.com):
+
+-   D. A. Forsyth and J. Ponce, *Computer Vision: A Modern Approach*, Prentice-Hall, 2nd edition, 2011.
+-   J. Ponce, M. Hebert, C. Schmid and A. Zisserman (eds.), *Toward Category-Level Object Recognition*, Lecture Notes in Computer Science 4170, Springer-Verlag, 2007.
+-   R. Szeliski, *Computer Vision: Algorithms and Applications*, Springer, 2010. Available online at <http://szeliski.org/Book/>.
+
+Textbooks:
+
+-   R. Hartley and A. Zisserman, *Multiple View Geometry in Computer Vision*, Cambridge University Press, 2nd edition, 2004.
+-   I. Goodfellow, Y. Bengio and A. Courville, *Deep Learning*, MIT Press, 2016.
+-   G. H. Golub and C. F. Van Loan, *Matrix Computations*, Johns Hopkins University Press, 4th edition, 2013.
+
+Camera geometry, local features and matching:
+
+-   Z. Zhang, "A flexible new technique for camera calibration", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 22(11), 1330–1334, 2000.
+-   R. Hartley, "In defense of the eight-point algorithm", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 19(6), 580–593, 1997.
+-   D. Nistér, "An efficient solution to the five-point relative pose problem", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 26(6), 756–770, 2004.
+-   N. Snavely, S. M. Seitz and R. Szeliski, "Photo tourism: exploring photo collections in 3D", *ACM Transactions on Graphics (SIGGRAPH)* 25(3), 835–846, 2006.
+-   C. Harris and M. Stephens, "A combined corner and edge detector", *Alvey Vision Conference*, 1988.
+-   T. Lindeberg, "Feature detection with automatic scale selection", *International Journal of Computer Vision* 30(2), 79–116, 1998.
+-   D. G. Lowe, "Distinctive image features from scale-invariant keypoints", *International Journal of Computer Vision* 60(2), 91–110, 2004.
+-   K. Mikolajczyk and C. Schmid, "Scale & affine invariant interest point detectors", *International Journal of Computer Vision* 60(1), 63–86, 2004.
+-   D. DeTone, T. Malisiewicz and A. Rabinovich, "SuperPoint: self-supervised interest point detection and description", *CVPR Workshops*, 2018.
+-   M. A. Fischler and R. C. Bolles, "Random sample consensus: a paradigm for model fitting with applications to image analysis and automated cartography", *Communications of the ACM* 24(6), 381–395, 1981.
+-   O. Chum, J. Matas and J. Kittler, "Locally optimized RANSAC", *DAGM Symposium on Pattern Recognition*, 2003.
+-   O. Chum and J. Matas, "Matching with PROSAC — progressive sample consensus", *CVPR*, 2005.
+
+Visual search and category-level recognition:
+
+-   J. Sivic and A. Zisserman, "Video Google: a text retrieval approach to object matching in videos", *ICCV*, 2003.
+-   D. Nistér and H. Stewénius, "Scalable recognition with a vocabulary tree", *CVPR*, 2006.
+-   J. Philbin, O. Chum, M. Isard, J. Sivic and A. Zisserman, "Object retrieval with large vocabularies and fast spatial matching", *CVPR*, 2007.
+-   O. Chum, J. Philbin, J. Sivic, M. Isard and A. Zisserman, "Total recall: automatic query expansion with a generative feature model for object retrieval", *ICCV*, 2007.
+-   H. Jégou, M. Douze and C. Schmid, "Product quantization for nearest neighbor search", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 33(1), 117–128, 2011.
+-   H. Jégou, M. Douze, C. Schmid and P. Pérez, "Aggregating local descriptors into a compact image representation", *CVPR*, 2010.
+-   J. Johnson, M. Douze and H. Jégou, "Billion-scale similarity search with GPUs", *IEEE Transactions on Big Data*, 2019.
+-   Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 42(4), 824–836, 2020.
+-   G. Csurka, C. Dance, L. Fan, J. Willamowski and C. Bray, "Visual categorization with bags of keypoints", *ECCV Workshop on Statistical Learning in Computer Vision*, 2004.
+-   S. Lazebnik, C. Schmid and J. Ponce, "Beyond bags of features: spatial pyramid matching for recognizing natural scene categories", *CVPR*, 2006.
+-   F. Perronnin, J. Sánchez and T. Mensink, "Improving the Fisher kernel for large-scale image classification", *ECCV*, 2010.
+-   J. Sánchez, F. Perronnin, T. Mensink and J. Verbeek, "Image classification with the Fisher vector: theory and practice", *International Journal of Computer Vision* 105(3), 222–245, 2013.
+-   R. Tibshirani, "Regression shrinkage and selection via the lasso", *Journal of the Royal Statistical Society, Series B* 58(1), 267–288, 1996.
+-   B. A. Olshausen and D. J. Field, "Emergence of simple-cell receptive field properties by learning a sparse code for natural images", *Nature* 381, 607–609, 1996.
+-   M. Aharon, M. Elad and A. Bruckstein, "K-SVD: an algorithm for designing overcomplete dictionaries for sparse representation", *IEEE Transactions on Signal Processing* 54(11), 4311–4322, 2006.
+-   J. Mairal, F. Bach, J. Ponce and G. Sapiro, "Online dictionary learning for sparse coding", *ICML*, 2009.
+-   J. Yang, K. Yu, Y. Gong and T. Huang, "Linear spatial pyramid matching using sparse coding for image classification", *CVPR*, 2009.
+-   A. Beck and M. Teboulle, "A fast iterative shrinkage-thresholding algorithm for linear inverse problems", *SIAM Journal on Imaging Sciences* 2(1), 183–202, 2009.
+
+Neural networks and convolutional networks:
+
+-   G. Cybenko, "Approximation by superpositions of a sigmoidal function", *Mathematics of Control, Signals and Systems* 2(4), 303–314, 1989.
+-   K. Hornik, "Approximation capabilities of multilayer feedforward networks", *Neural Networks* 4(2), 251–257, 1991.
+-   M. Leshno, V. Ya. Lin, A. Pinkus and S. Schocken, "Multilayer feedforward networks with a nonpolynomial activation function can approximate any function", *Neural Networks* 6(6), 861–867, 1993.
+-   D. P. Kingma and J. Ba, "Adam: a method for stochastic optimization", *ICLR*, 2015.
+-   I. Loshchilov and F. Hutter, "Decoupled weight decay regularization", *ICLR*, 2019.
+-   L. Bottou, F. E. Curtis and J. Nocedal, "Optimization methods for large-scale machine learning", *SIAM Review* 60(2), 223–311, 2018.
+-   K. He, X. Zhang, S. Ren and J. Sun, "Delving deep into rectifiers: surpassing human-level performance on ImageNet classification", *ICCV*, 2015.
+-   N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever and R. Salakhutdinov, "Dropout: a simple way to prevent neural networks from overfitting", *Journal of Machine Learning Research* 15, 1929–1958, 2014.
+-   S. Ioffe and C. Szegedy, "Batch normalization: accelerating deep network training by reducing internal covariate shift", *ICML*, 2015.
+-   Y. LeCun, L. Bottou, Y. Bengio and P. Haffner, "Gradient-based learning applied to document recognition", *Proceedings of the IEEE* 86(11), 2278–2324, 1998.
+-   A. Krizhevsky, I. Sutskever and G. E. Hinton, "ImageNet classification with deep convolutional neural networks", *NeurIPS*, 2012.
+-   K. Simonyan and A. Zisserman, "Very deep convolutional networks for large-scale image recognition", *ICLR*, 2015.
+-   K. He, X. Zhang, S. Ren and J. Sun, "Deep residual learning for image recognition", *CVPR*, 2016.
+-   R. Zhang, "Making convolutional networks shift-invariant again", *ICML*, 2019.
+-   A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit and N. Houlsby, "An image is worth 16x16 words: transformers for image recognition at scale", *ICLR*, 2021.
+-   M. Oquab, L. Bottou, I. Laptev and J. Sivic, "Learning and transferring mid-level image representations using convolutional neural networks", *CVPR*, 2014.
+-   R. Girshick, J. Donahue, T. Darrell and J. Malik, "Rich feature hierarchies for accurate object detection and semantic segmentation", *CVPR*, 2014.
+-   S. Ren, K. He, R. Girshick and J. Sun, "Faster R-CNN: towards real-time object detection with region proposal networks", *NeurIPS*, 2015.
+-   J. Redmon, S. Divvala, R. Girshick and A. Farhadi, "You only look once: unified, real-time object detection", *CVPR*, 2016.
+-   N. Carion, F. Massa, G. Synnaeve, N. Usunier, A. Kirillov and S. Zagoruyko, "End-to-end object detection with transformers", *ECCV*, 2020.
+-   J. Long, E. Shelhamer and T. Darrell, "Fully convolutional networks for semantic segmentation", *CVPR*, 2015.
+-   K. He, G. Gkioxari, P. Dollár and R. Girshick, "Mask R-CNN", *ICCV*, 2017.
+-   M. Everingham, L. Van Gool, C. K. I. Williams, J. Winn and A. Zisserman, "The PASCAL Visual Object Classes (VOC) challenge", *International Journal of Computer Vision* 88(2), 303–338, 2010.
+-   T.-Y. Lin, M. Maire, S. Belongie, J. Hays, P. Perona, D. Ramanan, P. Dollár and C. L. Zitnick, "Microsoft COCO: common objects in context", *ECCV*, 2014.
+
+Motion and human actions:
+
+-   B. D. Lucas and T. Kanade, "An iterative image registration technique with an application to stereo vision", *IJCAI*, 1981.
+-   B. K. P. Horn and B. G. Schunck, "Determining optical flow", *Artificial Intelligence* 17, 185–203, 1981.
+-   J. Shi and C. Tomasi, "Good features to track", *CVPR*, 1994.
+-   A. Dosovitskiy, P. Fischer, E. Ilg, P. Häusser, C. Hazırbaş, V. Golkov, P. van der Smagt, D. Cremers and T. Brox, "FlowNet: learning optical flow with convolutional networks", *ICCV*, 2015.
+-   Z. Teed and J. Deng, "RAFT: recurrent all-pairs field transforms for optical flow", *ECCV*, 2020.
+-   D. J. Butler, J. Wulff, G. B. Stanley and M. J. Black, "A naturalistic open source movie for optical flow evaluation", *ECCV*, 2012.
+-   I. Laptev, "On space-time interest points", *International Journal of Computer Vision* 64(2–3), 107–123, 2005.
+-   I. Laptev, M. Marszałek, C. Schmid and B. Rozenfeld, "Learning realistic human actions from movies", *CVPR*, 2008.
+-   H. Wang and C. Schmid, "Action recognition with improved trajectories", *ICCV*, 2013.
+-   K. Simonyan and A. Zisserman, "Two-stream convolutional networks for action recognition in videos", *NeurIPS*, 2014.
+-   D. Tran, L. Bourdev, R. Fergus, L. Torresani and M. Paluri, "Learning spatiotemporal features with 3D convolutional networks", *ICCV*, 2015.
+-   J. Carreira and A. Zisserman, "Quo vadis, action recognition? A new model and the Kinetics dataset", *CVPR*, 2017.
+-   G. Varol, I. Laptev and C. Schmid, "Long-term temporal convolutions for action recognition", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 40(6), 1510–1517, 2018.
+-   A. Arnab, M. Dehghani, G. Heigold, C. Sun, M. Lučić and C. Schmid, "ViViT: a video vision transformer", *ICCV*, 2021.
+-   K. Soomro, A. R. Zamir and M. Shah, "UCF101: a dataset of 101 human actions classes from videos in the wild", arXiv:1212.0402, 2012.
+-   W. Kay, J. Carreira, K. Simonyan, B. Zhang, C. Hillier, S. Vijayanarasimhan, F. Viola, T. Green, T. Back, P. Natsev, M. Suleyman and A. Zisserman, "The Kinetics human action video dataset", arXiv:1705.06950, 2017.
+-   G. Varol, J. Romero, X. Martin, N. Mahmood, M. J. Black, I. Laptev and C. Schmid, "Learning from synthetic humans", *CVPR*, 2017.
+
+3D object recognition:
+
+-   W. Kabsch, "A solution for the best rotation to relate two sets of vectors", *Acta Crystallographica A* 32, 922–923, 1976.
+-   S. Umeyama, "Least-squares estimation of transformation parameters between two point patterns", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 13(4), 376–380, 1991.
+-   P. J. Besl and N. D. McKay, "A method for registration of 3-D shapes", *IEEE Transactions on Pattern Analysis and Machine Intelligence* 14(2), 239–256, 1992.
+-   V. Lepetit, F. Moreno-Noguer and P. Fua, "EPnP: an accurate O(n) solution to the PnP problem", *International Journal of Computer Vision* 81(2), 155–166, 2009.
+-   C. R. Qi, H. Su, K. Mo and L. J. Guibas, "PointNet: deep learning on point sets for 3D classification and segmentation", *CVPR*, 2017.
+-   H. Su, S. Maji, E. Kalogerakis and E. Learned-Miller, "Multi-view convolutional neural networks for 3D shape recognition", *ICCV*, 2015.
+-   D. Maturana and S. Scherer, "VoxNet: a 3D convolutional neural network for real-time object recognition", *IROS*, 2015.
+-   Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang and J. Xiao, "3D ShapeNets: a deep representation for volumetric shapes", *CVPR*, 2015.
+-   M. Aubry, D. Maturana, A. A. Efros, B. C. Russell and J. Sivic, "Seeing 3D chairs: exemplar part-based 2D-3D alignment using a large dataset of CAD models", *CVPR*, 2014.
+-   Y. Labbé, J. Carpentier, M. Aubry and J. Sivic, "CosyPose: consistent multi-view multi-object 6D pose estimation", *ECCV*, 2020.
+-   M. Loper, N. Mahmood, J. Romero, G. Pons-Moll and M. J. Black, "SMPL: a skinned multi-person linear model", *ACM Transactions on Graphics (SIGGRAPH Asia)* 34(6), 2015.
+-   G. Varol, D. Ceylan, B. Russell, J. Yang, E. Yumer, I. Laptev and C. Schmid, "BodyNet: volumetric inference of 3D human body shapes", *ECCV*, 2018.
+
+Weak, self- and language supervision:
+
+-   T. G. Dietterich, R. H. Lathrop and T. Lozano-Pérez, "Solving the multiple instance problem with axis-parallel rectangles", *Artificial Intelligence* 89(1–2), 31–71, 1997.
+-   H. Bilen and A. Vedaldi, "Weakly supervised deep detection networks", *CVPR*, 2016.
+-   M. Oquab, L. Bottou, I. Laptev and J. Sivic, "Is object localization for free? Weakly-supervised learning with convolutional neural networks", *CVPR*, 2015.
+-   B. Zhou, A. Khosla, A. Lapedriza, A. Oliva and A. Torralba, "Learning deep features for discriminative localization", *CVPR*, 2016.
+-   C. Wah, S. Branson, P. Welinder, P. Perona and S. Belongie, "The Caltech-UCSD Birds-200-2011 dataset", Technical Report CNS-TR-2011-001, California Institute of Technology, 2011.
+-   A. van den Oord, Y. Li and O. Vinyals, "Representation learning with contrastive predictive coding", arXiv:1807.03748, 2018.
+-   T. Chen, S. Kornblith, M. Norouzi and G. Hinton, "A simple framework for contrastive learning of visual representations", *ICML*, 2020.
+-   A. Radford, J. W. Kim, C. Hallacy, A. Ramesh, G. Goh, S. Agarwal, G. Sastry, A. Askell, P. Mishkin, J. Clark, G. Krueger and I. Sutskever, "Learning transferable visual models from natural language supervision", *ICML*, 2021.
+-   P. Bojanowski, R. Lajugie, F. Bach, I. Laptev, J. Ponce, C. Schmid and J. Sivic, "Weakly supervised action labeling in videos under ordering constraints", *ECCV*, 2014.
+-   J.-B. Alayrac, P. Bojanowski, N. Agrawal, J. Sivic, I. Laptev and S. Lacoste-Julien, "Unsupervised learning from narrated instruction videos", *CVPR*, 2016.
+-   A. Miech, D. Zhukov, J.-B. Alayrac, M. Tapaswi, I. Laptev and J. Sivic, "HowTo100M: learning a text-video embedding by watching hundred million narrated video clips", *ICCV*, 2019.
+
+Research directions (ch. 11):
+
+-   M. Caron, H. Touvron, I. Misra, H. Jégou, J. Mairal, P. Bojanowski and A. Joulin, "Emerging properties in self-supervised vision transformers", *ICCV*, 2021.
+-   M. Oquab, T. Darcet, T. Moutakanni, H. Vo, M. Szafraniec, V. Khalidov, P. Fernandez, D. Haziza, F. Massa, A. El-Nouby et al., "DINOv2: learning robust visual features without supervision", *Transactions on Machine Learning Research*, 2024.
+-   K. He, X. Chen, S. Xie, Y. Li, P. Dollár and R. Girshick, "Masked autoencoders are scalable vision learners", *CVPR*, 2022.
+-   A. Kirillov, E. Mintun, N. Ravi, H. Mao, C. Rolland, L. Gustafson, T. Xiao, S. Whitehead, A. C. Berg, W.-Y. Lo, P. Dollár and R. Girshick, "Segment anything", *ICCV*, 2023.
+-   D. Hendrycks and T. Dietterich, "Benchmarking neural network robustness to common corruptions and perturbations", *ICLR*, 2019.
+-   J.-B. Alayrac, J. Donahue, P. Luc, A. Miech et al., "Flamingo: a visual language model for few-shot learning", *NeurIPS*, 2022.
+-   A. Yang, A. Miech, J. Sivic, I. Laptev and C. Schmid, "Just ask: learning to answer questions from millions of narrated videos", *ICCV*, 2021.
+-   B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi and R. Ng, "NeRF: representing scenes as neural radiance fields for view synthesis", *ECCV*, 2020.
+-   B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, "3D Gaussian splatting for real-time radiance field rendering", *ACM Transactions on Graphics (SIGGRAPH)* 42(4), 2023.
+-   S. Wang, V. Leroy, Y. Cabon, B. Chidlovskii and J. Revaud, "DUSt3R: geometric 3D vision made easy", *CVPR*, 2024.
+-   P.-E. Sarlin, D. DeTone, T. Malisiewicz and A. Rabinovich, "SuperGlue: learning feature matching with graph neural networks", *CVPR*, 2020.
+-   J. Sun, Z. Shen, Y. Wang, H. Bao and X. Zhou, "LoFTR: detector-free local feature matching with transformers", *CVPR*, 2021.
+-   J. L. Schönberger and J.-M. Frahm, "Structure-from-motion revisited", *CVPR*, 2016.

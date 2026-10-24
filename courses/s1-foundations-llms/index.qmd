@@ -1,0 +1,2605 @@
+---
+title: "Foundations of Large Language Models"
+subtitle: "M2 MVA · Semester 1 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: probability, gradients and the cost of matrix products](#ch0)
+-   [1. Language models and their life cycle](#ch1)
+-   [2. The training loop and its optimizers](#ch2)
+-   [3. The Transformer model](#ch3)
+-   [4. Pretraining and scaling laws](#ch4)
+-   [5. Post-training and alignment](#ch5)
+-   [6. Decoding and inference optimization](#ch6)
+-   [7. Alternative architectures and hardware efficiency](#ch7)
+-   [8. Agents](#ch8)
+-   [9. Advanced topics: interpretability, small models, vision and robotics](#ch9)
+-   [10. Complements for self-study](#ch10)
+-   [11. Research directions and open problems](#ch11)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Foundations of Large Language Models
+  Official title       Foundations of Large Language Models
+  Instructors          N. FIJALKOW, D. LOUAPRE (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 24 h (assumed: master-mva.com: 8 sessions of 3 h (“Chaque session dure 3h”); Université Paris-Saclay table does not list the course)
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Deep Learning, Natural Language Processing
+  Language             Not displayed; the course description on master-mva.com is written in French
+  Assessment           Several take-home assignments and a final exam (master-mva.com, “Mode de validation”); no weights are displayed, and the Université Paris-Saclay programme table does not list the course
+  Prerequisites        A command of Python and basic linear algebra (master-mva.com, “Prè-requis”)
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics or computer science who has already trained a small neural network and wants to understand, from the equations to the serving engine, how a large language model is built, adapted and used.
+
+**Empirical first**: a model with 7 billion parameters stored in bf16 occupies 14 GB. On a GPU that reads its memory at 2 TB/s, it cannot generate more than about 140 tokens per second for a single user, however fast its arithmetic units are. And in 2022, Chinchilla (70 billion parameters, 1.4 trillion tokens) beat Gopher (280 billion parameters, 300 billion tokens), trained with the same compute. This course explains both facts, and many others of the same kind.
+
+The course follows a model through its whole life: tokenization and architecture, pretraining on trillions of tokens, post-training to follow instructions and to reason, efficient inference, and finally its use inside agents. It runs alongside [Deep Learning](../s1-deep-learning/index.html) and [Advanced Learning for Text and Graph Data](../s1-altegrad/index.html), and it prepares [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html) and [Large Language Models for Code and Proof](../s2-llm-code-proof/index.html) in the second semester.
+
+### What you will be able to do
+
+-   Define a language model, compute its perplexity and explain why transformers replaced recurrent networks.
+-   Train a byte-pair-encoding tokenizer and serialize a conversation with tool calls into tokens.
+-   Write a training loop and compare SGD, AdamW and Muon, with the guarantees and the geometry behind each.
+-   Derive the key properties of attention, pre-norm residual blocks, RMSNorm and rotary position embeddings.
+-   Count the parameters, FLOPs and bytes of a model, and split a compute budget with the Chinchilla scaling law.
+-   Build a deduplication pipeline with MinHash and explain how pretraining data is filtered and mixed.
+-   Fine-tune with LoRA, and derive RLHF's optimal policy, the DPO loss and GRPO's group advantages.
+-   Evaluate a model without bias (pass@k) and recognize data contamination.
+-   Size the KV cache, place prefill and decode on the roofline, and prove that speculative decoding is exact.
+-   Compare mixture-of-experts, grouped-query attention and state-space models on memory and compute.
+-   Design a retrieval-augmented agent that calls tools, and measure its reliability.
+-   Read current work on interpretability, small models, vision transformers and robot policies.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents the course as a deep immersion in the architecture, the mathematics and the engineering of large language models (LLMs). Beyond theory, its stated objective is to understand the Transformer model and to master the complete life cycle of a model.
+
+The description announces eight sessions of 3 hours, each with a title and a list of topics, matched one by one below; the course is not open to external auditors. The Université Paris-Saclay programme table does not list the course.
+
+| Official topic | Course section |
+|---|---|
+| Objective: understand the Transformer model | [ch. 3](#ch3), with the alternatives of [ch. 7](#ch7) |
+| Objective: master the complete life cycle of a model | [ch. 1.4](#ch1-4) for the overview, then [ch. 4](#ch4) (pretraining), [ch. 5](#ch5) (post-training) and [ch. 6](#ch6) (inference) |
+| Session 1, Language models: history, the limits of RNNs and LSTMs | [ch. 1.1–1.2](#ch1-2) (Definition 1.1, Proposition 1.4) |
+| Session 1: specificities of encoders, decoders and reasoning models | [ch. 1.3](#ch1-3) |
+| Session 1: life cycle of a model, pre- and post-training, inference | [ch. 1.4](#ch1-4) |
+| Session 1: training loop and optimization, from SGD to Muon through AdamW | [ch. 2](#ch2) (Theorem 2.2, Proposition 2.4, Proposition 2.6) |
+| Session 1: tokenization, conversations, function calling | [ch. 1.5–1.6](#ch1-5) (Definition 1.5, Code 1.7, Definition 1.6); function calling at work in [ch. 8.3](#ch8-3) |
+| Session 1: the ecosystem, Hugging Face, proprietary APIs and open-source frameworks | [ch. 1.7](#ch1-7) |
+| Session 2, The Transformer model: attention mechanisms | [ch. 3.1](#ch3-1) |
+| Session 2: stability and normalization, pre-norm vs post-norm, RMSNorm, residual connections | [ch. 3.2](#ch3-2) (Proposition 3.5) |
+| Session 2: position embeddings, sinusoidal method, rotary embeddings (RoPE) | [ch. 3.3](#ch3-3) (Theorem 3.8) |
+| Session 2: numerical precision, training in FP16/BF16, the stakes of quantization | [ch. 3.4](#ch3-4); quantization itself in [ch. 6.5](#ch6-5) |
+| Session 3, Pretraining and scaling laws: data engineering, filtering, deduplication and mixing; data sources, quality classifiers, data mixing and midtraining; legal aspects and synthetic data | [ch. 4.1](#ch4-1) (Definition 4.1, Theorem 4.2, Code 4.3), with banded MinHash in [ch. 10.2](#ch10-2) |
+| Session 3: accounting, forward and backward FLOPs | [ch. 4.2](#ch4-2) (Proposition 4.4) |
+| Session 3: Chinchilla scaling laws, the ratio of parameters, tokens and compute | [ch. 4.3](#ch4-3) (Theorem 4.7) |
+| Session 3: learning-rate schedulers | [ch. 4.4](#ch4-4) (Definition 4.9) |
+| Session 3: choice of hyperparameters | [ch. 4.4](#ch4-4) |
+| Session 3: arithmetic precision and stability | [ch. 4.5](#ch4-5), building on [ch. 3.4](#ch3-4) |
+| Session 3 (official note): distributed training and parallelism | Not covered here, as the official note announces: they belong to [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html); [ch. 4.2](#ch4-2) only gives the memory budget that makes them necessary |
+| Session 4, Post-training and alignment: efficient fine-tuning, PEFT (LoRA, QLoRA) and distillation | [ch. 5.1](#ch5-1) (Definitions 5.1 and 5.2) |
+| Session 4: human alignment, SFT and RLHF (PPO) | [ch. 5.1–5.2](#ch5-2) (Theorem 5.4) |
+| Session 4: new frontiers, DPO, GRPO, verifiable rewards (RLVR) | [ch. 5.3](#ch5-3) (Theorem 5.5, Definition 5.6, Proposition 5.7) |
+| Session 4: test-time compute | [ch. 5.4](#ch5-4) (Proposition 5.8) |
+| Session 4: evaluation, benchmarks (MMLU, HumanEval) and data contamination | [ch. 5.5](#ch5-5) (Theorem 5.9) |
+| Session 5, Decoding and inference optimization: decoding strategies | [ch. 6.1](#ch6-1) |
+| Session 5: hardware, GPU specifications (VRAM, memory bandwidth) and FlashAttention | [ch. 6.2](#ch6-2) (Definition 6.3), with the online softmax in [ch. 10.3](#ch10-3) |
+| Session 5: prefill vs decode, arithmetic intensity | [ch. 6.3](#ch6-3) (Propositions 6.4 and 6.5) |
+| Session 5: acceleration, KV cache, continuous batching, speculative decoding, PagedAttention, vLLM | [ch. 6.3–6.4](#ch6-4) (Theorem 6.6) |
+| Session 5: quantization | [ch. 6.5](#ch6-5) (Definition 6.7), with the main methods in [ch. 10.4](#ch10-4) |
+| Session 5: long context, RoPE extensions, sliding window, YaRN, attention sinks, ring attention | [ch. 6.6](#ch6-6) |
+| Session 6, Alternative architectures and hardware efficiency: mixture of experts, routing, load balancing, instabilities and pathologies | [ch. 7.1](#ch7-1) (Proposition 7.3) |
+| Session 6: attention variants, grouped-query (GQA) and multi-query (MQA) attention | [ch. 7.2](#ch7-2) |
+| Session 6: beyond the Transformer, state-space models (Mamba) and recursive architectures | [ch. 7.3](#ch7-3) (Propositions 7.5 and 7.7), with parallel scans in [ch. 10.5](#ch10-5) |
+| Session 7, Agents: retrieval-augmented generation and long-term memory | [ch. 8.2](#ch8-2) |
+| Session 7: tool use, function calling and external tools | [ch. 8.3](#ch8-3) |
+| Session 7: the MCP protocol | [ch. 8.4](#ch8-4) |
+| Session 7: AI coding agents | [ch. 8.5](#ch8-5) |
+| Session 7: agentic benchmarks | [ch. 8.5](#ch8-5) (Definition 8.6) |
+| Session 8, Advanced topics: mechanistic interpretability | [ch. 9.1](#ch9-1) (Definition 9.1, Code 9.2), with superposition in [ch. 10.6](#ch10-6) |
+| Session 8: tiny models, small language models for edge computing | [ch. 9.2](#ch9-2) |
+| Session 8: multimodality, vision transformers | [ch. 9.3](#ch9-3) |
+| Session 8: robotics | [ch. 9.4](#ch9-4) |
+
+Extensions beyond the syllabus: the review of [ch. 0](#ch0), the convergence and optimality proofs of ch. 2, 4 and 5, the self-study complements of [ch. 10](#ch10) (Newton–Schulz iterations, banded MinHash, the online softmax, parallel scans, superposition) and the research directions of [ch. 11](#ch11).
+
+### Where this course fits in the programme
+
+Official prerequisites: a command of Python and basic linear algebra. The course is a first-semester Learning course of 5 ECTS taught by Nathanaël Fijalkow (CNRS, LaBRI) and David Louapre (Hugging Face), as listed on master-mva.com.
+
+-   **Refreshers** — [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for every code block, [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for ch. 0, 2 and 3, and [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for ch. 0, 4 and 5.
+-   **Related first-semester courses** — [Deep Learning](../s1-deep-learning/index.html) and [Advanced Learning for Text and Graph Data (ALTEGRAD)](../s1-altegrad/index.html) cover neighbouring material from other angles; [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html) and [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) share the tools of ch. 2; [Turing Seminar: An Introduction to AGI Safety](../s1-turing-seminar-ai-safety/index.html) discusses alignment and interpretability (ch. 5, 9); [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html) and [Robotics](../s1-robotics/index.html) meet ch. 9.3–9.4.
+-   **Second-semester courses that build on it** — [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html) (distributed training, the official continuation), [Large Language Models for Code and Proof](../s2-llm-code-proof/index.html), [Reinforcement Learning](../s2-reinforcement-learning/index.html) (PPO and GRPO of ch. 5), [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html), [Multimodal Explainable AI (XAI)](../s2-multimodal-xai/index.html), [Responsible Machine Learning](../s2-responsible-ml/index.html), [Regulating AI](../s2-regulating-ai/index.html) (the legal side of ch. 4.1) and [Artificial Intelligence and the Environment](../s2-ai-environment/index.html) (the energy behind ch. 4 and 6).
+-   **After the course** — the [Research Internship](../s3-research-internship/index.html), where many projects now start from a pretrained language model.
+
+### Course outline
+
+-   **Review: probability, gradients and the cost of matrix products** — softmax, cross-entropy and KL divergence, the gradient of the softmax loss, and the cost of a linear layer forward and backward.
+-   **Language models and their life cycle** — perplexity, the limits of recurrent networks, encoders and decoders, the stages from pretraining to serving, tokenization, chat templates and tool calls, the ecosystem.
+-   **The training loop and its optimizers** — mini-batches and clipping, SGD with its convergence guarantee, Adam and AdamW, and Muon as steepest descent in the spectral norm.
+-   **The Transformer model** — attention, residual blocks with pre-norm and RMSNorm, sinusoidal and rotary position embeddings, floating-point formats.
+-   **Pretraining and scaling laws** — data pipelines and MinHash deduplication, legal aspects and synthetic data, FLOP accounting, the Chinchilla allocation, schedules, hyperparameters and stability.
+-   **Post-training and alignment** — SFT, LoRA and QLoRA, distillation, RLHF and its optimal policy, DPO, GRPO and verifiable rewards, test-time compute, evaluation and contamination.
+-   **Decoding and inference optimization** — sampling strategies, the roofline, FlashAttention, prefill and decode, the KV cache, batching and paging, speculative decoding, quantization, long context.
+-   **Alternative architectures and hardware efficiency** — mixture of experts and load balancing, grouped-query attention, linear attention, state-space models and Mamba, recurrent and looped models.
+-   **Agents** — the agent loop, retrieval-augmented generation, function calling, the Model Context Protocol, coding agents and agentic benchmarks.
+-   **Advanced topics** — mechanistic interpretability (probes, activation patching, circuits, superposition, sparse autoencoders), small models for the edge, vision transformers and vision-language models, vision-language-action models for robots.
+-   **Complements for self-study** — Newton–Schulz iterations for Muon, banded MinHash and the z-loss, the online softmax behind FlashAttention, quantization methods, parallel scans and a comparison of architectures, the geometry of superposition.
+-   **Research directions and open problems** — scaling laws, optimizers, reasoning, architectures, interpretability and evaluation (self-study).
+
+### Session plan {#sessions}
+
+**24 h in class (assumed) = 8 sessions of 3 h.**
+
+The volume is assumed from the organisation published on master-mva.com (“Chaque session dure 3h”, eight sessions); the Université Paris-Saclay programme table does not list the course. The plan follows the official order of the sessions: session 1 covers ch. 1–2 and each later session one chapter, while the review of ch. 0 is read beforehand. The split of the content is a proposal.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced or research-level material; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 1 Language models: perplexity, RNNs and LSTMs, encoders and decoders, life cycle, tokenization, conversations, function calling, ecosystem; ch. 2 Training loop, SGD, AdamW, Muon | Ex. 1, 2, 8; Codes 1.7, 2.7 |
+| 2 | 3 h | 1 | ch. 3 The Transformer: attention, residual blocks and normalization, sinusoidal and rotary embeddings, FP16 and BF16 | Ex. 3, 4, 9; Code 3.10 |
+| 3 | 3 h | 2 | ch. 4 Pretraining and scaling laws: data engineering and deduplication, FLOP accounting, Chinchilla, schedules and hyperparameters, stability | Ex. 10; Codes 4.3, 4.8 |
+| 4 | 3 h | 2 | ch. 5 Post-training and alignment: SFT, LoRA, QLoRA, distillation, RLHF and PPO, DPO, GRPO and RLVR, test-time compute, evaluation | Ex. 5, 11, 12; Code 5.10 |
+| 5 | 3 h | 2 | ch. 6 Decoding and inference: sampling, GPUs and FlashAttention, prefill and decode, KV cache, batching and paging, speculative decoding, quantization, long context | Ex. 6, 7, 13, 14; Codes 6.8, 6.9 |
+| 6 | 3 h | 3 | ch. 7 Alternative architectures: mixture of experts, GQA and MQA, linear attention, state-space models and Mamba, recurrent and looped models | Ex. 15, 16; Code 7.8 |
+| 7 | 3 h | 3 | ch. 8 Agents: the agent loop, RAG and memory, function calling, MCP, coding agents and benchmarks | Ex. 17; Codes 8.4, 8.7 |
+| 8 | 3 h | 3 | ch. 9 Advanced topics: mechanistic interpretability, small models, vision transformers, robotics | Ex. 20; Code 9.2 |
+
+**Self-study, outside the 24 h** (about 9 h in total): ch. 0 Review, before session 1 (≈ 2 h, with Code 0.6) · ch. 10 Complements for self-study (≈ 4 h, with Ex. 19 and Codes 10.2, 10.6) · ch. 11 Research directions and open problems (≈ 2 h, with Ex. 18) · the written-exam proposal of [Projects and assessment](#projects-exam) as a self-test (≈ 1 h).
+
+### How to study this module
+
+-   Read ch. 0 before the first session, even if it looks familiar: the gradient of Proposition 0.3 and the cost of Proposition 0.4 come back in almost every chapter.
+-   Keep a notebook of orders of magnitude (bytes per parameter, FLOPs per token, bytes per cached token); most engineering decisions in ch. 4–7 follow from them.
+-   Run every code block. They use NumPy, PyTorch and scikit-learn on a CPU, with fixed seeds and synthetic data, and each finishes in a few seconds.
+-   After each session, solve the exercises of the *Practice* column; the ★★★ exercises (Ex. 18–20) are good starting points for a project.
+-   Read ch. 10 alongside the chapter each section extends (its title names it), once that chapter has been taught.
+-   Follow the class page announced by the instructors for the official homework; the subjects on this page are proposals, not the official ones.
+
+## 0. Review: probability, gradients and the cost of matrix products {#ch0}
+
+A language model is a probability distribution, trained by gradient descent, computed almost entirely with matrix products. This chapter fixes these three M1 tools and the notation of the page.
+
+### 0.1 Softmax, cross-entropy and KL divergence {#ch0-1}
+
+::: def
+[Definition 0.1 — Softmax, cross-entropy, KL divergence]{.tag} The softmax maps a vector of logits $z \in \mathbb{R}^V$ to a probability vector:
+$$
+\mathrm{softmax}(z)_i = \frac{e^{z_i}}{\sum_{j=1}^V e^{z_j}} .
+$$
+
+For two distributions $p, q$ on a finite set, the cross-entropy and the Kullback–Leibler divergence are
+$$
+H(p, q) = -\sum_x p(x) \log q(x), \qquad \mathrm{KL}(p \,\|\, q) = \sum_x p(x) \log \frac{p(x)}{q(x)} .
+$$
+
+The entropy is $H(p) = H(p, p)$. Logarithms are natural unless a base is written.
+:::
+
+:::: prop
+[Proposition 0.2 — Maximum likelihood minimizes a KL divergence]{.tag} For all distributions $p, q$,
+$$
+H(p, q) = H(p) + \mathrm{KL}(p \,\|\, q) \ \ge\ H(p),
+$$
+with equality if and only if $q = p$.
+
+Minimizing the expected negative log-likelihood over models $q$ therefore minimizes the divergence from the data distribution $p$ to the model.
+
+::: proof
+The identity follows from $\log q = \log p - \log(p/q)$. For the inequality, apply Jensen's inequality to the concave logarithm, over the support of $p$:
+$$
+-\mathrm{KL}(p \,\|\, q) = \sum_x p(x) \log \frac{q(x)}{p(x)} \le \log \sum_x q(x) \le 0 .
+$$
+
+Equality in Jensen's inequality forces $q/p$ to be constant on the support of $p$, and the last inequality forces $q$ to vanish outside it, so $q = p$. [∎]{.qed}
+:::
+::::
+
+The entropy $H(p)$ is thus the floor of the training loss (Code 2.7).
+
+:::: prop
+[Proposition 0.3 — Gradient of the softmax cross-entropy]{.tag} Let $p = \mathrm{softmax}(z)$ and let $y$ be the observed class. The loss $\ell(z) = -\log p_y$ has gradient
+
+::: key
+[Key result — the gradient that trains every language model]{.tag}
+$$
+\nabla_z \ell = p - e_y
+$$
+:::
+
+where $e_y$ is the one-hot vector of $y$. Each step raises the logit of the observed token and lowers every logit in proportion to its probability.
+
+::: proof
+Write $\ell(z) = -z_y + \log \sum_j e^{z_j}$. The derivative of the second term with respect to $z_i$ is $p_i$, and the derivative of the first is $-1$ if $i = y$ and $0$ otherwise. [∎]{.qed}
+:::
+::::
+
+In floating point, the normalizer is computed as a shifted log-sum-exp, which never overflows:
+$$
+\log \sum_j e^{z_j} = m + \log \sum_j e^{z_j - m}, \qquad m = \max_j z_j .
+$$
+
+### 0.2 The cost of matrix products and of their gradients {#ch0-2}
+
+A product of an $m \times k$ matrix by a $k \times n$ matrix costs $2mkn$ floating-point operations (FLOPs): one multiplication and one addition for each of the $k$ terms of the $mn$ inner products.
+
+:::: prop
+[Proposition 0.4 — A linear layer, forward and backward]{.tag} Let $Y = XW$ with $X \in \mathbb{R}^{n \times k}$ (one row per token) and $W \in \mathbb{R}^{k \times m}$, and let $G = \partial \ell / \partial Y$. Then
+$$
+\frac{\partial \ell}{\partial X} = G W^\top, \qquad \frac{\partial \ell}{\partial W} = X^\top G .
+$$
+
+The forward pass costs $2nkm$ FLOPs and the backward pass $4nkm$, twice as much. The backward pass needs the input $X$, which must be stored.
+
+::: proof
+From $Y_{ij} = \sum_r X_{ir} W_{rj}$ and the chain rule,
+$$
+\frac{\partial \ell}{\partial X_{ir}} = \sum_j G_{ij} W_{rj}, \qquad \frac{\partial \ell}{\partial W_{rj}} = \sum_i X_{ir} G_{ij},
+$$
+which are the two announced products. Each involves the dimensions $n, k, m$, so each costs $2nkm$ FLOPs. [∎]{.qed}
+:::
+::::
+
+A transformer spends almost all its arithmetic in linear layers, so one training step costs about three times its forward pass. Chapter 4 turns this into the rule $C \approx 6ND$.
+
+::: ex
+[Example 0.5 — One projection of a 7B model]{.tag} A projection with $k = m = 4096$, applied to a batch of $n = 2048$ tokens, costs $2 \times 2048 \times 4096^2 \approx 6.9 \times 10^{10}$ FLOPs forward and $1.4 \times 10^{11}$ backward.
+
+At $10^{15}$ FLOP/s, the three products take about
+$$
+0.2 \text{ ms}.
+$$
+:::
+
+::: ex
+[Code 0.6 — Checking Proposition 0.3 with automatic differentiation]{.tag}
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+z = torch.randn(10, requires_grad=True)          # logits over a vocabulary of 10
+y = 3                                            # observed token
+loss = torch.nn.functional.cross_entropy(z[None], torch.tensor([y]))
+loss.backward()
+p = torch.softmax(z.detach(), dim=0)
+print(torch.allclose(z.grad, p - torch.nn.functional.one_hot(torch.tensor(y), 10)))  # True
+big = torch.tensor([1000.0, 999.0])              # a naive exp overflows in float32
+print(torch.exp(big).sum().log(), torch.logsumexp(big, 0))   # inf, then 1000.3132
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   Maximum likelihood minimizes the KL divergence to the data; the data entropy is the floor of the loss.
+-   The softmax cross-entropy has gradient $p - e_y$ in the logits.
+-   A linear layer costs $2nkm$ FLOPs forward, twice that backward, and its input must be stored.
+::::
+
+## 1. Language models and their life cycle {#ch1}
+
+This chapter defines a language model, explains why transformers replaced recurrent networks, follows a model from pretraining to serving, and turns text, conversations and tool calls into tokens.
+
+### 1.1 Language models and perplexity {#ch1-1}
+
+::: def
+[Definition 1.1 — Language model, perplexity]{.tag} Let $\mathcal{V}$ be a finite vocabulary of tokens. An autoregressive language model is a family of conditional distributions $p_\theta(\cdot \mid x_{<t})$ on $\mathcal{V}$, which defines the probability of a sequence by the chain rule:
+$$
+p_\theta(x_1, \dots, x_T) = \prod_{t=1}^T p_\theta(x_t \mid x_{<t}) .
+$$
+
+It is trained by minimizing the average negative log-likelihood of a corpus (Proposition 0.2). Its perplexity on a sequence is the exponential of that average:
+$$
+\mathrm{PPL} = \exp\Big( -\frac{1}{T} \sum_{t=1}^T \log p_\theta(x_t \mid x_{<t}) \Big).
+$$
+:::
+
+A model uniform over $V$ tokens has perplexity $V$: perplexity is an effective number of choices per token.
+
+::: ex
+[Example 1.2 — Perplexity by hand]{.tag} A model gives the probabilities $1/2, 1/4, 1/8, 1/2$ to the four tokens of a sentence. The average negative log-likelihood is $\frac{1}{4}(1 + 2 + 3 + 1) \log 2 = 1.75 \log 2$, so
+$$
+\mathrm{PPL} = 2^{1.75} \approx 3.36 .
+$$
+:::
+
+Before neural networks, $n$-gram models counted the previous $n - 1$ tokens; Bengio et al. (2003) replaced counts by learned word vectors.
+
+### 1.2 From recurrent networks to attention {#ch1-2}
+
+::: def
+[Definition 1.3 — Recurrent language model]{.tag} A recurrent network (RNN) reads the tokens one at a time and keeps a state $h_t \in \mathbb{R}^d$:
+$$
+h_t = \tanh(W h_{t-1} + U e_{x_t} + b), \qquad p(x_{t+1} \mid x_{\le t}) = \mathrm{softmax}(O h_t),
+$$
+where $e_{x_t}$ is the embedding of the token $x_t$.
+:::
+
+:::: prop
+[Proposition 1.4 — Vanishing gradients through time]{.tag} With $D_s = \mathrm{diag}(1 - h_s^2)$, the sensitivity of a late state to an early one is
+$$
+\frac{\partial h_T}{\partial h_t} = \prod_{s=t+1}^{T} D_s W, \qquad \Big\| \frac{\partial h_T}{\partial h_t} \Big\| \le \|W\|^{T-t} .
+$$
+
+If the spectral norm of $W$ is below 1, the gradient carried from step $T$ back to step $t$ decays exponentially with the distance $T - t$.
+
+::: proof
+Differentiating $h_s = \tanh(W h_{s-1} + \dots)$ gives $\partial h_s / \partial h_{s-1} = D_s W$, and the chain rule multiplies these Jacobians. Since $\tanh' = 1 - \tanh^2$ takes values in $(0, 1]$, each $D_s$ has norm at most 1, and the operator norm is submultiplicative. [∎]{.qed}
+:::
+::::
+
+When the largest singular value of $W$ exceeds 1, the product can explode instead (Bengio et al., 1994; Pascanu et al., 2013). The LSTM (Hochreiter and Schmidhuber, 1997) updates a memory cell additively,
+$$
+c_t = f_t \odot c_{t-1} + i_t \odot g_t ,
+$$
+so that the gradient along the cell is scaled by forget gates $f_t$ that can stay near 1.
+
+Three limits remain. The states are computed one after the other, so training is sequential in time; the whole past is squeezed into a fixed-size state; and information from position $t$ reaches position $T$ through $T - t$ steps. The Transformer (Vaswani et al., 2017), built on attention (Bahdanau et al., 2015), links any two positions in one step and processes all the positions of a training sequence in parallel.
+
+### 1.3 Encoders, decoders and reasoning models {#ch1-3}
+
+| Family | Attention mask (Definition 3.1) | Objective | Typical use | Example |
+|---|---|---|---|---|
+| Encoder-only | Bidirectional | Recover masked tokens | Classification, embeddings, retrieval | BERT (Devlin et al., 2019) |
+| Decoder-only | Causal | Next token | Generation, chat, code | GPT-3 (Brown et al., 2020) |
+| Encoder–decoder | Bidirectional, then causal with cross-attention | Output text given input text | Translation, summarization | T5 (Raffel et al., 2020) |
+
+Almost all current LLMs are decoder-only: next-token prediction covers every task that can be written as text.
+
+**Reasoning models** are decoder-only models post-trained, mostly by reinforcement learning on problems with checkable answers (ch. 5.3), to write a long chain of thought before answering; OpenAI's o1 (2024) and DeepSeek-R1 (DeepSeek-AI, 2025) are examples. The architecture is unchanged: they spend more inference compute on harder questions (ch. 5.4).
+
+### 1.4 The life cycle of a model {#ch1-4}
+
+1.  **Pretraining** (ch. 4): next-token prediction on $10^{12}$ to $10^{13}$ tokens, which takes almost all the compute; the Llama 3 models saw about 15 trillion tokens (Dubey et al., 2024).
+2.  **Midtraining** (ch. 4.1): the end of pretraining, on curated, mathematical, code or long-context data.
+3.  **Post-training** (ch. 5): supervised fine-tuning, preference optimization and reinforcement learning turn a text predictor into an assistant.
+4.  **Evaluation** (ch. 5.5), at every stage.
+5.  **Inference** (ch. 6): decoding, caching, batching and quantization, often inside an agent (ch. 8).
+
+### 1.5 Tokenization {#ch1-5}
+
+::: def
+[Definition 1.5 — Byte-pair encoding]{.tag} Byte-pair encoding (BPE; Sennrich et al., 2016) learns a vocabulary from a corpus:
+
+1.  start from the 256 byte values (byte-level BPE, as in GPT-2), so that any text can be encoded;
+2.  count the adjacent pairs of symbols in the corpus and merge the most frequent pair into a new symbol;
+3.  repeat until the vocabulary has the desired size, recording the merges in order.
+
+A new text is encoded by applying the recorded merges in the same order.
+:::
+
+Vocabularies hold from 32 000 to about 256 000 tokens, roughly one per four characters of English; Code 1.7 runs the first merges on a toy corpus. Tokenization explains why models miscount letters, split numbers irregularly and spend more tokens on rare languages.
+
+### 1.6 Conversations and function calling {#ch1-6}
+
+::: def
+[Definition 1.6 — Chat template]{.tag} A conversation is a list of messages with roles: *system*, *user*, *assistant* and *tool*. A chat template serializes it into one token sequence, with special tokens that open and close each message. Supervised fine-tuning computes the loss on the assistant tokens only, and generation stops at the end-of-turn token.
+:::
+
+Function calling uses the same mechanism. The system message describes the tools by JSON schemas and the model writes a call between special tokens; the runtime, not the model, executes it and appends the result as a *tool* message:
+
+```text
+<|system|> Tools: get_weather(city: string) -> {"temp_c": number} <|end|>
+<|user|> Should I take a coat in Paris today? <|end|>
+<|assistant|> <|tool_call|> {"name": "get_weather", "arguments": {"city": "Paris"}} <|end|>
+<|tool|> {"temp_c": 6} <|end|>
+<|assistant|> Yes: it is 6 °C in Paris. <|end|>
+```
+
+Each model family has its own special tokens, stored with its tokenizer.
+
+::: ex
+[Code 1.7 — Byte-pair encoding in a few lines]{.tag}
+
+```python
+from collections import Counter
+corpus = {"low": 5, "lower": 2, "newest": 6, "widest": 3}
+words = {tuple(w): c for w, c in corpus.items()}        # each word as a tuple of symbols
+for step in range(4):
+    pairs = Counter()
+    for w, c in words.items():
+        for a, b in zip(w, w[1:]):
+            pairs[a, b] += c
+    (a, b), n = max(pairs.items(), key=lambda kv: kv[1])  # first most frequent pair
+    print(f"merge {step + 1}: {a!r} + {b!r} (count {n})")
+    new = {}
+    for w, c in words.items():
+        out, i = [], 0
+        while i < len(w):
+            if i + 1 < len(w) and (w[i], w[i + 1]) == (a, b):
+                out.append(a + b); i += 2
+            else:
+                out.append(w[i]); i += 1
+        new[tuple(out)] = c
+    words = new
+print(words)   # ('low',): 5, ('low', 'e', 'r'): 2, ('n', 'e', 'w', 'est'): 6, ('w', 'i', 'd', 'est'): 3
+```
+:::
+
+### 1.7 The ecosystem {#ch1-7}
+
+-   **Open weights and the Hugging Face Hub.** The Hub hosts weights, data sets and demos; the `transformers` library (Wolf et al., 2020) loads a model with its tokenizer and chat template by name, and `datasets`, `peft` and `trl` cover data, adapters and post-training. Open-weight families include Llama, Mistral, Qwen, Gemma and DeepSeek; a few, such as OLMo, also release their data.
+-   **Proprietary APIs.** OpenAI, Anthropic and Google, among others, serve models through HTTP APIs billed per token, without releasing the weights.
+-   **Open-source frameworks.** PyTorch and JAX for training, Megatron-LM and DeepSpeed for distributed training, vLLM, SGLang and llama.cpp for serving and on-device inference.
+
+"Open weights" is not "open source": downloadable weights may come with a restrictive licence and without the training data.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   A language model factorizes a sequence probability by the chain rule; perplexity is the exponential of the average negative log-likelihood.
+-   RNNs suffer from vanishing gradients, sequential computation and a fixed-size state; transformers link all positions in one step.
+-   Decoder-only models dominate; reasoning models differ by post-training and inference budget.
+-   BPE builds the vocabulary by greedy merges; conversations and tool calls share one token stream.
+::::
+
+## 2. The training loop and its optimizers {#ch2}
+
+Every model of this course is trained by the same loop; only the optimizer, the schedule and the scale change. This chapter writes the loop, then climbs from SGD to AdamW and Muon.
+
+### 2.1 The training loop {#ch2-1}
+
+::: def
+[Definition 2.1 — Training step]{.tag} At step $t$, with parameters $\theta_t$ and learning rate $\eta_t$:
+
+1.  draw a mini-batch of sequences and compute the average next-token loss $L_t(\theta_t)$ (forward pass);
+2.  compute the gradient $g_t = \nabla L_t(\theta_t)$ (backward pass);
+3.  clip it, $g_t \leftarrow g_t \min(1, c / \|g_t\|)$, with a threshold $c$ such as 1;
+4.  update $\theta_{t+1} = \theta_t - \eta_t\, u_t$, where the direction $u_t$ depends on the optimizer, and reset the gradients.
+:::
+
+When a batch does not fit in memory, the gradients of equal micro-batches are averaged before the update, which gives exactly the gradient of the full batch, by linearity.
+
+### 2.2 SGD and momentum {#ch2-2}
+
+:::: thm
+[Theorem 2.2 — SGD on a smooth non-convex loss]{.tag} Let $f$ be bounded below by $f^\star$, with an $L$-Lipschitz gradient. Run SGD, $\theta_{t+1} = \theta_t - \eta g_t$, with a step $\eta \le 1/L$ and unbiased stochastic gradients of variance at most $\sigma^2$. Then
+$$
+\frac{1}{T} \sum_{t=0}^{T-1} \mathbb{E} \|\nabla f(\theta_t)\|^2 \le \frac{2 (f(\theta_0) - f^\star)}{\eta T} + L \eta \sigma^2 .
+$$
+
+::: proof
+Smoothness gives the descent lemma:
+$$
+f(\theta_{t+1}) \le f(\theta_t) - \eta \langle \nabla f(\theta_t), g_t \rangle + \frac{L\eta^2}{2} \|g_t\|^2 .
+$$
+
+Take the expectation given $\theta_t$, and bound the second moment of $g_t$ by its squared mean plus its variance:
+$$
+\mathbb{E}\|g_t\|^2 \le \|\nabla f(\theta_t)\|^2 + \sigma^2 .
+$$
+
+This gives
+$$
+\mathbb{E} f(\theta_{t+1}) \le f(\theta_t) - \eta \Big(1 - \frac{L\eta}{2}\Big) \|\nabla f(\theta_t)\|^2 + \frac{L \eta^2 \sigma^2}{2} .
+$$
+
+Since $\eta \le 1/L$, the factor $1 - L\eta/2$ is at least $1/2$. Sum over $t$, telescope, use $f \ge f^\star$ and divide by $\eta T / 2$. [∎]{.qed}
+:::
+::::
+
+This is the classical rate of SGD for smooth non-convex objectives (Ghadimi and Lan, 2013; Bottou et al., 2018). A large step forgets the initial gap faster, a small step lowers the noise floor: hence learning rates that decay at the end of training (ch. 4.4).
+
+Heavy-ball momentum steps along $m_t = \mu m_{t-1} + g_t$, which damps oscillations across steep directions.
+
+### 2.3 Adam and AdamW {#ch2-3}
+
+::: def
+[Definition 2.3 — Adam]{.tag} With decay rates $\beta_1, \beta_2 \in [0, 1)$ and a small $\epsilon > 0$, Adam (Kingma and Ba, 2015) keeps two moving averages per coordinate, starting from $m_0 = v_0 = 0$:
+$$
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad v_t = \beta_2 v_{t-1} + (1 - \beta_2)\, g_t^2 .
+$$
+
+The update divides the corrected first moment by the root of the corrected second moment:
+$$
+\theta_{t+1} = \theta_t - \eta\, \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon}, \qquad \hat m_t = \frac{m_t}{1 - \beta_1^t}, \quad \hat v_t = \frac{v_t}{1 - \beta_2^t} .
+$$
+:::
+
+:::: prop
+[Proposition 2.4 — Bias correction]{.tag} If the gradients have a constant mean $\bar g$, then $\mathbb{E}\, m_t = (1 - \beta_1^t)\, \bar g$, so that
+$$
+\mathbb{E}\, \hat m_t = \bar g .
+$$
+
+The same holds for $v_t$, with $\beta_2$ and the second moment.
+
+::: proof
+Unrolling the recursion from $m_0 = 0$ gives $m_t = (1 - \beta_1) \sum_{s=1}^t \beta_1^{t-s} g_s$. In expectation, the geometric sum equals $(1 - \beta_1^t)/(1 - \beta_1)$. [∎]{.qed}
+:::
+::::
+
+**AdamW.** An $L^2$ penalty in the loss puts $\lambda \theta$ inside $g_t$, where Adam divides it by $\sqrt{\hat v_t}$, so weights with large gradients are barely regularized. AdamW (Loshchilov and Hutter, 2019) applies the decay directly:
+$$
+\theta_{t+1} = \theta_t - \eta \Big( \frac{\hat m_t}{\sqrt{\hat v_t} + \epsilon} + \lambda \theta_t \Big) .
+$$
+
+AdamW stores $m$ and $v$ in fp32: 8 bytes per parameter on top of the weights.
+
+### 2.4 Muon: steepest descent in the spectral norm {#ch2-4}
+
+Muon (Jordan et al., 2024) treats the weight matrices of a transformer as matrices: it replaces the momentum by its orthogonal factor, which moves all singular directions at the same speed.
+
+::: def
+[Definition 2.5 — Muon]{.tag} For a weight matrix $W$ with gradient $G_t$, Muon keeps a momentum $M_t = \mu M_{t-1} + G_t$ and updates
+$$
+W_{t+1} = W_t - \eta\, \mathrm{Orth}(M_t), \qquad \mathrm{Orth}(M) = U V^\top,
+$$
+where $M = U \Sigma V^\top$ is a reduced singular value decomposition. Embeddings, the output layer and normalization gains stay with AdamW.
+:::
+
+:::: prop
+[Proposition 2.6 — The orthogonal factor is the steepest direction for the spectral norm]{.tag} Let $\|O\|_{\mathrm{op}}$ be the largest singular value of $O$, and $\|M\|_*$ the sum of the singular values of $M$. Then
+$$
+\max_{\|O\|_{\mathrm{op}} \le 1} \langle M, O \rangle = \|M\|_*, \quad \text{attained at } O = UV^\top .
+$$
+
+Muon thus takes the steepest-descent step of the linearized loss for the spectral norm.
+
+::: proof
+Write $M = \sum_i \sigma_i u_i v_i^\top$. Since $u_i$ and $v_i$ are unit vectors,
+$$
+\langle M, O \rangle = \sum_i \sigma_i\, u_i^\top O v_i, \qquad u_i^\top O v_i \le \|O\|_{\mathrm{op}} \le 1,
+$$
+so the inner product is at most $\sum_i \sigma_i$.
+
+For $O = UV^\top$, every $u_i^\top O v_i$ equals 1, and the spectral norm of $UV^\top$ is 1. [∎]{.qed}
+:::
+::::
+
+An SVD at every step would be slow on a GPU; Muon approximates the orthogonal factor with five Newton–Schulz iterations made of matrix products only (ch. 10.1). Liu et al. (2025) scaled Muon to large language models and report about twice the compute efficiency of AdamW.
+
+::: ex
+[Code 2.7 — A training loop that reaches the entropy floor]{.tag} A synthetic language is generated by a Markov chain on 8 symbols. A bigram model trained with AdamW drives its loss down to the entropy rate of the chain, the floor of Proposition 0.2.
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+V = 8
+P = torch.softmax(2.0 * torch.randn(V, V), dim=1)           # true transition matrix
+x = [0]
+for _ in range(20000):
+    x.append(torch.multinomial(P[x[-1]], 1).item())
+x = torch.tensor(x)
+pi = torch.bincount(x, minlength=V).float() / len(x)          # empirical stationary law
+H = -(pi[:, None] * P * P.log()).sum()                         # entropy rate, nats per token
+
+logits = torch.zeros(V, V, requires_grad=True)               # the bigram model
+opt = torch.optim.AdamW([logits], lr=0.1, betas=(0.9, 0.95), weight_decay=0.0)
+for step in range(300):
+    i = torch.randint(0, len(x) - 1, (512,))
+    loss = torch.nn.functional.cross_entropy(logits[x[i]], x[i + 1])
+    opt.zero_grad(); loss.backward()
+    torch.nn.utils.clip_grad_norm_([logits], 1.0)
+    opt.step()
+with torch.no_grad():
+    full = torch.nn.functional.cross_entropy(logits[x[:-1]], x[1:])
+print(f"loss {full.item():.4f}  entropy rate {H.item():.4f}  perplexity {full.exp().item():.3f}")
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   The loop is forward, backward, clip, step; accumulation reproduces a large batch exactly.
+-   SGD reaches small gradients at rate $1/(\eta T)$, up to a noise floor proportional to $\eta \sigma^2$.
+-   Adam normalizes each coordinate by a running root mean square; AdamW decouples the weight decay.
+-   Muon steps along the orthogonal factor of the momentum, the steepest direction in spectral norm.
+::::
+
+## 3. The Transformer model {#ch3}
+
+The Transformer (Vaswani et al., 2017) stacks identical blocks that alternate attention, which mixes positions, and an MLP, which processes each position separately. This chapter derives what makes it trainable at scale: scaled attention, pre-norm residual blocks, rotary embeddings and low precision.
+
+### 3.1 Attention {#ch3-1}
+
+::: def
+[Definition 3.1 — Multi-head causal self-attention]{.tag} The input is a matrix $X \in \mathbb{R}^{T \times d}$, one row per token. A head has three projections $W_Q, W_K, W_V \in \mathbb{R}^{d \times d_k}$, which give the queries, keys and values
+$$
+Q = XW_Q, \qquad K = XW_K, \qquad V = XW_V .
+$$
+
+The head then computes
+$$
+\mathrm{head}(X) = \mathrm{softmax}\Big( \frac{QK^\top}{\sqrt{d_k}} + M \Big) V ,
+$$
+where the softmax acts on each row. The causal mask is
+$$
+M_{ij} = 0 \ \text{ if } j \le i, \qquad M_{ij} = -\infty \ \text{ if } j > i,
+$$
+so that token $i$ only reads the tokens $j \le i$; an encoder uses $M = 0$.
+
+With $H$ heads of dimension $d_k = d/H$, the head outputs are concatenated and multiplied by $W_O \in \mathbb{R}^{d \times d}$.
+:::
+
+Position $i$ outputs an average of the values, weighted by the similarity of its query to the keys.
+
+:::: prop
+[Proposition 3.2 — Why divide by the square root of the head dimension]{.tag} If the coordinates of $q$ and $k$ are independent, with mean 0 and variance 1, then $q^\top k$ has mean 0 and variance $d_k$, so that
+$$
+\mathrm{Var}\big( q^\top k / \sqrt{d_k} \big) = 1 .
+$$
+
+::: proof
+$q^\top k$ is a sum of $d_k$ independent terms $q_i k_i$, each with mean $\mathbb{E} q_i\, \mathbb{E} k_i = 0$ and variance $\mathbb{E} q_i^2\, \mathbb{E} k_i^2 = 1$. [∎]{.qed}
+:::
+::::
+
+Unscaled scores of size $\sqrt{d_k}$ would saturate the softmax, whose gradient then almost vanishes.
+
+:::: prop
+[Proposition 3.3 — Attention ignores order]{.tag} Without mask and without position information, self-attention is permutation-equivariant: for every permutation matrix $P$,
+$$
+\mathrm{Attn}(PX) = P\, \mathrm{Attn}(X) .
+$$
+
+::: proof
+Replacing $X$ by $PX$ replaces $Q, K, V$ by $PQ, PK, PV$, so the scores become $P QK^\top P^\top$.
+
+A row-wise softmax commutes with permutations of the rows and of the columns, so the attention matrix $A$ becomes $P A P^\top$.
+
+Finally $P A P^\top P V = P A V$, since $P^\top P = I$. [∎]{.qed}
+:::
+::::
+
+Without positions, a sentence would be a bag of words (section 3.3 restores the order). Scores and weighted sums cost $4T^2 d$ FLOPs per layer, quadratic in the length $T$ (ch. 6.6, 7).
+
+### 3.2 Residual blocks and normalization {#ch3-2}
+
+::: def
+[Definition 3.4 — Pre-norm block, LayerNorm, RMSNorm]{.tag} A pre-norm block updates the residual stream $x$ (one row of $X$) by two residual steps:
+$$
+x \leftarrow x + \mathrm{Attn}(N(x)), \qquad x \leftarrow x + \mathrm{MLP}(N(x)) .
+$$
+
+The original post-norm block normalized after the sum, $x \leftarrow N(x + \mathrm{Attn}(x))$. With a learned gain $g$, a bias $b$ and a small $\epsilon$, LayerNorm (Ba et al., 2016) and RMSNorm (Zhang and Sennrich, 2019) are
+$$
+\mathrm{LN}(x) = g \odot \frac{x - \mu(x)}{\sqrt{\sigma^2(x) + \epsilon}} + b, \qquad \mathrm{RMSNorm}(x) = g \odot \frac{x}{\sqrt{\frac{1}{d}\sum_i x_i^2 + \epsilon}} .
+$$
+
+Current models combine RMSNorm with a gated MLP, $x \mapsto W_2\big(\mathrm{SiLU}(W_1 x) \odot W_3 x\big)$ (Shazeer, 2020).
+:::
+
+RMSNorm drops the centring and the bias, which is cheaper; for $\epsilon = 0$ it is scale-invariant, $\mathrm{RMSNorm}(\alpha x) = \mathrm{RMSNorm}(x)$ for $\alpha > 0$.
+
+:::: prop
+[Proposition 3.5 — The pre-norm residual stream has an identity path]{.tag} Write a pre-norm network as $x_{l+1} = x_l + F_l(x_l)$, and let $J_l$ be the Jacobian of $F_l$. Then
+$$
+\frac{\partial x_L}{\partial x_l} = \prod_{k=l}^{L-1} (I + J_k) = I + \sum_{k=l}^{L-1} J_k + (\text{products of two or more } J_k) .
+$$
+
+The gradient that reaches layer $l$ always contains the gradient at the output itself, whatever the depth.
+
+::: proof
+Differentiating $x_{k+1} = x_k + F_k(x_k)$ gives $I + J_k$. Apply the chain rule and expand the product. [∎]{.qed}
+:::
+::::
+
+In a post-norm network, every layer multiplies the gradient by a normalization Jacobian and no direct path remains. Xiong et al. (2020) showed that post-norm transformers then have large gradients near the output at initialization and need a learning-rate warmup, whereas pre-norm ones train stably with little warmup.
+
+### 3.3 Position embeddings {#ch3-3}
+
+::: def
+[Definition 3.6 — Sinusoidal position embeddings]{.tag} Vaswani et al. (2017) add to the embedding of the token at position $t$ the vector with coordinates
+$$
+\mathrm{PE}(t)_{2i} = \sin(\omega_i t), \qquad \mathrm{PE}(t)_{2i+1} = \cos(\omega_i t), \qquad \omega_i = 10000^{-2i/d} .
+$$
+:::
+
+A shift by $k$ positions rotates each pair of coordinates by the angle $\omega_i k$, a linear map independent of $t$, meant to expose relative positions.
+
+::: def
+[Definition 3.7 — Rotary position embeddings (RoPE)]{.tag} RoPE (Su et al., 2024) adds nothing to the embeddings. It rotates each pair of coordinates of the query and of the key at position $m$ by the angle $m\theta_i$, with $\theta_i = 10000^{-2i/d_k}$:
+$$
+\tilde q_m = R_m q_m, \qquad \tilde k_m = R_m k_m, \qquad R_m = \mathrm{diag}\big( \rho(m\theta_0), \dots, \rho(m\theta_{d_k/2 - 1}) \big),
+$$
+where $\rho(\phi)$ is the plane rotation by the angle $\phi$.
+:::
+
+:::: thm
+[Theorem 3.8 — RoPE scores depend on relative positions only]{.tag} For all vectors $q, k$ and positions $m, n$,
+
+::: key
+[Key result — rotary embeddings]{.tag}
+$$
+\langle R_m q, R_n k \rangle = \langle q, R_{n-m}\, k \rangle
+$$
+:::
+
+so the score between positions $m$ and $n$ depends on the content and on the offset $n - m$ only.
+
+::: proof
+Each block of $R_m$ is a rotation, so $R_m$ is orthogonal with $R_m^\top = R_{-m}$. Rotations of the same plane compose by adding angles, so $R_{-m} R_n = R_{n-m}$. Hence
+$$
+\langle R_m q, R_n k \rangle = q^\top R_m^\top R_n k = q^\top R_{n-m}\, k .
+$$
+
+[∎]{.qed}
+:::
+::::
+
+RoPE has no parameter and is used by most open models (Llama, Mistral, Qwen); ch. 6.6 rescales its slow frequencies to extend the context.
+
+### 3.4 Numerical precision {#ch3-4}
+
+A floating-point number is $\pm(1.f)_2 \times 2^e$: exponent bits set the range, fraction bits the precision, and rounding makes a relative error at most the unit roundoff $u$.
+
+| Format | Exponent bits | Fraction bits | Unit roundoff $u$ | Largest finite value |
+|---|---|---|---|---|
+| fp32 | 8 | 23 | $2^{-24} \approx 6.0 \times 10^{-8}$ | $\approx 3.4 \times 10^{38}$ |
+| fp16 | 5 | 10 | $2^{-11} \approx 4.9 \times 10^{-4}$ | $65\,504$ |
+| bf16 | 8 | 7 | $2^{-8} \approx 3.9 \times 10^{-3}$ | $\approx 3.4 \times 10^{38}$ |
+
+::: ex
+[Example 3.9 — Two failures of 16-bit arithmetic]{.tag}
+
+-   **Overflow in fp16.** Since $e^{11.1} > 65\,504$, an unshifted softmax overflows in fp16 as soon as a logit exceeds 11.1; small gradients underflow too.
+-   **Lost updates in bf16.** Near 1, consecutive bf16 numbers are $2^{-7} \approx 0.0078$ apart, so adding $10^{-3}$ to a weight equal to 1 changes nothing:
+    $$
+    \mathrm{fl}_{\mathrm{bf16}}(1 + 10^{-3}) = 1 .
+    $$
+:::
+
+Mixed-precision training (Micikevicius et al., 2018) computes matrix products in 16 bits, but keeps fp32 master weights and optimizer states, and computes softmax, normalizations and loss in fp32. fp16 also needs the loss scaled up so that gradients do not underflow; bf16, with the range of fp32, does not, and is now the default.
+
+Quantization (ch. 6.5) meets a further obstacle: large transformers develop a few activation features of outlier magnitude (Dettmers et al., 2022), and a common 8- or 4-bit scale then crushes all the other values.
+
+::: ex
+[Code 3.10 — Causal attention from scratch]{.tag} The code checks causality, Proposition 3.3 and Theorem 3.8 numerically, then reproduces Example 3.9.
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+T, d, H = 6, 16, 4
+dk = d // H
+Wq, Wk, Wv, Wo = (torch.randn(d, d) / d**0.5 for _ in range(4))
+
+def attention(X, causal=True):
+    Q, K, V = (X @ W for W in (Wq, Wk, Wv))
+    Q, K, V = (Z.view(-1, H, dk).transpose(0, 1) for Z in (Q, K, V))   # (H, T, dk)
+    S = Q @ K.transpose(1, 2) / dk**0.5
+    if causal:
+        future = torch.triu(torch.ones(len(X), len(X), dtype=torch.bool), 1)
+        S = S.masked_fill(future, float("-inf"))
+    return (torch.softmax(S, -1) @ V).transpose(0, 1).reshape(len(X), d) @ Wo
+
+X = torch.randn(T, d)
+Y = attention(X)
+X2 = X.clone(); X2[-1] += 1.0                                   # change the last token only
+print("causal:", torch.allclose(attention(X2)[:-1], Y[:-1]))    # earlier outputs unchanged
+P = torch.eye(T)[torch.randperm(T)]
+print("equivariant:", torch.allclose(attention(P @ X, causal=False),
+                                     P @ attention(X, causal=False), atol=1e-6))
+
+def rope(v, m, base=10000.0):                                  # rotate the pairs of v
+    th = base ** (-torch.arange(0, len(v), 2) / len(v))
+    c, s = torch.cos(m * th), torch.sin(m * th)
+    out = v.clone()
+    out[0::2], out[1::2] = c * v[0::2] - s * v[1::2], s * v[0::2] + c * v[1::2]
+    return out
+q, k = torch.randn(dk), torch.randn(dk)
+print("RoPE:", float(rope(q, 3) @ rope(k, 10)), float(rope(q, 103) @ rope(k, 110)))  # offset 7
+
+print(torch.tensor(12.0, dtype=torch.float16).exp())           # inf: overflow in fp16
+one = torch.tensor(1.0, dtype=torch.bfloat16)
+print(one + torch.tensor(1e-3, dtype=torch.bfloat16) == one)   # True: the update is lost
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   Attention averages values with softmax weights; the $1/\sqrt{d_k}$ scaling keeps scores of order 1.
+-   Attention alone ignores order; RoPE makes scores depend on relative offsets only.
+-   Pre-norm residual blocks keep an identity path for the gradient; RMSNorm is cheap and scale-invariant.
+-   bf16 has the range of fp32 and 8 bits of precision: compute in 16 bits, update in fp32.
+::::
+
+## 4. Pretraining and scaling laws {#ch4}
+
+Pretraining consumes almost all the compute of a model's life. This chapter asks which data, how much compute, and how to spend it stably.
+
+### 4.1 Data engineering {#ch4-1}
+
+A corpus mixes web crawls (Common Crawl), code, books, articles and mathematics. Web text goes through a pipeline:
+
+-   text extraction, language identification and **heuristic filters** (length, symbols, repetitions);
+-   **quality classifiers**, such as the one FineWeb-Edu trained on educational scores given by a large model (Penedo et al., 2024);
+-   **deduplication**, which saves compute and reduces memorization (Lee et al., 2022), then removal of personal data and benchmark items.
+
+::: def
+[Definition 4.1 — Jaccard similarity and MinHash]{.tag} Represent a document by its set $S$ of shingles, for instance its 5-grams of words. The Jaccard similarity of two sets is $J(A, B) = |A \cap B| / |A \cup B|$. For a random permutation $\pi$ of all shingles, the MinHash of $S$ is its first shingle in the order of $\pi$ (Broder, 1997):
+$$
+h_\pi(S) = \arg\min_{s \in S} \pi(s) .
+$$
+:::
+
+:::: thm
+[Theorem 4.2 — MinHash estimates the Jaccard similarity]{.tag} For a uniformly random permutation $\pi$,
+$$
+\mathbb{P}\big[ h_\pi(A) = h_\pi(B) \big] = J(A, B) .
+$$
+
+::: proof
+The first element of $A \cup B$ in the order of $\pi$ is, by symmetry, uniform over $A \cup B$. The two MinHashes coincide exactly when this element lies in $A \cap B$, which has probability $|A \cap B| / |A \cup B|$. [∎]{.qed}
+:::
+::::
+
+With $k$ permutations, the agreement rate estimates $J$ with standard deviation at most $1/(2\sqrt k)$; ch. 10.2 finds all near-duplicate pairs in linear time.
+
+**Mixing and midtraining.** Domain proportions are set by small-scale ablations or by optimization (Xie et al., 2023). During the final learning-rate decay, recipes raise the share of high-quality, mathematical, code and long-document data: midtraining, or annealing.
+
+**Legal aspects and synthetic data.** Data raise questions of copyright, licences and personal data; in the European Union, rights holders can opt out of the text-and-data-mining exception of Directive (EU) 2019/790, and the AI Act requires a public summary of training content ([Regulating AI](../s2-regulating-ai/index.html)). Synthetic text from stronger models fills many corpora (Gunasekar et al., 2023), but carries their errors, and recursive training on generated data degrades models (Shumailov et al., 2024).
+
+::: ex
+[Code 4.3 — MinHash against the exact Jaccard similarity]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+words = [f"w{i}" for i in range(300)]
+doc_a = list(rng.choice(words, 400))
+doc_b = doc_a[:300] + list(rng.choice(words, 100))            # a near-duplicate of doc_a
+shingles = lambda d: {" ".join(d[i:i + 5]) for i in range(len(d) - 4)}
+A, B = shingles(doc_a), shingles(doc_b)
+universe = sorted(A | B)
+idx = {s: i for i, s in enumerate(universe)}
+perms = np.array([rng.permutation(len(universe)) for _ in range(200)])  # 200 random orders
+mh = lambda S: perms[:, [idx[s] for s in S]].min(axis=1)                # 200 MinHashes
+print(f"exact Jaccard {len(A & B) / len(A | B):.3f}, MinHash estimate {np.mean(mh(A) == mh(B)):.3f}")
+```
+:::
+
+### 4.2 FLOP accounting {#ch4-2}
+
+:::: prop
+[Proposition 4.4 — The cost of training]{.tag} Training a dense transformer with $N$ parameters on $D$ tokens, with a context length $T \ll 12d$, costs about
+$$
+C \approx 6ND \ \text{FLOPs}.
+$$
+
+::: proof
+In the forward pass, each parameter of a linear layer takes part in one multiplication and one addition per token: $2N$ FLOPs per token. By Proposition 0.4, the backward pass costs twice as much. Under a causal mask, attention scores add about $2LTd$ forward FLOPs per token, a fraction $T/(12d)$ of $2N \approx 24Ld^2$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 4.5 — The budget of a 7B model]{.tag} With $N = 7 \times 10^9$ and $D = 2 \times 10^{12}$, $C = 8.4 \times 10^{22}$ FLOPs. On GPUs with a bf16 peak of $3.12 \times 10^{14}$ FLOP/s used at 40 %, this is
+$$
+\frac{8.4 \times 10^{22}}{0.4 \times 3.12 \times 10^{14} \times 3600} \approx 1.9 \times 10^{5} \text{ GPU-hours},
+$$
+close to the 184 320 A100 GPU-hours reported for Llama 2 7B (Touvron et al., 2023b).
+:::
+
+Mixed-precision AdamW stores 16 bytes per parameter: bf16 weights and gradients, fp32 master weights and two moments. A 7B model thus needs 112 GB, more than one 80 GB GPU; spreading it over GPUs belongs to [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html).
+
+### 4.3 Scaling laws {#ch4-3}
+
+The loss falls as a power law of size, data and compute (Kaplan et al., 2020); Hoffmann et al. (2022) fitted a law in size and data to split a budget.
+
+::: def
+[Definition 4.6 — Parametric loss]{.tag} The loss after training $N$ parameters on $D$ tokens is modelled as
+$$
+L(N, D) = E + \frac{A}{N^\alpha} + \frac{B}{D^\beta},
+$$
+where $E$ is the entropy of text and the other terms are the excess due to a finite model and finite data. The published fit is $E = 1.69$, $A = 406.4$, $B = 410.7$, $\alpha = 0.34$, $\beta = 0.28$.
+:::
+
+:::: thm
+[Theorem 4.7 — Compute-optimal allocation]{.tag} Under the constraint $6ND = C$, the loss of Definition 4.6 is minimized at
+
+::: key
+[Key result — Chinchilla allocation]{.tag}
+$$
+N^\star = G \Big( \frac{C}{6} \Big)^{\frac{\beta}{\alpha + \beta}}, \qquad D^\star = \frac{1}{G} \Big( \frac{C}{6} \Big)^{\frac{\alpha}{\alpha + \beta}}, \qquad G = \Big( \frac{\alpha A}{\beta B} \Big)^{\frac{1}{\alpha + \beta}}
+$$
+:::
+
+::: proof
+Substituting $D = C/(6N)$ gives a function of $N$ alone:
+$$
+\varphi(N) = E + A N^{-\alpha} + B \Big(\frac{C}{6}\Big)^{-\beta} N^{\beta} .
+$$
+
+As a function of $\log N$, it is a sum of two exponentials, hence convex, and it tends to infinity at both ends. Setting $\varphi'(N) = 0$ gives
+$$
+\alpha A N^{-\alpha - 1} = \beta B\, (C/6)^{-\beta} N^{\beta - 1} \iff N^{\alpha + \beta} = \frac{\alpha A}{\beta B} \Big(\frac{C}{6}\Big)^{\beta},
+$$
+which is $N^\star$; then $D^\star = C / (6 N^\star)$. [∎]{.qed}
+:::
+::::
+
+Both grow roughly like $\sqrt{C}$. Hoffmann et al.'s two other methods, and a refit of the law (Besiroglu et al., 2024), give about 20 tokens per parameter: Chinchilla, 70 billion parameters on 1.4 trillion tokens, beat Gopher, 280 billion on 300 billion, at similar compute (predicted losses 1.94 and 1.99). Served models are trained far longer, such as Llama 3 8B on about 15 trillion tokens, because small models are cheap at inference (Exercise 18).
+
+::: ex
+[Code 4.8 — Allocating a compute budget]{.tag}
+
+```python
+E, A, B, a, b = 1.69, 406.4, 410.7, 0.34, 0.28          # fit of Hoffmann et al. (2022)
+G = (a * A / (b * B)) ** (1 / (a + b))
+L = lambda N, D: E + A / N**a + B / D**b
+for C in (1e21, 1e23, 1e25):
+    N = G * (C / 6) ** (b / (a + b)); D = C / (6 * N)        # Theorem 4.7
+    print(f"C = {C:.0e}: N* = {N:.2e}, D* = {D:.2e}, {D / N:.0f} tokens/param, loss {L(N, D):.3f}")
+print(f"Gopher {L(280e9, 300e9):.3f}  Chinchilla {L(70e9, 1.4e12):.3f}")
+```
+:::
+
+### 4.4 Schedules and hyperparameters {#ch4-4}
+
+::: def
+[Definition 4.9 — Learning-rate schedules]{.tag} With a peak rate $\eta_{\max}$, $W$ warmup steps and $S$ steps in total:
+
+-   **warmup and cosine decay**: $\eta_t = \eta_{\max}\, t / W$ for $t \le W$, then
+    $$
+    \eta_t = \eta_{\min} + \tfrac{1}{2}(\eta_{\max} - \eta_{\min}) \Big( 1 + \cos \frac{\pi (t - W)}{S - W} \Big) ;
+    $$
+-   **warmup–stable–decay** (WSD): the same warmup, a constant rate, then a short decay over the last 10 to 20 % of the steps (Hu et al., 2024).
+:::
+
+Warmup protects the first steps, while Adam's moments are noisy; the final decay realizes the small-step regime of Theorem 2.2. WSD can branch a decay from any checkpoint (Hägele et al., 2024).
+
+**Hyperparameters.** A published recipe: AdamW with $\beta_1 = 0.9$, $\beta_2 = 0.95$, weight decay 0.1, clipping at 1.0, 2 000 warmup steps, cosine decay to 10 % of the peak (Touvron et al., 2023a). The best rate decreases with width; μP rescales initializations and rates so that a rate tuned on a small proxy transfers (Yang et al., 2021). Batches reach millions of tokens, below the critical batch size beyond which they stop saving steps (McCandlish et al., 2018).
+
+### 4.5 Arithmetic precision and stability {#ch4-5}
+
+Large runs suffer loss spikes, through growing attention logits, drifting output logits or rare large updates. Remedies:
+
+-   bf16 rather than fp16, with fp32 for softmax, normalizations and loss (ch. 3.4);
+-   **QK-norm**, which normalizes queries and keys before their product and so bounds the attention logits (Dehghani et al., 2023; Wortsman et al., 2024);
+-   **z-loss**, adding $10^{-4} (\log Z)^2$, where $Z$ is the output softmax normalizer, to keep logits near zero (Chowdhery et al., 2022; ch. 10.2);
+-   gradient clipping, a lower $\beta_2$, and restarting before a spike while skipping its batches.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   Data are extracted, filtered, scored, deduplicated with MinHash (collision probability = Jaccard similarity) and mixed.
+-   Training costs about $6ND$ FLOPs, and 16 bytes per parameter with mixed-precision AdamW.
+-   The compute-optimal model size and data both grow roughly as $\sqrt{C}$, about 20 tokens per parameter.
+-   Warmup, then cosine or WSD decay; bf16, QK-norm and z-loss keep large runs stable.
+::::
+
+## 5. Post-training and alignment {#ch5}
+
+A pretrained model continues text; an assistant follows instructions. Post-training bridges the two with little compute: supervised fine-tuning, preference optimization and reinforcement learning.
+
+### 5.1 Supervised and parameter-efficient fine-tuning {#ch5-1}
+
+Supervised fine-tuning (SFT) continues training on curated conversations, with the loss on the assistant tokens only (Definition 1.6).
+
+::: def
+[Definition 5.1 — LoRA]{.tag} LoRA (Hu et al., 2022) freezes a pretrained matrix $W_0 \in \mathbb{R}^{d \times k}$ and learns a low-rank correction of rank $r \ll \min(d, k)$:
+$$
+W = W_0 + \frac{\alpha}{r} B A, \qquad B \in \mathbb{R}^{d \times r}, \quad A \in \mathbb{R}^{r \times k},
+$$
+with $A$ random and $B = 0$ at initialization, so that training starts from the pretrained model. After training, $BA$ is merged into $W_0$: no extra inference cost.
+:::
+
+For $d = k = 4096$ and $r = 16$, the adapter has $r(d + k) = 131\,072$ parameters, 0.8 % of $W_0$. QLoRA (Dettmers et al., 2023) keeps the frozen weights in a 4-bit format and trains bf16 adapters through them, fine-tuning a 65-billion-parameter model on one 48 GB GPU.
+
+::: def
+[Definition 5.2 — Distillation]{.tag} A small student $q_\theta$ learns from a large teacher $p$. Token-level distillation (Hinton et al., 2015) minimizes, along training sequences,
+$$
+\sum_t \mathrm{KL}\big( p(\cdot \mid x_{<t}) \,\|\, q_\theta(\cdot \mid x_{<t}) \big),
+$$
+which transmits the teacher's whole distribution, not one sampled token. Sequence-level distillation fine-tunes the student on the teacher's generations (Kim and Rush, 2016).
+:::
+
+### 5.2 Reward models and RLHF {#ch5-2}
+
+RLHF (Christiano et al., 2017; Ouyang et al., 2022) learns a reward from human comparisons of answers, then optimizes the model against it.
+
+::: def
+[Definition 5.3 — Reward model and regularized objective]{.tag} Under the Bradley–Terry model, the answer $y_w$ is preferred to $y_l$ for the prompt $x$ with probability
+$$
+\sigma\big(r(x, y_w) - r(x, y_l)\big),
+$$
+where $\sigma$ is the logistic function; the reward model $r$ is fitted by maximum likelihood on human comparisons.
+
+The policy $\pi$ then maximizes the reward with a KL penalty to the SFT model $\pi_{\mathrm{ref}}$:
+$$
+J(\pi) = \mathbb{E}_{x} \Big[ \mathbb{E}_{y \sim \pi(\cdot \mid x)}\, r(x, y) - \beta\, \mathrm{KL}\big(\pi(\cdot \mid x) \,\|\, \pi_{\mathrm{ref}}(\cdot \mid x)\big) \Big].
+$$
+:::
+
+:::: thm
+[Theorem 5.4 — The optimal regularized policy]{.tag} For each prompt $x$, the objective $J$ is maximized by the tilted reference policy
+$$
+\pi^\star(y \mid x) = \frac{1}{Z(x)}\, \pi_{\mathrm{ref}}(y \mid x)\, e^{r(x, y)/\beta}, \qquad Z(x) = \sum_y \pi_{\mathrm{ref}}(y \mid x)\, e^{r(x, y)/\beta} .
+$$
+
+::: proof
+Fix $x$ and drop it from the notation. Taking logarithms in the definition of $\pi^\star$ expresses the reward through $\pi^\star$:
+$$
+r(y) = \beta \log \frac{\pi^\star(y)}{\pi_{\mathrm{ref}}(y)} + \beta \log Z .
+$$
+
+Substituting into the objective gives
+$$
+\mathbb{E}_{\pi}[r] - \beta\, \mathrm{KL}(\pi \,\|\, \pi_{\mathrm{ref}}) = \beta \log Z - \beta\, \mathrm{KL}(\pi \,\|\, \pi^\star),
+$$
+which is maximal exactly when $\pi = \pi^\star$, by Proposition 0.2. [∎]{.qed}
+:::
+::::
+
+$Z(x)$ sums over all texts, so RLHF approaches $\pi^\star$ by reinforcement learning. PPO (Schulman et al., 2017) samples answers, scores them with $r$ minus a per-token KL penalty, estimates advantages $\hat A_t$ with a value model, and maximizes the clipped surrogate
+$$
+\mathbb{E}_t \Big[ \min\big( \rho_t \hat A_t,\ \mathrm{clip}(\rho_t, 1 - \varepsilon, 1 + \varepsilon)\, \hat A_t \big) \Big], \qquad \rho_t = \frac{\pi_\theta(y_t \mid \cdot)}{\pi_{\mathrm{old}}(y_t \mid \cdot)} .
+$$
+
+Clipping removes the incentive to move far from the sampling policy. PPO keeps four models in memory: policy, reference, reward and value.
+
+### 5.3 DPO, GRPO and verifiable rewards {#ch5-3}
+
+:::: thm
+[Theorem 5.5 — Direct preference optimization]{.tag} Parametrize the reward through the policy, as Theorem 5.4 suggests. The Bradley–Terry likelihood of the comparisons then becomes a loss on the policy alone (Rafailov et al., 2023):
+
+::: key
+[Key result — the DPO loss]{.tag}
+$$
+\mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E} \log \sigma \Big( \beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)} \Big)
+$$
+:::
+
+::: proof
+Theorem 5.4 expresses the reward through the optimal policy:
+$$
+r(x, y) = \beta \log \frac{\pi^\star(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} + \beta \log Z(x) .
+$$
+
+In the difference of the rewards of $y_w$ and $y_l$, the term $\beta \log Z(x)$ cancels. Replacing $\pi^\star$ by $\pi_\theta$ in the negative log-likelihood of the Bradley–Terry model gives the loss. [∎]{.qed}
+:::
+::::
+
+DPO needs no reward model, sampling or value model: it is a classification loss on pairs, but offline.
+
+::: def
+[Definition 5.6 — GRPO]{.tag} For each prompt, GRPO (Shao et al., 2024) samples a group of $G$ answers with rewards $r_1, \dots, r_G$, and gives every token of answer $i$ the advantage
+$$
+\hat A_i = \frac{r_i - \mathrm{mean}(r_1, \dots, r_G)}{\mathrm{std}(r_1, \dots, r_G)} .
+$$
+
+It maximizes PPO's clipped surrogate with these advantages, minus a KL penalty to $\pi_{\mathrm{ref}}$, without any value model.
+:::
+
+:::: prop
+[Proposition 5.7 — What a group can teach]{.tag} The group advantages sum to zero. If all answers of a group receive the same reward, every advantage is zero, and the prompt contributes no gradient.
+
+::: proof
+Centred rewards sum to zero. Equal rewards make every numerator vanish; implementations add a small constant to the standard deviation, which is then zero. [∎]{.qed}
+:::
+::::
+
+Prompts always or never solved are therefore filtered out.
+
+**Verifiable rewards.** In reinforcement learning with verifiable rewards (RLVR; Lambert et al., 2024), the reward is a program: exact match of a final answer, unit tests, a format check, which cannot be flattered like a learned reward model. DeepSeek-R1-Zero was trained this way with GRPO from a base model, and long chains of thought with self-checks emerged (DeepSeek-AI, 2025).
+
+### 5.4 Test-time compute {#ch5-4}
+
+A model also improves by spending more computation per question: **in parallel**, keeping the best of $n$ answers for a verifier or the most frequent final answer (self-consistency; Wang et al., 2023a); **sequentially**, by thinking longer, revising, or searching with a process reward model (Lightman et al., 2024).
+
+:::: prop
+[Proposition 5.8 — Parallel sampling]{.tag} Let each sample be correct with probability $p$, independently. With a perfect verifier, best-of-$n$ succeeds with probability
+$$
+1 - (1 - p)^n .
+$$
+
+If the final answers take finitely many values and the correct one is strictly more likely than each wrong one, majority voting is correct with probability tending to 1 as $n \to \infty$.
+
+::: proof
+Best-of-$n$ fails only if all $n$ samples fail. For the vote, the empirical frequency of each of the finitely many answers converges almost surely to its probability, by the law of large numbers. [∎]{.qed}
+:::
+::::
+
+For $p = 0.3$ and $n = 16$, best-of-$n$ succeeds with probability $0.997$. Allocating test-time compute by prompt difficulty can beat a much larger model (Snell et al., 2024).
+
+### 5.5 Evaluation and contamination {#ch5-5}
+
+MMLU (Hendrycks et al., 2021) asks four-choice questions in 57 subjects; HumanEval (Chen et al., 2021) asks for 164 Python functions checked by unit tests, scored by pass@$k$, the probability that one of $k$ samples passes.
+
+:::: thm
+[Theorem 5.9 — An unbiased estimator of pass@k]{.tag} Draw $n \ge k$ samples for a problem, of which $c$ pass. Then
+$$
+\widehat{\mathrm{pass@}k} = 1 - \binom{n - c}{k} \Big/ \binom{n}{k}
+$$
+is an unbiased estimator of $1 - (1 - p)^k$, where $p$ is the probability that one sample passes.
+
+::: proof
+Pick a uniformly random subset of $k$ of the $n$ samples. Given the samples, it contains no passing sample with probability $\binom{n-c}{k}/\binom{n}{k}$. Unconditionally, it is a set of $k$ independent samples, which all fail with probability $(1 - p)^k$. The tower property of conditional expectation concludes. [∎]{.qed}
+:::
+::::
+
+The plug-in estimator $1 - (1 - c/n)^k$ is biased downward (Exercise 11).
+
+**Contamination.** Test items present in the pretraining data turn scores into memory tests. Checks include 13-gram overlaps with the training data (Brown et al., 2020), perplexity on test items against paraphrases, and problems published after the training cutoff (LiveCodeBench; Jain et al., 2025).
+
+::: ex
+[Code 5.10 — pass@k and DPO on toy numbers]{.tag} The two estimators of pass@5, then DPO on Bradley–Terry comparisons of four answers, which recovers the optimum of Theorem 5.4.
+
+```python
+import numpy as np, torch
+from math import comb
+rng = np.random.default_rng(0)
+p, n, k = 0.15, 20, 5
+c = rng.binomial(n, p, size=20000)                       # passing samples per trial
+unbiased = np.array([1 - comb(n - ci, k) / comb(n, k) for ci in c])
+plugin = 1 - (1 - c / n) ** k
+print(f"true {1 - (1 - p)**k:.4f}  unbiased {unbiased.mean():.4f}  plug-in {plugin.mean():.4f}")
+
+torch.manual_seed(0); torch.set_num_threads(1)
+r, beta = torch.tensor([1.0, 0.0, 0.5, -1.0]), 0.5        # true rewards of 4 answers
+ref = torch.full((4,), 0.25)
+i, j = torch.randint(0, 4, (2, 20000)); keep = i != j; i, j = i[keep], j[keep]
+win = torch.rand(len(i)) < torch.sigmoid(r[i] - r[j])     # Bradley-Terry labels
+yw, yl = torch.where(win, i, j), torch.where(win, j, i)
+logits = torch.zeros(4, requires_grad=True)
+opt = torch.optim.Adam([logits], lr=0.05)
+for _ in range(500):
+    lr_ = torch.log_softmax(logits, 0) - ref.log()          # log pi_theta / pi_ref
+    loss = -torch.nn.functional.logsigmoid(beta * (lr_[yw] - lr_[yl])).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+target = ref * torch.exp(r / beta); target /= target.sum()  # Theorem 5.4
+print("DPO", torch.softmax(logits, 0).detach().numpy().round(3), " optimum", target.numpy().round(3))
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   LoRA learns a mergeable low-rank update, QLoRA over 4-bit weights; distillation transfers a distribution.
+-   The regularized objective is maximized by $\pi_{\mathrm{ref}}\, e^{r/\beta}/Z$; PPO approaches it, DPO cancels $Z$.
+-   GRPO uses group-normalized rewards; verifiable rewards drive reasoning models.
+-   Best-of-$n$ succeeds with probability $1 - (1-p)^n$; estimate pass@$k$ without bias and check contamination.
+::::
+
+## 6. Decoding and inference optimization {#ch6}
+
+Once trained, a model is queried millions of times. This chapter chooses the next token, measures what limits a GPU, and removes waste with caching, batching, speculation, quantization and long-context methods.
+
+### 6.1 Decoding strategies {#ch6-1}
+
+::: def
+[Definition 6.1 — Decoding rules]{.tag} Let $p$ be the next-token distribution and $z$ its logits.
+
+-   **Greedy** decoding takes the most likely token; **beam search** keeps the $B$ prefixes of highest log-probability.
+-   **Temperature** $\tau > 0$ samples from $\mathrm{softmax}(z/\tau)$, proportional to $p^{1/\tau}$: $\tau \to 0$ gives greedy decoding, $\tau \to \infty$ the uniform law.
+-   **Top-$k$** samples among the $k$ most likely tokens, renormalized (Fan et al., 2018).
+-   **Top-$p$** samples within the smallest set of most likely tokens of mass at least $p$ (Holtzman et al., 2020); **min-$p$** keeps the tokens with at least a fixed fraction of the top probability.
+:::
+
+::: ex
+[Example 6.2 — Truncations by hand]{.tag} Take $p = (0.5, 0.2, 0.15, 0.1, 0.05)$.
+
+-   Top-2 gives $(0.714, 0.286)$.
+-   Top-$p$ with $p = 0.8$ keeps three tokens of mass $0.85$ and gives $(0.588, 0.235, 0.176)$.
+-   Temperature $0.5$ squares and renormalizes:
+    $$
+    (0.769, 0.123, 0.069, 0.031, 0.008) .
+    $$
+:::
+
+Greedy and beam search suit single-answer tasks; on open text they loop.
+
+### 6.2 GPUs, the roofline and FlashAttention {#ch6-2}
+
+A GPU has tens of GB of high-bandwidth memory (HBM, the VRAM), a bandwidth $\beta$ of a few TB/s, a peak $\pi$ near $10^{15}$ FLOP/s in bf16, and a small, much faster on-chip SRAM.
+
+::: def
+[Definition 6.3 — Arithmetic intensity and roofline]{.tag} The arithmetic intensity $I$ of a kernel is its number of FLOPs per byte moved to or from memory. The kernel runs at most at
+$$
+\min(\pi, \beta I) \ \text{FLOP/s},
+$$
+and it is memory-bound when $I < \pi / \beta$, a ridge of a few hundred FLOPs per byte (Williams et al., 2009).
+:::
+
+Standard attention writes the $T \times T$ scores to HBM and reads them back, a memory-bound pattern. FlashAttention (Dao et al., 2022) processes tiles of $Q$, $K$, $V$ in SRAM and never stores the scores. It computes the softmax block by block, keeping a running maximum and normalizer and rescaling the partial outputs (Proposition 10.5 proves it exact). Memory becomes linear in $T$, and the scores are recomputed in the backward pass.
+
+### 6.3 Prefill, decode and the KV cache {#ch6-3}
+
+**Prefill** processes all the prompt tokens at once; **decode** then produces one token per step. Attention is causal, so the keys and values of past tokens never change: they are kept in the KV cache, and each step computes only the new token.
+
+:::: prop
+[Proposition 6.4 — Size of the KV cache]{.tag} With $L$ layers, $n_{kv}$ key–value heads of dimension $d_h$ and $b$ bytes per number, the cache takes per token
+$$
+2\, L\, n_{kv}\, d_h\, b \ \text{bytes}.
+$$
+
+::: proof
+Each layer stores one key and one value of size $n_{kv} d_h$ per token. [∎]{.qed}
+:::
+::::
+
+For $L = 32$, $n_{kv} = 32$ and $d_h = 128$ in bf16, this is 0.5 MiB per token, 2 GiB for 4096 tokens: the cache limits how many users a GPU serves.
+
+:::: prop
+[Proposition 6.5 — Prefill is compute-bound, decode is memory-bound]{.tag} Multiplying $n$ token vectors by a $d \times d$ matrix of 16-bit weights costs $2nd^2$ FLOPs and moves at least the $2d^2$ bytes of the weights, so for $n \ll d$ the intensity is
+$$
+I \approx n .
+$$
+
+Prefill has $n = T$, in the thousands: compute-bound. Decode has $n = B$, the batch size: each step lasts at least the time to read all weights and caches.
+
+::: proof
+The FLOPs are those of Proposition 0.4. The weights are read at least once; activations add $4nd$ bytes, negligible for $n \ll d$. [∎]{.qed}
+:::
+::::
+
+A 7B model in bf16 weighs 14 GB; at $2 \times 10^{12}$ bytes/s a decode step takes at least 7 ms, so one user gets at most about 140 tokens/s. A batch of 64 takes almost the same time per step and serves 64 users.
+
+### 6.4 Serving: batching, paging and speculation {#ch6-4}
+
+**Continuous batching** (Yu et al., 2022) lets finished sequences leave and new ones join at every step. **PagedAttention** (Kwon et al., 2023) stores the cache in fixed-size blocks listed in a per-sequence block table, as an operating system pages memory: waste stays below one block per sequence, and common prefixes share blocks. The vLLM engine is built on both.
+
+**Speculative decoding** (Leviathan et al., 2023; Chen et al., 2023a) lets a small draft model $q$ propose $\gamma$ tokens, which the target model $p$ checks in one forward pass.
+
+:::: thm
+[Theorem 6.6 — Speculative sampling is exact]{.tag} Draw $x \sim q$ and accept it with probability $\min(1, p(x)/q(x))$; otherwise draw from the residual distribution
+$$
+r(x) = \frac{(p(x) - q(x))_+}{\sum_y (p(y) - q(y))_+} .
+$$
+
+The acceptance probability is $\alpha = \sum_x \min(p(x), q(x))$, and the output has law exactly $p$:
+
+::: key
+[Key result — speculative sampling]{.tag}
+$$
+\mathbb{P}(\text{output} = x) = \min(p(x), q(x)) + (1 - \alpha)\, r(x) = p(x)
+$$
+:::
+
+::: proof
+The token $x$ is proposed and then accepted with probability
+$$
+q(x) \min\Big(1, \frac{p(x)}{q(x)}\Big) = \min\big(p(x), q(x)\big),
+$$
+whose sum over $x$ is $\alpha$.
+
+Since $\min(p, q) + (p - q)_+ = p$, the residual mass is $1 - \alpha$, and the rejection branch contributes $(1 - \alpha)\, r(x) = (p(x) - q(x))_+$. The two branches add up to $p(x)$. [∎]{.qed}
+:::
+::::
+
+If draft tokens are accepted independently with probability $\alpha$, one target pass yields $(1 - \alpha^{\gamma + 1})/(1 - \alpha)$ tokens on average: 3.4 for $\alpha = 0.8$ and $\gamma = 4$.
+
+### 6.5 Quantization {#ch6-5}
+
+::: def
+[Definition 6.7 — Absmax quantization]{.tag} To store a group of weights $w$ on $b$ bits, take the scale $s = \max_i |w_i| / (2^{b-1} - 1)$, store $q_i = \mathrm{round}(w_i / s)$ and reconstruct $\hat w_i = s\, q_i$. Then
+$$
+|w_i - \hat w_i| \le s/2 .
+$$
+:::
+
+An outlier inflates the scale and the error of its group, so scales are computed per group of 64 or 128 weights (Code 6.9). **Weight-only** 4-bit quantization divides by four the bytes read per decode step, and a 7B model fits in about 4 GB. **Weight and activation** 8-bit quantization also speeds up prefill, but must handle the activation outliers of ch. 3.4; ch. 10.4 reviews the main methods.
+
+### 6.6 Long context {#ch6-6}
+
+Beyond its training length $L$, a model sees RoPE angles never met at low frequencies, and degrades.
+
+-   **RoPE extensions.** Position interpolation maps position $m$ to $mL/L'$, then fine-tunes briefly (Chen et al., 2023b). YaRN interpolates only the low frequencies, keeps the high ones and slightly sharpens the softmax (Peng et al., 2024). Llama 3 raised the RoPE base from $10^4$ to $5 \times 10^5$.
+-   **Sliding-window attention** attends to the last $W$ tokens; $L$ layers still carry information over $LW$ positions (Beltagy et al., 2020; Jiang et al., 2023).
+-   **Attention sinks.** Models put much attention on the first tokens, a default target of the softmax; keeping them next to a sliding window allows unbounded streaming (Xiao et al., 2024).
+-   **Ring attention** splits a long sequence across devices in a ring; key–value blocks circulate while each device accumulates attention for its queries with the online softmax (Liu et al., 2024c).
+
+::: ex
+[Code 6.8 — Speculative sampling, checked empirically]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+p = np.array([0.5, 0.3, 0.15, 0.05])               # target model
+q = np.array([0.25, 0.25, 0.25, 0.25])             # draft model
+res = np.maximum(p - q, 0) / np.maximum(p - q, 0).sum()
+n = 400000
+x = rng.choice(4, size=n, p=q)                      # draft proposals
+accept = rng.random(n) < np.minimum(1, p[x] / q[x])
+out = np.where(accept, x, rng.choice(4, size=n, p=res))
+print("empirical", (np.bincount(out) / n).round(4), "target", p)
+print("acceptance", accept.mean().round(4), "theory", np.minimum(p, q).sum())
+```
+:::
+
+::: ex
+[Code 6.9 — Group-wise quantization and an outlier]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+w = rng.standard_normal(4096) * 0.02
+w[17] = 1.0                                          # one outlier weight
+def absmax(w, bits, group):
+    g = w.reshape(-1, group)
+    s = np.abs(g).max(axis=1, keepdims=True) / (2 ** (bits - 1) - 1)
+    return (np.round(g / s) * s).ravel()
+for bits in (8, 4):
+    for group in (4096, 128):
+        err = np.abs(absmax(w, bits, group) - w)
+        print(f"{bits}-bit, groups of {group:4d}: mean absolute error {err.mean():.5f}")
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   Temperature, top-$k$ and top-$p$ reshape the next-token law.
+-   Prefill is compute-bound, decode memory-bound; batching amortizes the weight reads.
+-   The KV cache costs $2Ln_{kv}d_hb$ bytes per token; paging and continuous batching keep GPUs full.
+-   Speculative sampling is exact; group-wise quantization and RoPE rescaling save memory and extend context.
+::::
+
+## 7. Alternative architectures and hardware efficiency {#ch7}
+
+A dense transformer pays for every parameter on every token, and its attention grows quadratically with the length. Three answers: activate part of the parameters (mixture of experts), share keys and values across heads, or replace attention by a recurrence.
+
+### 7.1 Mixture of experts {#ch7-1}
+
+::: def
+[Definition 7.1 — Mixture-of-experts layer]{.tag} An MoE layer replaces the MLP by $E$ expert MLPs $f_1, \dots, f_E$ and a router matrix $W_r$. For a token $x$, the gates are $g = \mathrm{softmax}(W_r x)$, and only the $k$ experts with the largest gates are evaluated (Shazeer et al., 2017):
+$$
+y = \sum_{i \in \mathrm{top}_k(g)} \tilde g_i\, f_i(x),
+$$
+where the selected gates $\tilde g_i$ are renormalized to sum to 1.
+:::
+
+The model has the parameters of $E$ MLPs and the per-token cost of $k$: Mixtral 8x7B, with 8 experts and $k = 2$, has about 47 billion parameters, 13 billion active per token (Jiang et al., 2024). All experts must still be stored.
+
+::: def
+[Definition 7.2 — Load-balancing loss]{.tag} Over a batch, let $f_i$ be the fraction of tokens routed to expert $i$ and $P_i$ the average gate of expert $i$. The Switch Transformer (Fedus et al., 2022) adds to the loss, with a small coefficient $a$ such as $10^{-2}$,
+$$
+\mathcal{L}_{\mathrm{aux}} = a\, E \sum_{i=1}^E f_i P_i .
+$$
+:::
+
+:::: prop
+[Proposition 7.3 — Balance minimizes the auxiliary loss]{.tag} If routing follows the gates, $f = P$, then
+$$
+E \sum_i P_i^2 \ge 1,
+$$
+with equality if and only if every $P_i$ equals $1/E$.
+
+::: proof
+By the Cauchy–Schwarz inequality, $1 = (\sum_i P_i \cdot 1)^2 \le E \sum_i P_i^2$, with equality if and only if $P$ is constant. [∎]{.qed}
+:::
+::::
+
+The counts $f_i$ have no gradient; the loss acts through the gates. Typical pathologies:
+
+-   **collapse**: experts that win early get more tokens, improve and win more, while the others starve;
+-   **token dropping**: each expert takes at most $c\,kT/E$ of the $T$ tokens of a batch, with a capacity factor $c$ slightly above 1, and the overflow skips the layer through the residual;
+-   **instability**: large router logits cause loss spikes, tamed by a router z-loss (Zoph et al., 2022).
+
+### 7.2 Multi-query and grouped-query attention {#ch7-2}
+
+::: def
+[Definition 7.4 — Grouped-query attention]{.tag} Grouped-query attention (GQA; Ainslie et al., 2023) keeps $H$ query heads but only $n_{kv}$ key–value heads, each shared by a group of $H/n_{kv}$ query heads. Multi-head attention is the case $n_{kv} = H$, multi-query attention (MQA; Shazeer, 2019) the case $n_{kv} = 1$.
+:::
+
+By Proposition 6.4, GQA divides the KV cache and its decode traffic by $H / n_{kv}$. With 64 query heads and 8 key–value heads, as in Llama 2 70B, the cache shrinks eightfold, to $2 \times 80 \times 8 \times 128 \times 2$ bytes, 320 KiB per token, for a quality close to multi-head attention.
+
+### 7.3 Beyond the transformer: recurrences {#ch7-3}
+
+:::: prop
+[Proposition 7.5 — Linear attention is a recurrent network]{.tag} Replace $e^{q^\top k}$ by $\phi(q)^\top \phi(k)$ for a positive feature map $\phi$ (Katharopoulos et al., 2020). Causal attention then becomes
+$$
+y_t = \frac{S_t^\top \phi(q_t)}{z_t^\top \phi(q_t)}, \qquad S_t = S_{t-1} + \phi(k_t)\, v_t^\top, \qquad z_t = z_{t-1} + \phi(k_t) .
+$$
+
+::: proof
+The numerator of causal attention is $\sum_{s \le t} \phi(k_s)^\top \phi(q_t)\, v_s$, which equals $S_t^\top \phi(q_t)$ with $S_t = \sum_{s \le t} \phi(k_s) v_s^\top$; the denominator is computed the same way with $z_t$. Both sums gain one term per step. [∎]{.qed}
+:::
+::::
+
+The state has a fixed size: every token costs the same and no KV cache is needed, but the past is compressed, as in an RNN.
+
+::: def
+[Definition 7.6 — Discrete state-space model]{.tag} A state-space model (SSM) maps inputs $u_t$ to outputs $y_t$ through a state $h_t \in \mathbb{R}^N$:
+$$
+h_t = \bar A h_{t-1} + \bar B u_t, \qquad y_t = C h_t ,
+$$
+where $\bar A = e^{\Delta A}$ and $\bar B$ discretize a continuous system $h' = Ah + Bu$ with a step $\Delta$ (Gu et al., 2022).
+:::
+
+:::: prop
+[Proposition 7.7 — A time-invariant SSM is a convolution]{.tag} If $\bar A, \bar B, C$ do not depend on $t$ and $h_0 = 0$, then
+$$
+y_t = \sum_{s=0}^{t-1} K_s\, u_{t-s}, \qquad K_s = C \bar A^s \bar B .
+$$
+
+::: proof
+Unrolling the recursion gives $h_t = \sum_{s=0}^{t-1} \bar A^s \bar B u_{t-s}$; apply $C$. [∎]{.qed}
+:::
+::::
+
+Training uses the convolution, by FFT, and generation the recurrence. Mamba (Gu and Dao, 2023) makes $\Delta$, $\bar B$ and $C$ depend on the input, to select what to remember. The convolution is lost, but the recurrence $h_t = a_t h_{t-1} + b_t$, with $a_t$ diagonal, remains parallel: its states are prefix products, computed by a parallel scan (ch. 10.5).
+
+A fixed-size state cannot hold an arbitrary context, and such models copy long strings worse than transformers (Jelassi et al., 2024); hybrids such as Jamba keep a few attention layers (Lieber et al., 2024). **Recursive (looped) architectures** reuse one block several times, so that depth becomes a compute budget chosen at test time (Dehghani et al., 2019; Geiping et al., 2025). Chapter 10.5 compares all these designs.
+
+::: ex
+[Code 7.8 — Linear attention and SSMs, parallel against recurrent]{.tag}
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+T, d = 50, 8
+q, k, v = torch.randn(3, T, d).unbind(0)
+phi = lambda x: torch.nn.functional.elu(x) + 1                         # positive features
+A = torch.tril(phi(q) @ phi(k).T)                                       # causal linear "attention"
+y_par = (A @ v) / A.sum(1, keepdim=True)
+S, z, y_rec = torch.zeros(d, d), torch.zeros(d), []
+for t in range(T):                                                      # Proposition 7.5
+    S, z = S + torch.outer(phi(k[t]), v[t]), z + phi(k[t])
+    y_rec.append(S.T @ phi(q[t]) / (z @ phi(q[t])))
+print("linear attention:", torch.allclose(y_par, torch.stack(y_rec), atol=1e-5))
+
+N = 4
+Ab, Bb, C = torch.diag(torch.rand(N) * 0.9), torch.randn(N), torch.randn(N)
+u = torch.randn(T)
+h, y_rnn = torch.zeros(N), []
+for t in range(T):                                                      # recurrence
+    h = Ab @ h + Bb * u[t]; y_rnn.append(C @ h)
+K = torch.stack([C @ torch.matrix_power(Ab, s) @ Bb for s in range(T)])  # Proposition 7.7
+y_conv = torch.stack([(K[:t + 1].flip(0) * u[:t + 1]).sum() for t in range(T)])
+print("SSM convolution:", torch.allclose(torch.stack(y_rnn), y_conv, atol=1e-5))
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   A mixture of experts stores $E$ MLPs and runs $k$; an auxiliary loss, minimal at uniform routing, balances them.
+-   GQA divides the KV cache by $H/n_{kv}$.
+-   Linear attention and SSMs are recurrences: constant memory per token, parallel training, limited recall.
+::::
+
+## 8. Agents {#ch8}
+
+An agent is a language model that acts: it calls tools, reads their results and decides what to do next, over many steps. This chapter formalizes the loop, adds memory, standardizes tools and measures agents.
+
+### 8.1 The agent loop {#ch8-1}
+
+::: def
+[Definition 8.1 — Agent loop]{.tag} Given a task, the model repeats the two steps below until it returns an answer or exhausts its budget of steps:
+
+1.  it writes a reasoning step and an action, either a tool call or a final answer;
+2.  the runtime executes the tool call and appends the observation to the context.
+
+Interleaving reasoning and actions in this way is the ReAct pattern (Yao et al., 2023).
+:::
+
+:::: prop
+[Proposition 8.2 — Reliability compounds]{.tag} If a task needs $n$ steps, each correct with probability $p$ independently, it succeeds with probability $p^n$. If each step can be checked and retried up to $m$ times, it succeeds with probability
+$$
+\big(1 - (1 - p)^m\big)^n .
+$$
+
+::: proof
+Independence multiplies the probabilities of the steps; with retries, a step fails only if all its $m$ attempts fail. [∎]{.qed}
+:::
+::::
+
+With $p = 0.95$ and $n = 20$, success has probability $0.36$; with a checker and two attempts per step, $0.95$. Verification is the main engineering tool of agents.
+
+### 8.2 Retrieval-augmented generation and memory {#ch8-2}
+
+::: def
+[Definition 8.3 — Retrieval-augmented generation]{.tag} A corpus is cut into chunks $c_1, \dots, c_M$, each embedded by an encoder $f$ (ch. 1.3). For a query $x$, the system retrieves the $k$ chunks of highest cosine similarity with $f(x)$ and places them in the prompt before generating (Lewis et al., 2020).
+:::
+
+Dense retrievers are trained contrastively on question–passage pairs (Karpukhin et al., 2020) and often combined with word-matching scores such as BM25 (Robertson and Zaragoza, 2009).
+
+RAG brings current, attributable knowledge, and serves agents as **long-term memory**: past interactions are stored as retrievable notes. Its weak points are chunk size, recall (an answer missing from the top $k$ is lost) and position, since models use evidence in the middle of a long context poorly (Liu et al., 2024a).
+
+::: ex
+[Code 8.4 — Retrieval and recall@k]{.tag} Each query keeps two words of one of 200 synthetic notes and adds four random words; recall@$k$ is the fraction of queries whose note is among the $k$ retrieved.
+
+```python
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+rng = np.random.default_rng(0)
+vocab = [f"w{i}" for i in range(500)]
+notes = [" ".join(rng.choice(vocab, 8, replace=False)) for _ in range(200)]
+queries = [" ".join(list(rng.choice(n.split(), 2, replace=False)) + list(rng.choice(vocab, 4)))
+           for n in notes]
+vec = TfidfVectorizer().fit(notes)
+S = (vec.transform(queries) @ vec.transform(notes).T).toarray()   # cosine similarities
+rank = (-S).argsort(axis=1)
+for k in (1, 5, 20):
+    print(f"recall@{k}: {np.mean([i in rank[i, :k] for i in range(200)]):.2f}")
+```
+:::
+
+### 8.3 Tool use and function calling {#ch8-3}
+
+Function calling (ch. 1.6) turns a tool into a typed interface: a name, a description and a JSON schema of arguments. Models learn it in post-training from demonstrations; Toolformer even lets a model annotate its own training text with useful API calls (Schick et al., 2023).
+
+Serving engines guarantee parsable calls by **constrained decoding**: tokens that cannot extend a valid prefix of the schema are masked at each step. The runtime validates arguments, enforces permissions and time limits, and returns errors as observations, so that the model can correct itself (Code 8.7).
+
+### 8.4 The Model Context Protocol {#ch8-4}
+
+::: def
+[Definition 8.5 — Model Context Protocol]{.tag} The Model Context Protocol (MCP), published as an open specification by Anthropic in 2024, standardizes how an application connects a model to external capabilities. A **host** application runs one **client** per **server**, and each server exposes
+
+-   **tools**, functions that the model may call;
+-   **resources**, data that the application can read into the context;
+-   **prompts**, reusable templates.
+
+Messages follow JSON-RPC 2.0, over standard input and output for local servers or over HTTP for remote ones.
+:::
+
+With a common protocol, $M$ applications and $N$ tools need $M + N$ integrations instead of $MN$. Tool descriptions and results are untrusted text that may carry instructions (prompt injection): permissions must be minimal and sensitive actions confirmed by the user.
+
+### 8.5 Coding agents and agentic benchmarks {#ch8-5}
+
+A coding agent searches and edits a repository, runs the tests in a sandbox and reads the errors until the tests pass. Tests are a verifiable signal, as in RLVR (ch. 5.3), which is why coding agents became reliable first. Agentic benchmarks score whole trajectories:
+
+-   **SWE-bench** (Jimenez et al., 2024): 2 294 GitHub issues from 12 Python repositories, solved if hidden tests pass;
+-   **WebArena** (Zhou et al., 2024): tasks on self-hosted websites, checked on their final state;
+-   **GAIA** (Mialon et al., 2024): questions with short answers that need browsing and tools;
+-   **τ-bench** (Yao et al., 2024): dialogues with a simulated user under a domain policy.
+
+::: def
+[Definition 8.6 — pass^k]{.tag} The metric pass^k is the probability that $k$ independent attempts at a task all succeed. With $c$ successes in $n \ge k$ attempts, $\binom{c}{k} / \binom{n}{k}$ estimates it without bias, by the argument of Theorem 5.9.
+:::
+
+pass^k, introduced by τ-bench, rewards consistency: an agent that succeeds with probability 0.8 per attempt has a pass@4 of 0.998 but a pass^4 of 0.41. Scores also depend on the scaffold and the step budget, which must be reported.
+
+::: ex
+[Code 8.7 — An agent loop in miniature]{.tag} A stub stands in for the model; the loop of Definition 8.1 runs the tool, catches the error and feeds it back.
+
+```python
+import json
+def calculator(expression: str) -> str:
+    if not set(expression) <= set("0123456789+-*/(). e"):
+        raise ValueError("forbidden characters")
+    return str(eval(expression, {"__builtins__": {}}))
+TOOLS = {"calculator": calculator}
+
+def stub_model(messages):
+    """Stands in for an LLM: one faulty call, a corrected call, then the answer."""
+    last = messages[-1]
+    if last["role"] == "user":
+        return json.dumps({"tool": "calculator", "arguments": {"expression": "6 * 7e9 params * 2e12"}})
+    if last["content"].startswith("error"):
+        return json.dumps({"tool": "calculator", "arguments": {"expression": "6 * 7e9 * 2e12"}})
+    return json.dumps({"answer": f"About {float(last['content']):.1e} FLOPs (Proposition 4.4)."})
+
+messages = [{"role": "user", "content": "FLOPs to train 7e9 parameters on 2e12 tokens?"}]
+for step in range(5):                                          # budget of steps
+    action = json.loads(stub_model(messages))
+    if "answer" in action:
+        print(action["answer"]); break
+    try:
+        result = TOOLS[action["tool"]](**action["arguments"])
+    except Exception as e:
+        result = f"error: {e}"
+    messages.append({"role": "tool", "content": result})
+    print(f"step {step}: {action['arguments']} -> {result}")
+```
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   Agents loop over reasoning, tool calls and observations; errors compound as $p^n$, checks restore reliability.
+-   RAG retrieves by embedding similarity and serves as long-term memory.
+-   Tool calls are typed JSON; MCP standardizes tools, resources and prompts.
+-   Coding agents iterate on tests; report pass@$k$ and pass^k.
+::::
+
+## 9. Advanced topics: interpretability, small models, vision and robotics {#ch9}
+
+The last session opens four directions of current research: understanding what a model computes, shrinking it to run on a phone, giving it eyes, and letting it act in the physical world.
+
+### 9.1 Mechanistic interpretability {#ch9-1}
+
+Mechanistic interpretability reverse-engineers trained networks into understandable computations. Every layer reads and writes the residual stream (Proposition 3.5), so intermediate states can be decoded by the output layer (the "logit lens") or by linear probes. Two methods test causal hypotheses:
+
+-   **activation patching** copies one activation from a clean run into a corrupted one and measures how much of the correct output returns (Meng et al., 2022; Wang et al., 2023b);
+-   **circuits** are small subgraphs of heads and MLPs implementing a behaviour, such as the induction heads that complete $[A][B] \dots [A] \to [B]$ and appear together with in-context learning (Olsson et al., 2022).
+
+Neurons are often polysemantic: a model stores more features than it has dimensions, in **superposition** (Elhage et al., 2022), using nearly orthogonal directions, which are exponentially many (ch. 10.6).
+
+::: def
+[Definition 9.1 — Sparse autoencoder]{.tag} To recover features from activations $x \in \mathbb{R}^d$, a sparse autoencoder with $m \gg d$ latents computes
+$$
+f = \mathrm{ReLU}(W_e x + b_e), \qquad \hat x = W_d f + b_d ,
+$$
+and minimizes $\|x - \hat x\|^2 + \lambda \|f\|_1$; the $\ell^1$ penalty keeps few latents active per input (Bricken et al., 2023; Cunningham et al., 2024).
+:::
+
+Each column of $W_d$ is a candidate feature; dictionaries with millions of latents find interpretable features in production models (Templeton et al., 2024).
+
+::: ex
+[Code 9.2 — A sparse autoencoder recovers features in superposition]{.tag} Forty sparse features in 20 dimensions; 80 latents recover almost all of them.
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+d, n_feat, m = 20, 40, 80
+F = torch.nn.functional.normalize(torch.randn(n_feat, d), dim=1)       # true feature directions
+def batch(n):                                                           # each feature on 3 % of inputs
+    active = (torch.rand(n, n_feat) < 0.03).float()
+    return (active * (0.5 + 0.5 * torch.rand(n, n_feat))) @ F
+Wd0 = torch.nn.functional.normalize(torch.randn(d, m), dim=0)
+Wd, bd = torch.nn.Parameter(Wd0.clone()), torch.nn.Parameter(torch.zeros(d))
+We, be = torch.nn.Parameter(Wd0.T.clone()), torch.nn.Parameter(torch.zeros(m))
+opt = torch.optim.Adam([We, be, Wd, bd], lr=3e-3)
+for step in range(3000):
+    x = batch(512)
+    f = torch.relu(x @ We.T + be)
+    loss = ((f @ Wd.T + bd - x) ** 2).sum(1).mean() + 0.1 * f.abs().sum(1).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+    with torch.no_grad():
+        Wd /= Wd.norm(dim=0, keepdim=True)                              # unit-norm dictionary
+with torch.no_grad():
+    cos = (F @ Wd).abs().max(dim=1).values                              # best latent per feature
+    overlap = (F @ F.T).abs().fill_diagonal_(0).max()
+print(f"largest overlap between true features {overlap:.2f}")
+print("features recovered (|cos| > 0.9):", int((cos > 0.9).sum()), "of", n_feat)
+```
+:::
+
+### 9.2 Small language models for the edge {#ch9-2}
+
+On-device models avoid network latency and keep data local, within a few GB of shared memory, tens of GB/s of bandwidth and a battery. By Proposition 6.5, decoding speed is bounded by bandwidth over model bytes.
+
+::: ex
+[Example 9.3 — A model on a phone]{.tag} A model of 1 billion parameters quantized to 4 bits takes about 0.5 GB. With 50 GB/s of bandwidth, decoding is bounded by
+$$
+50 / 0.5 = 100 \ \text{tokens/s},
+$$
+and a 7B model, about 3.5 GB, by 14 tokens/s.
+:::
+
+Small models are trained on far more than 20 tokens per parameter, because inference dominates their cost (Sardana et al., 2024), on curated, synthetic or distilled data (Gunasekar et al., 2023; Ben Allal et al., 2025). They favour deep and thin networks with shared embeddings and GQA (Liu et al., 2024b): with $d = 576$ and 49 152 tokens, the embedding table alone holds 28 million parameters. They run 4-bit quantized, with runtimes such as llama.cpp.
+
+### 9.3 Multimodality: vision transformers {#ch9-3}
+
+::: def
+[Definition 9.4 — Vision transformer]{.tag} A vision transformer (ViT; Dosovitskiy et al., 2021) cuts an image of $H \times W$ pixels into patches of $P \times P$ pixels, projects each flattened patch linearly to a token, adds position embeddings, and feeds the
+$$
+HW / P^2
+$$
+tokens to a standard transformer encoder.
+:::
+
+A $224 \times 224$ image with $16 \times 16$ patches gives 196 tokens. CLIP (Radford et al., 2021) trains an image encoder and a text encoder on batches of $n$ image–caption pairs; with scores $s_{ij}$ between normalized embeddings of image $i$ and caption $j$, divided by a temperature, the loss is a symmetric cross-entropy:
+$$
+\mathcal{L} = -\frac{1}{2n} \sum_{i=1}^n \Big( \log \frac{e^{s_{ii}}}{\sum_j e^{s_{ij}}} + \log \frac{e^{s_{ii}}}{\sum_j e^{s_{ji}}} \Big) .
+$$
+
+**Vision-language models** such as LLaVA (Liu et al., 2023) map the patch embeddings of a pretrained vision encoder, through a small projector, to tokens placed before the text of an LLM, then fine-tune on visual instructions.
+
+### 9.4 Robotics {#ch9-4}
+
+**Vision-language-action** models fine-tune a vision-language model to output robot actions as tokens (Brohan et al., 2023; Kim et al., 2024).
+
+::: def
+[Definition 9.5 — Action tokenization]{.tag} Each of the $D$ dimensions of an action, such as a displacement of the end effector or the gripper command, is clipped to a range $[a_{\min}, a_{\max}]$ divided into 256 uniform bins. The action becomes $D$ tokens, predicted autoregressively, and decoding the centre of each bin errs by at most half a bin:
+$$
+\frac{a_{\max} - a_{\min}}{2 \times 256} .
+$$
+:::
+
+Over a 10 cm range, the error is at most 0.2 mm. π0 (Black et al., 2024) predicts chunks of continuous actions with a flow-matching head instead. Demonstrations are costly, large models run at a few hertz while control loops need more, and errors act in the physical world; [Robotics](../s1-robotics/index.html) covers the control side.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Interpretability decodes and patches the residual stream; sparse autoencoders recover features stored in superposition.
+-   Small models are overtrained, distilled and quantized; bandwidth bounds their speed.
+-   ViTs turn patches into tokens; CLIP aligns images and text; VLA models output action tokens.
+::::
+
+## 10. Complements for self-study {#ch10}
+
+This chapter collects derivations and details that extend chapters 2 to 9 but are not needed to follow them in class. Each section names the chapter it extends.
+
+### 10.1 Newton–Schulz iterations for Muon (ch. 2.4) {#ch10-1}
+
+Muon needs the orthogonal factor $UV^\top$ of the momentum matrix at every step, and an SVD is slow on a GPU. Newton–Schulz iterations use matrix products only.
+
+:::: prop
+[Proposition 10.1 — Newton–Schulz acts on singular values]{.tag} Let $X_0 = M / \|M\|_F$, with reduced SVD $X_0 = U \Sigma_0 V^\top$, and iterate
+$$
+X_{k+1} = \tfrac{3}{2} X_k - \tfrac{1}{2} X_k X_k^\top X_k .
+$$
+
+Then $X_k = U g^{(k)}(\Sigma_0) V^\top$, where $g(\sigma) = (3\sigma - \sigma^3)/2$ is applied $k$ times to each singular value. For every $\sigma$ in $(0, \sqrt 3)$, the iterates $g^{(k)}(\sigma)$ converge to 1, quadratically near 1, so
+$$
+X_k \longrightarrow U V^\top .
+$$
+
+::: proof
+If $X = U \Sigma V^\top$, then $X X^\top X = U \Sigma^3 V^\top$, so each iteration keeps $U$ and $V$ and applies $g$ to $\Sigma$; induction gives the first claim.
+
+On $(0, 1]$, $g(\sigma) - \sigma = \sigma(1 - \sigma^2)/2 \ge 0$ and $g \le 1$, so the iterates increase and stay bounded by 1. Their limit is a fixed point of $g$ in $(0, 1]$, which can only be 1.
+
+On $(1, \sqrt 3)$, $g$ decreases from 1 to 0, so one iteration brings $\sigma$ into $(0, 1)$.
+
+Finally $g(1) = 1$ and $g'(1) = 0$, hence quadratic convergence. The Frobenius normalization puts every singular value in $(0, 1]$. [∎]{.qed}
+:::
+::::
+
+Small singular values grow only by a factor $3/2$ per cubic iteration. Muon therefore uses a quintic $a\sigma + b\sigma^3 + c\sigma^5$ with $(a, b, c) = (3.4445, -4.7750, 2.0315)$, whose large slope at 0 lifts small singular values quickly; it does not converge exactly, but five iterations put all singular values in a band around 1 (Jordan et al., 2024), which suffices for an update direction.
+
+::: ex
+[Code 10.2 — Newton–Schulz against the SVD]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+M = rng.standard_normal((64, 32)) @ np.diag(np.logspace(0, -1, 32))   # condition number ~ 10
+U, s, Vt = np.linalg.svd(M, full_matrices=False)
+X = M / np.linalg.norm(M)                     # Frobenius normalization: singular values <= 1
+for k in range(30):
+    X = 1.5 * X - 0.5 * X @ X.T @ X           # cubic Newton-Schulz (Proposition 10.1)
+print("cubic, 30 iterations: max error to U V^T =", np.abs(X - U @ Vt).max())
+X = M / np.linalg.norm(M)
+for k in range(5):                            # Muon's quintic coefficients
+    A = X @ X.T
+    X = 3.4445 * X - 4.7750 * A @ X + 2.0315 * A @ A @ X
+sv = np.linalg.svd(X, compute_uv=False)
+print("quintic, 5 iterations: singular values in [%.2f, %.2f]" % (sv.min(), sv.max()))
+```
+:::
+
+### 10.2 Deduplication at scale and the z-loss (ch. 4) {#ch10-2}
+
+Comparing all pairs of documents is impossible for billions of documents. Locality-sensitive hashing compares only candidates.
+
+:::: prop
+[Proposition 10.3 — Banding MinHashes]{.tag} Split $k = br$ MinHashes into $b$ bands of $r$, and call two documents candidates when all $r$ values of at least one band agree. Two documents of Jaccard similarity $s$ are candidates with probability
+$$
+1 - (1 - s^r)^b .
+$$
+
+::: proof
+A band agrees with probability $s^r$, by Theorem 4.2 and the independence of the permutations. The $b$ bands are independent, so none agrees with probability $(1 - s^r)^b$. [∎]{.qed}
+:::
+::::
+
+With $b = 20$ bands of $r = 5$, pairs with $s = 0.8$ become candidates with probability $0.9996$, and pairs with $s = 0.3$ with probability $0.047$. The curve is a steep S around
+$$
+(1/b)^{1/r} \approx 0.55 .
+$$
+
+Hashing each band into a table finds all candidates in time linear in the corpus; the candidates are then checked with their full MinHash signatures.
+
+:::: prop
+[Proposition 10.4 — What the z-loss does]{.tag} Let $Z = \sum_j e^{z_j}$ be the normalizer of the output logits $z$, and $p = \mathrm{softmax}(z)$. Then
+$$
+\nabla_z (\log Z)^2 = 2 \log Z \cdot p ,
+$$
+and among all logit vectors $z + c\mathbf 1$, which give the same $p$, the penalty is zero exactly for $c = -\log Z$.
+
+::: proof
+$\partial \log Z / \partial z_i = p_i$ (Proposition 0.3), and the chain rule gives the gradient. Adding $c$ to every logit multiplies $Z$ by $e^c$, so $\log Z$ becomes $\log Z + c$, and the softmax is unchanged. [∎]{.qed}
+:::
+::::
+
+The cross-entropy alone leaves the common level of the logits free, so it can drift until bf16 rounding of large logits corrupts the softmax; the z-loss pins it near zero (Chowdhery et al., 2022).
+
+### 10.3 Online softmax and FlashAttention (ch. 6.2) {#ch10-3}
+
+:::: prop
+[Proposition 10.5 — Online softmax]{.tag} Read scores $s_j$ with values $v_j$ one at a time, keeping a running maximum $m$, a normalizer $\ell$ and an output $o$, updated for each new pair $(s, v)$ by
+$$
+m' = \max(m, s), \qquad \ell' = \ell\, e^{m - m'} + e^{s - m'}, \qquad o' = \frac{\ell\, e^{m - m'}\, o + e^{s - m'}\, v}{\ell'} .
+$$
+
+After the last pair, $o$ equals the attention output $\sum_j \mathrm{softmax}(s)_j\, v_j$ exactly (Milakov and Gimelshein, 2018).
+
+::: proof
+By induction, after $t$ pairs, $m$ is the largest of the first $t$ scores, and
+$$
+\ell = \sum_{j \le t} e^{s_j - m}, \qquad o = \frac{1}{\ell} \sum_{j \le t} e^{s_j - m}\, v_j .
+$$
+
+The update multiplies the old sums by $e^{m - m'}$, which moves their reference from $m$ to $m'$, and adds the new term. [∎]{.qed}
+:::
+::::
+
+The same update merges two blocks: replace $(s, v)$ by the triple $(m_2, \ell_2, o_2)$ of a second block and rescale both sides to the common maximum.
+
+FlashAttention (Dao et al., 2022) loads blocks of keys and values into SRAM, updates the triples of a block of queries, and writes only the final outputs, together with $m$ and $\ell$ for the backward pass. Its memory is linear in $T$. For an SRAM of size $M$, Dao et al. show that its HBM accesses drop from order $Td + T^2$ to order
+$$
+T^2 d^2 / M .
+$$
+
+Ring attention (ch. 6.6) applies the same merge across devices.
+
+::: ex
+[Code 10.6 — The online softmax is exact]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+s, v = rng.standard_normal(1000) * 5, rng.standard_normal((1000, 4))
+w = np.exp(s - s.max()); exact = (w / w.sum()) @ v           # standard softmax-weighted sum
+m, l, o = -np.inf, 0.0, np.zeros(4)
+for sj, vj in zip(s, v):                                        # Proposition 10.5
+    m2 = max(m, sj)
+    l2 = l * np.exp(m - m2) + np.exp(sj - m2)
+    o = (l * np.exp(m - m2) * o + np.exp(sj - m2) * vj) / l2
+    m, l = m2, l2
+print("max difference:", np.abs(o - exact).max())
+```
+:::
+
+### 10.4 Quantization methods (ch. 6.5) {#ch10-4}
+
+Weight-and-activation quantization meets the outlier features of ch. 3.4: a few channels of the activations are tens of times larger than the others.
+
+-   **LLM.int8()** (Dettmers et al., 2022) multiplies in 8 bits, except for the outlier feature dimensions, which it keeps in 16 bits.
+-   **SmoothQuant** (Xiao et al., 2023) divides each activation channel by a factor $s_j$ and multiplies the matching row of the weights by $s_j$: the product is unchanged, and the difficulty moves from activations to weights, which quantize more easily.
+-   **GPTQ** (Frantar et al., 2023) quantizes the weights of a layer one column at a time and updates the remaining columns to compensate, minimizing $\|WX - \hat W X\|_F^2$ on calibration inputs $X$ with second-order information.
+-   **AWQ** (Lin et al., 2024) scales up the small fraction of weight channels that meet large activations before quantizing, which protects them from rounding.
+
+### 10.5 Parallel scans and architectures compared (ch. 7) {#ch10-5}
+
+| Architecture | Training cost in the length $T$ | Memory per generated token | Exact recall of the context |
+|---|---|---|---|
+| Transformer, multi-head | $O(T^2)$ attention, parallel | KV cache, $O(T)$ | Yes |
+| Transformer, GQA | Same | Cache divided by $H/n_{kv}$ | Yes |
+| MoE transformer | Same, fewer FLOPs per parameter | Same; all experts stored | Yes |
+| Linear attention, SSM, Mamba | $O(T)$, by scan or convolution | Constant state | Limited by the state |
+
+Other recurrent designs are RWKV (Peng et al., 2023), xLSTM (Beck et al., 2024) and Griffin, which mixes gated linear recurrences with local attention (De et al., 2024). Mamba-2 rewrites selective SSMs as a structured form of masked attention, which lets them use matrix-multiplication hardware (Dao and Gu, 2024).
+
+Selective SSMs train in parallel although they have no convolution form, because a linear recurrence is a scan.
+
+:::: prop
+[Proposition 10.7 — Linear recurrences are scans]{.tag} Represent the step $h \mapsto a h + b$, with $a$ diagonal, by the pair $(a, b)$. Applying $(a, b)$ then $(a', b')$ is the step
+$$
+(a, b) \bullet (a', b') = (a' a,\ a' b + b'),
+$$
+and the operation $\bullet$ is associative. The states $h_1, \dots, h_T$ are therefore prefix products, computable by a parallel scan in $O(\log T)$ parallel steps (Blelloch, 1990).
+
+::: proof
+Applying $(a', b')$ to $ah + b$ gives $a'ah + a'b + b'$. Composition of maps is associative, and so is $\bullet$, which represents it. [∎]{.qed}
+:::
+::::
+
+Mamba implements this scan in a fused GPU kernel that keeps the expanded state in SRAM, the same idea as FlashAttention (Gu and Dao, 2023).
+
+Two engineering details of ch. 7 deserve mention. A model trained with multi-head attention can be converted to GQA by averaging its key and value heads within each group and training briefly (Ainslie et al., 2023). DeepSeek-V3 balances its experts without an auxiliary loss: a bias added to each expert's routing score, for the selection only, is raised for underloaded experts and lowered for overloaded ones (DeepSeek-AI, 2024).
+
+### 10.6 The geometry of superposition (ch. 9.1) {#ch10-6}
+
+:::: prop
+[Proposition 10.8 — Many nearly orthogonal directions]{.tag} Let $u_1, \dots, u_N$ be independent uniform unit vectors of $\mathbb{R}^d$ and $\varepsilon \in (0, 1)$. If $N(N - 1)\, e^{-d\varepsilon^2/2} < 1$, then with positive probability
+$$
+|\langle u_i, u_j \rangle| < \varepsilon \quad \text{for all } i \ne j .
+$$
+
+::: proof
+For one pair, the measure of a spherical cap gives (Ball, 1997)
+$$
+\mathbb{P}\big(|\langle u_i, u_j \rangle| \ge \varepsilon\big) \le 2 e^{-d\varepsilon^2/2} .
+$$
+
+A union bound over the $N(N-1)/2$ pairs bounds the probability of failure by $N(N-1)\, e^{-d\varepsilon^2/2} < 1$. [∎]{.qed}
+:::
+::::
+
+The number of nearly orthogonal directions thus grows like $e^{d\varepsilon^2/4}$: for $d = 4096$ and $\varepsilon = 0.1$, more than 28 000. A model can store many more sparse features than dimensions, at the price of small interferences, which the ReLU of a sparse autoencoder (Definition 9.1) filters out.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 10
+:::
+
+-   Newton–Schulz iterations orthogonalize by acting on singular values; Muon's quintic trades exactness for speed.
+-   Banded MinHash finds near-duplicates in linear time; the z-loss fixes the free level of the logits.
+-   The online softmax is exact and underlies FlashAttention and ring attention.
+-   High-dimensional spaces hold exponentially many nearly orthogonal directions, which makes superposition possible.
+-   A linear recurrence is a scan, hence computable in parallel.
+::::
+
+## 11. Research directions and open problems {#ch11}
+
+This chapter surveys questions that are open at the time of writing, with entry points into the literature. It is meant for self-study and as a source of project ideas.
+
+### 11.1 Scaling laws beyond Chinchilla {#ch11-1}
+
+The Chinchilla law of ch. 4.3 assumes unlimited fresh data and ignores inference. Muennighoff et al. (2023) studied the data-constrained regime and found that repeating data for up to about four epochs is almost as useful as new data, with rapidly diminishing returns beyond. Sardana et al. (2024) added the cost of inference and showed that served models should be smaller and trained on more tokens. Hägele et al. (2024) showed that WSD schedules make scaling studies cheaper, since one run yields many budgets.
+
+Open questions include laws for downstream abilities rather than loss, and the status of "emergent" abilities: Wei et al. (2022) reported abilities that appear abruptly with scale, while Schaeffer et al. (2023) argued that many such jumps come from discontinuous metrics rather than from the models.
+
+### 11.2 Optimizers and parametrizations {#ch11-2}
+
+Muon revived the view of optimizers as steepest descent under a norm chosen per layer (Bernstein and Newhouse, 2024). Whether such methods keep their advantage at the largest scales, how they interact with μP and with low precision, and why Adam needs $\beta_2$ near 0.95 for transformers are active questions (Liu et al., 2025).
+
+### 11.3 Reinforcement learning and reasoning {#ch11-3}
+
+Reinforcement learning with verifiable rewards produced the reasoning models of 2024–2025 (DeepSeek-AI, 2025). Yue et al. (2025) found that, for large numbers of samples, base models solve about as many problems as their RL-trained versions, which suggests that RL mostly reweights abilities already present; how to make RL discover new strategies is open. Other questions are rewards for tasks without a checker, process rewards that are not gamed, and the faithfulness of written chains of thought to the actual computation.
+
+### 11.4 Architectures and long context {#ch11-4}
+
+Hybrids of attention and recurrent layers (Lieber et al., 2024; De et al., 2024) trade exact recall for memory, and theory shows that fixed-state models cannot copy arbitrarily long strings (Jelassi et al., 2024). Which mix of layers is optimal, and how to evaluate long-context use beyond retrieving a single planted fact, remain open.
+
+### 11.5 Interpretability, data and evaluation {#ch11-5}
+
+Sparse autoencoders scale to production models (Templeton et al., 2024), but whether their features are the model's own units of computation, and how to validate them causally, is debated. Synthetic data raise the question of model collapse: Shumailov et al. (2024) showed degradation when each generation is trained only on the previous one's outputs, while Gerstgrasser et al. (2024) found that accumulating real and synthetic data avoids it. Finally, contamination and saturation keep benchmarks short-lived; dynamic and agentic benchmarks (Jain et al., 2025; Jimenez et al., 2024; Yao et al., 2024) are partial answers.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 11
+:::
+
+-   Scaling laws are being extended to repeated data, inference costs and schedules; emergence is contested.
+-   Spectral-norm optimizers such as Muon are promising, their large-scale behaviour still under study.
+-   It is unclear whether RL with verifiable rewards creates new reasoning abilities or reweights existing ones.
+-   Interpretability, synthetic data and evaluation all lack settled methodology.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended. Each one names the chapters it uses; the *Practice* column of the [session plan](#sessions) says when to solve it.
+
+1.  **★ Perplexity across tokenizers.** Model A has an average negative log-likelihood of 2.1 nats per token on a test text, with a tokenizer that averages 4.2 characters per token. Model B reaches 2.4 nats per token with 5.0 characters per token. Compute both perplexities and both losses in bits per character. Which model predicts the text better? (ch. 0.1, 1.1)
+
+    *Solution*: the perplexities are $e^{2.1} \approx 8.17$ for A and $e^{2.4} \approx 11.0$ for B. Dividing by $\ln 2$ gives 3.03 and 3.46 bits per token, hence
+    $$
+    \frac{3.03}{4.2} \approx 0.721 \ \text{bit/char (A)}, \qquad \frac{3.46}{5.0} \approx 0.692 \ \text{bit/char (B)}.
+    $$
+
+    B gives the text a higher probability, although its perplexity per token is larger. Perplexities compare models only under the same tokenizer; bits per character, or per byte, do not depend on it.
+
+2.  **★ Byte-pair encoding by hand.** On the corpus of Code 1.7 (*low* ×5, *lower* ×2, *newest* ×6, *widest* ×3): (a) count the adjacent pairs and check the first merge; (b) give merges 5 and 6, breaking ties by first occurrence as the code does; (c) encode the unseen word *lowest* with the first four merges. (ch. 1.5)
+
+    *Solution*: **(a)** the counts are *e s*: 9, *s t*: 9, *w e*: 8, *l o*: 7, *o w*: 7, *n e*: 6, *e w*: 6, and 3 or 2 for the others. Of the two pairs counted 9, *e s* occurs first.
+
+    **(b)** After four merges, the most frequent pairs are *n e*, then *ne w*, both counted 6: merges 5 and 6 build *ne* and *new* (change `range(4)` to `range(6)` in Code 1.7 to check).
+
+    **(c)** Applying the merges in order gives *l o w e s t* → *l o w es t* → *l o w est* → *lo w est* → *low est*: two tokens, although *lowest* never occurs in the corpus.
+
+3.  **★ Lost updates and loss scaling.** (a) A weight equal to 1 receives 1 000 updates of $+10^{-3}$. What is its final value if it is stored in fp32, in bf16, and in bf16 with an fp32 master copy? (b) A gradient of $10^{-8}$ is stored in fp16, whose smallest positive number is $2^{-24} \approx 6.0 \times 10^{-8}$. What happens, and how does a loss scale of $2^{16}$ help? Check both answers with PyTorch. (ch. 3.4)
+
+    *Solution*: **(a)** in fp32, about 2.00005; in bf16, exactly 1, since each update is below half the spacing $2^{-7}$ near 1 (Example 3.9); with an fp32 master copy, 2.0 after the cast to bf16.
+
+    **(b)** $10^{-8}$ is below half the smallest fp16 number, so it rounds to 0: the gradient underflows. Multiplying the loss by $2^{16}$ multiplies every gradient by the same factor, to $6.6 \times 10^{-4}$, which fp16 represents. The optimizer divides by $2^{16}$, in fp32, before the update.
+
+    ```python
+    import torch
+    for dtype in (torch.float32, torch.bfloat16):
+        w = torch.tensor(1.0, dtype=dtype)
+        for _ in range(1000):
+            w = w + torch.tensor(1e-3, dtype=dtype)       # 1000 small updates
+        print(dtype, w.item())
+    master = torch.tensor(1.0)                            # fp32 master copy of a bf16 weight
+    for _ in range(1000):
+        master += 1e-3
+    print("fp32 master, cast to bf16:", master.to(torch.bfloat16).item())
+    g = 1e-8
+    print("gradient in fp16:", torch.tensor(g, dtype=torch.float16).item(),
+          "  scaled by 2**16:", torch.tensor(g * 2**16, dtype=torch.float16).item())
+    ```
+
+4.  **★ Counting a 7B model.** A Llama-2-7B-like decoder has $L = 32$ blocks of width $d = 4096$, a gated MLP of hidden width 11 008 (three matrices), RMSNorm gains, a vocabulary of 32 000 tokens and separate input and output embeddings. (a) Count its parameters. (b) Give its forward FLOPs per token and its training cost on 2 trillion tokens. (ch. 3.2, 4.2)
+
+    *Solution*: **(a)** per block, attention holds $4d^2 \approx 67.1$ M parameters, the MLP $3 \times 4096 \times 11\,008 \approx 135.3$ M, and the two norms 8 192 gains: 202.4 M. The 32 blocks hold 6.477 B and the two embedding tables 262 M, so
+    $$
+    N \approx 6.74 \times 10^9 .
+    $$
+
+    **(b)** About $2N \approx 1.35 \times 10^{10}$ FLOPs per token forward: the input embedding is a lookup, and attention scores add the small fraction of Proposition 4.4. Training on $D = 2 \times 10^{12}$ tokens costs
+    $$
+    6ND \approx 8.1 \times 10^{22} \ \text{FLOPs}.
+    $$
+
+5.  **★ The memory of fine-tuning.** For the model of Exercise 4, compare the memory of (a) full fine-tuning with mixed-precision AdamW; (b) LoRA of rank 16 on $W_Q$ and $W_V$ of every block, with frozen bf16 weights; (c) the same over 4-bit frozen weights (QLoRA). Ignore the activations. (ch. 4.2, 5.1)
+
+    *Solution*: **(a)** 16 bytes per parameter (ch. 4.2), about 108 GB: more than one 80 GB GPU.
+
+    **(b)** Each adapter has $r(d + k) = 16 \times 8192 = 131\,072$ parameters. The 64 adapted matrices give 8.4 M trainable parameters, 0.12 % of the model, which take 134 MB at 16 bytes each. With 13.5 GB of frozen bf16 weights, the total is about 13.6 GB.
+
+    **(c)** At 4 bits, the frozen weights take about 3.4 GB plus the group scales: under 4 GB in all, within reach of a consumer GPU.
+
+6.  **★ Truncation that adapts.** Compare top-2, top-$p$ with $p = 0.9$, and min-$p$ with fraction 0.1 on a peaked distribution $(0.9, 0.05, 0.03, 0.02)$ and on a flat one $(0.3, 0.25, 0.25, 0.2)$. How many tokens does each rule keep? (ch. 6.1)
+
+    *Solution*: top-2 keeps two tokens in both cases. Top-$p$ keeps one token of the peaked law, whose first token already reaches 0.9, and all four of the flat law, whose first three only reach 0.8. Min-$p$ keeps the tokens above 0.09 in the peaked law, one, and above 0.03 in the flat law, four.
+
+    Top-$p$ and min-$p$ adapt the candidate set to the confidence of the model. Top-$k$ does not: it cuts plausible tokens when the law is flat and keeps implausible ones when it is peaked.
+
+7.  **★ How many users fit on a GPU.** A Llama-3-8B-like model has 8.03 billion parameters, $L = 32$ layers, 32 query heads and $n_{kv} = 8$ key–value heads of dimension 128; it is served in bf16 on an 80 GB GPU. (a) Give the KV cache per token. (b) How many sequences of 8 192 tokens fit beside the weights? (c) Same question with multi-head attention, $n_{kv} = 32$. (ch. 6.3, 7.2)
+
+    *Solution*: **(a)** by Proposition 6.4, $2 \times 32 \times 8 \times 128 \times 2 = 131\,072$ bytes, 128 KiB per token.
+
+    **(b)** The weights take 16.1 GB, which leaves 63.9 GB, about 488 000 cached tokens, hence
+    $$
+    \lfloor 488\,000 / 8192 \rfloor = 59 \ \text{sequences}.
+    $$
+
+    **(c)** The cache is four times larger and only 14 sequences fit. GQA thus quadruples the batch, hence the decode throughput (Proposition 6.5).
+
+8.  **★★ Weight decay is not an L2 penalty for Adam.** (a) Show that for SGD, adding $\frac{\lambda}{2} \|\theta\|^2$ to the loss gives a decoupled weight decay. (b) For Adam, suppose that on one coordinate the gradient of the penalized loss is a constant $c = g + \lambda\theta$, with $\theta$ changing slowly. Show that the step tends to $\eta\, \mathrm{sign}(c)$, and compare with AdamW. (ch. 2.3)
+
+    *Solution*: **(a)** The gradient of the penalized loss is $g_t + \lambda \theta_t$, so SGD gives
+    $$
+    \theta_{t+1} = (1 - \eta\lambda)\, \theta_t - \eta\, g_t ,
+    $$
+    which is SGD with a decoupled decay of rate $\lambda$.
+
+    **(b)** With constant gradients equal to $c$, the bias-corrected moments are exactly $\hat m_t = c$ and $\hat v_t = c^2$ (the proof of Proposition 2.4), so the step is
+    $$
+    \eta\, \frac{c}{|c| + \epsilon} \approx \eta\, \mathrm{sign}(c) .
+    $$
+
+    The penalty acts only through a sign: on a coordinate where $|g| \gg \lambda |\theta|$, it has no effect at all.
+
+    AdamW subtracts $\eta \lambda \theta$ from every coordinate, whatever the scale of its gradient, which is the intended regularization (Loshchilov and Hutter, 2019).
+
+9.  **★★ Rotations, sinusoids and wavelengths.** (a) Show that the sinusoidal embedding of Definition 3.6 satisfies $\mathrm{PE}(t + k) = M_k\, \mathrm{PE}(t)$ for a block-diagonal matrix $M_k$ that does not depend on $t$. (b) Identify each pair of coordinates with a complex number and re-derive Theorem 3.8. (c) For $d_k = 128$ and base 10 000, compute the wavelength $2\pi/\theta_i$ of the slowest pair, and explain why a model trained on 4 096 tokens never sees it complete. (ch. 3.3, 6.6)
+
+    *Solution*: **(a)** With $s = \sin(\omega_i t)$, $c = \cos(\omega_i t)$ and $\phi = \omega_i k$, the addition formulas give
+    $$
+    \begin{pmatrix} \sin(\omega_i (t+k)) \\ \cos(\omega_i (t+k)) \end{pmatrix} = \begin{pmatrix} \cos\phi & \sin\phi \\ -\sin\phi & \cos\phi \end{pmatrix} \begin{pmatrix} s \\ c \end{pmatrix},
+    $$
+    a rotation that depends on $k$ only.
+
+    **(b)** Write $q^{(i)} = q_{2i} + \mathrm{i}\, q_{2i+1}$, and the same for $k$. A rotation by $\phi$ multiplies by $e^{\mathrm{i}\phi}$, and the real inner product of two pairs is the real part of $q^{(i)} \overline{k^{(i)}}$. Hence
+    $$
+    \langle R_m q, R_n k \rangle = \mathrm{Re} \sum_i q^{(i)}\, \overline{k^{(i)}}\, e^{\mathrm{i}(m - n)\theta_i},
+    $$
+    which depends on the offset only.
+
+    **(c)** The slowest pair, $i = 63$, has $\theta_{63} = 10000^{-126/128}$, so its wavelength is $2\pi \times 10000^{126/128} \approx 54\,000$ positions. Over 4 096 positions its angle covers less than a tenth of a turn: larger angles are never seen in training, which is why ch. 6.6 rescales the slow frequencies.
+
+10. **★★ Chinchilla in numbers.** (a) With the fit of Definition 4.6, by which factors do $N^\star$ and $D^\star$ grow when the compute is multiplied by 10? (b) Chinchilla used about $C = 6 \times 70 \times 10^9 \times 1.4 \times 10^{12}$ FLOPs. Compute $N^\star$ and $D^\star$, and the predicted losses at the optimum and for Chinchilla itself. (c) Compare with the rule of 20 tokens per parameter. Adapt Code 4.8. (ch. 4.3)
+
+    *Solution*: **(a)** The exponents are $\beta/(\alpha + \beta) = 0.452$ and $\alpha/(\alpha + \beta) = 0.548$: $N^\star$ grows by $10^{0.452} \approx 2.83$ and $D^\star$ by $10^{0.548} \approx 3.53$.
+
+    **(b)** $C \approx 5.9 \times 10^{23}$ and $G \approx 1.345$ give $N^\star \approx 32.5$ B and $D^\star \approx 3.0$ T, about 93 tokens per parameter. The predicted losses are 1.930 at the optimum and 1.937 for Chinchilla: the loss is flat near its minimum, so the allocation is poorly determined by the fit.
+
+    **(c)** The rule $D = 20N$ with $6ND = C$ gives $N = \sqrt{C/120} = 70$ B, Chinchilla itself. The published fit favours more data at this budget; the other two methods of Hoffmann et al. and the refit of Besiroglu et al. (2024) give about 20 tokens per parameter, the figure usually quoted.
+
+11. **★★ The plug-in pass@k is biased.** Let $\hat p = c/n$ be the fraction of $n$ samples that pass a problem, each with probability $p \in (0, 1)$. Show that for $k \ge 2$ the plug-in estimator underestimates pass@k on average:
+    $$
+    \mathbb{E}\big[1 - (1 - \hat p)^k\big] < 1 - (1 - p)^k .
+    $$
+
+    Then read the size of the bias in Code 5.10, which takes $p = 0.15$, $n = 20$ and $k = 5$. (ch. 5.5)
+
+    *Solution*: The function $f(x) = 1 - (1 - x)^k$ has second derivative $-k(k-1)(1-x)^{k-2}$, negative on $[0, 1)$, so it is strictly concave for $k \ge 2$. Since $\mathbb{E}\hat p = p$ and $\hat p$ is not almost surely constant, Jensen's strict inequality gives
+    $$
+    \mathbb{E}\, f(\hat p) < f(\mathbb{E}\hat p) = 1 - (1 - p)^k .
+    $$
+
+    Code 5.10 prints 0.5205 for the mean of the plug-in estimator against 0.5563 for the truth, a bias of $-0.036$; the unbiased estimator of Theorem 5.9 gives 0.5587, within Monte Carlo error.
+
+12. **★★ The gradient of DPO.** Write the implicit reward and the margin of a pair as
+    $$
+    \hat r_\theta(x, y) = \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}, \qquad u = \hat r_\theta(x, y_w) - \hat r_\theta(x, y_l).
+    $$
+
+    **(a)** Compute the gradient of $-\log\sigma(u)$ with respect to $\theta$. (b) Interpret its weight. (c) Show that two rewards that differ by a function of $x$ alone define the same optimal policy and the same preferences. (ch. 5.2–5.3)
+
+    *Solution*: **(a)** Since $(\log\sigma)'(u) = 1 - \sigma(u) = \sigma(-u)$,
+    $$
+    \nabla_\theta \big(-\log\sigma(u)\big) = -\beta\, \sigma(-u)\, \big( \nabla_\theta \log \pi_\theta(y_w \mid x) - \nabla_\theta \log \pi_\theta(y_l \mid x) \big).
+    $$
+
+    **(b)** A descent step raises the log-probability of $y_w$ and lowers that of $y_l$, with weight $\sigma(-u)$. The weight is close to 1 for pairs that the implicit reward ranks wrongly and close to 0 for pairs already ranked right with a margin: like a logistic regression, DPO concentrates on its mistakes.
+
+    **(c)** Adding $h(x)$ to the reward multiplies the unnormalized policy of Theorem 5.4 by $e^{h(x)/\beta}$, which $Z(x)$ absorbs, and leaves every reward difference, hence the Bradley–Terry likelihood, unchanged. This is the term $\beta \log Z(x)$ that DPO cancels.
+
+13. **★★ Tuning speculative decoding.** (a) Show that the acceptance rate of Theorem 6.6 is $\alpha = 1 - \mathrm{TV}(p, q)$, where TV is the total variation distance. (b) If each draft token is accepted with probability $\alpha$ independently, show that one target pass yields on average
+    $$
+    \frac{1 - \alpha^{\gamma+1}}{1 - \alpha} \ \text{tokens}.
+    $$
+
+    **(c)** A draft step costs $c = 0.05$ target passes. Find the $\gamma$ that maximizes the speedup for $\alpha = 0.6$, $0.8$ and $0.9$. (ch. 6.4)
+
+    *Solution*: **(a)** $\min(p, q) = \frac{1}{2}(p + q - |p - q|)$, and summing over $x$ gives $\alpha = 1 - \frac12 \sum_x |p(x) - q(x)|$.
+
+    **(b)** The first $j$ draft tokens are all accepted with probability $\alpha^j$, so the expected number of accepted tokens is $\sum_{j=1}^{\gamma} \alpha^j$. The target pass always adds one token, a correction or a bonus, which gives $\sum_{j=0}^{\gamma} \alpha^j$, the announced sum.
+
+    **(c)** A cycle costs $\gamma c + 1$ target passes, and the speedup is the expected number of tokens divided by this cost. The code finds $\gamma = 4$ (speedup 1.92), $\gamma = 8$ (3.09) and $\gamma = 13$ (4.67): the better the draft, the longer the speculation.
+
+    ```python
+    for alpha in (0.6, 0.8, 0.9):
+        speedup = {g: (1 - alpha**(g + 1)) / (1 - alpha) / (0.05 * g + 1) for g in range(1, 21)}
+        best = max(speedup, key=speedup.get)
+        print(f"alpha {alpha}: best gamma {best}, speedup {speedup[best]:.2f}")
+    ```
+
+14. **★★ Where decode time goes.** A 7B model with multi-head attention ($L = 32$, $d = 4096$, 32 heads of dimension 128) runs in bf16 on a GPU with a bandwidth of $2 \times 10^{12}$ bytes/s and a peak of $3.12 \times 10^{14}$ FLOP/s. (a) Ignoring the cache, from which batch size is a decode step compute-bound? (b) For a batch of 32 sequences of 2 048 tokens, give the bytes read per step, a lower bound on its duration and the throughput. (c) Same question with 8 key–value heads. (ch. 6.2–6.3, 7.2)
+
+    *Solution*: **(a)** A step reads 14 GB of weights and performs $2NB$ FLOPs, so it is compute-bound when $B$ exceeds the ridge $3.12 \times 10^{14} / (2 \times 10^{12}) = 156$.
+
+    **(b)** The cache holds 0.5 MiB per token (Proposition 6.4), so the 65 536 cached tokens take 34.4 GB, to which the 14 GB of weights add. A step reads 48.4 GB and lasts at least 24.2 ms, about 1 320 tokens/s; its arithmetic takes only 1.5 ms. The step is memory-bound, and the cache, not the weights, dominates.
+
+    **(c)** The cache shrinks to 8.6 GB, the step to 11.3 ms, and the throughput rises to about 2 830 tokens/s. Attention over the cache performs about $H/n_{kv}$ FLOPs per byte read, whatever the batch: only smaller caches (GQA, quantized caches) speed it up.
+
+15. **★★ Counting and balancing experts.** A Mixtral-like model has 32 layers of width 4 096, GQA with 32 query heads and 8 key–value heads of dimension 128, 8 experts per layer, each a gated MLP of hidden width 14 336, top-2 routing and a vocabulary of 32 000. (a) Count its stored and active parameters. (b) With $E = 4$ experts, a batch has routed fractions $f = (0.7, 0.1, 0.1, 0.1)$ and mean gates $P = (0.55, 0.15, 0.15, 0.15)$. Compute $\mathcal{L}_{\mathrm{aux}}/a$ and its gradient in $P$. (ch. 7.1–7.2)
+
+    *Solution*: **(a)** An expert has $3 \times 4096 \times 14\,336 \approx 176$ M parameters, so a layer stores 1.41 B in experts and uses 352 M per token. Attention adds 41.9 M per layer, $2d^2$ for $W_Q, W_O$ and $2 \times 1024\, d$ for $W_K, W_V$, and the embeddings 262 M. In total,
+    $$
+    46.7 \text{ B stored}, \qquad 12.9 \text{ B active per token},
+    $$
+    the published figures of Mixtral 8x7B (Jiang et al., 2024).
+
+    **(b)** The auxiliary loss is well above its value 1 at balance (Proposition 7.3):
+    $$
+    \mathcal{L}_{\mathrm{aux}}/a = 4\,(0.7 \times 0.55 + 3 \times 0.1 \times 0.15) = 1.72 .
+    $$
+
+    Its gradient in $P$ is $aEf = a\,(2.8, 0.4, 0.4, 0.4)$: it lowers the gate of the overloaded expert most, which then receives fewer tokens.
+
+16. **★★ What a state-space layer remembers.** Take the scalar SSM $h_t = a\, h_{t-1} + \bar b\, u_t$, $y_t = h_t$, discretized from $h' = Ah + Bu$, with $A < 0$, by zero-order hold:
+    $$
+    a = e^{\Delta A}, \qquad \bar b = \frac{e^{\Delta A} - 1}{A}\, B .
+    $$
+
+    **(a)** Give the kernel of Proposition 7.7 and the half-life of the memory for $a = 0.9$. (b) Study the limits $\Delta \to 0$ and $\Delta \to \infty$, and explain how an input-dependent step lets Mamba ignore a token or reset its state. (c) Compare the memory of a linear-attention head, whose state is $d \times d$, with a KV cache of $T$ tokens. (ch. 7.3)
+
+    *Solution*: **(a)** $K_s = a^s\, \bar b$, a geometric decay: an input loses half its weight after $\ln 2 / \ln(1/a) \approx 6.6$ steps.
+
+    **(b)** As $\Delta \to 0$, $a \to 1$ and $\bar b \to 0$: the state is kept and the input ignored.
+
+    As $\Delta \to \infty$, $a \to 0$ and $\bar b \to -B/A$: the state is erased and replaced by the current input. A step $\Delta_t$ computed from $u_t$ chooses, token by token, between remembering and overwriting, which a time-invariant SSM cannot do.
+
+    **(c)** The head stores $d^2$ numbers, plus a normalizer of size $d$, whatever $T$; a KV cache stores $2Td$. They are equal at $T = d/2$, 64 tokens for $d = 128$. Beyond, the recurrence is cheaper, but it must compress.
+
+17. **★★ Making an agent reliable.** An agent solves tasks of $n = 30$ steps, each correct with probability 0.9 independently. (a) What is its success rate? (b) With a perfect checker and up to $m$ attempts per step, which $m$ gives at least 90 % success? (c) A second agent succeeds on a task with probability 0.7 per attempt. Compute its pass@3 and pass^3, and say which one matters to a user who needs every run to succeed. (ch. 8.1, 8.5)
+
+    *Solution*: **(a)** $0.9^{30} \approx 0.042$.
+
+    **(b)** By Proposition 8.2, the condition is $(1 - 0.1^m)^{30} \ge 0.9$. The success rate is 0.740 for $m = 2$ and 0.970 for $m = 3$, so three attempts per step are needed.
+
+    **(c)** pass@3 $= 1 - 0.3^3 = 0.973$, but pass^3 $= 0.7^3 = 0.343$. pass@k measures what the agent can do, pass^k how dependably it does it: the user who needs every run to succeed should read pass^k.
+
+18. **★★★ Training for serving.** A model will generate $D_{\mathrm{inf}}$ tokens during its life, at about $2N$ FLOPs per token. With the fit of Definition 4.6, find the model that reaches the Chinchilla-optimal loss of a $10^{23}$-FLOP budget at the lowest total cost $6ND + 2ND_{\mathrm{inf}}$, for $D_{\mathrm{inf}}$ from 0 to $10^{14}$ tokens. How do the size and the number of tokens per parameter change? (ch. 4.2–4.3, 9.2, 11.1)
+
+    *Hints and expected result*: on the curve $L(N, D) = L^\star$, solve for $D$ as a function of $N$, then minimize the total cost over a grid of sizes. The code below finds that the optimal size falls from 14.6 B to 3.5 B parameters as $D_{\mathrm{inf}}$ grows to $10^{14}$. Meanwhile the number of tokens per parameter rises from 78 to about 4 100: the regime of small, heavily trained models (Sardana et al., 2024).
+
+    ```python
+    import numpy as np
+    E, A, B, a, b = 1.69, 406.4, 410.7, 0.34, 0.28           # fit of Hoffmann et al. (2022)
+    G = (a * A / (b * B)) ** (1 / (a + b))
+    N0 = G * (1e23 / 6) ** (b / (a + b)); D0 = 1e23 / (6 * N0)
+    target = E + A / N0**a + B / D0**b                         # Chinchilla-optimal loss at 1e23 FLOPs
+    N = np.logspace(9, 12, 20001)
+    gap = target - E - A / N**a
+    ok = gap > 0
+    D = np.where(ok, (B / np.where(ok, gap, 1)) ** (1 / b), np.inf)  # tokens needed to reach the target
+    for D_inf in (0, 1e12, 1e13, 1e14):                        # tokens generated over the model's life
+        cost = 6 * N * D + 2 * N * D_inf
+        i = np.argmin(cost)
+        print(f"D_inf = {D_inf:.0e}: N = {N[i]:.2e}, D = {D[i]:.2e}, {D[i] / N[i]:5.0f} tokens/param, "
+              f"total {cost[i]:.2e} FLOPs")
+    ```
+
+19. **★★★ Muon against AdamW on a toy problem.** Implement Muon (Definition 2.5) with the quintic Newton–Schulz iteration of ch. 10.1 for the hidden matrix of a small MLP, keep AdamW for the other parameters, and compare with AdamW alone on a synthetic classification task. Tune the learning rate of each on a small grid, repeat over three seeds, and discuss what such a comparison can and cannot show. (ch. 2.3–2.4, 10.1)
+
+    *Hints and expected result*: in the code below, after 400 steps, the best AdamW rate of the grid reaches a training loss of about 0.03 on every seed, and Muon at rate 0.01 about 0.001. A fair study would also compare wall-clock time, since the Newton–Schulz iterations cost five matrix products, and held-out loss on larger models. A toy result says nothing about scale, which is the open question of ch. 11.2.
+
+    ```python
+    import torch
+    torch.set_num_threads(1)
+
+    def orth(M):                                            # quintic Newton-Schulz, 5 steps (ch. 10.1)
+        X = M / (M.norm() + 1e-7)
+        for _ in range(5):
+            A = X @ X.T
+            X = 3.4445 * X - 4.7750 * A @ X + 2.0315 * A @ A @ X
+        return X
+
+    def run(method, lr, seed, steps=400):
+        torch.manual_seed(seed)
+        teacher = torch.nn.Sequential(torch.nn.Linear(32, 64), torch.nn.Tanh(), torch.nn.Linear(64, 10))
+        X = torch.randn(4096, 32)
+        with torch.no_grad():
+            y = teacher(X).argmax(1)                        # labels from a random teacher network
+        torch.manual_seed(seed + 1)
+        net = torch.nn.Sequential(torch.nn.Linear(32, 128), torch.nn.ReLU(), torch.nn.Linear(128, 128),
+                                  torch.nn.ReLU(), torch.nn.Linear(128, 10))
+        W = net[2].weight                                   # the hidden matrix
+        others = [p for p in net.parameters() if p is not W]
+        adam = torch.optim.AdamW(others if method == "muon" else net.parameters(),
+                                 lr=1e-2 if method == "muon" else lr)
+        M = torch.zeros_like(W)
+        for _ in range(steps):
+            i = torch.randint(0, 4096, (256,))
+            loss = torch.nn.functional.cross_entropy(net(X[i]), y[i])
+            net.zero_grad(); loss.backward(); adam.step()
+            if method == "muon":                            # Definition 2.5
+                with torch.no_grad():
+                    M.mul_(0.95).add_(W.grad)
+                    W -= lr * orth(M)
+        with torch.no_grad():
+            return torch.nn.functional.cross_entropy(net(X), y).item()
+
+    for seed in range(3):
+        adamw = min((run("adamw", lr, seed), lr) for lr in (3e-3, 1e-2))
+        muon = min((run("muon", lr, seed), lr) for lr in (3e-3, 1e-2))
+        print(f"seed {seed}: AdamW {adamw[0]:.4f} (lr {adamw[1]:g}), Muon {muon[0]:.4f} (lr {muon[1]:g})")
+    ```
+
+20. **★★★ Watching an induction head form.** Train an attention-only transformer on random sequences in which a segment of random length $h$ is repeated right after itself. Compare one and two layers: the loss on the tokens that can be predicted by copying, the loss on the others, and how much the last layer attends from each position of the copy to the token that followed the previous occurrence of the current token. Explain the difference. (ch. 3.1–3.2, 9.1)
+
+    *Hints and expected result*: in the code below, after 600 steps, the two-layer model reaches a loss of about 0.6 on the copyable tokens, and its second layer puts about 0.8 of its attention on the right source. The one-layer model stays near 2.5, close to $\ln h$: it can only spread its mass over tokens already seen. The other tokens stay near $\ln 32 \approx 3.47$ in both cases.
+
+    The random length matters. With a fixed offset, one layer could attend to a fixed relative position; here the source must be found by content. An induction head needs two steps (Elhage et al., 2021; Olsson et al., 2022): a first head writes into each position the identity of the previous token, and a second head matches the current token against these copies. One layer of attention cannot compose the two.
+
+    ```python
+    import torch
+    torch.set_num_threads(1)
+    V, T, d = 32, 24, 64
+
+    def batch(n=64):                                       # random tokens; a segment of random length h
+        x = torch.randint(0, V, (n, T))                    # is repeated right after itself
+        h = torch.randint(4, 13, (n, 1))
+        pos = torch.arange(T)
+        copy = (pos >= h) & (pos < 2 * h)
+        x = torch.where(copy, x.gather(1, (pos - h).clamp(min=0)), x)
+        target_ok = (pos[1:] >= h + 1) & (pos[1:] < 2 * h)  # next tokens predictable by copying
+        return x, h, target_ok
+
+    class Head(torch.nn.Module):                           # one causal attention head, no MLP
+        def __init__(self):
+            super().__init__()
+            self.qkv, self.o = torch.nn.Linear(d, 3 * d, bias=False), torch.nn.Linear(d, d, bias=False)
+        def forward(self, x):
+            q, k, v = self.qkv(x).chunk(3, -1)
+            s = (q @ k.transpose(1, 2) / d**0.5).masked_fill(
+                torch.triu(torch.ones(T, T, dtype=torch.bool), 1), float("-inf"))
+            self.pattern = torch.softmax(s, -1)
+            return self.o(self.pattern @ v)
+
+    def train(n_layers, steps=600):
+        torch.manual_seed(0)
+        emb, pos = torch.nn.Embedding(V, d), torch.nn.Parameter(0.1 * torch.randn(T, d))
+        heads, unemb = torch.nn.ModuleList([Head() for _ in range(n_layers)]), torch.nn.Linear(d, V)
+        params = [*emb.parameters(), pos, *heads.parameters(), *unemb.parameters()]
+        opt = torch.optim.AdamW(params, lr=3e-3)
+        for step in range(steps + 1):
+            x, h, ok = batch()
+            z = emb(x) + pos
+            for head in heads:
+                z = z + head(z)                            # residual stream (Proposition 3.5)
+            loss = torch.nn.functional.cross_entropy(unemb(z)[:, :-1].transpose(1, 2), x[:, 1:],
+                                                     reduction="none")
+            opt.zero_grad(); loss.mean().backward(); opt.step()
+        A = heads[-1].pattern                              # last layer, from t to t - h + 1
+        t = torch.arange(T)
+        q_ok = (t >= h) & (t <= 2 * h - 2)
+        src = (t - h + 1).clamp(min=0).expand_as(q_ok)
+        score = A.gather(2, src.unsqueeze(-1)).squeeze(-1)[q_ok].mean()
+        print(f"{n_layers} layer(s): loss on copyable tokens {loss[ok].mean():.2f}, "
+              f"on the others {loss[~ok].mean():.2f}, induction attention {score:.2f}")
+
+    train(2)
+    train(1)
+    ```
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com, “Mode de validation”) consists of several take-home assignments and a final exam; no weights are displayed. The solo subjects below are sized like a long take-home assignment, the group subjects like a course project, and the written exam is a proposal for self-assessment before the final exam. None of them is an official subject.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Scaling laws on a small budget.** Do small transformers follow the parametric law of Definition 4.6, and which allocation does the fit predict? A paper study of Hoffmann et al., “Training Compute-Optimal Large Language Models” (NeurIPS 2022), approach 3.
+    -   *Implement*: a decoder-only transformer (ch. 3) with a BPE tokenizer (ch. 1.5), trained with WSD schedules (ch. 4.4) so that one run yields several budgets.
+    -   *Data*: TinyStories (Eldan and Li, 2023); about 15 models from 1 to 20 M parameters on 20 to 400 M tokens, on a free GPU tier.
+    -   *Fit*: $E, A, B, \alpha, \beta$ by a Huber loss on the log-loss, as in the paper, with bootstrap intervals.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 2–4.
+    -   *Success*: held-out runs predicted within 0.03 nats, and the exponent $\beta/(\alpha + \beta)$ with its interval, compared with 0.45.
+2.  **[Solo · ≈ 20 h] DPO against PPO on controlled sentiment.** Does DPO reach a better reward–KL frontier than PPO, as reported? A paper study of Rafailov et al., “Direct Preference Optimization: Your Language Model is Secretly a Reward Model” (NeurIPS 2023), IMDb experiment.
+    -   *Setup*: GPT-2 small, instead of the paper's GPT-2 large, fine-tuned on IMDb reviews (Maas et al., 2011) as $\pi_{\mathrm{ref}}$; a public sentiment classifier as the true reward; preference pairs labelled from that reward by the Bradley–Terry model (Definition 5.3).
+    -   *Implement*: DPO (Theorem 5.5) and PPO with a KL penalty, from scratch or with the `trl` library, for several values of $\beta$.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 5.
+    -   *Success*: the reward–KL frontiers of both methods on held-out prompts over 3 seeds, and a verdict on the paper's claim that DPO dominates.
+3.  **[Solo · ≈ 15 h] Speculative decoding, exact and measured.** How much does speculative sampling speed up generation, and is its output law really unchanged? A paper study of Leviathan, Kalman and Matias, “Fast Inference from Transformers via Speculative Decoding” (ICML 2023).
+    -   *Implement*: Theorem 6.6 with GPT-2 small as draft and GPT-2 large as target, which share a tokenizer, with a KV cache for both models.
+    -   *Measure*: acceptance rate per temperature, tokens per target pass against Exercise 13, and wall-clock speedup against $\gamma$.
+    -   *Exactness*: a chi-squared test comparing the law of the third generated token from a fixed prompt, with and without speculation, over 10 000 samples.
+    -   *Deliverables*: code, a 4-page report. *Chapters*: ch. 6.
+    -   *Success*: measured and predicted tokens per pass within 10 %, and no significant difference in the exactness test.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 3 · ≈ 30 h each] A modern GPT from scratch, ingredient by ingredient.** Which of the ingredients of ch. 2–4 matter at small scale?
+    -   *Implement*: a byte-level BPE tokenizer; a decoder with pre-norm RMSNorm, gated MLP and RoPE; a training loop with AdamW, Muon and WSD. Start from a post-norm, sinusoidal, Adam baseline in the style of Vaswani et al. (2017).
+    -   *Data*: TinyStories or a public-domain corpus from Project Gutenberg, deduplicated with MinHash (ch. 4.1); models of 10 to 50 M parameters on a free GPU tier.
+    -   *Split*: tokenizer and data pipeline; architecture ablations (ch. 3); optimizers and schedules (ch. 2, 4.4, 10.1).
+    -   *Deliverables*: repository, an 8–10 page report, a 15-minute defence. *Chapters*: ch. 1–4, 10.
+    -   *Success*: a table of validation loss at equal compute over 2 seeds, each change isolated, and the loss drop of the WSD decay shown.
+2.  **[Group of 3 · ≈ 30 h each] Verifiable rewards on grade-school arithmetic.** Does GRPO teach a small model to solve new problems, or does it reweight what it already solves? A paper study of Shao et al., “DeepSeekMath” (2024), for GRPO, and of Yue et al. (2025) for the evaluation.
+    -   *Setup*: a public instruction model of about 0.5 B parameters with LoRA adapters (ch. 5.1); GSM8K (Cobbe et al., 2021) with an exact-match reward on the final number (ch. 5.3); answers of at most 256 tokens and a 1 000-problem training subset, on a free GPU tier.
+    -   *Implement*: GRPO (Definition 5.6) with groups of 8, the KL penalty, and the filtering of Proposition 5.7.
+    -   *Split*: rollouts and reward; GRPO update; evaluation.
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 5, 6.1.
+    -   *Success*: pass@1 and pass@k up to $k = 64$ on the test split, before and after training, with the estimator of Theorem 5.9, and an answer to the question.
+3.  **[Group of 2–3 · ≈ 30 h each] A retrieval agent with tools, measured honestly.** How reliable does a small open model become as an agent once retrieval, tools and checks are added?
+    -   *Implement*: retrieval over the Python standard-library documentation (ch. 8.2); a calculator and a sandboxed Python interpreter exposed by an MCP server (ch. 8.4); the loop of Definition 8.1 with retries on failed checks. The model, of 1 to 8 B parameters, runs 4-bit quantized on a laptop (ch. 6.5).
+    -   *Evaluate*: 150 hand-written questions with checkable answers (retrieval, computation, multi-step); recall@k of the retriever; pass@k and pass^k (Definition 8.6) over 5 runs.
+    -   *Split*: retrieval and indexing; tools, server and sandbox; agent loop and evaluation.
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence with a live demonstration. *Chapters*: ch. 1.6, 6.5, 8.
+    -   *Success*: success rates by question type with and without retrieval and retries, and a measured check of Proposition 8.2 on the multi-step questions.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no electronic device; four questions, 20 points.
+
+1.  **Question (5 points).** Explain why a decode step of a 7B model in bf16, serving a single user, lasts at least 7 ms on a GPU that reads its memory at 2 TB/s, whatever its peak FLOP/s. Give the KV cache per token of a model with $L = 32$, $n_{kv} = 8$ and $d_h = 128$ in bf16. Explain how continuous batching and PagedAttention raise the throughput.
+
+    *Expected*:
+
+    -   Each step reads all 14 GB of weights for $2N$ FLOPs per token: an intensity of about 1 FLOP per byte, far below the ridge, hence at least 14 GB divided by 2 TB/s (2 pts).
+    -   $2 \times 32 \times 8 \times 128 \times 2 = 131\,072$ bytes, 128 KiB per token (1 pt).
+    -   A batch shares one weight read among $B$ sequences; continuous batching keeps the batch full as sequences end; paging removes cache fragmentation, so that more sequences fit (2 pts).
+2.  **Question (5 points).** A lab has $C = 6 \times 10^{23}$ FLOPs. (a) With $C = 6ND$ and 20 tokens per parameter, give $N$ and $D$. (b) How many GPU-hours does the run take on GPUs of $3 \times 10^{14}$ FLOP/s used at 40 %? (c) With mixed-precision AdamW, how much memory do the weights, gradients and optimizer states need?
+
+    *Expected*:
+
+    -   **(a)** $120 N^2 = 6 \times 10^{23}$ gives $N \approx 7.1 \times 10^{10}$ and $D = 20N \approx 1.4 \times 10^{12}$ (2 pts).
+    -   **(b)** $6 \times 10^{23} / (1.2 \times 10^{14}) = 5 \times 10^9$ s, about $1.4 \times 10^6$ GPU-hours (1.5 pts).
+    -   **(c)** 16 bytes per parameter, about 1.1 TB: at least 15 GPUs of 80 GB before any activation (1.5 pts).
+3.  **Question (5 points).** Let $\pi_{\mathrm{ref}}$ be a reference policy, $r$ a reward and $\beta > 0$. (a) Show that the policy maximizing the reward minus $\beta$ times its KL divergence to $\pi_{\mathrm{ref}}$ is proportional to $\pi_{\mathrm{ref}}\, e^{r/\beta}$. (b) Deduce the DPO loss from the Bradley–Terry model. (c) What does DPO need that PPO does not, and conversely?
+
+    *Expected*:
+
+    -   **(a)** Rewrite the objective as $\beta \log Z - \beta\, \mathrm{KL}(\pi \,\|\, \pi^\star)$ and apply Gibbs' inequality (Theorem 5.4) (2 pts).
+    -   **(b)** Express $r$ through $\pi^\star$; the term $\beta \log Z(x)$ cancels in a difference of rewards; substitute into the Bradley–Terry negative log-likelihood (2 pts).
+    -   **(c)** DPO needs a fixed set of preference pairs and learns offline. PPO needs a reward model, a value model and sampling during training, but learns from its own generations (1 pt).
+4.  **Question (5 points).** (a) Show that self-attention without mask and without position information is permutation-equivariant. (b) Show that rotary embeddings make the score between positions $m$ and $n$ depend on $n - m$ only. (c) Why does a model with RoPE degrade beyond its training length, and what does position interpolation do?
+
+    *Expected*:
+
+    -   **(a)** $PX$ gives $PQ, PK, PV$ and the scores $P QK^\top P^\top$; a row-wise softmax commutes with both permutations, and $PAP^\top PV = PAV$ (2 pts).
+    -   **(b)** $R_m^\top R_n = R_{n-m}$, because the blocks are plane rotations, which compose by adding angles (2 pts).
+    -   **(c)** Beyond the training length, the slow pairs reach angles never seen in training; interpolation maps $m$ to $mL/L'$, so that all angles stay in the trained range, then fine-tunes briefly (1 pt).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Question and baseline | 15 % | One precise question; a simple baseline (bigram model, greedy decoding, AdamW, BM25, the base model before post-training) run before any refinement |
+| Correctness | 20 % | Derivations right; implementations checked against the course by unit tests, such as the exactness of Theorem 6.6, the optimum of Theorem 5.4 or the sizes of Proposition 6.4 |
+| Experimental protocol | 25 % | Held-out data free of contamination, equal compute or equal tokens between variants, at least 2–3 seeds, confidence intervals |
+| Analysis | 20 % | Ablations, failure cases read one by one, orders of magnitude (FLOPs, bytes, tokens) stated and checked, negative results reported |
+| Reproducibility | 10 % | One command reruns everything; seeds, library versions, model and data identifiers recorded |
+| Communication | 10 % | Report and talk within the limits; figures readable on a projector |
+
+## References {#refs}
+
+*Official references.* The course description on master-mva.com lists no bibliography, and the Université Paris-Saclay programme table does not list the course. The works below are those cited on this page: textbooks first, then papers grouped by chapter.
+
+**Textbooks**
+
+-   D. Jurafsky, J. H. Martin, *Speech and Language Processing*, 3rd edition, draft available online, 2025.
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016.
+-   S. J. D. Prince, *Understanding Deep Learning*, MIT Press, 2023.
+-   A. Zhang, Z. C. Lipton, M. Li, A. J. Smola, *Dive into Deep Learning*, Cambridge University Press, 2023.
+-   J. Leskovec, A. Rajaraman, J. D. Ullman, *Mining of Massive Datasets*, 3rd edition, Cambridge University Press, 2020 — MinHash and banding (ch. 4.1, 10.2).
+
+**Ch. 1 — Language models, recurrent networks, tokenization, ecosystem**
+
+-   Y. Bengio, P. Simard, P. Frasconi, “Learning Long-Term Dependencies with Gradient Descent is Difficult”, *IEEE Transactions on Neural Networks*, 1994.
+-   S. Hochreiter, J. Schmidhuber, “Long Short-Term Memory”, *Neural Computation*, 1997.
+-   Y. Bengio, R. Ducharme, P. Vincent, C. Jauvin, “A Neural Probabilistic Language Model”, *JMLR*, 2003.
+-   R. Pascanu, T. Mikolov, Y. Bengio, “On the Difficulty of Training Recurrent Neural Networks”, *ICML*, 2013.
+-   D. Bahdanau, K. Cho, Y. Bengio, “Neural Machine Translation by Jointly Learning to Align and Translate”, *ICLR*, 2015.
+-   R. Sennrich, B. Haddow, A. Birch, “Neural Machine Translation of Rare Words with Subword Units”, *ACL*, 2016.
+-   A. Vaswani and coauthors, “Attention Is All You Need”, *NeurIPS*, 2017.
+-   J. Devlin, M.-W. Chang, K. Lee, K. Toutanova, “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding”, *NAACL*, 2019.
+-   C. Raffel and coauthors, “Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer”, *JMLR*, 2020.
+-   T. Brown and coauthors, “Language Models are Few-Shot Learners”, *NeurIPS*, 2020.
+-   T. Wolf and coauthors, “Transformers: State-of-the-Art Natural Language Processing”, *EMNLP (System Demonstrations)*, 2020.
+-   A. Dubey and coauthors (Llama Team, Meta), “The Llama 3 Herd of Models”, arXiv, 2024.
+-   OpenAI, “Learning to Reason with LLMs”, technical blog post introducing o1, 2024.
+-   DeepSeek-AI, “DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning”, arXiv, 2025.
+
+**Ch. 2 — Optimizers**
+
+-   S. Ghadimi, G. Lan, “Stochastic First- and Zeroth-Order Methods for Nonconvex Stochastic Programming”, *SIAM Journal on Optimization*, 2013.
+-   L. Bottou, F. E. Curtis, J. Nocedal, “Optimization Methods for Large-Scale Machine Learning”, *SIAM Review*, 2018.
+-   D. P. Kingma, J. Ba, “Adam: A Method for Stochastic Optimization”, *ICLR*, 2015.
+-   I. Loshchilov, F. Hutter, “Decoupled Weight Decay Regularization”, *ICLR*, 2019.
+-   K. Jordan, Y. Jin, V. Boza, J. You, F. Cesista, L. Newhouse, J. Bernstein, “Muon: An Optimizer for Hidden Layers in Neural Networks”, blog post, 2024.
+-   J. Liu and coauthors (Moonshot AI), “Muon is Scalable for LLM Training”, arXiv, 2025.
+-   J. Bernstein, L. Newhouse, “Old Optimizer, New Norm: An Anthology”, arXiv, 2024.
+
+**Ch. 3 — The Transformer**
+
+-   J. L. Ba, J. R. Kiros, G. E. Hinton, “Layer Normalization”, arXiv, 2016.
+-   B. Zhang, R. Sennrich, “Root Mean Square Layer Normalization”, *NeurIPS*, 2019.
+-   R. Xiong and coauthors, “On Layer Normalization in the Transformer Architecture”, *ICML*, 2020.
+-   N. Shazeer, “GLU Variants Improve Transformer”, arXiv, 2020.
+-   J. Su and coauthors, “RoFormer: Enhanced Transformer with Rotary Position Embedding”, *Neurocomputing*, 2024 (arXiv, 2021).
+-   P. Micikevicius and coauthors, “Mixed Precision Training”, *ICLR*, 2018.
+-   T. Dettmers, M. Lewis, Y. Belkada, L. Zettlemoyer, “LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale”, *NeurIPS*, 2022.
+
+**Ch. 4 — Pretraining and scaling laws**
+
+-   K. Lee and coauthors, “Deduplicating Training Data Makes Language Models Better”, *ACL*, 2022.
+-   G. Penedo and coauthors, “The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale”, *NeurIPS Datasets and Benchmarks*, 2024.
+-   A. Z. Broder, “On the Resemblance and Containment of Documents”, *Compression and Complexity of Sequences*, IEEE, 1997.
+-   S. M. Xie and coauthors, “DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining”, *NeurIPS*, 2023.
+-   S. Gunasekar and coauthors, “Textbooks Are All You Need”, arXiv, 2023.
+-   I. Shumailov and coauthors, “AI Models Collapse when Trained on Recursively Generated Data”, *Nature*, 2024.
+-   Directive (EU) 2019/790 on copyright and related rights in the Digital Single Market, 2019; Regulation (EU) 2024/1689 laying down harmonised rules on artificial intelligence (AI Act), 2024.
+-   J. Kaplan and coauthors, “Scaling Laws for Neural Language Models”, arXiv, 2020.
+-   J. Hoffmann and coauthors, “Training Compute-Optimal Large Language Models”, *NeurIPS*, 2022.
+-   T. Besiroglu, E. Erdil, M. Barnett, J. You, “Chinchilla Scaling: A Replication Attempt”, arXiv, 2024.
+-   H. Touvron and coauthors, “LLaMA: Open and Efficient Foundation Language Models”, arXiv, 2023 (2023a); “Llama 2: Open Foundation and Fine-Tuned Chat Models”, arXiv, 2023 (2023b).
+-   S. Hu and coauthors, “MiniCPM: Unveiling the Potential of Small Language Models with Scalable Training Strategies”, arXiv, 2024.
+-   A. Hägele, E. Bakouch, A. Kosson, L. Ben Allal, L. Von Werra, M. Jaggi, “Scaling Laws and Compute-Optimal Training beyond Fixed Training Durations”, *NeurIPS*, 2024.
+-   G. Yang and coauthors, “Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer”, *NeurIPS*, 2021.
+-   S. McCandlish, J. Kaplan, D. Amodei, OpenAI Dota Team, “An Empirical Model of Large-Batch Training”, arXiv, 2018.
+-   M. Dehghani and coauthors, “Scaling Vision Transformers to 22 Billion Parameters”, *ICML*, 2023.
+-   M. Wortsman and coauthors, “Small-scale Proxies for Large-scale Transformer Training Instabilities”, *ICLR*, 2024.
+-   A. Chowdhery and coauthors, “PaLM: Scaling Language Modeling with Pathways”, arXiv, 2022 (*JMLR*, 2023).
+
+**Ch. 5 — Post-training, alignment and evaluation**
+
+-   E. J. Hu and coauthors, “LoRA: Low-Rank Adaptation of Large Language Models”, *ICLR*, 2022.
+-   T. Dettmers, A. Pagnoni, A. Holtzman, L. Zettlemoyer, “QLoRA: Efficient Finetuning of Quantized LLMs”, *NeurIPS*, 2023.
+-   G. Hinton, O. Vinyals, J. Dean, “Distilling the Knowledge in a Neural Network”, arXiv, 2015.
+-   Y. Kim, A. M. Rush, “Sequence-Level Knowledge Distillation”, *EMNLP*, 2016.
+-   P. Christiano and coauthors, “Deep Reinforcement Learning from Human Preferences”, *NeurIPS*, 2017.
+-   L. Ouyang and coauthors, “Training Language Models to Follow Instructions with Human Feedback”, *NeurIPS*, 2022.
+-   J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov, “Proximal Policy Optimization Algorithms”, arXiv, 2017.
+-   R. Rafailov, A. Sharma, E. Mitchell, S. Ermon, C. D. Manning, C. Finn, “Direct Preference Optimization: Your Language Model is Secretly a Reward Model”, *NeurIPS*, 2023.
+-   Z. Shao and coauthors, “DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models”, arXiv, 2024.
+-   N. Lambert and coauthors, “Tülu 3: Pushing Frontiers in Open Language Model Post-Training”, arXiv, 2024.
+-   X. Wang and coauthors, “Self-Consistency Improves Chain of Thought Reasoning in Language Models”, *ICLR*, 2023 (2023a).
+-   H. Lightman and coauthors, “Let's Verify Step by Step”, *ICLR*, 2024.
+-   C. Snell, J. Lee, K. Xu, A. Kumar, “Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters”, arXiv, 2024.
+-   D. Hendrycks and coauthors, “Measuring Massive Multitask Language Understanding”, *ICLR*, 2021.
+-   M. Chen and coauthors, “Evaluating Large Language Models Trained on Code”, arXiv, 2021.
+-   N. Jain and coauthors, “LiveCodeBench: Holistic and Contamination Free Evaluation of Large Language Models for Code”, *ICLR*, 2025.
+-   K. Cobbe and coauthors, “Training Verifiers to Solve Math Word Problems”, arXiv, 2021.
+
+**Ch. 6 — Decoding and inference**
+
+-   A. Fan, M. Lewis, Y. Dauphin, “Hierarchical Neural Story Generation”, *ACL*, 2018.
+-   A. Holtzman, J. Buys, L. Du, M. Forbes, Y. Choi, “The Curious Case of Neural Text Degeneration”, *ICLR*, 2020.
+-   S. Williams, A. Waterman, D. Patterson, “Roofline: An Insightful Visual Performance Model for Multicore Architectures”, *Communications of the ACM*, 2009.
+-   T. Dao, D. Y. Fu, S. Ermon, A. Rudra, C. Ré, “FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness”, *NeurIPS*, 2022.
+-   M. Milakov, N. Gimelshein, “Online Normalizer Calculation for Softmax”, arXiv, 2018.
+-   G.-I. Yu, J. S. Jeong, G.-W. Kim, S. Kim, B.-G. Chun, “Orca: A Distributed Serving System for Transformer-Based Generative Models”, *OSDI*, 2022.
+-   W. Kwon and coauthors, “Efficient Memory Management for Large Language Model Serving with PagedAttention”, *SOSP*, 2023.
+-   Y. Leviathan, M. Kalman, Y. Matias, “Fast Inference from Transformers via Speculative Decoding”, *ICML*, 2023.
+-   C. Chen and coauthors, “Accelerating Large Language Model Decoding with Speculative Sampling”, arXiv, 2023 (2023a).
+-   S. Chen, S. Wong, L. Chen, Y. Tian, “Extending Context Window of Large Language Models via Positional Interpolation”, arXiv, 2023 (2023b).
+-   B. Peng, J. Quesnelle, H. Fan, E. Shippole, “YaRN: Efficient Context Window Extension of Large Language Models”, *ICLR*, 2024.
+-   I. Beltagy, M. E. Peters, A. Cohan, “Longformer: The Long-Document Transformer”, arXiv, 2020.
+-   A. Q. Jiang and coauthors, “Mistral 7B”, arXiv, 2023.
+-   G. Xiao, Y. Tian, B. Chen, S. Han, M. Lewis, “Efficient Streaming Language Models with Attention Sinks”, *ICLR*, 2024.
+-   H. Liu, M. Zaharia, P. Abbeel, “Ring Attention with Blockwise Transformers for Near-Infinite Context”, *ICLR*, 2024 (2024c).
+-   G. Xiao and coauthors, “SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models”, *ICML*, 2023.
+-   E. Frantar, S. Ashkboos, T. Hoefler, D. Alistarh, “GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers”, *ICLR*, 2023.
+-   J. Lin and coauthors, “AWQ: Activation-aware Weight Quantization for On-Device LLM Compression and Acceleration”, *MLSys*, 2024.
+
+**Ch. 7 — Alternative architectures**
+
+-   N. Shazeer and coauthors, “Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer”, *ICLR*, 2017.
+-   W. Fedus, B. Zoph, N. Shazeer, “Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity”, *JMLR*, 2022.
+-   B. Zoph and coauthors, “ST-MoE: Designing Stable and Transferable Sparse Expert Models”, arXiv, 2022.
+-   A. Q. Jiang and coauthors, “Mixtral of Experts”, arXiv, 2024.
+-   DeepSeek-AI, “DeepSeek-V3 Technical Report”, arXiv, 2024.
+-   N. Shazeer, “Fast Transformer Decoding: One Write-Head is All You Need”, arXiv, 2019.
+-   J. Ainslie and coauthors, “GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints”, *EMNLP*, 2023.
+-   A. Katharopoulos, A. Vyas, N. Pappas, F. Fleuret, “Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention”, *ICML*, 2020.
+-   A. Gu, K. Goel, C. Ré, “Efficiently Modeling Long Sequences with Structured State Spaces”, *ICLR*, 2022.
+-   A. Gu, T. Dao, “Mamba: Linear-Time Sequence Modeling with Selective State Spaces”, arXiv, 2023.
+-   T. Dao, A. Gu, “Transformers are SSMs: Generalized Models and Efficient Algorithms through Structured State Space Duality”, *ICML*, 2024.
+-   G. E. Blelloch, “Prefix Sums and Their Applications”, technical report CMU-CS-90-190, Carnegie Mellon University, 1990.
+-   S. Jelassi, D. Brandfonbrener, S. M. Kakade, E. Malach, “Repeat After Me: Transformers are Better than State Space Models at Copying”, *ICML*, 2024.
+-   O. Lieber and coauthors, “Jamba: A Hybrid Transformer-Mamba Language Model”, arXiv, 2024.
+-   S. De and coauthors, “Griffin: Mixing Gated Linear Recurrences with Local Attention for Efficient Language Models”, arXiv, 2024.
+-   B. Peng and coauthors, “RWKV: Reinventing RNNs for the Transformer Era”, *Findings of EMNLP*, 2023.
+-   M. Beck and coauthors, “xLSTM: Extended Long Short-Term Memory”, *NeurIPS*, 2024.
+-   M. Dehghani, S. Gouws, O. Vinyals, J. Uszkoreit, Ł. Kaiser, “Universal Transformers”, *ICLR*, 2019.
+-   J. Geiping and coauthors, “Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach”, arXiv, 2025.
+
+**Ch. 8 — Agents**
+
+-   S. Yao and coauthors, “ReAct: Synergizing Reasoning and Acting in Language Models”, *ICLR*, 2023.
+-   P. Lewis and coauthors, “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks”, *NeurIPS*, 2020.
+-   V. Karpukhin and coauthors, “Dense Passage Retrieval for Open-Domain Question Answering”, *EMNLP*, 2020.
+-   S. Robertson, H. Zaragoza, “The Probabilistic Relevance Framework: BM25 and Beyond”, *Foundations and Trends in Information Retrieval*, 2009.
+-   N. F. Liu and coauthors, “Lost in the Middle: How Language Models Use Long Contexts”, *TACL*, 2024 (2024a).
+-   T. Schick and coauthors, “Toolformer: Language Models Can Teach Themselves to Use Tools”, *NeurIPS*, 2023.
+-   Anthropic, “Model Context Protocol”, open specification, 2024.
+-   C. E. Jimenez and coauthors, “SWE-bench: Can Language Models Resolve Real-World GitHub Issues?”, *ICLR*, 2024.
+-   S. Zhou and coauthors, “WebArena: A Realistic Web Environment for Building Autonomous Agents”, *ICLR*, 2024.
+-   G. Mialon and coauthors, “GAIA: A Benchmark for General AI Assistants”, *ICLR*, 2024.
+-   S. Yao, N. Shinn, P. Razavi, K. Narasimhan, “τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains”, arXiv, 2024.
+
+**Ch. 9 — Interpretability, small models, vision and robotics**
+
+-   K. Meng, D. Bau, A. Andonian, Y. Belinkov, “Locating and Editing Factual Associations in GPT”, *NeurIPS*, 2022.
+-   K. Wang, A. Variengien, A. Conmy, B. Shlegeris, J. Steinhardt, “Interpretability in the Wild: a Circuit for Indirect Object Identification in GPT-2 Small”, *ICLR*, 2023 (2023b).
+-   N. Elhage and coauthors, “A Mathematical Framework for Transformer Circuits”, *Transformer Circuits Thread*, 2021.
+-   C. Olsson and coauthors, “In-context Learning and Induction Heads”, *Transformer Circuits Thread*, 2022.
+-   N. Elhage and coauthors, “Toy Models of Superposition”, *Transformer Circuits Thread*, 2022.
+-   T. Bricken and coauthors, “Towards Monosemanticity: Decomposing Language Models With Dictionary Learning”, *Transformer Circuits Thread*, 2023.
+-   H. Cunningham, A. Ewart, L. Riggs, R. Huben, L. Sharkey, “Sparse Autoencoders Find Highly Interpretable Features in Language Models”, *ICLR*, 2024.
+-   A. Templeton and coauthors, “Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet”, *Transformer Circuits Thread*, 2024.
+-   K. Ball, “An Elementary Introduction to Modern Convex Geometry”, in *Flavors of Geometry*, MSRI Publications 31, Cambridge University Press, 1997.
+-   N. Sardana, J. Portes, S. Doubov, J. Frankle, “Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws”, *ICML*, 2024.
+-   L. Ben Allal and coauthors, “SmolLM2: When Smol Goes Big — Data-Centric Training of a Small Language Model”, arXiv, 2025.
+-   Z. Liu and coauthors, “MobileLLM: Optimizing Sub-billion Parameter Language Models for On-Device Use Cases”, *ICML*, 2024 (2024b).
+-   A. Dosovitskiy and coauthors, “An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale”, *ICLR*, 2021.
+-   A. Radford and coauthors, “Learning Transferable Visual Models From Natural Language Supervision”, *ICML*, 2021.
+-   H. Liu, C. Li, Q. Wu, Y. J. Lee, “Visual Instruction Tuning”, *NeurIPS*, 2023.
+-   A. Brohan and coauthors, “RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control”, *CoRL*, 2023.
+-   M. J. Kim and coauthors, “OpenVLA: An Open-Source Vision-Language-Action Model”, *CoRL*, 2024.
+-   K. Black and coauthors, “π0: A Vision-Language-Action Flow Model for General Robot Control”, arXiv, 2024.
+
+**Ch. 11 and projects**
+
+-   N. Muennighoff and coauthors, “Scaling Data-Constrained Language Models”, *NeurIPS*, 2023.
+-   J. Wei and coauthors, “Emergent Abilities of Large Language Models”, *TMLR*, 2022.
+-   R. Schaeffer, B. Miranda, S. Koyejo, “Are Emergent Abilities of Large Language Models a Mirage?”, *NeurIPS*, 2023.
+-   Y. Yue and coauthors, “Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?”, arXiv, 2025.
+-   M. Gerstgrasser and coauthors, “Is Model Collapse Inevitable? Breaking the Curse of Recursion by Accumulating Real and Synthetic Data”, arXiv, 2024.
+-   R. Eldan, Y. Li, “TinyStories: How Small Can Language Models Be and Still Speak Coherent English?”, arXiv, 2023.
+-   A. L. Maas and coauthors, “Learning Word Vectors for Sentiment Analysis”, *ACL*, 2011.

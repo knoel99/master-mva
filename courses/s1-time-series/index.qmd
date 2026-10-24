@@ -1,0 +1,2853 @@
+---
+title: "Machine Learning for Time Series"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: probability, least squares and Fourier analysis](#ch0)
+-   [1. Representing a time series: stationarity, spectra and scales](#ch1)
+-   [2. Linear models, state space and forecasting](#ch2)
+-   [3. Extracting and recognising patterns](#ch3)
+-   [4. Sparse representations and dictionary learning](#ch4)
+-   [5. Detecting changes and anomalies](#ch5)
+-   [6. Repairing data: denoising and missing values](#ch6)
+-   [7. Extracting and selecting relevant features](#ch7)
+-   [8. Multivariate series and graphs](#ch8)
+-   [9. Neural networks for time series](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Machine Learning for Time Series
+  Official title       Apprentissage pour les séries temporelles
+  Instructors          L. OUDRE (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 36 h (lectures 27 h, labs 9 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Signal processing
+  Language             not displayed on the official pages
+  Assessment           lab reports (25 %) and mini-projects: report 25 %, source code 25 %, oral defence 25 % (master-mva.com); non-integral continuous assessment, “Evaluation Continue non Intégrale” (Université Paris-Saclay course detail)
+  Prerequisites        probability and statistics; basic notions of machine learning and signal processing (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics, who has met probability and a first course in machine learning, and who now faces data indexed by time — sensors, physiology, energy, economics.
+
+**Empirical first**: on the synthetic Cylinder–Bell–Funnel benchmark, a 1-nearest-neighbour classifier with the Euclidean distance misclassifies about 13 % of the test series, and the same classifier with dynamic time warping misclassifies none of them (code of [ch. 3](#ch3)). The Euclidean distance compares sample $t$ with sample $t$, while the patterns that define the classes are shifted and stretched in time.
+
+That small experiment is the whole course in miniature. A time series is not a vector of independent coordinates: neighbouring samples are dependent, patterns move, regimes change, values go missing, and several channels interact. Each chapter chooses a *representation* that takes the temporal structure into account — autocorrelations and spectra, linear dynamics, warping paths, sparse codes, segmentations, features, graphs — and turns it into an algorithm.
+
+The page leans on the optimisation of [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html) and the statistics of [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html). Its graph chapter opens the door to [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), and its detection chapter to [Detection Theory and Industrial Applications](../s2-detection-theory/index.html).
+
+### What you will be able to do
+
+-   Compute and interpret the autocorrelation, the periodogram, the spectrogram and the wavelet coefficients of a series.
+-   Fit autoregressive and state-space models, forecast with them, and evaluate any forecaster without leaking the future.
+-   Compare series with dynamic time warping, bound it from below, and build nearest-neighbour and shapelet classifiers.
+-   Discover repeated motifs and isolated discords with the matrix profile.
+-   Learn sparse and convolutional dictionaries that extract recurring patterns from long signals.
+-   Segment a signal by penalised change-point detection (optimal partitioning, PELT, kernel costs) and choose the penalty.
+-   Design and evaluate detectors for point, contextual and collective anomalies.
+-   Denoise by Wiener filtering and wavelet thresholding, and impute missing values by splines, Kalman smoothing and low-rank completion.
+-   Extract interpretable features from series and select them without selection bias.
+-   Represent a multivariate series on a graph, filter and interpolate it, and learn the graph from the data.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from applications (health, economics, advertising…) in which the collected data take the form of time series. The fundamental issue, it says, is to choose a representation that accounts as well as possible for the temporal information.
+
+The course aims to give an overview of the machine-learning techniques used to study time series, for tasks such as pattern extraction and recognition, anomaly detection, prediction and interpolation. It is largely illustrated on real data and problems from current challenges, and insists on understanding and interpreting the data.
+
+master-mva.com announces 6 lecture sessions of 3 h, 3 lab sessions of 3 h and the defences, and states that the course does not accept external auditors. The Université Paris-Saclay course detail adds only the nature of the assessment. The table below maps every official item to a section of this page.
+
+| Official topic | Course section |
+|---|---|
+| Extracting and recognising patterns (“Extraire et reconnaître des motifs”) | [ch. 3](#ch3): Euclidean and DTW distances, nearest neighbours, matrix profile, shapelets; [ch. 4](#ch4): dictionary learning and convolutional sparse coding |
+| Modelling and representing (“Modéliser et représenter”) | [ch. 1](#ch1): stationarity, spectra, spectrograms, wavelets, trend and seasonality; [ch. 2](#ch2): AR, ARMA and state-space models; [ch. 4](#ch4): sparse representations |
+| Detecting changes and anomalies (“Détecter des changements et des anomalies”) | [ch. 5](#ch5): penalised change-point detection, PELT, kernel costs; point, contextual and collective anomalies |
+| Repairing data: denoising and interpolation of missing data (“Réparer les données”) | [ch. 6](#ch6): Wiener filter, wavelet thresholding, splines, Kalman smoothing, low-rank completion |
+| Extracting and selecting relevant features (“Extraire et sélectionner des caractéristiques pertinentes”) | [ch. 7](#ch7): statistical, spectral and random-kernel features; filter, wrapper and embedded selection |
+| Handling multivariate data with graphs (“Gérer la multivariation grâce aux graphes”) | [ch. 8](#ch8): graph signal processing, graph filters, graph interpolation, graph learning |
+| Objective: prediction | [ch. 2](#ch2): best linear prediction, Kalman filter, forecasting as supervised learning, rolling-origin evaluation |
+| Objective: interpolation | [ch. 6](#ch6) (splines, Kalman smoothing, low-rank completion) and [ch. 8](#ch8) (interpolation on a graph) |
+| Objective: real data and challenges, understanding and interpreting the data | labs 1–3 of the [session plan](#sessions); interpretable features in [ch. 7](#ch7); mini-projects in [Projects and assessment](#projects) |
+| 6 lecture sessions of 3 h | spread over the 9 lecture sessions of the [session plan](#sessions), to match the 27 h of lectures of the Université Paris-Saclay table |
+| 3 lab sessions of 3 h | sessions 5, 8 and 12 of the [session plan](#sessions) (labs 1–3) |
+| Defences (“soutenances”) | mini-project subjects, defence format and rubric in [Projects and assessment](#projects) |
+| “Plus de détails”, “Les intervenants” (last two items of the list) | not covered: link labels of the master-mva.com page, not topics; the instructor is named in the fiche |
+
+Beyond the syllabus, this page adds the Kalman smoother as a unifying tool for forecasting and imputation (ch. 2 and 6), neural networks for time series ([ch. 9](#ch9), self-study) and a chapter of research directions ([ch. 10](#ch10), self-study).
+
+### Where this course fits in the programme
+
+Official prerequisites (master-mva.com): probability and statistics, and basic notions of machine learning and signal processing.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, conditional expectation, estimation), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (least squares, eigenvalues, gradient methods) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block of this page).
+-   **Related courses of the same semester** — [Convex Optimization](../s1-convex-optimization/index.html) (the lasso and proximal methods of ch. 4 and 7), [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (state-space models, Gaussian graphical models), [Computational Statistics](../s1-computational-statistics/index.html), [Statistical Learning with Extreme Values](../s1-extreme-values/index.html) (rare events and anomalies), [Deep Learning and Signal Processing](../s1-deep-learning-signal-industry/index.html) and [Mathematical Methods for Neuroscience](../s1-neuroscience-maths/index.html).
+-   **Courses that build on it in semester 2** — [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), [Detection Theory and Industrial Applications](../s2-detection-theory/index.html), [Sequential Learning](../s2-sequential-learning/index.html), [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html) (kernel change-point costs), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Audio Signal Processing: Time–Frequency Analysis](../s2-audio-time-frequency/index.html), [Functional Brain Imaging and Brain–Computer Interfaces](../s2-brain-imaging-bci/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html) and [Biostatistics](../s2-biostatistics/index.html).
+
+### Course outline
+
+-   **Review: probability, least squares and Fourier analysis** — Gaussian conditioning, ridge regression, the discrete Fourier transform and the convolution theorem.
+-   **Representing a time series** — stationarity, autocorrelation, spectral density, periodogram, spectrogram, Haar wavelets, trend and seasonality.
+-   **Linear models, state space and forecasting** — AR and ARMA models, Yule–Walker equations, best linear prediction, the Kalman filter, forecasting as supervised learning and its honest evaluation.
+-   **Extracting and recognising patterns** — dynamic time warping and its lower bounds, nearest-neighbour classification, the matrix profile, shapelets.
+-   **Sparse representations and dictionary learning** — OMP, ISTA and FISTA, recovery guarantees, MOD and K-SVD, convolutional sparse coding.
+-   **Detecting changes and anomalies** — cost functions, optimal partitioning, PELT, kernel costs, penalties; anomaly types, residual, isolation and sequential detectors.
+-   **Repairing data** — Wiener filtering, wavelet thresholding, missingness mechanisms, splines, Kalman smoothing, low-rank completion.
+-   **Extracting and selecting relevant features** — interpretable features, random convolutional kernels, filter, wrapper and embedded selection.
+-   **Multivariate series and graphs** — graph Fourier transform, graph filters, interpolation on a graph, learning the graph.
+-   **Neural networks for time series** — dilated convolutions, recurrent networks and Transformers, and the baselines they must beat (self-study).
+-   **Research directions and open problems** — foundation models, evaluation, irregular sampling, spatio-temporal graphs (self-study).
+
+### Session plan {#sessions}
+
+**36 h in class = 12 sessions of 3 h.** The volume is that of the Université Paris-Saclay programme table (lectures 27 h, labs 9 h). master-mva.com organises the course as 6 lectures of 3 h, 3 labs of 3 h and the defences; the plan below spreads the 27 h of lectures over 9 sessions and keeps the 3 labs. The split into sessions is a proposal.
+
+Level 1 = foundations and first examples, 2 = core models and algorithms, 3 = advanced material close to research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review (0.1–0.6); ch. 1.1–1.6 time series as data, the tasks, stationarity, sample autocorrelation | Ex. 1, 2 |
+| 2 | 3 h | 1 | ch. 1.7–1.14 spectral density, periodogram, spectrogram, Haar wavelets, trend and seasonality | Ex. 3, 6 |
+| 3 | 3 h | 2 | ch. 2 AR and ARMA models, Yule–Walker, best linear prediction, Kalman filter, lag regression, rolling-origin evaluation | Ex. 4, 7 |
+| 4 | 3 h | 2 | ch. 3 DTW and lower bounds, nearest neighbours, matrix profile, shapelets | Ex. 5, 9 |
+| 5 | 3 h | 2 | Lab 1 on ch. 3 and ch. 2: DTW 1-NN and shapelet transform on Cylinder–Bell–Funnel, motif discovery, rolling-origin forecasting | lab report 1 |
+| 6 | 3 h | 2 | ch. 4 sparse coding, recovery guarantees, ISTA and FISTA, MOD and K-SVD, convolutional sparse coding | Ex. 8, 10 |
+| 7 | 3 h | 2 | ch. 5 change-point costs, optimal partitioning, PELT, kernel costs, penalties; anomaly types and detectors, CUSUM | Ex. 11 |
+| 8 | 3 h | 2 | Lab 2 on ch. 5 and ch. 4: PELT on piecewise signals, three anomaly detectors, convolutional sparse coding of a spike train | lab report 2 |
+| 9 | 3 h | 2 | ch. 6 Wiener filter, wavelet thresholding, missing-data mechanisms, splines, Kalman smoothing, low-rank completion | Ex. 12 |
+| 10 | 3 h | 2 | ch. 7 interpretable features, random convolutional kernels, filter, wrapper and embedded selection | Ex. 13 |
+| 11 | 3 h | 3 | ch. 8 graph Fourier transform, graph filters, Tikhonov interpolation, graph learning, time–vertex models | Ex. 14 |
+| 12 | 3 h | 3 | Lab 3 on ch. 8 and ch. 6–7: imputing a sensor network on a graph, a feature-selection pipeline; mini-project kick-off | lab report 3 |
+
+**Self-study, outside the 36 h** (about 6 h in total, plus the mini-project): ch. 9 Neural networks for time series (≈ 3 h, with Ex. 15) · ch. 10 Research directions and open problems (≈ 3 h, with Ex. 16).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 and check that Proposition 0.2 (Gaussian conditioning) and Theorem 0.5 (convolution theorem) feel familiar: ch. 2, 4, 6 and 8 use them without warning.
+-   After each session, do the exercises listed in the *Practice* column, then rerun the code blocks of the chapter and change one parameter at a time.
+-   Keep one notebook per lab; the lab reports count for 25 % of the official grade, so write the observations as you go.
+-   Choose the mini-project early (session 8 at the latest): most subjects reuse a lab.
+-   Python environment: NumPy, SciPy, scikit-learn, NetworkX and PyTorch (CPU) suffice for every block; all data are synthetic, with fixed seeds.
+
+## 0. Review: probability, least squares and Fourier analysis {#ch0}
+
+Three M1 tools carry most of the course: conditioning of Gaussian vectors (prediction, Kalman filtering, imputation), least squares (autoregressions, dictionaries, features) and the discrete Fourier transform (spectra, convolutions, filters). This chapter states them in the form used later, with short proofs.
+
+::: def
+[Definition 0.1 — Mean, covariance, Gaussian vector]{.tag} For a random vector $X \in \mathbb{R}^d$ with finite second moments, the mean is $\mu = \mathbb{E}[X]$ and the covariance is
+$$
+\Sigma = \mathbb{E}\big[(X - \mu)(X - \mu)^\top\big],
+$$
+a symmetric positive semi-definite matrix.
+
+$X$ is **Gaussian**, $X \sim \mathcal{N}(\mu, \Sigma)$, if every linear form $a^\top X$ is a real Gaussian variable. When $\Sigma$ is invertible, $X$ has the density
+$$
+p(x) = (2\pi)^{-d/2} \det(\Sigma)^{-1/2} \exp\!\Big(-\tfrac12 (x - \mu)^\top \Sigma^{-1} (x - \mu)\Big).
+$$
+:::
+
+:::: prop
+[Proposition 0.2 — Best linear predictor and Gaussian conditioning]{.tag} Let $(X, Y)$ be a random vector with means $\mu_X, \mu_Y$, covariance blocks $\Sigma_{XX}, \Sigma_{XY}, \Sigma_{YY}$, and $\Sigma_{YY}$ invertible.
+
+Among all affine functions of $Y$, the one that minimises the mean squared error of prediction of $X$ is
+
+::: key
+[Key result — best linear predictor]{.tag}
+$$
+\hat X = \mu_X + \Sigma_{XY} \Sigma_{YY}^{-1} (Y - \mu_Y),
+$$
+:::
+
+with error covariance
+$$
+\Sigma_{XX} - \Sigma_{XY} \Sigma_{YY}^{-1} \Sigma_{YX}.
+$$
+
+If $(X, Y)$ is Gaussian, then $\hat X = \mathbb{E}[X \mid Y]$, and the conditional law of $X$ given $Y$ is Gaussian with this mean and this covariance.
+
+::: proof
+*Orthogonality.* The error $E = X - \hat X$ has mean zero and
+$$
+\mathrm{Cov}(E, Y) = \Sigma_{XY} - \Sigma_{XY} \Sigma_{YY}^{-1} \Sigma_{YY} = 0.
+$$
+
+*Optimality.* Any other affine predictor writes $\hat X + a + B(Y - \mu_Y)$. Its error is $E - a - B(Y - \mu_Y)$, whose second moment is that of $E$ plus a non-negative term, because $E$ is centred and uncorrelated with $Y$.
+
+*Gaussian case.* $(E, Y)$ is Gaussian and uncorrelated, hence independent. So $X = \hat X + E$ given $Y$ is $\hat X$ plus an independent Gaussian of covariance $\mathrm{Cov}(E)$, which expands to the stated formula. [∎]{.qed}
+:::
+::::
+
+The same orthogonality principle — the error is orthogonal to everything the predictor may use — gives the Yule–Walker equations (ch. 2), the Kalman filter (ch. 2) and the Wiener filter (ch. 6).
+
+:::: prop
+[Proposition 0.3 — Least squares and ridge regression]{.tag} Let $A \in \mathbb{R}^{n \times p}$ and $b \in \mathbb{R}^n$. Every minimiser of $\|Ax - b\|^2$ solves the normal equations $A^\top A x = A^\top b$.
+
+For $\lambda > 0$ the ridge problem $\min_x \|Ax - b\|^2 + \lambda \|x\|^2$ has the unique solution
+$$
+x_\lambda = (A^\top A + \lambda I)^{-1} A^\top b.
+$$
+
+::: proof
+The objective is a convex quadratic with gradient $2A^\top(Ax - b) + 2\lambda x$. Setting it to zero gives the two formulas. For $\lambda > 0$ the matrix $A^\top A + \lambda I$ is positive definite, hence invertible, and the objective is strictly convex. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 0.4 — Discrete Fourier transform]{.tag} For $x = (x_0, \dots, x_{n-1}) \in \mathbb{C}^n$, the DFT is
+$$
+\hat x_k = \sum_{t=0}^{n-1} x_t\, e^{-2i\pi k t / n}, \qquad k = 0, \dots, n - 1.
+$$
+
+The index $k$ corresponds to the frequency $k/n$ cycles per sample, or $k f_s / n$ hertz for a sampling rate $f_s$. The FFT computes all coefficients in $\mathcal{O}(n \log n)$ operations.
+:::
+
+:::: thm
+[Theorem 0.5 — Convolution theorem and Parseval]{.tag} Let the circular convolution be
+$$
+(x \circledast y)_t = \sum_{s=0}^{n-1} x_s\, y_{(t - s) \bmod n}.
+$$
+
+Then, for every $k$,
+$$
+\widehat{x \circledast y}_k = \hat x_k\, \hat y_k, \qquad \sum_{t} |x_t|^2 = \frac1n \sum_k |\hat x_k|^2.
+$$
+
+::: proof
+*Convolution.* Expand and substitute $u = t - s \bmod n$:
+$$
+\sum_t \sum_s x_s y_{t-s} e^{-2i\pi k t/n} = \sum_s x_s e^{-2i\pi k s/n} \sum_u y_u e^{-2i\pi k u/n}.
+$$
+
+*Parseval.* The vectors $e_k = (e^{2i\pi k t/n})_t$ are orthogonal with $\|e_k\|^2 = n$, and $\hat x_k = \langle x, e_k \rangle$. Expanding $x$ in this basis gives the identity. [∎]{.qed}
+:::
+::::
+
+A linear filtering, a cross-correlation or a sliding inner product therefore costs $\mathcal{O}(n \log n)$ instead of $\mathcal{O}(n^2)$. This speeds up the matrix profile (ch. 3) and convolutional sparse coding (ch. 4).
+
+::: note
+[Note 0.6 — Sampling and aliasing]{.tag} A continuous signal whose spectrum vanishes above $B$ hertz is determined by its samples taken at $f_s > 2B$ (Shannon–Nyquist). Below that rate, a frequency $f$ is indistinguishable from $f - f_s$: it *aliases*.
+
+In practice, sensors filter before sampling, and a series analysed here is a sequence $x_t$, $t = 1, \dots, n$, with a known sampling rate. Irregular sampling is discussed in [ch. 10](#ch10).
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   The best linear predictor makes the error orthogonal to the data; for Gaussian vectors it is the conditional expectation.
+-   Least squares and ridge regression have closed forms; ridge is always well posed.
+-   The DFT diagonalises circular convolution and preserves energy up to the factor $n$.
+:::
+
+## 1. Representing a time series: stationarity, spectra and scales {#ch1}
+
+Before learning anything from a series, one must decide what to look at: the raw samples, their correlations across lags, their frequencies, or their variations at several scales. This chapter defines these representations, says when they are meaningful (stationarity) and how to estimate them.
+
+### Time series as data
+
+::: def
+[Definition 1.1 — Time series]{.tag} A (regularly sampled) **time series** is a finite sequence $x = (x_1, \dots, x_n)$ with $x_t \in \mathbb{R}^d$. The sample $x_t$ is observed at time $t / f_s$, for a sampling rate $f_s$.
+
+The series is **univariate** when $d = 1$ and **multivariate** when $d > 1$, with one coordinate per channel or sensor.
+
+The statistical model is a stochastic process $(X_t)_{t \in \mathbb{Z}}$ of which $x$ is a finite realisation. A learning problem uses either one long series (forecasting, segmentation) or a data set of series $x^{(1)}, \dots, x^{(N)}$, possibly of different lengths (classification, clustering).
+:::
+
+::: note
+[Note 1.2 — The tasks of the course]{.tag} The official themes correspond to a handful of tasks:
+
+-   *modelling and representing* a series — this chapter, [ch. 2](#ch2) and [ch. 4](#ch4);
+-   *forecasting* its future values — [ch. 2](#ch2);
+-   *recognising and extracting patterns*, classifying series — [ch. 3](#ch3), [ch. 4](#ch4) and [ch. 7](#ch7);
+-   *detecting changes and anomalies* — [ch. 5](#ch5);
+-   *repairing* a series: denoising and imputing missing values — [ch. 6](#ch6);
+-   *exploiting the structure between channels* — [ch. 8](#ch8).
+
+One warning holds for all of them: samples are dependent. A random train/test split mixes past and future, and statistics computed on the whole series leak information. Every evaluation in this course respects the order of time.
+:::
+
+### Stationarity and autocorrelation
+
+::: def
+[Definition 1.3 — Weak stationarity, autocovariance]{.tag} A process $(X_t)$ with finite second moments is **weakly stationary** if its mean $\mathbb{E}[X_t] = \mu$ does not depend on $t$ and its covariance depends only on the lag:
+$$
+\gamma(h) = \mathrm{Cov}(X_{t+h}, X_t) \quad \text{for all } t, h \in \mathbb{Z}.
+$$
+
+The function $\gamma$ is the **autocovariance**, and $\rho(h) = \gamma(h) / \gamma(0)$ the **autocorrelation** (ACF).
+:::
+
+:::: prop
+[Proposition 1.4 — Properties of an autocovariance]{.tag} For a weakly stationary process:
+
+-   $\gamma(-h) = \gamma(h)$ and $|\gamma(h)| \le \gamma(0)$;
+-   $\gamma$ is positive semi-definite: for all $n$, all times $t_1, \dots, t_n$ and all $a \in \mathbb{R}^n$,
+
+    $$
+    \sum_{i,j} a_i a_j\, \gamma(t_i - t_j) \ \ge\ 0.
+    $$
+
+In particular the Toeplitz matrix $\Gamma_n = [\gamma(i - j)]_{i,j = 1}^{n}$ is positive semi-definite.
+
+::: proof
+*Symmetry*: $\gamma(-h) = \mathrm{Cov}(X_{t-h}, X_t)$, and shifting both times by $h$ gives $\mathrm{Cov}(X_t, X_{t+h}) = \gamma(h)$.
+
+*Bound*: by Cauchy–Schwarz,
+$$
+|\mathrm{Cov}(X_{t+h}, X_t)| \le \sqrt{\mathrm{Var}(X_{t+h}) \mathrm{Var}(X_t)} = \gamma(0).
+$$
+
+*Positivity*: the double sum is $\mathrm{Var}\big(\sum_i a_i X_{t_i}\big) \ge 0$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 1.5 — Sample autocovariance and autocorrelation]{.tag} For observations $x_1, \dots, x_n$ with mean $\bar x$, and $0 \le h < n$,
+$$
+\hat\gamma(h) = \frac1n \sum_{t=1}^{n-h} (x_{t+h} - \bar x)(x_t - \bar x), \qquad \hat\rho(h) = \frac{\hat\gamma(h)}{\hat\gamma(0)}.
+$$
+
+The factor $1/n$ (not $1/(n-h)$) keeps the estimated Toeplitz matrix positive semi-definite. Under mild conditions $\hat\rho(h)$ is consistent. For a white noise, $\hat\rho(h)$ is approximately $\mathcal{N}(0, 1/n)$, which gives the bands $\pm 1.96/\sqrt n$ drawn on ACF plots.
+:::
+
+::: ex
+[Example 1.6 — Three reference processes]{.tag} Let $(\varepsilon_t)$ be i.i.d. with mean 0 and variance $\sigma^2$.
+
+-   *White noise* $X_t = \varepsilon_t$: $\gamma(0) = \sigma^2$ and $\gamma(h) = 0$ for $h \ne 0$.
+-   *Random walk* $S_t = \varepsilon_1 + \dots + \varepsilon_t$: $\mathrm{Var}(S_t) = t\sigma^2$ grows with $t$, so $S$ is **not** stationary. Its increments $S_t - S_{t-1} = \varepsilon_t$ are.
+-   *AR(1)* $X_t = \phi X_{t-1} + \varepsilon_t$ with $|\phi| < 1$: the stationary solution (ch. 2) has
+
+    $$
+    \gamma(h) = \frac{\sigma^2 \phi^{|h|}}{1 - \phi^2}, \qquad \rho(h) = \phi^{|h|}.
+    $$
+
+For the AR(1), the stationary solution $X_t = \sum_{j \ge 0} \phi^j \varepsilon_{t-j}$ (proved in Proposition 2.2) makes $\varepsilon_t$ uncorrelated with every earlier value $X_{t-h}$, $h \ge 1$.
+
+Multiplying the equation by $X_{t-h}$ and taking expectations gives $\gamma(h) = \phi\,\gamma(h-1)$ for $h \ge 1$. Taking variances gives $\gamma(0) = \phi^2 \gamma(0) + \sigma^2$. The two formulas above follow.
+
+With $\phi = 0.7$: $\rho(1) = 0.7$, $\rho(2) = 0.49$, $\rho(3) = 0.343$. The code below recovers these values from 4096 samples.
+:::
+
+### Spectral representation
+
+The autocovariance describes dependence across lags; its Fourier transform describes how the variance is spread over frequencies.
+
+:::: thm
+[Theorem 1.7 — Spectral density]{.tag} Let $(X_t)$ be weakly stationary with $\sum_h |\gamma(h)| < \infty$. The function
+$$
+f(\omega) = \frac{1}{2\pi} \sum_{h \in \mathbb{Z}} \gamma(h)\, e^{-ih\omega}, \qquad \omega \in [-\pi, \pi],
+$$
+is continuous, even and **non-negative**. It determines the autocovariance:
+
+::: key
+[Key result — Wiener–Khinchin pair]{.tag}
+$$
+\gamma(h) = \int_{-\pi}^{\pi} e^{ih\omega} f(\omega)\, d\omega, \qquad f(\omega) = \frac{1}{2\pi} \sum_{h} \gamma(h) e^{-ih\omega}.
+$$
+:::
+
+::: proof
+*Inversion.* The series converges uniformly, so it may be integrated term by term. Since
+$$
+\int_{-\pi}^{\pi} e^{i(h-k)\omega}\, d\omega = 2\pi\, \mathbb{1}[h = k],
+$$
+only the term $k = h$ survives.
+
+*Non-negativity.* Assume $\mu = 0$ and set
+$$
+f_n(\omega) = \frac{1}{2\pi n}\, \mathbb{E}\Big|\sum_{t=1}^n X_t e^{-it\omega}\Big|^2 \ \ge\ 0.
+$$
+
+Expanding the square and grouping the pairs $(s, t)$ by lag $h = s - t$ gives
+$$
+f_n(\omega) = \frac{1}{2\pi} \sum_{|h| < n} \Big(1 - \frac{|h|}{n}\Big) \gamma(h)\, e^{-ih\omega}.
+$$
+
+By dominated convergence (the weights are bounded by 1 and $\gamma$ is summable), $f_n(\omega) \to f(\omega)$, which is therefore $\ge 0$. Evenness follows from $\gamma(-h) = \gamma(h)$. [∎]{.qed}
+:::
+::::
+
+White noise has a flat spectrum $f = \sigma^2 / (2\pi)$. The AR(1) of Example 1.6 has
+$$
+f(\omega) = \frac{\sigma^2}{2\pi\,(1 - 2\phi\cos\omega + \phi^2)},
+$$
+which concentrates the variance at low frequencies when $\phi > 0$. It follows by summing the two geometric series of $\sum_h \phi^{|h|} e^{-ih\omega}$.
+
+::: def
+[Definition 1.8 — Periodogram]{.tag} At the Fourier frequencies $\omega_k = 2\pi k / n$, the **periodogram** of $x_1, \dots, x_n$ is
+$$
+I_n(\omega_k) = \frac{1}{2\pi n} \Big| \sum_{t=1}^n (x_t - \bar x)\, e^{-it\omega_k} \Big|^2 .
+$$
+
+It is the squared modulus of the DFT (Definition 0.4), rescaled. For $k \ne 0$ it equals
+$$
+I_n(\omega_k) = \frac{1}{2\pi} \sum_{|h| < n} \hat\gamma(h)\, e^{-ih\omega_k},
+$$
+so it is the plug-in estimator of $f$.
+:::
+
+:::: prop
+[Proposition 1.9 — The periodogram is not consistent]{.tag} Under the assumptions of Theorem 1.7, the bias $\mathbb{E}[I_n(\omega_k)] - f(\omega_k)$ tends to 0 uniformly over the Fourier frequencies $\omega_k \ne 0$. However, for an i.i.d. $\mathcal{N}(0, \sigma^2)$ white noise and $0 < k < n/2$,
+$$
+I_n(\omega_k) \sim \frac{\sigma^2}{2\pi} \cdot \frac{\chi^2_2}{2},
+$$
+whose variance $(\sigma^2 / 2\pi)^2$ does not decrease with $n$.
+
+::: proof
+*Bias.* At a Fourier frequency $\omega_k \ne 0$, $\sum_t e^{-it\omega_k} = 0$, so subtracting $\bar x$ changes nothing and $\mathbb{E}[I_n(\omega_k)] = f_n(\omega_k)$, with $f_n$ as in the proof of Theorem 1.7. The bound
+$$
+|f_n(\omega) - f(\omega)| \le \frac{1}{2\pi}\sum_h \min\Big(1, \frac{|h|}{n}\Big)\, |\gamma(h)|
+$$
+does not depend on $\omega$ and tends to 0.
+
+*Variance.* For $0 < k < n/2$, the real and imaginary parts of $\sum_t \varepsilon_t e^{-it\omega_k}$ are Gaussian, centred, uncorrelated (orthogonality of cosines and sines at Fourier frequencies), each of variance $n\sigma^2/2$. Their squared sum divided by $n\sigma^2/2$ is a $\chi^2_2$, and $I_n = \frac{\sigma^2}{4\pi}\chi^2_2$. [∎]{.qed}
+:::
+::::
+
+The periodogram must therefore be smoothed. **Welch's method** cuts the series into $K$ overlapping windowed segments and averages their periodograms. The variance is divided by about $K$, and the frequency resolution, now set by the segment length, is coarser by the same factor.
+
+```python
+import numpy as np
+from scipy.signal import welch
+
+rng = np.random.default_rng(0)
+n, phi = 4096, 0.7
+eps = rng.standard_normal(n)
+ar = np.zeros(n)
+for t in range(1, n):                       # AR(1): x_t = 0.7 x_{t-1} + eps_t
+    ar[t] = phi * ar[t - 1] + eps[t]
+x = ar + 1.5 * np.sin(2 * np.pi * 0.1 * np.arange(n))   # + a period-10 cycle
+
+def acf(x, max_lag):                        # sample ACF (Definition 1.5)
+    xc = x - x.mean()
+    g = np.array([xc[: len(x) - h] @ xc[h:] for h in range(max_lag + 1)]) / len(x)
+    return g / g[0]
+
+print("sample ACF, lags 0-3:", acf(ar, 3).round(2))
+print("theory 0.7^h        :", (phi ** np.arange(4)).round(2))
+f, P = welch(x, fs=1.0, nperseg=250)        # averaged periodogram
+print("frequency of the spectral peak:", f[np.argmax(P)], "cycle/sample")
+```
+
+The output gives the ACF $(1, 0.70, 0.49, 0.35)$ against the theoretical $(1, 0.70, 0.49, 0.34)$, and a spectral peak at
+$$
+f = 0.1 \text{ cycle per sample},
+$$
+the hidden period of 10 samples, invisible on the raw ACF of the noisy mixture.
+
+### Time–frequency and multiscale representations
+
+A spectrum averages over the whole series. Speech, gait or an electrocardiogram change over time, so one needs representations that are localised both in time and in frequency.
+
+::: def
+[Definition 1.10 — Short-time Fourier transform, spectrogram]{.tag} Let $w$ be a window of length $M$ (Hann, for instance) and $H$ a hop size. The STFT of $x$ is
+$$
+X(m, k) = \sum_{t} x_t\, w(t - mH)\, e^{-2i\pi k (t - mH) / M},
+$$
+and the **spectrogram** is $|X(m, k)|^2$: a periodogram of each windowed frame, with frames indexed by $m$.
+
+A long window resolves close frequencies but blurs fast events; a short window does the opposite. The Gabor–Heisenberg inequality makes the trade-off unavoidable: the product of the time spread and the frequency spread of a window is bounded below by a universal constant.
+:::
+
+Wavelets resolve the trade-off differently: short windows for high frequencies, long ones for low frequencies. The simplest wavelet basis, Haar's, is enough to state the main facts.
+
+::: def
+[Definition 1.11 — Haar wavelet transform]{.tag} Let $n = 2^J$ and $a^{(0)} = x$. For $j = 1, \dots, J$ and $k = 0, \dots, n 2^{-j} - 1$, set
+$$
+a^{(j)}_k = \frac{a^{(j-1)}_{2k} + a^{(j-1)}_{2k+1}}{\sqrt 2}, \qquad d^{(j)}_k = \frac{a^{(j-1)}_{2k} - a^{(j-1)}_{2k+1}}{\sqrt 2}.
+$$
+
+The Haar transform of $x$ is the vector $W x = (a^{(J)}, d^{(J)}, \dots, d^{(1)})$. The coefficient $d^{(j)}_k$ measures the variation of $x$ at scale $2^j$ around the time $k 2^j$.
+:::
+
+:::: prop
+[Proposition 1.12 — The Haar transform is orthonormal and fast]{.tag} $W$ is an orthogonal matrix, so
+$$
+\|Wx\| = \|x\|, \qquad x = W^\top (Wx),
+$$
+and both $Wx$ and $W^\top c$ cost $\mathcal{O}(n)$ operations: fewer than $4n$ additions and multiplications.
+
+::: proof
+Each level applies the orthogonal matrix
+$$
+\frac{1}{\sqrt 2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}
+$$
+to disjoint pairs of entries. Level $j$ is thus orthogonal on the current approximation and the identity on the details already computed. A product of orthogonal maps is orthogonal.
+
+Level $j$ processes $n 2^{-j}$ pairs, so there are $\sum_{j \ge 1} n 2^{-j} = n - 1$ pairs in all. Each pair costs two additions and two multiplications by $1/\sqrt 2$, hence fewer than $4n$ operations. [∎]{.qed}
+:::
+::::
+
+A piecewise-constant signal has nonzero Haar details only near its jumps: few large coefficients carry it. This *sparsity* is what wavelet denoising exploits in ch. 6.
+
+### Trend and seasonality
+
+Many series are a slow **trend** plus a periodic **seasonal** component plus a stationary remainder, $x_t = m_t + s_t + r_t$. Differencing removes the first two.
+
+:::: prop
+[Proposition 1.13 — Differencing]{.tag} Let $\nabla x_t = x_t - x_{t-1}$ and $\nabla_p x_t = x_t - x_{t-p}$.
+
+-   If $m_t$ is a polynomial of degree $k$ in $t$, then $\nabla^k m_t$ is constant and $\nabla^{k+1} m_t = 0$.
+-   If $s_t$ is $p$-periodic, then $\nabla_p s_t = 0$.
+-   If $r$ is stationary with spectral density $f_r$, then $\nabla r$ is stationary with density
+
+    $$
+    f_{\nabla r}(\omega) = |1 - e^{-i\omega}|^2 f_r(\omega) = (2 - 2\cos\omega)\, f_r(\omega).
+    $$
+
+::: proof
+*Polynomials.* $t^k - (t-1)^k = k t^{k-1} + (\text{lower degree})$, so $\nabla$ lowers the degree by exactly one; after $k$ steps a constant remains, killed by one more step.
+
+*Periodic part.* $s_t - s_{t-p} = 0$ by definition.
+
+*Spectrum.* Expanding the covariance of the differences,
+$$
+\gamma_{\nabla r}(h) = 2\gamma_r(h) - \gamma_r(h+1) - \gamma_r(h-1).
+$$
+Inserting $\gamma_r(h) = \int e^{ih\omega} f_r$ gives the factor $2 - e^{i\omega} - e^{-i\omega}$. [∎]{.qed}
+:::
+::::
+
+Differencing thus removes trends but amplifies high frequencies: it should be used once or twice, not by reflex.
+
+::: ex
+[Example 1.14 — Removing a trend and a season]{.tag} Let $x_t = 1 + 0.5\,t + s_t$ with the period-4 season $s = (2, 0, -2, 0, 2, 0, -2, 0, \dots)$. For $t = 0, \dots, 7$:
+$$
+x = (3,\ 1.5,\ 0,\ 2.5,\ 5,\ 3.5,\ 2,\ 4.5).
+$$
+
+Seasonal differencing gives, for $t = 4, \dots, 7$,
+$$
+\nabla_4 x_t = (2, 2, 2, 2) = 4 \times 0.5,
+$$
+a constant, and one more ordinary difference gives 0. On real data the remainder $r_t$ survives these operations and is what the models of ch. 2 describe.
+
+Robust alternatives estimate the trend by a centred moving average of length $p$ and the season by averaging each phase, or use the loess-based STL procedure of Cleveland and coauthors (1990).
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   Stationarity makes the autocovariance a function of the lag only; it is even, bounded by $\gamma(0)$ and positive semi-definite.
+-   The spectral density is the Fourier transform of the autocovariance and is non-negative.
+-   The raw periodogram is asymptotically unbiased but not consistent; average it (Welch).
+-   Spectrograms and wavelets localise frequencies in time; the Haar transform is orthonormal and costs $\mathcal{O}(n)$.
+-   Differencing removes polynomial trends and periodic seasons but amplifies high frequencies.
+:::
+
+## 2. Linear models, state space and forecasting {#ch2}
+
+To forecast a series, or to fill its gaps, one needs a model of how the present depends on the past. This chapter builds the linear one: autoregressions, their optimal predictors, the state-space form with the Kalman filter, and then forecasting as ordinary supervised learning with an honest evaluation.
+
+### Autoregressive and moving-average models
+
+::: def
+[Definition 2.1 — AR, MA and ARMA models]{.tag} Let $(\varepsilon_t)$ be a white noise of variance $\sigma^2$ and $B$ the backshift operator, $B x_t = x_{t-1}$. With the polynomials
+$$
+\phi(z) = 1 - \phi_1 z - \dots - \phi_p z^p, \qquad \theta(z) = 1 + \theta_1 z + \dots + \theta_q z^q,
+$$
+an **ARMA($p$, $q$)** process satisfies
+$$
+\phi(B) X_t = \theta(B) \varepsilon_t .
+$$
+
+The case $q = 0$ is the **autoregression** AR($p$), the case $p = 0$ the **moving average** MA($q$).
+
+The process is **causal** if $X_t = \sum_{j \ge 0} \psi_j \varepsilon_{t-j}$ with $\sum_j |\psi_j| < \infty$: it depends on present and past shocks only. When $\phi$ and $\theta$ have no common zeros, this holds if and only if $\phi(z) \ne 0$ for $|z| \le 1$ (Brockwell and Davis, 1991). Its spectral density is then
+$$
+f(\omega) = \frac{\sigma^2}{2\pi} \frac{|\theta(e^{-i\omega})|^2}{|\phi(e^{-i\omega})|^2}.
+$$
+:::
+
+:::: prop
+[Proposition 2.2 — The AR(1) model]{.tag} The equation $X_t = \phi X_{t-1} + \varepsilon_t$ has a stationary solution if and only if $|\phi| \ne 1$. For $|\phi| < 1$ the solution is causal and unique:
+$$
+X_t = \sum_{j \ge 0} \phi^j \varepsilon_{t-j}, \qquad \gamma(h) = \frac{\sigma^2 \phi^{|h|}}{1 - \phi^2}.
+$$
+
+::: proof
+*Uniqueness.* Iterating the equation $k$ times gives
+$$
+X_t = \phi^k X_{t-k} + \sum_{j < k} \phi^j \varepsilon_{t-j}.
+$$
+For a stationary solution, the second moment of $\phi^k X_{t-k}$ is $\phi^{2k}\, \mathbb{E}[X_0^2] \to 0$, so $X_t$ is the $L^2$ limit of the partial sums.
+
+*Existence and covariance.* The series converges in $L^2$ since $\sum_j \phi^{2j} < \infty$. For $h \ge 0$, independence of the shocks gives
+$$
+\gamma(h) = \sigma^2 \sum_{j \ge 0} \phi^j \phi^{j+h} = \frac{\sigma^2 \phi^h}{1 - \phi^2}.
+$$
+
+*The case $\phi = \pm 1$.* Then $X_t - \phi^k X_{t-k}$ has variance $k\sigma^2$, while for a stationary process it is at most $4\gamma(0)$: impossible for large $k$. (For $|\phi| > 1$ a stationary but non-causal solution exists, written with future shocks.) [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 2.3 — Yule–Walker equations]{.tag} Let $X$ be a causal AR($p$). Then, for every $h \ge 1$,
+
+::: key
+[Key result — Yule–Walker equations]{.tag}
+$$
+\gamma(h) = \sum_{j=1}^p \phi_j\, \gamma(h - j), \qquad \sigma^2 = \gamma(0) - \sum_{j=1}^p \phi_j \gamma(j).
+$$
+:::
+
+In matrix form, $\Gamma_p \boldsymbol\phi = \boldsymbol\gamma_p$, with the Toeplitz matrix $\Gamma_p = [\gamma(i - j)]_{i,j=1}^p$ and the vector $\boldsymbol\gamma_p$ of the autocovariances at lags 1 to $p$.
+
+::: proof
+Multiply $X_t = \sum_j \phi_j X_{t-j} + \varepsilon_t$ by $X_{t-h}$ and take expectations (centred process).
+
+For $h \ge 1$, causality makes $X_{t-h}$ a function of $\varepsilon_s$, $s \le t - h$, hence uncorrelated with $\varepsilon_t$: the last term vanishes.
+
+For $h = 0$, $\mathbb{E}[\varepsilon_t X_t] = \sigma^2$, because $X_t - \varepsilon_t$ depends only on past shocks. [∎]{.qed}
+:::
+::::
+
+Replacing $\gamma$ by the sample autocovariance (Definition 1.5) gives the **Yule–Walker estimator**
+$$
+\hat{\boldsymbol\phi} = \hat\Gamma_p^{-1} \hat{\boldsymbol\gamma}_p .
+$$
+
+The $1/n$ normalisation keeps $\hat\Gamma_p$ positive definite, and the fitted model is always causal. The estimator is consistent and asymptotically Gaussian; least squares on the lagged values is asymptotically equivalent.
+
+:::: thm
+[Theorem 2.4 — Optimal linear prediction of an AR($p$)]{.tag} For a causal AR($p$) and any $k \ge p$, the best linear predictor of $X_{t+1}$ from $X_t, \dots, X_{t-k+1}$ is
+$$
+\hat X_{t+1 \mid t} = \sum_{j=1}^p \phi_j X_{t+1-j},
+$$
+with mean squared error $\sigma^2$. The $h$-step predictor follows the recursion
+$$
+\hat X_{t+h \mid t} = \sum_{j=1}^p \phi_j \hat X_{t+h-j \mid t}, \qquad \hat X_{s \mid t} = X_s \ \text{for } s \le t.
+$$
+
+::: proof
+The error of the proposed predictor is $\varepsilon_{t+1}$, uncorrelated with every $X_s$, $s \le t$, by causality. By the orthogonality principle (Proposition 0.2), the predictor is optimal, and its error is $\mathrm{Var}(\varepsilon_{t+1}) = \sigma^2$.
+
+For $h > 1$, project the model equation at time $t + h$ on the past: projection is linear, and the projection of $\varepsilon_{t+h}$ is zero. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.5 — Forecasting an AR(1)]{.tag} Take $\phi = 0.8$, $\sigma^2 = 1$ and the last observation $x_t = 2$. The recursion gives $\hat x_{t+h \mid t} = 0.8^h \times 2$, and the error of the $h$-step forecast is
+$$
+\mathrm{MSE}_h = \sigma^2 \sum_{j < h} \phi^{2j} = \sigma^2 \frac{1 - \phi^{2h}}{1 - \phi^2}.
+$$
+
+| Horizon $h$ | 1 | 2 | 5 | $\infty$ |
+|---|---|---|---|---|
+| Forecast | 1.6 | 1.28 | 0.66 | 0 |
+| MSE | 1 | 1.64 | 2.48 | 2.78 |
+
+The forecast decays to the mean and its error grows to the variance $\gamma(0) = 1/0.36$: beyond a few correlation times, the model knows nothing more than the marginal law. A Gaussian 95 % interval at $h = 1$ is $1.6 \pm 1.96$.
+:::
+
+::: note
+[Note 2.6 — ARIMA, seasonal models, exponential smoothing]{.tag} An **ARIMA($p, d, q$)** model says that $\nabla^d X$ is a causal ARMA($p, q$): differencing (Proposition 1.13) handles polynomial trends. Seasonal ARIMA adds $\nabla_s$ and polynomials in $B^s$. The book of Bisgaard and Kulahci (2011), in the official references, works through such models on real data.
+
+**Simple exponential smoothing** forecasts with the level $\ell_t = \alpha x_t + (1 - \alpha)\ell_{t-1}$. It is the optimal predictor of an ARIMA(0, 1, 1) model, and the Holt–Winters variants add a trend and a season. Orders are chosen by an information criterion (AIC) on the Gaussian likelihood, which the Kalman filter below computes.
+:::
+
+### State-space models and the Kalman filter
+
+The state-space form writes every linear model — AR, ARMA, trend plus season, several sensors — as a hidden Markov chain observed with noise. One algorithm then forecasts, filters, smooths and handles missing values (ch. 6).
+
+::: def
+[Definition 2.7 — Linear Gaussian state-space model]{.tag} A hidden state $s_t \in \mathbb{R}^m$ and an observation $y_t \in \mathbb{R}^d$ follow
+$$
+s_{t+1} = F s_t + w_t, \qquad y_t = H s_t + v_t,
+$$
+with $w_t \sim \mathcal{N}(0, Q)$, $v_t \sim \mathcal{N}(0, R)$ and $s_1 \sim \mathcal{N}(m_0, P_0)$, all independent.
+
+An AR($p$) is the case $s_t = (x_t, \dots, x_{t-p+1})$, with the companion matrix $F$ (first row $\phi_1, \dots, \phi_p$, ones below the diagonal), $H = (1, 0, \dots, 0)$ and $R = 0$.
+
+The *local level* model $s_{t+1} = s_t + w_t$, $y_t = s_t + v_t$ is a random walk seen through noise.
+:::
+
+:::: thm
+[Theorem 2.8 — Kalman filter]{.tag} Let $m_{t \mid t-1}, P_{t \mid t-1}$ be the mean and covariance of $s_t$ given $y_{1:t-1}$, and $m_{t \mid t}, P_{t \mid t}$ those given $y_{1:t}$. The conditional laws are Gaussian, and:
+
+-   *prediction*: $m_{t \mid t-1} = F m_{t-1 \mid t-1}$ and $P_{t \mid t-1} = F P_{t-1 \mid t-1} F^\top + Q$;
+-   *update*: with the innovation covariance $S_t = H P_{t \mid t-1} H^\top + R$ and the gain $K_t = P_{t \mid t-1} H^\top S_t^{-1}$,
+
+    $$
+    m_{t \mid t} = m_{t \mid t-1} + K_t\,(y_t - H m_{t \mid t-1}), \qquad P_{t \mid t} = (I - K_t H)\, P_{t \mid t-1}.
+    $$
+
+::: proof
+By induction on $t$. Given $y_{1:t-1}$, $s_{t-1}$ is Gaussian with the filtered moments, and $s_t = F s_{t-1} + w_{t-1}$ with $w_{t-1}$ independent of everything before: this gives the prediction step.
+
+Still given $y_{1:t-1}$, the pair $(s_t, y_t)$ is Gaussian with $\mathrm{Cov}(s_t, y_t) = P_{t \mid t-1} H^\top$ and $\mathrm{Var}(y_t) = S_t$, because $v_t$ is independent. Proposition 0.2 applied to this pair is exactly the update step. [∎]{.qed}
+:::
+::::
+
+The innovations $y_t - H m_{t \mid t-1}$ are independent $\mathcal{N}(0, S_t)$ variables, so the likelihood of the whole series is a product of $n$ Gaussian densities; maximising it fits $F$, $Q$ and $R$. The **Rauch–Tung–Striebel smoother** adds a backward pass that conditions on the whole series:
+$$
+m_{t \mid n} = m_{t \mid t} + J_t\,(m_{t+1 \mid n} - m_{t+1 \mid t}), \qquad J_t = P_{t \mid t} F^\top P_{t+1 \mid t}^{-1}.
+$$
+
+It follows from Proposition 0.2 applied to $(s_t, s_{t+1})$ given $y_{1:t}$, and from the Markov property: given $s_{t+1}$, the state $s_t$ is independent of $y_{t+1:n}$. Chapter 6 uses it to impute gaps.
+
+### Forecasting as supervised learning
+
+::: def
+[Definition 2.9 — Lag embedding, recursive and direct strategies]{.tag} Fix a number of lags $L$. The **lag embedding** turns a series into a regression data set with inputs $z_t = (x_{t-1}, \dots, x_{t-L})$ and targets $x_t$. Calendar variables and exogenous series can be appended to $z_t$.
+
+Any regressor (ridge, gradient boosting, a neural network) then forecasts one step ahead. For a horizon $h$, the *recursive* strategy feeds its own forecasts back as inputs. The *direct* strategy trains one model per horizon on the targets $x_{t+h-1}$. The recursive strategy accumulates its errors; the direct one ignores the dependence between horizons and needs $h$ models.
+:::
+
+::: def
+[Definition 2.10 — Rolling-origin evaluation and forecast metrics]{.tag} Choose forecast origins $T_1 < T_2 < \dots < T_K$. For each $k$, fit the model on $x_{1:T_k}$ only and score its forecasts of $x_{T_k + 1 : T_k + H}$. The average score over origins is the **rolling-origin** (or time-series cross-validation) estimate.
+
+Usual scores are the MAE, the RMSE and the scaled error **MASE**: the MAE divided by the in-sample MAE of the naive forecast $\hat x_{t+1} = x_t$ (Hyndman and Koehler, 2006). MASE below 1 beats the naive forecast. The percentage error MAPE explodes near zero values and should be avoided there.
+:::
+
+::: note
+[Note 2.11 — Why a shuffled split is optimistic]{.tag} With a random split, a test point has its neighbours $x_{t-1}$ and $x_{t+1}$ in the training set; when residuals are correlated, they carry part of its value, and the score is optimistic. Bergmeir, Hyndman and Koo (2018) show that ordinary $K$-fold cross-validation remains valid for purely autoregressive models with uncorrelated errors. Outside that case, use a rolling origin.
+
+Always report the naive and the seasonal naive forecasts ($\hat x_{t+h} = x_{t+h-s}$) as baselines.
+:::
+
+```python
+import numpy as np
+from scipy.linalg import toeplitz, solve
+from sklearn.linear_model import Ridge
+
+rng = np.random.default_rng(1)
+n = 2000
+x = np.zeros(n)
+for t in range(2, n):                       # AR(2) with phi = (0.6, -0.3)
+    x[t] = 0.6 * x[t - 1] - 0.3 * x[t - 2] + rng.standard_normal()
+
+def yule_walker(x, p):                      # Theorem 2.3 with sample autocovariances
+    xc = x - x.mean()
+    g = np.array([xc[: len(x) - h] @ xc[h:] for h in range(p + 1)]) / len(x)
+    phi = solve(toeplitz(g[:p]), g[1:])
+    return phi, g[0] - phi @ g[1:]
+
+phi_hat, s2_hat = yule_walker(x[:1000], 2)
+print("Yule-Walker on the first 1000 points:", phi_hat.round(3), round(s2_hat, 3))
+
+L = 5                                       # lag embedding: row t holds x_{t-1}, ..., x_{t-5}
+X = np.column_stack([x[L - k - 1 : n - k - 1] for k in range(L)])
+y = x[L:]
+mse = {"naive (last value)": [], "AR(2) Yule-Walker": [], "ridge on 5 lags": []}
+for origin in range(1000, len(y), 100):     # rolling origin (Definition 2.10)
+    te = slice(origin, origin + 100)
+    phi, _ = yule_walker(x[: origin + L], 2)            # refit on the past only
+    ridge = Ridge(alpha=1.0).fit(X[:origin], y[:origin])
+    mse["naive (last value)"].append(np.mean((y[te] - X[te, 0]) ** 2))
+    mse["AR(2) Yule-Walker"].append(np.mean((y[te] - X[te, :2] @ phi) ** 2))
+    mse["ridge on 5 lags"].append(np.mean((y[te] - ridge.predict(X[te])) ** 2))
+for name, v in mse.items():
+    print(f"{name:20s} one-step MSE = {np.mean(v):.3f}")
+```
+
+The estimate is $\hat{\boldsymbol\phi} = (0.578, -0.297)$ for the true $(0.6, -0.3)$. The one-step errors are 1.567 for the naive forecast, 1.055 for the AR(2) model and 1.060 for the ridge regression on 5 lags.
+
+Both models come close to the floor
+$$
+\sigma^2 = 1
+$$
+of Theorem 2.4. The remaining gap of about 0.05 is within the sampling error of an average over about 1000 test points, whose standard deviation is close to $\sqrt{2/1000} \approx 0.045$. On a linear process, a flexible regressor cannot beat the right linear model; it can only match it.
+
+::: recap
+Key takeaways — chapter 2
+
+-   A causal AR($p$) has autocovariances given by the Yule–Walker equations, and its optimal one-step predictor is the model equation itself, with error $\sigma^2$.
+-   Forecast errors grow with the horizon up to the variance of the series.
+-   The Kalman filter is Gaussian conditioning applied recursively; the RTS smoother conditions on the whole series.
+-   Forecasting is supervised learning on lag embeddings, evaluated with a rolling origin against naive baselines.
+:::
+
+## 3. Extracting and recognising patterns {#ch3}
+
+Two heartbeats, two steps of a walker or two spoken words are "the same pattern" even when one is shifted, slower or locally stretched. This chapter builds distances that tolerate such deformations, uses them to classify series, and then searches long series for repeated patterns (motifs) and for short discriminative ones (shapelets).
+
+### Comparing two series
+
+::: def
+[Definition 3.1 — z-normalisation and lock-step distances]{.tag} The **z-normalisation** of $x \in \mathbb{R}^n$ is $\hat x = (x - \bar x \mathbf{1}) / s_x$, where $\bar x$ is the mean and $s_x$ the standard deviation of its entries. It removes offset and amplitude, which are rarely what defines a pattern.
+
+The Euclidean distance $\|x - y\|$ is a **lock-step** distance: it compares $x_t$ with $y_t$ only. A pattern shifted by a few samples, or played slightly faster, can be far from itself in this distance.
+:::
+
+::: def
+[Definition 3.2 — Warping path and dynamic time warping]{.tag} Let $x \in \mathbb{R}^n$ and $y \in \mathbb{R}^m$. A **warping path** is a sequence of index pairs $(i_1, j_1), \dots, (i_K, j_K)$ such that:
+
+-   it starts at $(1, 1)$ and ends at $(n, m)$;
+-   each step $(i_{k+1} - i_k,\ j_{k+1} - j_k)$ is $(1, 0)$, $(0, 1)$ or $(1, 1)$.
+
+The **DTW** distance is the cost of the best path:
+$$
+\mathrm{DTW}(x, y) = \min_{\text{paths}} \Big( \sum_{k=1}^{K} (x_{i_k} - y_{j_k})^2 \Big)^{1/2}.
+$$
+
+The **Sakoe–Chiba band** of half-width $w$ restricts paths to $|i_k - j_k| \le w$; it forbids pathological alignments and speeds up the computation.
+:::
+
+:::: thm
+[Theorem 3.3 — Dynamic programming for DTW]{.tag} Let $D(0, 0) = 0$, $D(i, 0) = D(0, j) = +\infty$ for $i, j \ge 1$, and
+
+::: key
+[Key result — the DTW recursion]{.tag}
+$$
+D(i, j) = (x_i - y_j)^2 + \min\big\{ D(i-1, j),\ D(i, j-1),\ D(i-1, j-1) \big\}.
+$$
+:::
+
+Then $D(i, j)$ is the smallest cost of a warping path from $(1, 1)$ to $(i, j)$, and
+$$
+\mathrm{DTW}(x, y)^2 = D(n, m),
+$$
+computed in $\mathcal{O}(nm)$ time, or $\mathcal{O}(nw)$ with a band.
+
+::: proof
+By induction on $i + j$. A path ending at a pair $(i, j) \neq (1, 1)$ has its last-but-one pair among the three predecessors $(i-1, j)$, $(i, j-1)$ and $(i-1, j-1)$. Its cost is the cost of its prefix plus $(x_i - y_j)^2$.
+
+The prefix is a path to that predecessor, so its cost is at least $D$ of the predecessor; and the optimal path to the best predecessor, extended by one step, attains the bound. Each of the $nm$ cells is filled in constant time. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.4 — A shifted bump]{.tag} Let $x = (0, 0, 1, 2, 1, 0)$ and $y = (0, 1, 2, 1, 0, 0)$, the same bump one sample earlier. The Euclidean distance is
+$$
+\|x - y\| = \sqrt{0 + 1 + 1 + 1 + 1 + 0} = 2.
+$$
+
+The path $(1,1), (2,1), (3,2), (4,3), (5,4), (6,5), (6,6)$ matches equal values everywhere, so
+$$
+\mathrm{DTW}(x, y) = 0 .
+$$
+:::
+
+:::: prop
+[Proposition 3.5 — DTW is not a metric]{.tag} DTW is symmetric and non-negative, but $\mathrm{DTW}(x, y) = 0$ does not imply $x = y$, and the triangle inequality fails.
+
+::: proof
+*Zero distance.* $(0, 1)$ and $(0, 1, 1)$ are at DTW distance 0: the last value of the first series is matched twice.
+
+*Triangle inequality.* Take $x = (0)$, $y = (1)$, $z = (1, 1)$. The only path from $x$ to $z$ matches 0 with both ones, so
+$$
+\mathrm{DTW}(x, z) = \sqrt 2 \ >\ \mathrm{DTW}(x, y) + \mathrm{DTW}(y, z) = 1 + 0.
+$$
+
+[∎]{.qed}
+:::
+::::
+
+Metric indexing structures therefore do not apply directly; fast search relies on lower bounds instead.
+
+:::: prop
+[Proposition 3.6 — The LB_Keogh lower bound]{.tag} Let $x, y \in \mathbb{R}^n$ and a band of half-width $w$. Define the envelope of $y$ by
+$$
+U_i = \max_{|k - i| \le w} y_k, \qquad L_i = \min_{|k - i| \le w} y_k,
+$$
+and let $\mathrm{LB}(x, y)^2$ be the sum over $i$ of the squared distance from $x_i$ to the interval $[L_i, U_i]$. Then
+$$
+\mathrm{LB}(x, y) \ \le\ \mathrm{DTW}_w(x, y),
+$$
+and $\mathrm{LB}$ costs $\mathcal{O}(n)$.
+
+::: proof
+Every index $i$ appears in at least one pair $(i, j)$ of the optimal banded path, with $|i - j| \le w$, hence $y_j \in [L_i, U_i]$. The cost of that pair is at least the squared distance from $x_i$ to the interval.
+
+Choosing one such pair for each $i$ selects distinct pairs of the path, so the sum of these lower bounds is at most the total cost. Running minima and maxima give the envelope in linear time. [∎]{.qed}
+:::
+::::
+
+In a nearest-neighbour search, a candidate whose lower bound exceeds the best distance found so far is discarded without computing DTW. The bound is presented in Keogh and Ratanamahatana (2005); cascades of such bounds let DTW search scale to trillions of subsequences (Rakthanmanon and coauthors, 2012).
+
+::: note
+[Note 3.7 — Averaging and differentiating DTW]{.tag} Clustering with $k$-means needs an average under DTW. *DTW barycentre averaging* (Petitjean and coauthors, 2011) alternates between aligning every series to the current average and averaging the aligned values.
+
+*Soft-DTW* (Cuturi and Blondel, 2017) replaces the $\min$ of Theorem 3.3 by the smooth minimum $-\gamma \log \sum_i e^{-a_i / \gamma}$. The result is differentiable, its gradient is computed by a backward recursion of the same cost, and it can serve as a training loss.
+:::
+
+### Nearest-neighbour classification
+
+:::: thm
+[Theorem 3.8 — Cover and Hart (1967)]{.tag} Let the training pairs be i.i.d. in a separable metric space, with $K$ classes, and let $R^*$ be the Bayes error. Under mild regularity of the class-conditional laws, the error $R$ of the 1-nearest-neighbour rule tends, as the sample grows, to a limit that satisfies
+$$
+R^* \ \le\ R \ \le\ R^*\Big(2 - \frac{K}{K-1} R^*\Big) \ \le\ 2R^*.
+$$
+
+::: proof
+Out of scope; see Cover and Hart (1967). The key step is that the nearest neighbour converges to the query point, so its label is an independent draw from the same conditional law. [∎]{.qed}
+:::
+::::
+
+DTW is not a metric, so the theorem is only a guide. Empirically, 1-NN with a DTW whose band is tuned by cross-validation was long the baseline to beat on the UCR archive of time-series classification data sets (Dau and coauthors, 2019). The large comparison of Bagnall and coauthors (2017) found that many published methods were not significantly more accurate than this baseline.
+
+The Cylinder–Bell–Funnel data set (Saito, 1994) is synthetic: a plateau, a ramp up or a ramp down, of random start, length and height, in Gaussian noise. The code generates it and compares the two distances.
+
+```python
+import numpy as np
+
+def cbf(n_per_class, rng, length=128):      # Cylinder-Bell-Funnel (Saito, 1994)
+    t, X, y = np.arange(length), [], []
+    for label in range(3):
+        for _ in range(n_per_class):
+            a = rng.integers(16, 33)
+            b = a + rng.integers(32, 97)
+            chi = ((t >= a) & (t <= b)).astype(float)
+            shape = [chi, chi * (t - a) / (b - a), chi * (b - t) / (b - a)][label]
+            X.append((6 + rng.standard_normal()) * shape + rng.standard_normal(length))
+            y.append(label)
+    return np.array(X), np.array(y)
+
+def dtw_to_all(q, C, w):
+    """DTW between q and every row of C (squared costs, band half-width w)."""
+    n, N = len(q), len(C)
+    D = np.full((n + 1, n + 1, N), np.inf)
+    D[0, 0] = 0.0
+    for i in range(1, n + 1):                # recursion of Theorem 3.3
+        for j in range(max(1, i - w), min(n, i + w) + 1):
+            best = np.minimum(np.minimum(D[i - 1, j], D[i, j - 1]), D[i - 1, j - 1])
+            D[i, j] = (q[i - 1] - C[:, j - 1]) ** 2 + best
+    return np.sqrt(D[n, n])
+
+rng = np.random.default_rng(2)
+Xtr, ytr = cbf(10, rng)                      # 30 training series
+Xte, yte = cbf(30, rng)                      # 90 test series
+z = lambda X: (X - X.mean(1, keepdims=True)) / X.std(1, keepdims=True)
+Xtr, Xte = z(Xtr), z(Xte)
+
+d_euc = ((Xte[:, None, :] - Xtr[None, :, :]) ** 2).sum(-1)
+d_dtw = np.array([dtw_to_all(q, Xtr, w=12) for q in Xte])
+for name, d in [("Euclidean", d_euc), ("DTW, 10% band", d_dtw)]:
+    print(f"1-NN {name:14s} error = {np.mean(ytr[d.argmin(1)] != yte):.3f}")
+```
+
+With 30 training series, the Euclidean 1-NN errs on 13.3 % of the test series and the DTW 1-NN on none:
+$$
+\text{error}_{\text{Euclid}} = 0.133, \qquad \text{error}_{\text{DTW}} = 0.000 .
+$$
+
+### Motifs and discords: the matrix profile
+
+In a single long series, one asks which pattern repeats (a *motif*) and which stretch resembles nothing else (a *discord*). The matrix profile answers both questions at once.
+
+::: def
+[Definition 3.9 — Matrix profile, motif, discord]{.tag} Let $T$ be a series of length $n$ and $T_{i,m} = (T_i, \dots, T_{i+m-1})$ its subsequences of length $m$.
+
+Let $d_{i,j}$ be the Euclidean distance between the z-normalised subsequences $T_{i,m}$ and $T_{j,m}$.
+
+The **matrix profile** is
+$$
+P_i = \min_{j\,:\,|i - j| \ge m/2} d_{i,j},
+$$
+the distance from each subsequence to its nearest non-trivial match. The exclusion zone $|i - j| < m/2$ discards a subsequence's overlapping copies of itself.
+
+The pair $(i, j)$ that attains $\min_i P_i$ is the top **motif**. The index $\arg\max_i P_i$ is the top **discord**, a natural anomaly candidate (ch. 5).
+:::
+
+:::: prop
+[Proposition 3.10 — Distance and correlation]{.tag} For subsequences $a, b \in \mathbb{R}^m$ with Pearson correlation $\rho(a, b)$, z-normalised with the population standard deviation,
+$$
+\|\hat a - \hat b\|^2 = 2m\,\big(1 - \rho(a, b)\big).
+$$
+
+::: proof
+A z-normalised vector has mean 0 and $\|\hat a\|^2 = m$. Hence $\|\hat a - \hat b\|^2 = 2m - 2\langle \hat a, \hat b \rangle$, and $\langle \hat a, \hat b \rangle = m\,\rho(a, b)$ by definition of the correlation. [∎]{.qed}
+:::
+::::
+
+All distances therefore follow from the sliding dot products $\langle T_{i,m}, T_{j,m} \rangle$ and from sliding means and standard deviations (cumulative sums). For a fixed $i$, the dot products with all $j$ form one cross-correlation, computed by FFT (Theorem 0.5). Along a diagonal they update in constant time:
+$$
+\langle T_{i+1,m}, T_{j+1,m} \rangle = \langle T_{i,m}, T_{j,m} \rangle - T_i T_j + T_{i+m} T_{j+m}.
+$$
+
+This gives the exact matrix profile in $\mathcal{O}(n^2)$ time and $\mathcal{O}(n)$ memory (Yeh and coauthors, 2016; Zhu and coauthors, 2016). The block below uses the $\mathcal{O}(n^2)$-memory version, which is enough for 2000 samples.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(3)
+n, m = 2000, 50
+T = np.cumsum(rng.standard_normal(n)) * 0.1 + 0.3 * rng.standard_normal(n)
+motif = 2 * np.sin(np.linspace(0, 3 * np.pi, m))
+for pos in (300, 1400):                      # plant the same pattern twice
+    T[pos : pos + m] += motif
+
+S = np.lib.stride_tricks.sliding_window_view(T, m)        # all subsequences
+Z = (S - S.mean(1, keepdims=True)) / S.std(1, keepdims=True)
+corr = Z @ Z.T / m                                         # Pearson correlations
+dist = np.sqrt(np.maximum(2 * m * (1 - corr), 0))          # Proposition 3.10
+idx = np.arange(len(Z))
+dist[np.abs(idx[:, None] - idx[None, :]) < m // 2] = np.inf   # exclusion zone
+P = dist.min(1)                                            # the matrix profile
+i = int(np.argmin(P))
+j = int(np.argmin(dist[i]))
+print("motif pair (start indices):", sorted((i, j)), " distance:", round(P[i], 2))
+print("discord (most isolated subsequence) starts at:", int(np.argmax(P)))
+```
+
+The top motif is the pair of subsequences starting at 302 and 1402, two samples after the planted copies (the z-normalised pattern matches best with a small offset). The discord, at index 63, is simply the most unusual stretch of the random walk: on a series without a planted anomaly, the top discord is not an anomaly.
+
+### Shapelets
+
+A class can be defined by a short pattern that appears *somewhere* in the series. Shapelets are such patterns, cut out of the training data.
+
+::: def
+[Definition 3.11 — Shapelet and shapelet distance]{.tag} A **shapelet** is a short series $s \in \mathbb{R}^L$. Its distance to a series $x \in \mathbb{R}^n$, $n \ge L$, is the distance to the best-matching window:
+$$
+\mathrm{sd}(s, x) = \min_{1 \le t \le n - L + 1} \frac1L \sum_{k=1}^{L} (x_{t+k-1} - s_k)^2 .
+$$
+
+A small $\mathrm{sd}(s, x)$ means that $s$ occurs in $x$, wherever it is: the distance is invariant to the position of the pattern.
+:::
+
+::: def
+[Definition 3.12 — Shapelet transform (Hills and coauthors, 2014)]{.tag} Given labelled training series:
+
+1.  take as candidates the subsequences of the training series, for a range of lengths;
+2.  score each candidate by how well its distances $\mathrm{sd}(s, x^{(i)})$ separate the classes — information gain, or an $F$-statistic;
+3.  keep the $k$ best candidates, discarding those that overlap a better one;
+4.  map every series $x$ to the vector of its $k$ shapelet distances, $\mathrm{sd}(s_j, x)$ for $j = 1, \dots, k$, and train any classifier on these vectors.
+:::
+
+With $N$ series of length $n$, there are about $N n^2 / 2$ candidates, each compared with $N$ series at a cost of order $n^2$. Exhaustive search is thus of order $N^2 n^4$ operations, which is why practical versions subsample the candidates or learn the shapelets by gradient descent (Grabocka and coauthors, 2014). The original shapelets of Ye and Keogh (2009) were used inside a decision tree.
+
+The reward is interpretability: a shapelet is a piece of real data that one can plot and show to a domain expert.
+
+```python
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+
+rng = np.random.default_rng(4)
+tri = np.r_[np.linspace(0, 2, 10), np.linspace(2, 0, 10)]   # class-1 pattern
+sq = np.r_[np.zeros(3), 2 * np.ones(14), np.zeros(3)]      # class-0 pattern
+
+def make(n, length=100):                    # pattern at a random position + noise
+    X, y = 0.5 * rng.standard_normal((n, length)), rng.integers(0, 2, n)
+    for k in range(n):
+        p = rng.integers(0, length - 20)
+        X[k, p : p + 20] += tri if y[k] else sq
+    return X, y
+
+def sdist(s, X):                            # shapelet distance (Definition 3.11)
+    W = np.lib.stride_tricks.sliding_window_view(X, len(s), axis=1)
+    return ((W - s) ** 2).mean(-1).min(-1)
+
+def quality(d, y):                          # separation of the two classes
+    a, b = d[y == 0], d[y == 1]
+    return (a.mean() - b.mean()) ** 2 / (a.var() + b.var())
+
+Xtr, ytr = make(40)
+Xte, yte = make(300)
+cands = [x[p : p + 20] for x in Xtr[:10] for p in range(0, 81, 2)]
+scores = [quality(sdist(s, Xtr), ytr) for s in cands]
+best = [cands[i] for i in np.argsort(scores)[::-1][:5]]   # keep the 5 best
+F = lambda X: np.column_stack([sdist(s, X) for s in best]) # shapelet transform
+clf = LogisticRegression().fit(F(Xtr), ytr)
+print("shapelet transform + logistic regression, accuracy:", round(clf.score(F(Xte), yte), 3))
+d = ((Xte[:, None, :] - Xtr[None, :, :]) ** 2).sum(-1)
+print("Euclidean 1-NN on the raw series, accuracy:      ", round(np.mean(ytr[d.argmin(1)] == yte), 3))
+```
+
+The patterns sit at random positions, so the lock-step 1-NN reaches only 0.67, while five shapelets learned from 40 series give
+$$
+\text{accuracy} = 0.917 .
+$$
+
+::: recap
+Key takeaways — chapter 3
+
+-   DTW aligns two series by the cheapest monotone warping path, computed by dynamic programming in $\mathcal{O}(nm)$, or $\mathcal{O}(nw)$ within a band.
+-   DTW is not a metric; lower bounds such as LB_Keogh make nearest-neighbour search fast.
+-   1-NN with DTW is a strong classification baseline.
+-   The matrix profile finds motifs and discords from z-normalised distances, which reduce to correlations.
+-   Shapelets classify by the presence of a local pattern anywhere in the series, and remain interpretable.
+:::
+
+## 4. Sparse representations and dictionary learning {#ch4}
+
+A recurring pattern — a heartbeat, a step, a spike — can be seen as an *atom* that the signal uses a few times. This chapter represents signals as sparse combinations of atoms, learns the atoms from the data, and then makes the representation shift-invariant with convolutions, which turns it into a pattern-extraction tool.
+
+### Sparse coding
+
+::: def
+[Definition 4.1 — Dictionary and sparse coding]{.tag} A **dictionary** is a matrix $D = [d_1, \dots, d_K] \in \mathbb{R}^{n \times K}$ whose columns, the **atoms**, have unit norm; often $K > n$ (redundant). The number of nonzero entries of $z$ is written $\|z\|_0$.
+
+The **sparse coding** of $y \in \mathbb{R}^n$ seeks a code $z \in \mathbb{R}^K$ with few nonzeros such that $y \approx Dz$, for instance
+$$
+\min_{z} \|y - Dz\|^2 \quad \text{subject to} \quad \|z\|_0 \le s.
+$$
+
+This problem is NP-hard in general (Natarajan, 1995). Two families of methods approximate it: greedy pursuits and convex relaxation by the $\ell_1$ norm.
+:::
+
+:::: thm
+[Algorithm 4.2 — Orthogonal matching pursuit (OMP)]{.tag} Start from the residual $r = y$ and the empty support $S$. Repeat $s$ times:
+
+1.  select the atom most correlated with the residual, $k^* = \arg\max_k |\langle d_k, r \rangle|$, and add it to $S$;
+2.  recompute the coefficients on $S$ by least squares, $z_S = \arg\min_u \|y - D_S u\|^2$ (Proposition 0.3);
+3.  update the residual $r = y - D_S z_S$, which is orthogonal to every selected atom.
+
+Each iteration costs one product $D^\top r$ and one small least-squares problem (Pati and coauthors, 1993).
+::::
+
+::: def
+[Definition 4.3 — Mutual coherence and spark]{.tag} The **mutual coherence** of a dictionary with unit-norm atoms is the largest correlation between two distinct atoms:
+$$
+\mu(D) = \max_{k \ne l} |\langle d_k, d_l \rangle| .
+$$
+
+The **spark** of $D$ is the smallest number of columns of $D$ that are linearly dependent.
+:::
+
+:::: thm
+[Theorem 4.4 — Uniqueness and recovery under low coherence]{.tag} Let $y = Dx$ with
+$$
+\|x\|_0 < \frac12 \Big( 1 + \frac{1}{\mu(D)} \Big).
+$$
+
+Then $x$ is the unique sparsest representation of $y$. Moreover, two algorithms recover $x$ exactly (Donoho and Elad, 2003; Tropp, 2004):
+
+-   OMP run for $\|x\|_0$ steps;
+-   the $\ell_1$ problem $\min \|z\|_1$ subject to $Dz = y$.
+
+::: proof
+*Spark bound.* Take any $k$ columns; their Gram matrix has unit diagonal and off-diagonal entries of modulus at most $\mu$. By Gershgorin's theorem its eigenvalues are at least $1 - (k-1)\mu$, positive when $k < 1 + 1/\mu$. Such columns are independent, so $\mathrm{spark}(D) \ge 1 + 1/\mu$.
+
+*Uniqueness.* If $Dx' = y$ with $\|x'\|_0 \le \|x\|_0$, then $D(x - x') = 0$ with
+$$
+\|x - x'\|_0 \le 2\|x\|_0 < 1 + 1/\mu \le \mathrm{spark}(D),
+$$
+so the columns used by $x - x'$ are independent and $x = x'$.
+
+*Recovery.* The recovery of OMP and $\ell_1$ minimisation is proved in the cited papers; the key step for OMP is that, under the condition, the atom most correlated with the residual always belongs to the true support. [∎]{.qed}
+:::
+::::
+
+For the union of the identity and the orthonormal Fourier basis in dimension $n$, $\mu = 1/\sqrt n$. With $n = 64$ the theorem guarantees recovery of any combination of at most 4 spikes and sinusoids (Exercise 10).
+
+:::: prop
+[Proposition 4.5 — Soft thresholding, ISTA and FISTA]{.tag} The proximal operator of $\tau \|\cdot\|_1$ is the **soft thresholding**
+
+::: key
+[Key result — soft thresholding]{.tag}
+$$
+S_\tau(u)_k = \mathrm{sign}(u_k)\, \max(|u_k| - \tau,\, 0).
+$$
+:::
+
+For the lasso $F(z) = \frac12 \|y - Dz\|^2 + \lambda \|z\|_1$ and a step $1/L$ with $L \ge \|D\|_2^2$, the **ISTA** iteration is
+$$
+z^{k+1} = S_{\lambda / L}\Big( z^k - \tfrac1L D^\top (D z^k - y) \Big).
+$$
+
+It satisfies $F(z^k) - F^* \le L \|z^0 - z^*\|^2 / (2k)$. Its accelerated version **FISTA**, which adds a momentum step, reaches $2L \|z^0 - z^*\|^2 / (k+1)^2$ (Beck and Teboulle, 2009).
+
+::: proof
+*Proximal operator.* The problem $\min_v \frac12 \|v - u\|^2 + \tau \|v\|_1$ separates over coordinates.
+
+For one coordinate, a minimiser $v > 0$ satisfies $v - u + \tau = 0$, so $v = u - \tau$, which is valid when $u > \tau$. Symmetrically, $v = u + \tau$ when $u < -\tau$.
+
+Otherwise $0$ is optimal, since $|u| \le \tau$ means that $0 \in -u + \tau\,\partial|\cdot|(0)$.
+
+*Iteration and rates.* ISTA is the proximal gradient method on $F$: a gradient step on the smooth part, whose gradient is $L$-Lipschitz, then the proximal operator of the $\ell_1$ part. The rates are those of the proximal gradient method and of its accelerated version; see Beck and Teboulle (2009) and [Convex Optimization](../s1-convex-optimization/index.html). [∎]{.qed}
+:::
+::::
+
+### Dictionary learning
+
+Fixed bases (Fourier, wavelets) are universal but not adapted to a given signal. Dictionary learning fits the atoms to the data (Tošić and Frossard, 2011, in the official references).
+
+::: def
+[Definition 4.6 — Dictionary learning]{.tag} Given training signals $Y = [y_1, \dots, y_N] \in \mathbb{R}^{n \times N}$ — for instance windows cut from long series — solve
+$$
+\min_{D,\ Z} \ \frac12 \|Y - DZ\|_F^2 + \lambda \sum_{i=1}^N \|z_i\|_1 \quad \text{subject to} \quad \|d_k\| \le 1 .
+$$
+
+The norm constraint removes the scale ambiguity $(D, Z) \mapsto (\alpha D, Z / \alpha)$, which would otherwise drive $Z$ to zero. The problem is not jointly convex, but it is convex in $Z$ for fixed $D$ and in $D$ for fixed $Z$: one alternates between sparse coding and dictionary update.
+:::
+
+:::: prop
+[Proposition 4.7 — Two dictionary updates]{.tag} Fix the codes $Z$.
+
+-   **MOD** (Engan and coauthors, 1999): if $ZZ^\top$ is invertible, the unconstrained minimiser of $\|Y - DZ\|_F^2$ is
+
+    $$
+    D = Y Z^\top (Z Z^\top)^{-1},
+    $$
+
+    whose columns are then renormalised.
+
+-   **K-SVD** (Aharon and coauthors, 2006): updating only atom $k$ and the row $z^k$ of its coefficients, with the error $E_k = Y - \sum_{j \ne k} d_j z^j$, the best choice is the leading singular pair of $E_k$:
+
+    $$
+    d_k = u_1, \qquad z^k = \sigma_1 v_1^\top .
+    $$
+
+::: proof
+*MOD.* The objective separates over the rows of $Y$ and $D$: each row of $D$ solves a least-squares problem whose normal equations (Proposition 0.3) read $D\, ZZ^\top = YZ^\top$.
+
+*K-SVD.* The objective restricted to atom $k$ is $\|E_k - d_k z^k\|_F^2$, the error of a rank-one approximation of $E_k$. By the Eckart–Young theorem, the best rank-one approximation is $\sigma_1 u_1 v_1^\top$, and $u_1$ has unit norm as required.
+
+In practice $E_k$ is restricted to the signals that already use atom $k$, which keeps the codes sparse. [∎]{.qed}
+:::
+::::
+
+For millions of windows, the online algorithm of Mairal and coauthors (2010) updates the dictionary from mini-batches.
+
+### Convolutional sparse coding
+
+Cutting a long series into windows creates an artefact: a pattern that straddles two windows is coded twice, at arbitrary shifts. The convolutional model codes the whole series at once, with atoms that may appear at any time.
+
+::: def
+[Definition 4.8 — Convolutional sparse coding (CSC)]{.tag} Let $d_1, \dots, d_K \in \mathbb{R}^L$ be short atoms, $L \ll n$. A series $x \in \mathbb{R}^n$ is modelled as
+$$
+x \approx \sum_{k=1}^K d_k * z_k,
+$$
+where the **activation signals** $z_k \in \mathbb{R}^n$ are sparse: a spike of height $a$ at time $\tau$ in $z_k$ places a copy of $a\, d_k$ starting at $\tau$. The coding problem is
+$$
+\min_{z_1, \dots, z_K} \ \frac12 \Big\| x - \sum_k d_k * z_k \Big\|^2 + \lambda \sum_k \|z_k\|_1 .
+$$
+
+It is a lasso whose dictionary contains every shift of every atom: $Kn$ columns, highly coherent, but with a convolution structure that makes it tractable. Shifting $x$ shifts the activations: the representation is shift-equivariant.
+:::
+
+:::: prop
+[Proposition 4.9 — CSC in the Fourier domain]{.tag} With circular convolutions of length $n$, let $\mathcal{D}(z) = \sum_k d_k \circledast z_k$ and let $\hat d_k(\omega)$ be the DFT of the zero-padded atom $d_k$.
+
+-   $\mathcal{D}$ acts frequency by frequency:
+
+    $$
+    \widehat{\mathcal{D}(z)}(\omega) = \sum_k \hat d_k(\omega)\, \hat z_k(\omega).
+    $$
+
+-   Its squared operator norm, the Lipschitz constant needed by ISTA and FISTA, is
+
+    $$
+    \|\mathcal{D}\|^2 = \max_\omega \sum_{k=1}^K |\hat d_k(\omega)|^2 .
+    $$
+
+-   The linear systems $(\mathcal{D}^* \mathcal{D} + \rho I) z = b$ of ADMM split into $n$ systems of size $K$, each with an identity-plus-rank-one matrix, solved in $\mathcal{O}(K)$ by the Sherman–Morrison formula (Wohlberg, 2015, in the official references).
+
+::: proof
+*Diagonalisation.* Theorem 0.5 applied to each term.
+
+*Norm.* By Parseval and Cauchy–Schwarz at each frequency,
+$$
+\|\mathcal{D}(z)\|^2 = \frac1n \sum_\omega \Big| \sum_k \hat d_k \hat z_k \Big|^2 \le \max_\omega \Big(\sum_k |\hat d_k(\omega)|^2\Big) \sum_k \|z_k\|^2 .
+$$
+
+Equality holds when every $\hat z_k$ is supported at the maximising frequency (and its mirror frequency, for real signals) and proportional to $\overline{\hat d_k}$ there.
+
+*Systems.* At frequency $\omega$, with $a = \overline{\hat d(\omega)} \in \mathbb{C}^K$, the matrix is $\rho I + a a^{*}$, and
+$$
+(\rho I + a a^*)^{-1} = \frac1\rho \Big( I - \frac{a a^*}{\rho + a^* a} \Big).
+$$
+
+[∎]{.qed}
+:::
+::::
+
+One FISTA or ADMM iteration therefore costs a few FFTs, $\mathcal{O}(K n \log n)$, instead of $\mathcal{O}(K n L)$ for direct convolutions. The block below codes a synthetic signal built from two atoms with FISTA.
+
+```python
+import numpy as np
+from scipy.signal import find_peaks
+
+rng = np.random.default_rng(5)
+n, L, K = 1024, 32, 2
+t = np.linspace(-1, 1, L)
+atoms = np.stack([np.exp(-8 * t**2), np.sin(3 * np.pi * t) * np.exp(-3 * t**2)])
+atoms /= np.linalg.norm(atoms, axis=1, keepdims=True)      # unit-norm atoms
+Z = np.zeros((K, n))
+for k in range(K):                                         # 5 activations per atom
+    Z[k, rng.choice(n - L, 5, replace=False)] = rng.uniform(1, 3, 5)
+
+Dh = np.fft.rfft(atoms, n)                                 # atoms in the Fourier domain
+synth = lambda Z: np.fft.irfft((Dh * np.fft.rfft(Z, n)).sum(0), n)   # sum_k d_k * z_k
+adj = lambda r: np.fft.irfft(np.conj(Dh) * np.fft.rfft(r, n), n)     # its adjoint
+x = synth(Z) + 0.05 * rng.standard_normal(n)
+
+lam, Lip = 0.2, (np.abs(Dh) ** 2).sum(0).max()            # Lipschitz constant (Prop. 4.9)
+z = v = np.zeros((K, n))
+tk = 1.0
+for it in range(300):                                      # FISTA iterations
+    u = v - adj(synth(v) - x) / Lip                        # gradient step
+    z_new = np.sign(u) * np.maximum(np.abs(u) - lam / Lip, 0)   # soft threshold
+    t_new = (1 + np.sqrt(1 + 4 * tk**2)) / 2
+    v = z_new + (tk - 1) / t_new * (z_new - z)
+    z, tk = z_new, t_new
+for k in range(K):
+    found, _ = find_peaks(z[k], height=0.5)
+    print(f"atom {k}: true {np.flatnonzero(Z[k])}, found {found}")
+print("relative residual:", round(np.linalg.norm(x - synth(z)) / np.linalg.norm(x), 3))
+```
+
+The ten activation times are recovered exactly, for both atoms. The relative residual of 0.23 reflects the shrinkage of the amplitudes by the $\ell_1$ penalty; refitting the amplitudes by least squares on the detected support removes this bias.
+
+::: note
+[Note 4.10 — Convolutional dictionary learning in practice]{.tag} Learning the atoms alternates CSC with an update of the atoms under the constraint $\|d_k\| \le 1$, by projected gradient or ADMM. Initialising the atoms with random windows of the signal helps.
+
+The learned atoms are prototypes of the recurring patterns, and the activations say when they occur. Pattern *extraction* and *recognition* (ch. 3) are thus solved together. For multichannel recordings such as MEG, Dupré la Tour and coauthors (2018) constrain each atom to be rank one across channels — a spatial pattern times a temporal waveform — which makes the atoms physically interpretable.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   Sparse coding is NP-hard in general, but OMP and $\ell_1$ minimisation recover sparse codes exactly when the dictionary has low coherence.
+-   The proximal operator of the $\ell_1$ norm is soft thresholding; ISTA converges at rate $1/k$ and FISTA at rate $1/k^2$.
+-   Dictionary learning alternates sparse coding with MOD or K-SVD updates.
+-   Convolutional sparse coding models a series as a few shifted atoms; the Fourier domain makes it cost $\mathcal{O}(Kn\log n)$ per iteration.
+:::
+
+## 5. Detecting changes and anomalies {#ch5}
+
+A gait recording switches from walking to running, a machine drifts before failing, a sensor freezes for an hour. The first two are *changes*: the law of the series is different after some times. The last one is an *anomaly*: a value or a stretch that does not conform to normal behaviour. This chapter treats change-point detection as an optimisation problem, following the official review of Truong, Oudre and Vayatis (2020), and then the detection of anomalies.
+
+### Change-point detection as penalised optimisation
+
+::: def
+[Definition 5.1 — Segmentation and penalised criterion]{.tag} Write $y_{a..b} = (y_{a+1}, \dots, y_b)$ for a segment of a series $y_1, \dots, y_n$. A **segmentation** with $K$ change points is a set $\mathcal{T} = \{t_1 < \dots < t_K\}$, with the conventions $t_0 = 0$ and $t_{K+1} = n$.
+
+Given a **cost function** $c$ that measures how homogeneous a segment is, the penalised criterion is
+$$
+V(\mathcal{T}) = \sum_{k=0}^{K} c\big(y_{t_k..t_{k+1}}\big) + \beta K .
+$$
+
+Change-point detection minimises $V$. A method is the choice of three elements: the cost, the search method and the penalty $\beta$ (or a known number $K$ of changes).
+:::
+
+::: def
+[Definition 5.2 — Three cost functions]{.tag} For a segment of length $m = b - a$ with mean $\bar y_{a..b}$:
+
+-   *quadratic* (changes in the mean):
+
+    $$
+    c_{L_2}(y_{a..b}) = \sum_{t=a+1}^{b} \|y_t - \bar y_{a..b}\|^2 ;
+    $$
+
+-   *Gaussian* (changes in mean and covariance): $c(y_{a..b}) = m \log\det \hat\Sigma_{a..b}$, with $\hat\Sigma_{a..b}$ the empirical covariance of the segment;
+-   *kernel* (changes in distribution), for a positive definite kernel $k$:
+
+    $$
+    c_k(y_{a..b}) = \sum_{t=a+1}^{b} k(y_t, y_t) - \frac1m \sum_{s,t=a+1}^{b} k(y_s, y_t).
+    $$
+
+The first two are, up to constants, minus twice the Gaussian log-likelihood of the segment. With cumulative sums of $y_t$ and $y_t^2$, $c_{L_2}$ of any segment costs $\mathcal{O}(1)$.
+:::
+
+:::: prop
+[Proposition 5.3 — One change in the mean]{.tag} For $0 < \tau < n$, splitting $y_{0..n}$ at $\tau$ decreases the quadratic cost by
+$$
+c_{L_2}(y_{0..n}) - c_{L_2}(y_{0..\tau}) - c_{L_2}(y_{\tau..n}) = \frac{\tau (n - \tau)}{n} \big(\bar y_{0..\tau} - \bar y_{\tau..n}\big)^2 \ \ge\ 0 .
+$$
+
+Divided by the noise variance $\sigma^2$, this is twice the log-likelihood ratio of "one change at $\tau$" against "no change" for Gaussian data. It is also the square of the standardised CUSUM statistic at $\tau$, so its maximum over $\tau$ is the squared maximal CUSUM statistic of the classical offline test.
+
+::: proof
+This is the analysis-of-variance identity: total sum of squares = within-segment sum + between-segment sum. With $\bar y = (\tau \bar y_1 + (n - \tau)\bar y_2)/n$, the between part is $\tau(\bar y_1 - \bar y)^2 + (n - \tau)(\bar y_2 - \bar y)^2$.
+
+Now $\bar y_1 - \bar y = \frac{n - \tau}{n}(\bar y_1 - \bar y_2)$ and $\bar y_2 - \bar y = \frac{\tau}{n}(\bar y_2 - \bar y_1)$. The sum is therefore
+$$
+\frac{\tau (n-\tau)^2 + (n - \tau)\tau^2}{n^2} (\bar y_1 - \bar y_2)^2 = \frac{\tau(n - \tau)}{n} (\bar y_1 - \bar y_2)^2.
+$$
+
+[∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.4 — Locating one change by hand]{.tag} Let $y = (0.1, -0.2, 0.0, 2.1, 1.9, 2.0)$. The gains of Proposition 5.3 for $\tau = 1, \dots, 5$ are
+$$
+0.94, \quad 3.20, \quad 6.20, \quad 2.80, \quad 1.24 .
+$$
+
+The maximum is at $\tau = 3$, between the third and fourth samples. The split is kept if its gain exceeds the penalty $\beta$; with a noise level $\sigma = 0.15$ and the BIC-type penalty $2\sigma^2 \log n \approx 0.08$ (justified in Note 5.9 below), it is kept by a wide margin.
+:::
+
+### Search methods
+
+:::: prop
+[Proposition 5.5 — Optimal partitioning (Jackson and coauthors, 2005)]{.tag} Let $F(0) = -\beta$ and, for $t = 1, \dots, n$,
+
+::: key
+[Key result — optimal partitioning]{.tag}
+$$
+F(t) = \min_{0 \le s < t} \Big[ F(s) + c(y_{s..t}) + \beta \Big].
+$$
+:::
+
+Then $F(n) = \min_{\mathcal{T}} V(\mathcal{T})$, and the optimal segmentation is recovered by storing the minimising $s$ at each $t$ and backtracking from $n$. The cost is $\mathcal{O}(n^2)$ evaluations of $c$.
+
+::: proof
+By induction, $F(t)$ is the optimal penalised cost of $y_{0..t}$. Let $s$ be the last change point of an optimal segmentation of $y_{0..t}$, or $s = 0$ if there is none.
+
+The part of that segmentation before $s$ must be optimal for $y_{0..s}$; otherwise, replacing it would lower the total.
+
+The total is therefore $F(s) + c(y_{s..t}) + \beta$, where the convention $F(0) = -\beta$ cancels the penalty of the first segment, and minimising over $s$ gives $F(t)$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 5.6 — PELT pruning (Killick, Fearnhead and Eckley, 2012)]{.tag} Assume there is a constant $\kappa$ such that, for all $a < t < b$,
+$$
+c(y_{a..t}) + c(y_{t..b}) + \kappa \le c(y_{a..b}).
+$$
+
+If, at some time $t$, a candidate $s < t$ satisfies $F(s) + c(y_{s..t}) + \kappa > F(t)$, then $s$ is never the optimal last change point before any later time $T > t$, and can be removed from the candidate set.
+
+::: proof
+For $T > t$, the assumption with $(a, t, b) = (s, t, T)$ gives
+$$
+F(s) + c(y_{s..T}) + \beta \ \ge\ F(s) + c(y_{s..t}) + \kappa + c(y_{t..T}) + \beta \ >\ F(t) + c(y_{t..T}) + \beta .
+$$
+
+The candidate $t$ therefore does strictly better than $s$ at time $T$, so $s$ is never the minimiser. [∎]{.qed}
+:::
+::::
+
+For $c_{L_2}$ one can take $\kappa = 0$, since splitting never increases the cost (Proposition 5.3). The result is exact: PELT returns the same segmentation as optimal partitioning. When the number of changes grows linearly with $n$, its expected cost is $\mathcal{O}(n)$ under mild conditions (Killick and coauthors, 2012).
+
+::: note
+[Note 5.7 — Approximate searches]{.tag} **Binary segmentation** finds the best single split (Proposition 5.3 for $c_{L_2}$), then recurses on both sides while the gain exceeds $\beta$. It costs about $\mathcal{O}(n \log n)$ but can miss a short segment squeezed between two large changes. *Wild binary segmentation* (Fryzlewicz, 2014) searches random sub-intervals to fix this.
+
+**Window-based** methods slide two adjacent windows along the series and compare them. They are fast and easy to run online, but each change is judged locally. The official review of Truong, Oudre and Vayatis (2020) organises all these methods by cost, search and constraint.
+:::
+
+:::: prop
+[Proposition 5.8 — The kernel cost in feature space]{.tag} Let $\Phi$ be the feature map of the reproducing kernel Hilbert space $\mathcal{H}$ of $k$, so that $k(u, v) = \langle \Phi(u), \Phi(v) \rangle_{\mathcal{H}}$. For a segment of length $m$ with mean embedding $\bar\mu = \frac1m \sum_t \Phi(y_t)$,
+$$
+c_k(y_{a..b}) = \sum_{t=a+1}^{b} \big\| \Phi(y_t) - \bar\mu \big\|_{\mathcal{H}}^2 .
+$$
+
+::: proof
+Expand the square:
+$$
+\|\Phi(y_t) - \bar\mu\|^2 = k(y_t, y_t) - \frac2m \sum_s k(y_t, y_s) + \frac{1}{m^2}\sum_{s,s'} k(y_s, y_{s'}).
+$$
+
+Summing over the $m$ values of $t$, the last two terms combine into $-\frac1m \sum_{s,t} k(y_s, y_t)$. [∎]{.qed}
+:::
+::::
+
+The kernel cost is therefore the quadratic cost of the data mapped into $\mathcal{H}$. With a characteristic kernel, such as the Gaussian kernel, mean embeddings differ whenever distributions differ: the cost detects changes in variance or shape, not only in the mean (Harchaoui and Cappé, 2007; Arlot, Celisse and Harchaoui, 2019).
+
+::: note
+[Note 5.9 — Choosing the penalty and scoring a segmentation]{.tag} For $c_{L_2}$ and Gaussian noise of variance $\sigma^2$, each change adds two parameters (a location and a mean). A BIC-type penalty is therefore
+$$
+\beta = 2\sigma^2 \log n .
+$$
+
+The noise level can be estimated robustly from the differences: $\hat\sigma$ is the median absolute deviation of $y_{t+1} - y_t$ divided by $0.6745\sqrt 2$. The official review discusses other calibrations, including from annotated signals.
+
+A segmentation is scored by the error on the number of changes, the Hausdorff distance between true and estimated change points, and a precision and recall in which an estimated change counts as correct within a margin of $M$ samples of an unmatched true one.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(6)
+means, lengths = [0, 2, 0.5, 3, 1], [200, 150, 250, 100, 300]
+y = np.concatenate([m + rng.standard_normal(l) for m, l in zip(means, lengths)])
+n = len(y)
+S1, S2 = np.r_[0, np.cumsum(y)], np.r_[0, np.cumsum(y**2)]
+cost = lambda a, b: S2[b] - S2[a] - (S1[b] - S1[a]) ** 2 / (b - a)  # c_L2(y[a:b])
+
+def pelt(beta, min_size=5, prune=True):
+    F = np.full(n + 1, np.inf)
+    F[0] = -beta
+    last, R, evals = np.zeros(n + 1, int), [0], 0
+    for t in range(min_size, n + 1):
+        ok = [s for s in R if t - s >= min_size]
+        vals = np.array([F[s] + cost(s, t) + beta for s in ok])
+        evals += len(ok)
+        F[t], last[t] = vals.min(), ok[int(vals.argmin())]
+        if prune:                            # Theorem 5.6 with kappa = 0
+            R = [s for s in R if t - s < min_size] + \
+                [s for s, v in zip(ok, vals) if v - beta <= F[t]]
+        R.append(t)
+    cps, t = [], n
+    while t > 0:                             # backtrack the optimal segmentation
+        t = last[t]
+        cps.append(t)
+    return [int(c) for c in sorted(cps)[1:]], evals
+
+beta = 2 * np.log(n)                         # BIC-type penalty, sigma = 1
+print("true change points:", np.cumsum(lengths)[:-1].tolist())
+for prune in (False, True):
+    cps, evals = pelt(beta, prune=prune)
+    print(f"{'PELT' if prune else 'optimal partitioning':20s} {cps}  cost evaluations: {evals}")
+```
+
+Both searches return the change points $(201, 350, 600, 700)$ for the true $(200, 350, 600, 700)$. Optimal partitioning needs 492 532 cost evaluations, PELT 100 618: the same exact answer, about five times cheaper here, and the gap grows with $n$.
+
+### Anomaly detection
+
+::: def
+[Definition 5.10 — Point, contextual and collective anomalies]{.tag} Following the official survey of Chandola, Banerjee and Kumar (2009), an anomaly is a pattern that does not conform to the expected normal behaviour.
+
+-   A **point** anomaly is a single value that is abnormal with respect to the whole series (a spike).
+-   A **contextual** anomaly is abnormal only in its context — a temperature normal in July but not in January, a value at the wrong phase of a cycle.
+-   A **collective** anomaly is a subsequence that is abnormal as a whole, although each of its values may be normal (a rhythm that changes for a few seconds).
+
+Detection is *supervised* when labelled anomalies exist, *semi-supervised* when only normal data are available, and *unsupervised* otherwise. A detector outputs a score $s_t$ and raises an alarm when $s_t$ exceeds a threshold.
+:::
+
+The main families reuse the previous chapters. *Prediction-based* detectors score the residual of a forecaster (ch. 2). *Distance-based* ones score the distance to the nearest neighbour, such as the matrix-profile discords of ch. 3. *Reconstruction-based* ones score the error of a dictionary or a low-rank model (ch. 4).
+
+:::: prop
+[Proposition 5.11 — False alarms of a threshold rule]{.tag} Let the residuals of normal data be i.i.d. $\mathcal{N}(0, \sigma^2)$ and raise an alarm when $|r_t| > k\sigma$. The false-alarm probability per sample is $2(1 - \Phi(k))$, where $\Phi$ is the standard Gaussian distribution function.
+
+Over $n$ normal samples, the expected number of false alarms is $2n(1 - \Phi(k))$. The probability of at least one false alarm stays below $\alpha$ if
+$$
+k = \Phi^{-1}\Big(1 - \frac{\alpha}{2n}\Big).
+$$
+
+::: proof
+The first claim is the Gaussian tail, the second linearity of expectation, the third the union bound over the $n$ samples. [∎]{.qed}
+:::
+::::
+
+With $k = 3$ the per-sample rate is 0.0027, that is 27 false alarms expected in $10^4$ normal samples. To keep a 5 % chance of any false alarm over $10^4$ samples, the threshold must rise to
+$$
+k \approx 4.56 .
+$$
+
+::: def
+[Definition 5.12 — Isolation forest (Liu, Ting and Zhou, 2008)]{.tag} An isolation tree splits a random subsample of $\psi$ points recursively, each time on a random feature at a random threshold, until every point is alone. Anomalies are few and different, so they are isolated after few splits.
+
+With $h(x)$ the depth at which $x$ is isolated, averaged over the trees, the score is
+$$
+s(x) = 2^{-\mathbb{E}[h(x)] / c(\psi)}, \qquad c(\psi) = 2H(\psi - 1) - \frac{2(\psi - 1)}{\psi},
+$$
+where $H(i) \approx \ln i + 0.5772$ is the harmonic number and $c(\psi)$ the average depth of an unsuccessful search in a binary search tree. Scores close to 1 indicate anomalies.
+
+Applied to sliding windows of a series, the forest turns collective anomalies into point anomalies of the window space.
+:::
+
+:::: prop
+[Proposition 5.13 — CUSUM, the online detector of a change]{.tag} Let the law of the samples switch from $p_0$ to $p_1$ at an unknown time, and set $\ell_t = \log\big(p_1(y_t) / p_0(y_t)\big)$. Page's statistic $S_0 = 0$, $S_t = \max(0,\ S_{t-1} + \ell_t)$ satisfies
+$$
+S_t = \max_{1 \le k \le t+1} \ \sum_{i=k}^{t} \ell_i ,
+$$
+with the empty sum (for $k = t + 1$) equal to 0. It is the log-likelihood ratio of the most likely change time against no change; an alarm is raised when $S_t > h$.
+
+::: proof
+By induction: if the formula holds at $t - 1$, then $S_{t-1} + \ell_t = \max_{k \le t} \sum_{i=k}^{t} \ell_i$, and taking the maximum with 0 adds the case $k = t + 1$. [∎]{.qed}
+:::
+::::
+
+For a Gaussian mean shift from $\mu_0$ to $\mu_1$, $\ell_t$ is proportional to $y_t - (\mu_0 + \mu_1)/2$. The threshold $h$ trades the mean time between false alarms against the detection delay; Lorden (1971) proved that CUSUM is asymptotically optimal for this trade-off. The theory is developed in [Detection Theory and Industrial Applications](../s2-detection-theory/index.html).
+
+::: note
+[Note 5.14 — Evaluating a detector honestly]{.tag} Anomalies are rare, so accuracy is meaningless; report precision and recall at the event level, the detection delay and how the threshold was chosen. The popular *point-adjust* protocol counts a whole anomalous segment as detected as soon as one of its points is flagged; Kim and coauthors (2022) show that it lets even random scores look competitive.
+
+Wu and Keogh (2023) also found that several public benchmarks contain trivial or mislabelled anomalies. Synthetic anomalies with known type and position, as below, are a useful complement.
+:::
+
+```python
+import numpy as np
+from sklearn.ensemble import IsolationForest
+
+rng = np.random.default_rng(7)
+n, p = 3000, 50                              # period-50 cycle + AR(1) noise
+noise = np.zeros(n)
+for t in range(1, n):
+    noise[t] = 0.5 * noise[t - 1] + 0.3 * rng.standard_normal()
+x = np.sin(2 * np.pi * np.arange(n) / p) + noise
+x[700] += 3.0                                # point anomaly
+x[1500:1525] = x[1475:1500]                  # contextual: half a cycle repeated
+x[2300:2400] = np.sin(4 * np.pi * np.arange(100) / p) + noise[2300:2400]  # collective
+
+# (a) residuals of a seasonal-naive forecast, standardised by a robust scale
+r = x[p:] - x[:-p]
+z = np.abs(r - np.median(r)) / (1.4826 * np.median(np.abs(r - np.median(r))))
+def regions(idx, gap=10):                    # group flagged times into intervals
+    cuts = np.flatnonzero(np.diff(idx) > gap)
+    return [(int(a), int(b)) for a, b in zip(idx[np.r_[0, cuts + 1]], idx[np.r_[cuts, -1]])]
+print("(a) residual |z| > 4 in:", regions(np.flatnonzero(z > 4) + p))
+
+# (b) isolation forest on sliding windows of one period
+W = np.lib.stride_tricks.sliding_window_view(x, p)[::5]
+s = -IsolationForest(random_state=0).fit(W).score_samples(W)
+print("(b) isolation forest, 5 most anomalous windows start at:", np.sort(np.argsort(s)[-5:] * 5))
+```
+
+The residual detector (a) flags the spike at 700, the contextual anomaly around 1508–1519 and parts of the collective one (2315–2335). It also flags 750, 1560–1567 and 2418–2433: these are *echoes*, because the seasonal forecast $\hat x_t = x_{t-50}$ reuses the anomalous values one period later. The isolation forest (b) flags only windows that overlap the collective anomaly (starts 2285 to 2345).
+
+Each detector sees the anomalies its representation makes visible; combining a residual score with a window score covers the three types.
+
+::: recap
+Key takeaways — chapter 5
+
+-   Change-point detection minimises a sum of segment costs plus a penalty; the cost decides which changes are visible (mean, covariance, distribution).
+-   Optimal partitioning is exact in $\mathcal{O}(n^2)$; PELT prunes candidates and stays exact, often in linear time.
+-   A BIC-type penalty $2\sigma^2\log n$ calibrates the number of changes for mean shifts.
+-   Anomalies are point, contextual or collective; residual, distance, reconstruction and isolation scores each see some of them.
+-   Thresholds must account for the number of tests; CUSUM detects changes online.
+:::
+
+## 6. Repairing data: denoising and missing values {#ch6}
+
+Real recordings are noisy and incomplete: sensors add measurement noise, connections drop, batteries die. This chapter removes noise by filtering and by thresholding in a sparse basis, then fills missing values by interpolation, by the Kalman smoother of ch. 2, and by low-rank completion when several channels are recorded together.
+
+### Denoising
+
+Throughout, $y_t = x_t + \varepsilon_t$: a signal of interest plus noise, and the goal is to estimate $x$ from $y$.
+
+:::: thm
+[Theorem 6.1 — The Wiener filter]{.tag} Let $x$ and $\varepsilon$ be centred, uncorrelated, weakly stationary, with spectral densities $f_x$ and $f_\varepsilon$. Among the estimators $\hat x = h * y$ with absolutely summable $h$, the mean squared error is minimal for the frequency response
+
+::: key
+[Key result — the Wiener filter]{.tag}
+$$
+H(\omega) = \frac{f_x(\omega)}{f_x(\omega) + f_\varepsilon(\omega)},
+$$
+:::
+
+and the minimal error is
+$$
+\int_{-\pi}^{\pi} \frac{f_x(\omega) f_\varepsilon(\omega)}{f_x(\omega) + f_\varepsilon(\omega)}\, d\omega .
+$$
+
+::: proof
+Filtering a stationary process by $h$ multiplies its spectral density by $|H(\omega)|^2$, where $H$ is the transfer function of $h$ (the same computation as in Proposition 1.13).
+
+The error $x - h * y = (\delta - h) * x - h * \varepsilon$ is a sum of two uncorrelated filtered processes. Its density is
+$$
+|1 - H(\omega)|^2 f_x(\omega) + |H(\omega)|^2 f_\varepsilon(\omega),
+$$
+and its variance is the integral of this density (Theorem 1.7).
+
+At each frequency, $a|1 - H|^2 + b|H|^2$ with $a, b \ge 0$ is minimised by $H = a / (a + b)$, with value $ab / (a + b)$. Minimising the integrand pointwise minimises the integral. [∎]{.qed}
+:::
+::::
+
+The filter passes the frequencies where the signal dominates and attenuates those where the noise dominates. In practice $f_y$ is estimated by Welch's method, $f_\varepsilon = \sigma^2 / (2\pi)$ for a white noise, and $f_x = \max(f_y - f_\varepsilon, 0)$. The Wiener filter is optimal among *linear* filters only: it blurs the jumps of a piecewise-constant signal, whose energy spreads over all frequencies.
+
+::: def
+[Definition 6.2 — Thresholding estimators]{.tag} Let $W$ be an orthonormal transform in which the signal is sparse, for instance the Haar transform (Proposition 1.12). A **thresholding estimator** computes the coefficients $u = Wy$, applies a scalar rule $\rho_\lambda$ to each of them, and transforms back:
+$$
+\hat x = W^\top \rho_\lambda(W y).
+$$
+
+Since $W$ is orthonormal, the noise coefficients $W\varepsilon$ are again i.i.d. $\mathcal{N}(0, \sigma^2)$ when $\varepsilon$ is. A few large coefficients carry the signal, and many small ones carry only noise.
+:::
+
+:::: thm
+[Theorem 6.3 — Soft thresholding is $\ell_1$-penalised least squares]{.tag} For $W$ orthonormal,
+$$
+\arg\min_x \ \frac12 \|y - x\|^2 + \lambda \|Wx\|_1 = W^\top S_\lambda(W y),
+$$
+with $S_\lambda$ the soft thresholding of Proposition 4.5.
+
+::: proof
+Set $\theta = Wx$. Orthonormality gives $\|y - x\| = \|Wy - \theta\|$, so the problem becomes
+$$
+\min_\theta \ \frac12 \|Wy - \theta\|^2 + \lambda\|\theta\|_1 .
+$$
+
+This is the proximal operator of $\lambda\|\cdot\|_1$ at $Wy$, which is $S_\lambda(Wy)$ by Proposition 4.5. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 6.4 — The universal threshold]{.tag} Let $\varepsilon \sim \mathcal{N}(0, \sigma^2 I_n)$ with $n \ge 2$. Then
+$$
+\mathbb{P}\Big( \max_i |\varepsilon_i| > \sigma \sqrt{2 \log n} \Big) \ \le\ \frac{1}{\sqrt{\pi \log n}} \ \xrightarrow[n \to \infty]{}\ 0 .
+$$
+
+::: proof
+For a standard Gaussian $Z$ and $u > 0$, the Mills inequality gives $\mathbb{P}(|Z| > u) \le \sqrt{2/\pi}\, e^{-u^2/2} / u$. With $u = \sqrt{2 \log n}$, $e^{-u^2/2} = 1/n$. The union bound over $n$ coordinates gives
+$$
+n \cdot \sqrt{\frac{2}{\pi}} \cdot \frac{1}{n \sqrt{2\log n}} = \frac{1}{\sqrt{\pi \log n}}. 
+$$
+
+[∎]{.qed}
+:::
+::::
+
+With the **universal threshold** $\lambda = \sigma\sqrt{2\log n}$, every pure-noise coefficient is set to zero with high probability, so the estimate does not invent oscillations. Donoho and Johnstone (1994) proved that its risk is within a factor of order $2\log n$ of an oracle that knows which coefficients to keep. The noise level is estimated from the finest wavelet details, $\hat\sigma = \mathrm{median}(|d^{(1)}|) / 0.6745$, which the few signal coefficients barely affect.
+
+:::: prop
+[Proposition 6.5 — Hard thresholding is $\ell_0$-penalised least squares]{.tag} For every $u \in \mathbb{R}^n$,
+$$
+\arg\min_\theta \ \frac12 \|u - \theta\|^2 + \frac{\lambda^2}{2} \|\theta\|_0 \quad \text{is} \quad \theta_i = u_i\, \mathbb{1}\big[|u_i| > \lambda\big].
+$$
+
+::: proof
+The problem separates. For one coordinate, keeping $\theta_i \ne 0$ costs at least $\lambda^2/2$, attained at $\theta_i = u_i$; setting $\theta_i = 0$ costs $u_i^2 / 2$. Keep the coefficient if and only if $u_i^2 > \lambda^2$. [∎]{.qed}
+:::
+::::
+
+Soft thresholding shrinks every kept coefficient by $\lambda$, which biases large ones; hard thresholding keeps them intact but is discontinuous. The code compares both with a moving average on a piecewise-constant signal with a bump.
+
+```python
+import numpy as np
+
+def haar(x):                                 # orthonormal Haar transform (Prop. 1.12)
+    coeffs, a = [], x.copy()
+    while len(a) > 1:
+        coeffs.append((a[0::2] - a[1::2]) / np.sqrt(2))   # details
+        a = (a[0::2] + a[1::2]) / np.sqrt(2)              # approximation
+    return a, coeffs
+
+def ihaar(a, coeffs):
+    for d in reversed(coeffs):
+        out = np.empty(2 * len(a))
+        out[0::2], out[1::2] = (a + d) / np.sqrt(2), (a - d) / np.sqrt(2)
+        a = out
+    return a
+
+rng = np.random.default_rng(0)
+n = 1024
+t = np.arange(n) / n
+clean = 2 * (t > 0.2) - 3 * (t > 0.45) + 1.5 * (t > 0.7) + np.exp(-((t - 0.85) / 0.03) ** 2)
+y = clean + 0.4 * rng.standard_normal(n)
+
+a, c = haar(y)
+sigma = np.median(np.abs(c[0])) / 0.6745     # noise level from the finest details
+lam = sigma * np.sqrt(2 * np.log(n))         # universal threshold (Prop. 6.4)
+soft = lambda d: np.sign(d) * np.maximum(np.abs(d) - lam, 0)   # Theorem 6.3
+hard = lambda d: d * (np.abs(d) > lam)                          # Proposition 6.5
+x_soft = ihaar(a, [soft(d) for d in c])
+x_hard = ihaar(a, [hard(d) for d in c])
+x_ma = np.convolve(y, np.ones(9) / 9, mode="same")       # moving average, width 9
+rmse = lambda u: np.sqrt(np.mean((u - clean) ** 2))
+print(f"sigma estimate {sigma:.3f} (true 0.4), threshold {lam:.2f}")
+for name, u in [("noisy", y), ("moving average", x_ma), ("Haar, soft", x_soft), ("Haar, hard", x_hard)]:
+    print(f"RMSE {name:15s} {rmse(u):.3f}")
+```
+
+The estimated noise level is 0.376 for a true 0.4. The errors (RMSE) are 0.389 for the noisy signal, 0.167 for the moving average, 0.234 for soft thresholding and 0.131 for hard thresholding. Soft thresholding pays for its bias on the large jump coefficients; hard thresholding keeps the jumps sharp and wins.
+
+For signals that are exactly piecewise constant, **total-variation denoising** solves $\min_x \frac12\|y - x\|^2 + \lambda \sum_t |x_{t+1} - x_t|$ (Rudin, Osher and Fatemi, 1992). Its solution is piecewise constant, so it is a convex relative of the change-point detection of ch. 5; in one dimension it is computed exactly by a direct algorithm (Condat, 2013).
+
+### Missing values
+
+::: def
+[Definition 6.6 — Missingness mechanisms (Rubin, 1976)]{.tag} Let $M_t = 1$ when $x_t$ is observed and $0$ otherwise. The data are:
+
+-   **missing completely at random** (MCAR) if the law of $M$ does not depend on $x$;
+-   **missing at random** (MAR) if it depends only on the observed values;
+-   **missing not at random** (MNAR) otherwise — a sensor that saturates when the value is high.
+
+Under MCAR and MAR, likelihood-based methods may ignore the mechanism; under MNAR it must be modelled. In time series the *pattern* matters as much: isolated samples, long gaps when a sensor is down, or blocks missing on several channels at once.
+:::
+
+:::: thm
+[Theorem 6.7 — Natural cubic splines minimise curvature]{.tag} Let $t_1 < \dots < t_m$ be the observed times with values $x_1, \dots, x_m$.
+
+Among the functions $f$ with square-integrable second derivative that interpolate the data, the **natural cubic spline** $s$ — cubic on each interval, twice continuously differentiable, with $s'' = 0$ at both ends — minimises
+$$
+\int_{t_1}^{t_m} f''(t)^2\, dt .
+$$
+
+::: proof
+Let $g = f - s$, which vanishes at every $t_j$. Then $\int f''^2 = \int s''^2 + 2\int s'' g'' + \int g''^2$, and it suffices to show that the middle term vanishes.
+
+On $[t_j, t_{j+1}]$, integrate by parts: $\int s'' g'' = [s'' g'] - \int s''' g'$. The boundary terms telescope to the end points, where $s'' = 0$. Since $s'''$ is a constant $c_j$ on each interval, the remaining term is $\sum_j c_j\,(g(t_{j+1}) - g(t_j)) = 0$. [∎]{.qed}
+:::
+::::
+
+Splines and linear interpolation are smooth and cheap, but they ignore the dynamics: across a long gap they draw a smooth curve, not a plausible piece of the series. A model of the dynamics does better.
+
+:::: prop
+[Proposition 6.8 — The Kalman filter with missing observations]{.tag} In the state-space model of Definition 2.7, if $y_t$ is missing, the update step of Theorem 2.8 is skipped:
+$$
+m_{t \mid t} = m_{t \mid t-1}, \qquad P_{t \mid t} = P_{t \mid t-1},
+$$
+which is the update with gain $K_t = 0$, or with infinite observation noise. The smoother is unchanged, and $m_{t \mid n}$ is the conditional expectation of the state given all the observed values.
+
+::: proof
+Without $y_t$, the conditioning information at time $t$ is the same as at time $t - 1$, so the filtering law equals the predicted law. The proofs of Theorem 2.8 and of the smoother only use Gaussian conditioning on the observed values, so they carry over with the reduced information. If only some coordinates of $y_t$ are missing, keep the observed rows of $H$ and the matching block of $R$. [∎]{.qed}
+:::
+::::
+
+Under MAR, $m_{t \mid n}$ is the best imputation in mean square for a linear Gaussian model, and $P_{t \mid n}$ says how uncertain it is. The code imputes an AR(2) series with scattered missing values and one gap of 20 samples.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(9)
+n, phi = 1000, np.array([1.6, -0.8])         # quasi-periodic AR(2), period about 13
+x = np.zeros(n)
+for t in range(2, n):
+    x[t] = phi @ x[t - 2 : t][::-1] + rng.standard_normal()
+miss = np.zeros(n, bool)
+miss[700:720] = True                         # a gap of 20 samples
+miss[500:] |= rng.random(n - 500) < 0.15     # + 15% missing at random
+y = np.where(miss, np.nan, x)
+
+def kalman_smoother(y, F, Q, H, R):          # filter (Theorem 2.8) + RTS smoother
+    n, d = len(y), F.shape[0]
+    m, P = np.zeros(d), np.eye(d) * 10.0
+    ms, Ps, mp, Pp = np.zeros((n, d)), np.zeros((n, d, d)), np.zeros((n, d)), np.zeros((n, d, d))
+    for t in range(n):
+        m, P = F @ m, F @ P @ F.T + Q        # predict
+        mp[t], Pp[t] = m, P
+        if not np.isnan(y[t]):               # update only when observed (Prop. 6.8)
+            S = H @ P @ H.T + R
+            G = P @ H.T / S
+            m, P = m + (G * (y[t] - H @ m)).ravel(), P - G @ H @ P
+        ms[t], Ps[t] = m, P
+    for t in range(n - 2, -1, -1):           # backward pass
+        J = Ps[t] @ F.T @ np.linalg.inv(Pp[t + 1])
+        ms[t] = ms[t] + J @ (ms[t + 1] - mp[t + 1])
+        Ps[t] = Ps[t] + J @ (Ps[t + 1] - Pp[t + 1]) @ J.T
+    return ms[:, 0]
+
+F = np.array([phi, [1.0, 0.0]])              # state (x_t, x_{t-1})
+Q = np.diag([1.0, 0.0])
+H = np.array([[1.0, 0.0]])
+x_kal = kalman_smoother(y, F, Q, H, R=np.array([[1e-6]]))
+obs = np.flatnonzero(~miss)
+x_lin = np.interp(np.arange(n), obs, x[obs])
+for name, u in [("linear interpolation", x_lin), ("AR(2) Kalman smoother", x_kal)]:
+    gap, scattered = np.arange(700, 720), np.flatnonzero(miss & (np.arange(n) < 700))
+    print(f"{name:22s} RMSE gap {np.sqrt(np.mean((u - x)[gap] ** 2)):.2f}"
+          f" | scattered {np.sqrt(np.mean((u - x)[scattered] ** 2)):.2f}")
+print("standard deviation of the series:", round(x.std(), 2))
+```
+
+On the scattered missing values, the smoother's error is 0.46 against 0.79 for linear interpolation. In the 20-sample gap both errors (3.50 and 3.63) are close to the standard deviation of the series, 3.61. The gap is longer than the memory of the process, so no method can know the values in its middle; the smoother at least reports this through its variance $P_{t \mid n}$.
+
+When several channels are recorded, they often share a few latent signals. The matrix of channels $\times$ time is then nearly low rank, and the observed channels inform the missing ones.
+
+::: def
+[Definition 6.9 — Low-rank completion]{.tag} Let $X \in \mathbb{R}^{d \times T}$ be observed on a set $\Omega$ of entries, and $P_\Omega$ the operator that zeroes the other entries. **Nuclear-norm completion** solves
+$$
+\min_Z \ \frac12 \|P_\Omega(X - Z)\|_F^2 + \lambda \|Z\|_* ,
+$$
+where $\|Z\|_*$, the sum of the singular values, is the convex surrogate of the rank.
+
+The proximal operator of $\lambda\|\cdot\|_*$ is the **singular-value soft thresholding** $Z = U S_\lambda(\Sigma) V^\top$ of the SVD $U\Sigma V^\top$ (Cai, Candès and Shen, 2010). *Soft-impute* iterates
+$$
+Z \leftarrow \mathrm{SVT}_\lambda\big(P_\Omega(X) + P_\Omega^\perp(Z)\big)
+$$
+(Mazumder, Hastie and Tibshirani, 2010). Candès and Recht (2009) proved exact recovery of incoherent low-rank matrices from enough randomly sampled entries.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(10)
+T, d, r = 400, 20, 3                         # 20 sensors driven by 3 latent signals
+t = np.arange(T)
+latent = np.stack([np.sin(2 * np.pi * t / 50), np.sign(np.sin(2 * np.pi * t / 120)),
+                   np.cumsum(rng.standard_normal(T)) / 10])
+X = rng.standard_normal((d, r)) @ latent + 0.1 * rng.standard_normal((d, T))
+mask = rng.random((d, T)) > 0.3              # 30% of the entries are missing
+
+def soft_impute(Y, mask, lam, iters=200):    # Mazumder, Hastie and Tibshirani (2010)
+    Z = np.zeros_like(Y)
+    for _ in range(iters):
+        U, s, Vt = np.linalg.svd(np.where(mask, Y, Z), full_matrices=False)
+        Z = (U * np.maximum(s - lam, 0)) @ Vt    # singular-value soft thresholding
+    return Z
+
+Z = soft_impute(X, mask, lam=2.0)
+lin = np.array([np.interp(t, t[m], row[m]) for row, m in zip(X, mask)])
+err = lambda A: np.sqrt(np.mean((A - X)[~mask] ** 2))
+print(f"RMSE on missing entries: per-sensor linear interpolation {err(lin):.3f}, "
+      f"low-rank soft-impute {err(Z):.3f}")
+print("top singular values:", [round(float(v), 1) for v in np.linalg.svd(Z, compute_uv=False)[:5]])
+```
+
+Soft-impute reaches an error of 0.140 against 0.256 for per-sensor interpolation, and the completed matrix has three dominant singular values (440.4, 92.6, 51.5) followed by values near 0: the rank 3 of the generating model is recovered. Chapter 8 adds a graph between the sensors to the same idea.
+
+::: recap
+Key takeaways — chapter 6
+
+-   The Wiener filter is the optimal linear denoiser, with response $f_x / (f_x + f_\varepsilon)$; it blurs jumps.
+-   In an orthonormal basis, soft and hard thresholding solve the $\ell_1$- and $\ell_0$-penalised problems; the universal threshold $\sigma\sqrt{2\log n}$ removes pure noise.
+-   Missing data are MCAR, MAR or MNAR; the mechanism decides which methods are valid.
+-   Splines minimise curvature; the Kalman smoother imputes with the dynamics and reports its uncertainty.
+-   Multichannel data are completed by low-rank models through singular-value thresholding.
+:::
+
+## 7. Extracting and selecting relevant features {#ch7}
+
+Many learning problems on series are solved by turning each series into a vector of well-chosen numbers — its *features* — and then using any standard classifier or regressor. This chapter lists the main families of features, presents random convolutional features, and then selects the relevant features without fooling oneself. Named features also serve the official emphasis on understanding and interpreting the data.
+
+### Feature extraction
+
+::: def
+[Definition 7.1 — Feature map and its families]{.tag} A **feature map** $\varphi : \mathbb{R}^n \to \mathbb{R}^p$ sends a series (or a window of a long series) to a fixed-size vector. It turns series of different lengths into a standard tabular data set. The main families are:
+
+-   *statistical*: mean, standard deviation, skewness, kurtosis, quantiles, maximum of $|x_t|$;
+-   *temporal*: autocorrelations at small lags (Definition 1.5), zero-crossing rate, number of peaks, AR coefficients (Theorem 2.3);
+-   *spectral*: band powers from Welch's periodogram, dominant frequency, spectral entropy, wavelet energy per scale (ch. 1);
+-   *pattern-based*: shapelet distances (ch. 3), activation counts of learned atoms (ch. 4).
+
+A good feature is invariant to what should not matter (offset, position, amplitude) and sensitive to what defines the classes.
+:::
+
+Large catalogues exist. The *hctsa* project of Fulcher and Jones (2014) computes thousands of features. *catch22* (Lubba and coauthors, 2019) keeps 22 of them, chosen for accuracy and low redundancy across many data sets. *tsfresh* (Christ and coauthors, 2018) filters a large catalogue by hypothesis tests.
+
+::: def
+[Definition 7.2 — Random convolutional kernel features (ROCKET)]{.tag} Draw $K$ random kernels. Each has a length $L \in \{7, 9, 11\}$, Gaussian weights centred to mean zero, and a bias $b$ uniform in $[-1, 1]$.
+
+Its dilation is $\delta = \lfloor 2^u \rfloor$, with $u$ uniform between 0 and $\log_2\big((n-1)/(L-1)\big)$, so that the dilated kernel fits in the series.
+
+For each kernel, compute the dilated convolution $c_t = b + \sum_{l} w_l\, x_{t + l\delta}$ and keep two features:
+$$
+\mathrm{ppv} = \frac{1}{m} \sum_{t=1}^{m} \mathbb{1}[c_t > 0], \qquad \max_{1 \le t \le m} c_t ,
+$$
+
+where $m$ is the number of positions of the convolution.
+
+A linear classifier is trained on the $2K$ features (Dempster, Petitjean and Webb, 2020).
+:::
+
+The dilations cover all scales, and the proportion of positive values measures how often a pattern is present, wherever it is. With $K = 10\,000$ kernels and a ridge classifier, ROCKET matched the most accurate classifiers of its time on the UCR archive at a small fraction of their cost. The block below is a simplified version (no padding, 500 kernels).
+
+```python
+import numpy as np
+from sklearn.linear_model import RidgeClassifierCV
+
+rng = np.random.default_rng(12)
+def cbf(n, length=128):                      # Cylinder-Bell-Funnel, as in ch. 3
+    t, X, y = np.arange(length), [], np.repeat([0, 1, 2], n)
+    for label in y:
+        a = rng.integers(16, 33); b = a + rng.integers(32, 97)
+        chi = ((t >= a) & (t <= b)).astype(float)
+        shape = [chi, chi * (t - a) / (b - a), chi * (b - t) / (b - a)][label]
+        X.append((6 + rng.standard_normal()) * shape + rng.standard_normal(length))
+    return np.array(X), y
+
+def random_kernels(k, T):                    # Definition 7.2
+    ks = []
+    for _ in range(k):
+        L = rng.choice([7, 9, 11])
+        w = rng.standard_normal(L); w -= w.mean()
+        dil = int(2 ** rng.uniform(0, np.log2((T - 1) / (L - 1))))
+        ks.append((w, rng.uniform(-1, 1), dil))
+    return ks
+
+def transform(X, ks):                        # 2 features per kernel: PPV and max
+    out = []
+    for w, b, dil in ks:
+        wd = np.zeros((len(w) - 1) * dil + 1); wd[::dil] = w     # dilated kernel
+        C = np.array([np.convolve(x, wd[::-1], mode="valid") for x in X]) + b
+        out += [(C > 0).mean(1), C.max(1)]
+    return np.column_stack(out)
+
+Xtr, ytr = cbf(10); Xte, yte = cbf(100)
+ks = random_kernels(500, Xtr.shape[1])
+clf = RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)).fit(transform(Xtr, ks), ytr)
+print("random-kernel features: test accuracy", round(clf.score(transform(Xte, ks), yte), 3))
+```
+
+From 30 training series, the random features reach a test accuracy of 0.97 on 300 series, without any distance computation between series.
+
+### Feature selection
+
+Extracting hundreds of features is easy; many are irrelevant or redundant. Selecting a few improves accuracy when data are scarce, speeds up the model, and makes it interpretable. The official survey of Li and coauthors (2018) organises the methods.
+
+::: def
+[Definition 7.3 — Filter, wrapper and embedded selection]{.tag} Let $X_j$ be feature $j$ and $Y$ the label.
+
+-   A **filter** ranks features by a score computed independently of any model. Examples are the Fisher score, the ratio of between-class to within-class variance of $X_j$, and the mutual information $I(X_j; Y)$.
+-   A **wrapper** searches subsets of features, scoring each subset by the cross-validated performance of a model. Sequential forward selection adds the best feature at each step. It costs many fits and can overfit the validation data.
+-   An **embedded** method selects while learning, as the lasso does through its $\ell_1$ penalty, or trees through their split importances.
+:::
+
+:::: prop
+[Proposition 7.4 — Mutual information of a Gaussian pair]{.tag} If $(X, Y)$ is a Gaussian pair with correlation $\rho$, then
+$$
+I(X; Y) = -\frac12 \log(1 - \rho^2).
+$$
+
+::: proof
+Write $I(X; Y) = h(X) + h(Y) - h(X, Y)$ with the differential entropy of a Gaussian vector $h = \frac12 \log\big((2\pi e)^d \det\Sigma\big)$. The covariance of the pair has determinant $\sigma_X^2\sigma_Y^2(1 - \rho^2)$, so all terms cancel except $-\frac12\log(1 - \rho^2)$. [∎]{.qed}
+:::
+::::
+
+Mutual information thus extends the squared correlation, and it also detects nonlinear dependence. It is estimated by nearest-neighbour methods (Kraskov, Stögbauer and Grassberger, 2004), which scikit-learn uses. Ranking by $I(X_j; Y)$ alone keeps redundant features: the *mRMR* criterion (Peng, Long and Ding, 2005) adds features greedily by relevance to $Y$ minus mean redundancy with the features already chosen.
+
+:::: prop
+[Proposition 7.5 — Optimality conditions of the lasso]{.tag} The vector $\hat\beta$ minimises $\frac{1}{2n}\|y - X\beta\|^2 + \lambda\|\beta\|_1$ if and only if, for every feature $j$, with the residual $r = y - X\hat\beta$:
+$$
+\frac1n X_j^\top r = \lambda\, \mathrm{sign}(\hat\beta_j) \ \text{ if } \hat\beta_j \ne 0, \qquad \Big|\frac1n X_j^\top r\Big| \le \lambda \ \text{ if } \hat\beta_j = 0 .
+$$
+
+::: proof
+The objective is convex, so $\hat\beta$ is a minimiser if and only if 0 belongs to its subdifferential, $-\frac1n X^\top r + \lambda\,\partial\|\hat\beta\|_1$.
+
+The subdifferential of $|\beta_j|$ is $\{\mathrm{sign}(\beta_j)\}$ when $\beta_j \ne 0$, and the interval $[-1, 1]$ otherwise. [∎]{.qed}
+:::
+::::
+
+A feature enters the model only when its correlation with the residual reaches $\lambda$. For $\lambda \ge \|X^\top y\|_\infty / n$ the solution is $\hat\beta = 0$; decreasing $\lambda$ lets features enter one by one along the *regularisation path*, which ranks them. Among strongly correlated features the lasso picks one somewhat arbitrarily; the elastic net and stability selection (Meinshausen and Bühlmann, 2010) make the choice more stable.
+
+::: note
+[Note 7.6 — Selection bias]{.tag} Selecting features on the whole data set and then cross-validating the classifier on the selected features gives an optimistic estimate. With many candidate features and few samples, pure noise can look predictive. Ambroise and McLachlan (2002) showed this effect on gene-expression data.
+
+The selection is part of the model and must be redone inside each training fold — in scikit-learn, by putting it in a `Pipeline`. For a single long series, the folds must also respect time (Definition 2.10).
+:::
+
+The code builds two classes of AR(1) series, one of which contains a weak burst near 0.22 cycle per sample. It extracts 20 named features, adds 30 pure-noise features, and selects with mutual information inside the cross-validation and with an $\ell_1$-penalised logistic regression.
+
+```python
+import numpy as np
+from scipy.signal import lfilter, welch
+from scipy.stats import skew, kurtosis
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+rng = np.random.default_rng(11)
+N, T = 300, 256
+y = rng.integers(0, 2, N)
+X = np.zeros((N, T))
+for k in range(N):                           # AR(1) background, random coefficient
+    X[k] = lfilter([1.0], [1.0, -rng.uniform(0.2, 0.8)], rng.standard_normal(T))
+    if y[k]:                                 # class 1: a weak burst near 0.22 cycle/sample
+        f0, start = rng.uniform(0.2, 0.25), rng.integers(0, T - 64)
+        X[k, start : start + 64] += 1.2 * np.sin(2 * np.pi * f0 * np.arange(64))
+
+def features(x):                             # 20 named, interpretable features
+    xc = x - x.mean()
+    acf = [xc[:-h] @ xc[h:] / (xc @ xc) for h in range(1, 6)]
+    f, P = welch(x, nperseg=64)
+    bands = [P[(f >= lo) & (f < lo + 0.05)].sum() / P.sum() for lo in np.arange(0, 0.5, 0.05)]
+    zc = np.mean(np.diff(np.sign(xc)) != 0)
+    return np.r_[x.std(), skew(x), kurtosis(x), zc, np.max(np.abs(x)), acf, bands]
+
+names = ["std", "skew", "kurt", "zero-cross", "max|x|"] + [f"acf{h}" for h in range(1, 6)] \
+        + [f"band{lo:.2f}" for lo in np.arange(0, 0.5, 0.05)]
+Phi = np.array([features(x) for x in X])
+Phi = np.c_[Phi, rng.standard_normal((N, 30))]          # + 30 pure-noise features
+names += [f"noise{j}" for j in range(30)]
+
+mi = mutual_info_classif(Phi, y, random_state=0)
+print("top-5 by mutual information:", [names[j] for j in np.argsort(mi)[::-1][:5]])
+for k in (5, 50):                            # selection INSIDE the cross-validation
+    pipe = make_pipeline(StandardScaler(), SelectKBest(mutual_info_classif, k=k),
+                         LogisticRegression(max_iter=1000))
+    print(f"k = {k:2d} features, 5-fold accuracy {cross_val_score(pipe, Phi, y, cv=5).mean():.3f}")
+l1 = make_pipeline(StandardScaler(), LogisticRegression(l1_ratio=1.0, C=0.1, solver="liblinear"))
+coef = l1.fit(Phi, y)[-1].coef_.ravel()
+print("L1-logistic keeps:", [names[j] for j in np.flatnonzero(coef)])
+```
+
+Mutual information ranks first the power in the band 0.20–0.25, where the burst lives, then the autocorrelations at lags 2 to 4, which the oscillation also changes. One noise feature reaches the top five: mutual-information estimates are noisy on 300 samples. Five selected features give a cross-validated accuracy of 0.953, against 0.900 with all 50.
+
+The $\ell_1$ model keeps four features: the standard deviation, the autocorrelation at lag 4 and the two bands 0.20 and 0.25. Each is a statement a domain expert can check: "class 1 has more energy between 0.20 and 0.30 cycle per sample".
+
+::: recap
+Key takeaways — chapter 7
+
+-   Feature maps turn series into fixed-size vectors; statistical, temporal, spectral and pattern-based features are interpretable.
+-   Random dilated convolutional kernels with PPV and max features give strong, fast classifiers.
+-   Filters (Fisher score, mutual information), wrappers and embedded methods (lasso) select features; mutual information generalises correlation.
+-   The lasso keeps a feature only when its correlation with the residual reaches $\lambda$.
+-   Selection belongs inside the cross-validation loop, or the estimate is biased.
+:::
+
+## 8. Multivariate series and graphs {#ch8}
+
+With $d$ sensors recorded together — electrodes on a scalp, stations of a weather network, joints of a skeleton — the series is a $d \times T$ array. Treating each channel separately wastes the structure between them; a full multivariate model has too many parameters. A **graph** between the channels is the compromise: it says which channels are expected to behave alike. This chapter follows the graph signal processing of Ortega and coauthors (2018), in the official references.
+
+### From vector autoregressions to graphs
+
+::: def
+[Definition 8.1 — Vector autoregression and Granger causality]{.tag} A VAR(1) model is $x_t = A x_{t-1} + \varepsilon_t$ with $x_t \in \mathbb{R}^d$ and a white noise $\varepsilon_t$. It is stationary and causal when the spectral radius of $A$ is below 1.
+
+Channel $j$ **Granger-causes** channel $i$ if the past of $j$ improves the prediction of $x_{i,t}$ given the past of all other channels (Granger, 1969). In a VAR(1), this holds exactly when $A_{ij} \ne 0$, so the support of $A$ is a directed graph.
+:::
+
+A VAR($p$) has $p d^2$ parameters, too many when $d$ is large: estimating it with a lasso penalty on each row of $A$ learns a sparse directed graph. Most of this chapter uses instead an undirected graph that encodes *similarity* between channels.
+
+### Signals on a graph
+
+::: def
+[Definition 8.2 — Graph, Laplacian and smoothness]{.tag} Let $G$ be an undirected graph on $d$ nodes with symmetric non-negative weights $W_{ij}$, degree matrix $D = \mathrm{diag}(W\mathbf{1})$ and **Laplacian** $L = D - W$.
+
+A **graph signal** $x \in \mathbb{R}^d$ gives one value per node, for instance the snapshot $x_t$ of all sensors at time $t$. Its variation over the graph is the quadratic form
+$$
+x^\top L x = \frac12 \sum_{i,j} W_{ij} (x_i - x_j)^2 \ \ge\ 0 .
+$$
+
+A signal is **smooth** on the graph when this quantity is small: strongly connected nodes carry similar values.
+:::
+
+The identity follows by expanding: $x^\top D x = \sum_i d_i x_i^2$ and $x^\top W x = \sum_{i,j} W_{ij} x_i x_j$, and each pair contributes $W_{ij}(x_i^2 + x_j^2 - 2x_ix_j)/2$ twice.
+
+::: def
+[Definition 8.3 — Graph Fourier transform]{.tag} Let $L = U \Lambda U^\top$ with $U$ orthogonal and eigenvalues $0 = \lambda_1 \le \lambda_2 \le \dots \le \lambda_d$. The **graph Fourier transform** of $x$ and its inverse are
+$$
+\hat x = U^\top x, \qquad x = U \hat x .
+$$
+
+The eigenvalues play the role of frequencies: eigenvectors with small $\lambda_k$ vary slowly across edges. On a path graph the eigenvectors are sampled cosines, and the transform reduces to a discrete cosine transform.
+:::
+
+:::: prop
+[Proposition 8.4 — Frequencies measure variation]{.tag} For every $x$,
+$$
+x^\top L x = \sum_{k=1}^d \lambda_k\, \hat x_k^2 ,
+$$
+and $\lambda_k$ is the minimum of $x^\top L x$ over unit vectors orthogonal to $u_1, \dots, u_{k-1}$, attained at $u_k$.
+
+If $G$ is connected, $\lambda_1 = 0$ is simple, with $u_1 = \mathbf{1}/\sqrt d$.
+
+::: proof
+Substitute $x = U\hat x$: $x^\top L x = \hat x^\top \Lambda \hat x$.
+
+Under the constraints, the first $k - 1$ coordinates of $\hat x$ vanish and the others have squares summing to 1. So $x^\top L x$ is a weighted average of $\lambda_k, \dots, \lambda_d$, hence at least $\lambda_k$, with equality at $u_k$.
+
+If $x^\top L x = 0$, every edge has $x_i = x_j$, so $x$ is constant on each connected component: the kernel of $L$ is spanned by $\mathbf{1}$ when $G$ is connected. [∎]{.qed}
+:::
+::::
+
+A signal is thus smooth exactly when its energy sits in the low graph frequencies. The next definition filters signals by frequency.
+
+::: def
+[Definition 8.5 — Graph filters]{.tag} For a function $h$ on the eigenvalues, the **graph filter** $h(L) = U\, h(\Lambda)\, U^\top$ multiplies the graph frequency $\lambda_k$ by $h(\lambda_k)$.
+
+If $h$ is a polynomial of degree $K$, then $(h(L)x)_i$ depends only on the values at nodes within $K$ hops of node $i$.
+
+The filtered signal then costs $K$ products by the sparse Laplacian, with no eigendecomposition.
+
+Indeed, $L$ has nonzero entries only on the diagonal and between neighbours. By induction on $k$, the entry $(L^k)_{ij}$ vanishes when $i$ and $j$ are more than $k$ hops apart.
+:::
+
+:::: thm
+[Theorem 8.6 — Denoising and interpolation on a graph]{.tag} Let a connected graph have Laplacian $L$, and let $M = \mathrm{diag}(m)$ with $m_i = 1$ when node $i$ is observed and 0 otherwise. Observe $y$ on at least one node. For $\gamma > 0$, the problem
+$$
+\min_x \ \|M(y - x)\|^2 + \gamma\, x^\top L x
+$$
+has the unique solution
+
+::: key
+[Key result — interpolation on a graph]{.tag}
+$$
+\hat x = (M + \gamma L)^{-1} M y .
+$$
+:::
+
+When every node is observed, $\hat x = (I + \gamma L)^{-1} y$ is the low-pass graph filter $h(\lambda) = 1/(1 + \gamma\lambda)$.
+
+::: proof
+The objective is a convex quadratic whose gradient is $2M(x - y) + 2\gamma L x$, using $M^2 = M$. Setting it to zero gives $(M + \gamma L)x = My$.
+
+The matrix is positive definite. Indeed,
+$$
+x^\top(M + \gamma L)x = \sum_{i \,:\, m_i = 1} x_i^2 + \gamma\, x^\top L x
+$$
+vanishes only if $x$ is constant (Proposition 8.4) and zero on the observed nodes, that is, if $x = 0$.
+
+With $M = I$, the solution is $U (I + \gamma\Lambda)^{-1} U^\top y$, the filter of Definition 8.5 with $h(\lambda) = 1/(1 + \gamma\lambda)$. [∎]{.qed}
+:::
+::::
+
+In Bayesian terms, $\hat x$ is the posterior mean when $x$ has the Gaussian prior with precision proportional to $L$ (made invertible by a small multiple of the identity) and the observation noise is white. Interpolating a dead sensor from its neighbours is the graph analogue of the splines of ch. 6.
+
+### Learning the graph
+
+Often no graph is given, and it must be learned from the multivariate series itself.
+
+:::: prop
+[Proposition 8.7 — Gaussian graphical models]{.tag} Let $x \sim \mathcal{N}(0, \Sigma)$ in $\mathbb{R}^d$ with precision matrix $\Theta = \Sigma^{-1}$. For $i \ne j$,
+$$
+\Theta_{ij} = 0 \iff x_i \text{ and } x_j \text{ are independent given all the other coordinates}.
+$$
+
+::: proof
+Let $A = \{i, j\}$ and $B$ the other indices. By Proposition 0.2 and the block inversion formula, the conditional covariance of $x_A$ given $x_B$ is
+$$
+\Sigma_{AA} - \Sigma_{AB}\Sigma_{BB}^{-1}\Sigma_{BA} = (\Theta_{AA})^{-1}.
+$$
+
+This $2 \times 2$ matrix is diagonal iff $\Theta_{ij} = 0$, and for a Gaussian pair, uncorrelated means independent. [∎]{.qed}
+:::
+::::
+
+The **graphical lasso** (Friedman, Hastie and Tibshirani, 2008) estimates a sparse precision matrix from the empirical covariance $S$:
+$$
+\max_{\Theta \succ 0} \ \log\det\Theta - \mathrm{tr}(S\Theta) - \alpha \sum_{i \ne j} |\Theta_{ij}| .
+$$
+
+If the snapshots are smooth signals with precision $L + \varepsilon I$ — a Gaussian Markov random field on the graph — the support of the precision is exactly the set of edges.
+
+:::: prop
+[Proposition 8.8 — Smoothness as a linear function of the weights]{.tag} Let $X \in \mathbb{R}^{d \times T}$ have rows $x_{(i)}$ (the series of node $i$) and columns $x_t$ (the snapshots). With $Z_{ij} = \|x_{(i)} - x_{(j)}\|^2$,
+$$
+\sum_{t=1}^T x_t^\top L\, x_t = \mathrm{tr}(X^\top L X) = \frac12 \sum_{i,j} W_{ij} Z_{ij} .
+$$
+
+::: proof
+Apply the identity of Definition 8.2 to each snapshot $x_t$ and sum over $t$: $\sum_t (x_{i,t} - x_{j,t})^2 = Z_{ij}$. [∎]{.qed}
+:::
+::::
+
+Learning a graph on which the data are smooth is therefore a problem that is *linear* in the weights. Kalofolias (2016) solves
+$$
+\min_{W \ge 0,\ W = W^\top,\ \mathrm{diag}(W) = 0} \ \sum_{i,j} W_{ij} Z_{ij} - \alpha\, \mathbf{1}^\top \log(W\mathbf{1}) + \beta \|W\|_F^2 ,
+$$
+where the logarithmic barrier prevents isolated nodes and the Frobenius term controls sparsity. Dong and coauthors (2016) learn the Laplacian directly under a trace constraint.
+
+::: note
+[Note 8.9 — Time–vertex models]{.tag} A multivariate series varies over the graph *and* over time. A joint regulariser such as
+$$
+\sum_t x_t^\top L\, x_t + \eta \sum_t \|x_{t+1} - x_t\|^2
+$$
+penalises both variations. It is the quadratic form of the Laplacian of the Cartesian product of the graph with the path of time instants, whose time edges have weight $\eta$.
+
+Its eigenvectors are products of a graph Fourier mode and a time mode. The time modes are the cosines of a path (Exercise 14); for periodic time they become the complex exponentials of the DFT. This joint time–vertex Fourier transform is developed by Grassi and coauthors (2018). Spatio-temporal neural networks (ch. 10) learn such filters.
+:::
+
+The block below places 30 sensors at random in the unit square, connects those closer than 0.3, and draws 2000 smooth snapshots with precision $L + 0.1 I$. It then interpolates 30 % of missing readings with Theorem 8.6, and learns the graph back with the graphical lasso.
+
+```python
+import numpy as np
+import networkx as nx
+from sklearn.covariance import GraphicalLasso
+
+rng = np.random.default_rng(13)
+G = nx.random_geometric_graph(30, 0.3, seed=13)          # 30 sensors in the unit square
+Lap = nx.laplacian_matrix(G).toarray().astype(float)
+lam, U = np.linalg.eigh(Lap)                             # graph Fourier basis (Def. 8.3)
+
+T = 2000                                                 # smooth signals: precision L + 0.1 I
+X = U @ (rng.standard_normal((30, T)) / np.sqrt(lam + 0.1)[:, None])
+Y = X + 0.3 * rng.standard_normal(X.shape)
+print("share of energy in the 5 lowest graph frequencies:",
+      round(float(((U.T @ X)[:5] ** 2).sum() / (X ** 2).sum()), 2))
+
+mask = rng.random(Y.shape) > 0.3                         # 30% of readings missing
+gamma = 0.1                                              # Tikhonov (Theorem 8.6)
+Xhat = np.column_stack([np.linalg.solve(np.diag(m * 1.0) + gamma * Lap, m * y)
+                        for m, y in zip(mask.T, Y.T)])
+mean_imp = np.where(mask, Y, (Y * mask).sum(0) / mask.sum(0))   # fill with snapshot mean
+err = lambda A: np.sqrt(np.mean((A - X)[~mask] ** 2))
+print(f"RMSE on missing readings: snapshot mean {err(mean_imp):.3f}, graph Tikhonov {err(Xhat):.3f}")
+
+prec = GraphicalLasso(alpha=0.02, max_iter=200).fit(X.T).precision_   # learn the graph back
+iu = np.triu_indices(30, 1)
+top = np.argsort(-np.abs(prec[iu]))[: G.number_of_edges()]
+true = {(min(e), max(e)) for e in G.edges()}
+hits = sum((int(iu[0][k]), int(iu[1][k])) in true for k in top)
+print(f"graphical lasso: {hits} of its top {G.number_of_edges()} entries are true edges")
+```
+
+The five lowest graph frequencies carry 83 % of the energy: the snapshots are smooth. On the missing readings, the graph interpolation reaches an error of 0.416 against 0.570 for the mean of the observed sensors. The graphical lasso, given 2000 snapshots, ranks the 114 true edges exactly first:
+$$
+114 \text{ of the top } 114 \text{ entries are edges}.
+$$
+
+With fewer snapshots, or with signals that are only approximately smooth, the recovery degrades, and the choice of $\alpha$ becomes the main difficulty.
+
+::: recap
+Key takeaways — chapter 8
+
+-   A graph between channels encodes which ones behave alike; the Laplacian quadratic form measures the variation of a snapshot over the graph.
+-   The eigenvectors of the Laplacian define a graph Fourier transform; smooth signals live in low graph frequencies.
+-   Polynomial graph filters are local and need no eigendecomposition.
+-   Tikhonov regularisation with the Laplacian denoises and interpolates graph signals in closed form.
+-   Graphs are learned from data through sparse precision matrices or through smoothness, which is linear in the weights.
+:::
+
+## 9. Neural networks for time series {#ch9}
+
+*Self-study chapter, beyond the official syllabus.* Neural networks learn the representation instead of choosing it. This chapter gives the three architectures used on series, one fact about each, and the baselines they must be compared with; [Deep Learning](../s1-deep-learning/index.html) covers the general theory.
+
+::: def
+[Definition 9.1 — Dilated causal convolution]{.tag} A 1-D convolutional layer with kernel $w \in \mathbb{R}^k$ and dilation $\delta$ computes
+$$
+(w *_\delta x)_t = \sum_{j=0}^{k-1} w_j\, x_{t - j\delta},
+$$
+plus a bias and a nonlinearity, for each pair of input and output channels. It is **causal** because the output at time $t$ uses only inputs up to $t$, which is required for forecasting. Stacks of such layers with dilations $1, 2, 4, \dots$ were introduced for audio generation by WaveNet (van den Oord and coauthors, 2016).
+:::
+
+:::: prop
+[Proposition 9.2 — Receptive field of a dilated stack]{.tag} A stack of $J$ layers with kernel size $k$ and dilations $\delta_1, \dots, \delta_J$ has an output at time $t$ that depends on
+$$
+1 + (k - 1)\sum_{j=1}^{J} \delta_j
+$$
+consecutive inputs. With $\delta_j = 2^{j-1}$ this is $1 + (k-1)(2^J - 1)$: the receptive field grows exponentially with depth.
+
+::: proof
+By induction on $J$. One layer sees $1 + (k-1)\delta_1$ consecutive inputs. Adding layer $J$ combines $k$ outputs of the previous stack spaced by $\delta_J$, which extends the window by $(k - 1)\delta_J$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 9.3 — Vanishing and exploding gradients in recurrent networks]{.tag} For the linear recurrence $h_t = W h_{t-1} + U x_t$,
+$$
+\frac{\partial h_T}{\partial h_t} = W^{T-t}, \qquad \Big\| \frac{\partial h_T}{\partial h_t} \Big\| \le \|W\|^{T-t} .
+$$
+
+The gradient thus vanishes geometrically when $\|W\| < 1$, and grows geometrically along an eigenvector when the spectral radius of $W$ exceeds 1.
+
+::: proof
+Differentiate the recursion $T - t$ times; the inputs do not depend on $h_t$. Submultiplicativity of the operator norm gives the bound. [∎]{.qed}
+:::
+::::
+
+With a nonlinearity, each factor $W$ is multiplied by a diagonal matrix of derivatives, which does not change the picture. The LSTM (Hochreiter and Schmidhuber, 1997) adds a gated memory cell whose self-connection is close to the identity, so that information and gradients can travel over long lags. DeepAR (Salinas and coauthors, 2020) trains one recurrent network on many related series and outputs a predictive distribution.
+
+::: note
+[Note 9.4 — Transformers, patches and strong baselines]{.tag} Self-attention compares every time step with every other, at a cost quadratic in the length. Cutting the series into short patches (for instance of 16 samples) treated as tokens (PatchTST, Nie and coauthors, 2023) reduces the cost and improves long-horizon forecasts.
+
+Zeng and coauthors (2023) showed that a single linear layer on the lag window beat several Transformer forecasters on the standard long-horizon benchmarks. The fully connected N-BEATS (Oreshkin and coauthors, 2020) and the convolutional InceptionTime classifier (Ismail Fawaz and coauthors, 2020) are other strong references.
+
+A neural model should always be compared with the baselines of this page: seasonal naive and ARIMA for forecasting, 1-NN DTW and ROCKET for classification.
+:::
+
+The block trains a three-layer dilated CNN (kernel 7, dilations 1, 2, 4) on 300 Cylinder–Bell–Funnel series, with global max pooling so that the class does not depend on the position of the pattern.
+
+Its convolutions are centred, with padding on both sides, rather than causal as in Definition 9.1. For classification the whole series is available, so causality is not needed; Proposition 9.2 still gives the receptive field, now centred on $t$.
+
+```python
+import numpy as np
+import torch
+from torch import nn
+
+rng = np.random.default_rng(14)
+torch.manual_seed(0)
+torch.set_num_threads(1)                     # small model: one thread is fastest
+def cbf(n, length=128):                      # Cylinder-Bell-Funnel, as in ch. 3
+    t, X, y = np.arange(length), [], np.repeat([0, 1, 2], n)
+    for label in y:
+        a = rng.integers(16, 33); b = a + rng.integers(32, 97)
+        chi = ((t >= a) & (t <= b)).astype(float)
+        shape = [chi, chi * (t - a) / (b - a), chi * (b - t) / (b - a)][label]
+        X.append((6 + rng.standard_normal()) * shape + rng.standard_normal(length))
+    return torch.tensor(np.array(X), dtype=torch.float32)[:, None, :], torch.tensor(y)
+
+Xtr, ytr = cbf(100)
+Xte, yte = cbf(100)
+net = nn.Sequential(                         # dilated convolutions, then global pooling
+    nn.Conv1d(1, 16, 7, padding=3), nn.ReLU(),
+    nn.Conv1d(16, 16, 7, padding=6, dilation=2), nn.ReLU(),
+    nn.Conv1d(16, 16, 7, padding=12, dilation=4), nn.ReLU(),
+    nn.AdaptiveMaxPool1d(1), nn.Flatten(), nn.Linear(16, 3))
+opt = torch.optim.Adam(net.parameters(), lr=3e-3)
+for epoch in range(20):
+    for idx in torch.randperm(len(ytr)).split(32):
+        opt.zero_grad()
+        loss = nn.functional.cross_entropy(net(Xtr[idx]), ytr[idx])
+        loss.backward()
+        opt.step()
+with torch.no_grad():
+    acc = (net(Xte).argmax(1) == yte).float().mean().item()
+print(f"1-D CNN, receptive field {1 + 6 * (1 + 2 + 4)} samples: test accuracy {acc:.3f}")
+```
+
+The receptive field is $1 + 6 \times 7 = 43$ samples (Proposition 9.2), and the network classifies all 300 test series correctly. It needed 300 training series; 1-NN DTW and the random kernels of ch. 7 reached similar accuracy from 30. Exercise 15 compares the three methods as the training set shrinks.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Dilated causal convolutions reach a receptive field exponential in depth.
+-   Plain recurrent networks suffer from vanishing or exploding gradients; gated cells such as the LSTM mitigate them.
+-   Transformers on patches are strong forecasters, but simple linear and nearest-neighbour baselines remain hard to beat and must be reported.
+:::
+
+## 10. Research directions and open problems {#ch10}
+
+*Self-study chapter.* Each theme of the course is an active research field. This chapter points to a few directions, with works whose authors and dates are given so that they can be found; it is a starting point for the mini-project, not a survey.
+
+### Foundation models for forecasting
+
+Following language models, several groups pretrain one large model on many series and use it without retraining on a new one ("zero-shot"). Chronos (Ansari and coauthors, 2024) scales each series, quantises its values into a vocabulary of bins, and trains a language-model architecture on the resulting tokens. TimesFM (Das, Kong, Sen and Zhou, 2024) is a decoder-only model pretrained on a large corpus of real and synthetic series.
+
+Open questions: when do such models beat a well-tuned local model fitted to the series at hand? How to evaluate them when public benchmarks may be part of the pretraining corpus? Are their predictive intervals calibrated?
+
+### Honest evaluation
+
+Benchmarks drive the field, and several have been questioned. For anomaly detection, Wu and Keogh (2023) found trivial and mislabelled anomalies in popular data sets, and Kim and coauthors (2022) showed that the point-adjust protocol inflates scores (Exercise 16). For classification, the UCR archive (Dau and coauthors, 2019) and the UEA multivariate archive (Bagnall and coauthors, 2018) standardise the splits, and comparisons over many data sets call for rank-based statistical tests (Demšar, 2006).
+
+### Change points beyond the mean
+
+The official review of Truong, Oudre and Vayatis (2020) organises the field by cost, search method and constraint. Kernel costs detect changes in distribution, but the choice of the kernel and of the penalty remains largely empirical (Arlot, Celisse and Harchaoui, 2019). Online detection with false-alarm guarantees, change points in high-dimensional series, and costs learned from annotated examples are active directions.
+
+### Irregular sampling and missing values
+
+Clinical and environmental series are sampled irregularly, with informative missingness. GRU-D (Che and coauthors, 2018) feeds the missingness mask and the time since the last observation into a recurrent network. Latent ordinary differential equations (Rubanova, Chen and Duvenaud, 2019) model the hidden state in continuous time. CSDI (Tashiro and coauthors, 2021) imputes with a conditional diffusion model and returns samples, hence uncertainty. Imputation under MNAR mechanisms, with calibrated uncertainty, is largely open.
+
+### Interpretable pattern extraction
+
+Convolutional dictionary learning gives atoms that experts can inspect. On electrophysiological signals, rank-one multivariate atoms (Dupré la Tour and coauthors, 2018) and heavy-tailed noise models (Jas and coauthors, 2017) produce waveforms that match known physiology. Scaling these methods to days of recordings, and choosing the number and length of the atoms automatically, are open problems. Shapelet and random-kernel classifiers raise the same question: how to explain a decision with a few patterns without losing accuracy?
+
+### Graphs that change in time
+
+Spatio-temporal neural networks combine graph filters with temporal models: DCRNN (Li and coauthors, 2018) uses diffusion convolutions on a road network inside a recurrent network, and Graph WaveNet (Wu and coauthors, 2019) learns an adaptive adjacency matrix together with dilated temporal convolutions. Time–vertex signal processing (Grassi and coauthors, 2018) gives the linear theory. Learning graphs that change over time from few samples, with guarantees, is open.
+
+### Open problems to think about
+
+-   A principled penalty for change-point detection under dependent, non-Gaussian noise.
+-   Evaluation protocols for anomaly detection that do not depend on an arbitrary threshold or event definition.
+-   Imputation under MNAR mechanisms with calibrated uncertainty.
+-   Zero-shot forecasting: conditions under which pretraining on other series provably helps.
+-   Interpretable models that match deep networks on classification accuracy.
+
+::: recap
+Key takeaways — chapter 10
+
+-   Foundation models, honest evaluation, distributional change points, irregular sampling, interpretable dictionaries and dynamic graphs are open research fronts.
+-   Each direction connects to a chapter of the course and to a mini-project subject below.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. The *Practice* column of the [session plan](#sessions) says when to do each one.
+
+1.  **★ The MA(1) autocorrelation.** Let $X_t = \varepsilon_t + \theta\varepsilon_{t-1}$, where $\varepsilon$ is a white noise of variance $\sigma^2$. Compute the autocovariance at every lag, show that $|\rho(1)| \le 1/2$, and find the values of $\theta$ for which $\rho(1) = 0.4$.
+
+    *Solution*: $\gamma(0) = \sigma^2(1 + \theta^2)$, $\gamma(\pm 1) = \theta\sigma^2$ and $\gamma(h) = 0$ for $|h| \ge 2$, so $\rho(1) = \theta / (1 + \theta^2)$.
+
+    Since $(1 - |\theta|)^2 \ge 0$, $1 + \theta^2 \ge 2|\theta|$ and $|\rho(1)| \le 1/2$, with equality at $\theta = \pm 1$.
+
+    The equation $0.4\theta^2 - \theta + 0.4 = 0$ gives $\theta = 2$ or $\theta = 0.5$: two models with the same autocorrelation. One keeps the *invertible* one, $|\theta| < 1$, whose shocks can be recovered from the past of $X$.
+
+2.  **★ The random walk is not stationary.** Let $S_t = \varepsilon_1 + \dots + \varepsilon_t$. Compute $\mathrm{Cov}(S_t, S_{t+h})$ and $\mathrm{Corr}(S_t, S_{t+h})$ for $h \ge 0$. Explain why the sample ACF of a random walk decays very slowly, and what differencing does.
+
+    *Solution*: $\mathrm{Cov}(S_t, S_{t+h}) = t\sigma^2$ (the common shocks), so
+    $$
+    \mathrm{Corr}(S_t, S_{t+h}) = \sqrt{t / (t + h)},
+    $$
+    which depends on $t$ (no stationarity) and is close to 1 for $h \ll t$. The sample ACF therefore stays near 1 for many lags. The differenced series $\nabla S_t = \varepsilon_t$ is a white noise (Example 1.6).
+
+3.  **★ Finding a hidden period (Python).** Generate $x_t = \cos(2\pi \cdot 0.13\, t) + 2\varepsilon_t$ for $t < 1000$ with Gaussian $\varepsilon$. Locate the peak of the raw periodogram and of Welch's estimate, and compare their fluctuations at frequencies above 0.3, where there is only noise.
+
+    *Hints and expected result*: both peaks are at 0.13. Off the peak, the raw periodogram has a relative spread (standard deviation over mean) of about 1, as predicted by the $\chi^2_2$ law of Proposition 1.9; Welch's estimate has about 0.33.
+
+    ```python
+    import numpy as np
+    from scipy.signal import periodogram, welch
+
+    rng = np.random.default_rng(0)
+    t = np.arange(1000)
+    x = np.cos(2 * np.pi * 0.13 * t) + 2 * rng.standard_normal(1000)
+    f1, P1 = periodogram(x)                      # raw periodogram
+    f2, P2 = welch(x, nperseg=200)               # Welch, segments of 200 samples
+    print("peak frequencies:", f1[P1.argmax()], f2[P2.argmax()])
+    far1, far2 = P1[f1 > 0.3], P2[f2 > 0.3]      # noise-only frequencies
+    print("relative spread off the peak: raw", round(far1.std() / far1.mean(), 2),
+          "| Welch", round(far2.std() / far2.mean(), 2))
+    ```
+
+4.  **★ Forecast intervals of an AR(1).** For $\phi = 0.6$, $\sigma = 0.5$ and the last value $x_t = 2$, give the forecasts at horizons 1, 2 and 3 and their Gaussian 95 % intervals. What is the limit of the interval width?
+
+    *Solution*: by Example 2.5, the forecasts are 1.2, 0.72 and 0.432. The error variances are 0.25, 0.34 and 0.3724, that is, $\sigma^2$ times 1, 1.36 and 1.4896. The standard deviations 0.5, 0.583 and 0.610, multiplied by 1.96, give the half-widths 0.98, 1.14 and 1.20.
+
+    The intervals are $[0.22, 2.18]$, $[-0.42, 1.86]$ and $[-0.76, 1.63]$. The variance tends to $\sigma^2 / (1 - \phi^2) = 0.39$, so the half-width tends to $1.96 \times 0.625 = 1.23$.
+
+5.  **★ DTW by hand.** Compute $\mathrm{DTW}(x, y)$ for $x = (1, 3, 4)$ and $y = (1, 2, 3, 4)$ with the recursion of Theorem 3.3, and give an optimal path.
+
+    *Solution*: the table $D(i, j)$, rows $x_i$ and columns $y_j$, is
+    $$
+    \begin{pmatrix} 0 & 1 & 5 & 14 \\ 4 & 1 & 1 & 2 \\ 13 & 5 & 2 & 1 \end{pmatrix},
+    $$
+    so $\mathrm{DTW}(x, y)^2 = 1$ and $\mathrm{DTW}(x, y) = 1$.
+
+    The path $(1,1), (2,2), (2,3), (3,4)$ pays only for matching 3 with 2. The path $(1,1), (1,2), (2,3), (3,4)$, which matches 1 with 2, is also optimal: optimal paths need not be unique.
+
+6.  **★ Seasonal differencing.** A monthly series is $x_t = 10 + 0.2\,t + s_t + \varepsilon_t$, with $s$ of period 12 and $\varepsilon$ a white noise. What is $\nabla_{12} x_t$? What is its autocorrelation at lag 12? What does one more ordinary difference do?
+
+    *Solution*: by Proposition 1.13,
+    $$
+    \nabla_{12} x_t = 2.4 + \varepsilon_t - \varepsilon_{t-12},
+    $$
+    a constant mean $12 \times 0.2$ plus an MA(12) noise with coefficient $-1$ at lag 12. Its autocorrelation at lag 12 is $-1/2$, and 0 at the other nonzero lags. One more difference removes the constant 2.4 and leaves a zero-mean stationary series. Differencing twice at lag 1 instead would not remove the season.
+
+7.  **★★ Yule–Walker for an AR(2).** A stationary series has $\gamma(0) = 1$, $\rho(1) = 0.5$ and $\rho(2) = 0.1$. Fit an AR(2) by Theorem 2.3, give $\sigma^2$, check that the model is causal, and predict $\rho(3)$.
+
+    *Solution*: the equations $0.5 = \phi_1 + 0.5\phi_2$ and $0.1 = 0.5\phi_1 + \phi_2$ give $\phi_2 = -0.2$ and $\phi_1 = 0.6$. Then $\sigma^2 = 1 - 0.6 \times 0.5 + 0.2 \times 0.1 = 0.72$.
+
+    The roots of $1 - 0.6z + 0.2z^2$ are complex with $|z|^2 = 1/0.2 = 5$, so $|z| \approx 2.24 > 1$: the model is causal. Finally $\rho(3) = 0.6 \times 0.1 - 0.2 \times 0.5 = -0.04$.
+
+8.  **★★ Soft thresholding and the fixed point of ISTA.** (a) Compute $S_1(u)$ for $u = (3, -0.5, 1.2, -2)$. (b) Show that $z^*$ minimises the lasso $F$ of Proposition 4.5 if and only if it is a fixed point of the ISTA iteration.
+
+    *Solution*: (a) $S_1(u) = (2, 0, 0.2, -1)$.
+
+    (b) $z^*$ is optimal iff $0 \in D^\top(Dz^* - y) + \lambda\,\partial\|z^*\|_1$. Multiply by $1/L$ and set $v = z^* - \frac1L D^\top(Dz^* - y)$: the condition reads $v - z^* \in \frac{\lambda}{L}\partial\|z^*\|_1$.
+
+    This is exactly the optimality condition of the proximal problem whose solution is $S_{\lambda/L}(v)$. Hence $z^* = S_{\lambda/L}(v)$, the ISTA update applied to $z^*$.
+
+9.  **★★ Correlation, z-normalisation and a lower bound.** (a) Deduce from Proposition 3.10 that 1-NN with the z-normalised Euclidean distance is 1-NN with the largest Pearson correlation. (b) For $x = (0, 0, 3, 0)$, $y = (0, 1, 1, 0)$ and $w = 1$, compute the envelope of $y$, $\mathrm{LB}(x, y)$ and $\mathrm{DTW}_w(x, y)$.
+
+    *Solution*: (a) $d^2 = 2m(1 - \rho)$ is a decreasing function of $\rho$, so both rules select the same neighbour.
+
+    (b) $U = (1, 1, 1, 1)$ and $L = (0, 0, 0, 0)$. Only $x_3 = 3$ leaves the envelope, so $\mathrm{LB}^2 = (3 - 1)^2 = 4$ and $\mathrm{LB} = 2$.
+
+    For the banded DTW, the value 3 of $x$ must be matched with one of $y_2, y_3, y_4$, at cost at least 4. Every sample of $y$ is matched too, so the other value 1 of $y$ is matched either with 3 (cost 4) or with a 0 of $x$ (cost 1).
+
+    The minimum is $\mathrm{DTW}_w^2 = 4 + 1 = 5$, and indeed $\mathrm{LB} = 2 \le \sqrt 5 \approx 2.24$.
+
+10. **★★ Spikes and sinusoids.** Let $D = [I, F]$ in dimension $n$, where $F$ is the orthonormal DFT matrix with entries $e^{-2i\pi kt/n}/\sqrt n$.
+
+    (a) Show that $\mu(D) = 1/\sqrt n$. (b) What sparsity does Theorem 4.4 guarantee for $n = 64$? (c) For $n = m^2$, show that the Dirac comb with $m$ spikes spaced by $m$ has two different representations with $m$ atoms each, and conclude about the order of the bound.
+
+    *Solution*: (a) Columns within $I$, or within $F$, are orthogonal; $|\langle e_t, f_k \rangle| = 1/\sqrt n$ for every pair.
+
+    (b) $\mu = 1/8$, so uniqueness and recovery hold for $\|x\|_0 < 4.5$, that is, up to 4 atoms.
+
+    (c) The DFT of the comb $\sum_{j < m} e_{jm}$ is again a comb of $m$ spikes, so the signal is a sum of $m$ spikes and also of $m$ Fourier atoms.
+
+    Hence $\mathrm{spark}(D) \le 2m = 2\sqrt n$, and uniqueness fails at sparsity $\sqrt n$. The coherence bound $(1 + \sqrt n)/2$ is therefore sharp up to a factor 2.
+
+11. **★★ Binary segmentation misses a short segment (Python).** Build 300 samples of $\mathcal{N}(0, 1)$, 20 samples of $\mathcal{N}(1.5, 1)$ and 300 more of $\mathcal{N}(0, 1)$. Run binary segmentation (Note 5.7) and optimal partitioning (Proposition 5.5) with $c_{L_2}$ and $\beta = 2\log n$. Explain the difference with Proposition 5.3.
+
+    *Hints and expected result*: optimal partitioning finds changes at 299 and 320; binary segmentation finds none.
+
+    The best *single* split leaves the short bump inside a long segment on either side: its gain is about $\frac{300 \times 320}{620}(0.09)^2 \approx 1.4$, far below $\beta \approx 12.9$, so the recursion stops at once. The *pair* of splits reduces the cost by about $20 \times 1.5^2 \approx 45 > 2\beta$, which the exact search sees.
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    y = np.r_[rng.standard_normal(300), 1.5 + rng.standard_normal(20), rng.standard_normal(300)]
+    n = len(y)
+    S1, S2 = np.r_[0, np.cumsum(y)], np.r_[0, np.cumsum(y**2)]
+    cost = lambda a, b: S2[b] - S2[a] - (S1[b] - S1[a]) ** 2 / (b - a)
+    beta = 2 * np.log(n)
+
+    def binseg(a, b, min_size=5):                # Note 5.7: best single split, then recurse
+        gains = [(cost(a, b) - cost(a, t) - cost(t, b), t) for t in range(a + min_size, b - min_size)]
+        if not gains:
+            return []
+        g, t = max(gains)
+        return binseg(a, t) + [t] + binseg(t, b) if g > beta else []
+
+    def opt_partition(min_size=5):               # Proposition 5.5 (exact)
+        F, last = np.full(n + 1, np.inf), np.zeros(n + 1, int)
+        F[0] = -beta
+        for t in range(min_size, n + 1):
+            vals = [F[s] + cost(s, t) + beta for s in range(0, t - min_size + 1)]
+            last[t] = int(np.argmin(vals)); F[t] = vals[last[t]]
+        cps, t = [], n
+        while t > 0:
+            t = last[t]; cps.append(int(t))
+        return sorted(cps)[1:]
+
+    print("binary segmentation:", binseg(0, n))
+    print("optimal partitioning:", opt_partition())
+    ```
+
+12. **★★ Exponential smoothing is a Kalman filter.** In the local level model of Definition 2.7, with noise variances $q$ and $r$, show that the one-step forecast follows $\hat y_{t+1} = \hat y_t + K_t(y_t - \hat y_t)$. Find the steady-state gain for $q = 1$ and $r = 4$, and say what happens when $y_t$ is missing.
+
+    *Solution*: here $F = H = 1$, so the forecast $\hat y_{t+1} = m_{t+1 \mid t}$ equals $m_{t \mid t}$, and
+    $$
+    m_{t+1 \mid t} = m_{t \mid t-1} + K_t\,(y_t - m_{t \mid t-1}):
+    $$
+    simple exponential smoothing with $\alpha = K_t$ (Note 2.6).
+
+    The predicted variance $P$ satisfies $P_{t+1 \mid t} = P_{t \mid t-1} r / (P_{t \mid t-1} + r) + q$. At the fixed point, $P^2 - qP - qr = 0$, so $P = (q + \sqrt{q^2 + 4qr})/2$.
+
+    With $q = 1$ and $r = 4$: $P = (1 + \sqrt{17})/2 \approx 2.56$ and $K = P/(P + r) \approx 0.39$.
+
+    When $y_t$ is missing, $K_t = 0$ (Proposition 6.8): the forecast stays put and its variance grows by $q$.
+
+13. **★★ Selection bias in numbers (Python).** Draw 50 samples with 2000 pure-noise features and random binary labels. Estimate by 5-fold cross-validation the accuracy of a logistic regression on the 20 features with the best $F$-score, (a) selected once on all the data, (b) selected inside each training fold.
+
+    *Hints and expected result*: (a) gives about 0.96, (b) about 0.58, close to the true 0.5 (Note 7.6).
+
+    ```python
+    import numpy as np
+    from sklearn.feature_selection import SelectKBest, f_classif
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import cross_val_score
+    from sklearn.pipeline import make_pipeline
+
+    rng = np.random.default_rng(0)
+    X, y = rng.standard_normal((50, 2000)), rng.integers(0, 2, 50)   # pure noise
+    sel = SelectKBest(f_classif, k=20).fit(X, y)                       # WRONG: on all data
+    wrong = cross_val_score(LogisticRegression(), sel.transform(X), y, cv=5).mean()
+    pipe = make_pipeline(SelectKBest(f_classif, k=20), LogisticRegression())
+    right = cross_val_score(pipe, X, y, cv=5).mean()                   # selection in each fold
+    print(f"selection outside CV: {wrong:.2f}   inside CV: {right:.2f}")
+    ```
+
+14. **★★ The path graph.** Let $G$ be the path on $d$ nodes with unit weights. (a) For $k = 0, \dots, d - 1$, check that the vector
+    $$
+    u_k(i) = \cos\big(\pi k (i - \tfrac12)/d\big), \quad i = 1, \dots, d,
+    $$
+    is an eigenvector of $L$ with eigenvalue $\lambda_k = 2 - 2\cos(\pi k / d)$. (b) For $d = 4$ and $\gamma = 1$, give the response of the Tikhonov filter of Theorem 8.6 at each frequency.
+
+    *Solution*: (a) At an interior node, $(Lu)(i) = 2u(i) - u(i-1) - u(i+1)$. The identity $\cos(a - \theta) + \cos(a + \theta) = 2\cos a\cos\theta$, with $\theta = \pi k/d$, gives $(2 - 2\cos\theta)\,u(i)$.
+
+    At node 1, $(Lu)(1) = u(1) - u(2)$. The formula extended to $i = 0$ gives $u(0) = u(1)$, so the interior computation still applies; symmetrically at node $d$. These are the cosines of the DCT-II.
+
+    (b) The eigenvalues are 0, $2 - \sqrt 2 \approx 0.586$, 2 and $2 + \sqrt 2 \approx 3.414$. The responses $1/(1 + \lambda_k)$ are 1, 0.631, 0.333 and 0.227: a low-pass filter.
+
+15. **★★★ Three classifiers and the size of the training set (Python).** On Cylinder–Bell–Funnel, compare 1-NN DTW (ch. 3), the random-kernel features of ch. 7 and the CNN of ch. 9 with 5, 10, 30 and 100 training series per class, over 5 random draws. Add a harder variant in which each series is also randomly stretched in time by a factor in $[0.8, 1.2]$. Report accuracies, training and prediction times, and discuss.
+
+    *Hints and expected result*: with 10 series per class, the code of ch. 3 gives no error for 1-NN DTW and that of ch. 7 an accuracy of 0.97 for the random kernels. Expect the CNN to need more data and more tuning, and to be the most sensitive to the random seed. 1-NN DTW is the slowest at prediction time (one DTW per training series); the random kernels are the fastest overall. Stretching barely affects DTW, which is built for it. A good report gives mean and spread over the draws, not a single number.
+
+16. **★★★ How point-adjust inflates anomaly scores (Python, open-ended).** On 10 000 samples with 5 anomalous segments of 100 samples, score every sample with a uniform random number. Compute the best F1 over thresholds point by point, then after point-adjust (a whole segment counts as detected if one of its points is flagged). Then propose an event-level metric that rewards early detection and penalises false alarms, and test it on a real detector of ch. 5.
+
+    *Hints and expected result*: the best point-wise F1 of the random detector is about 0.09, and the best point-adjusted F1 is about 0.79: the inflation described by Kim and coauthors (2022). A sound metric counts events, not points, gives credit that decreases with the detection delay, and counts each false-alarm *event* once. Its value must stay near 0 for a random detector — this is the sanity check.
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    n = 10_000
+    label = np.zeros(n, bool)
+    for s in rng.choice(np.arange(0, n - 100, 200), 5, replace=False):
+        label[s : s + 100] = True                # 5 anomalous segments of 100 samples
+    score = rng.random(n)                        # a detector that knows nothing
+
+    def f1(pred, label):
+        tp = np.sum(pred & label); fp = np.sum(pred & ~label); fn = np.sum(~pred & label)
+        return 2 * tp / (2 * tp + fp + fn)
+
+    def point_adjust(pred, label):               # a hit anywhere marks the whole segment
+        pred = pred.copy()
+        edges = np.flatnonzero(np.diff(np.r_[0, label.astype(int), 0]))
+        for a, b in zip(edges[::2], edges[1::2]):
+            if pred[a:b].any():
+                pred[a:b] = True
+        return pred
+
+    ths = np.quantile(score, np.linspace(0.5, 0.9999, 200))
+    print("best point-wise F1   :", round(max(f1(score > h, label) for h in ths), 3))
+    print("best point-adjust F1 :", round(max(f1(point_adjust(score > h, label), label) for h in ths), 3))
+    ```
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) combines lab reports (25 %) and mini-projects graded on the report (25 %), the source code (25 %) and the oral defence (25 %); the Université Paris-Saclay course detail describes it as non-integral continuous assessment. No written exam is announced. The subjects below are sized as mini-projects with a report, code and a defence; the written exam is only a self-assessment proposal.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: the shapelet transform (Hills and coauthors, 2014).** Question: when the class is defined by a short pattern at a random position, does the shapelet transform beat 1-NN DTW?
+    -   Implement the candidate search with an $F$-statistic quality, the removal of self-similar candidates, the transform and a linear classifier.
+    -   Compare with 1-NN DTW on Cylinder–Bell–Funnel and on the random-position data set of ch. 3, varying noise level and series length.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 3 and 7.
+    -   Success: test accuracies of both methods reported as mean and standard deviation over 10 random draws, for at least three training-set sizes, and the question answered by a paired test over the draws. As a sanity check, the shapelet transform must beat Euclidean 1-NN on the random-position data, as in ch. 3 (0.917 against 0.67).
+    -   Also required: the three best shapelets plotted next to the planted triangle and plateau patterns, with their correlation to them.
+
+2.  **[Solo · ≈ 20 h] Paper study: PELT (Killick, Fearnhead and Eckley, 2012).** Question: is PELT exact and linear in practice?
+    -   Implement optimal partitioning, PELT and binary segmentation for the quadratic, Gaussian and kernel costs (ch. 5).
+    -   Check that PELT and optimal partitioning return identical segmentations; plot the run time against $n$ from $10^3$ to $10^5$ on a log–log scale.
+    -   Calibrate the penalty (BIC-type against an elbow rule) and report precision and recall with a margin.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Success: identical outputs and a slope close to 1 for PELT when the number of changes grows with $n$.
+
+3.  **[Solo · ≈ 20 h] Linear or nonlinear denoising?** Question: on which signals does wavelet thresholding beat the optimal linear filter?
+    -   Implement the Wiener filter with an estimated spectrum (Theorem 6.1), Haar soft and hard thresholding with the universal threshold, and their translation-invariant version by cycle spinning (Coifman and Donoho, 1995).
+    -   Test on piecewise-constant, smooth and chirp signals at three noise levels.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 1 and 6.
+    -   Success: a table of errors whose ranking is explained by Theorem 6.1 and Propositions 6.4–6.5.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Paper study: convolutional dictionary learning (Wohlberg, 2015; Dupré la Tour and coauthors, 2018).**
+    -   Implement CSC by FISTA and by ADMM in the Fourier domain (Proposition 4.9), then alternating dictionary learning.
+    -   Apply it to synthetic multichannel signals built from rank-one atoms, then optionally to a public MEG recording such as the MNE-Python sample data set.
+    -   Split: one member writes and benchmarks the two CSC solvers, one the dictionary update and its initialisation, one the multichannel rank-one extension and the evaluation.
+    -   Deliverables: code, a 6–8 page report, a 15-minute group talk. Chapters 0 and 4. Success: atoms recovered with correlation above 0.9 and activation F1 above 0.9 at a signal-to-noise ratio of 10 dB.
+
+2.  **[Group of 2–3 · ≈ 30 h each] An honest anomaly-detection benchmark.**
+    -   Generate series with labelled point, contextual and collective anomalies on a seasonal AR background (ch. 5).
+    -   Implement four detectors: seasonal residuals, matrix-profile discords (ch. 3), isolation forest on windows and CUSUM.
+    -   Evaluate with point-wise, point-adjusted and event-level metrics, and reproduce the inflation reported by Kim and coauthors (2022).
+    -   Split: data generator and metrics; detectors; analysis and report. Deliverables: code, a 6–8 page report, a 15-minute talk. Success: a random detector scores near 0 with the event-level metric, and a table ranks the detectors by anomaly type.
+
+3.  **[Group of 3 · ≈ 30 h each] Imputing a sensor network with a learned graph.**
+    -   Start from synthetic Gaussian Markov random fields on random geometric graphs (ch. 8), then use a public multi-sensor data set, for instance the METR-LA traffic data released with DCRNN (Li and coauthors, 2018).
+    -   Learn the graph (graphical lasso, smoothness-based learning), then impute with graph Tikhonov, a time–vertex regulariser, low-rank soft-impute and per-channel Kalman smoothing (ch. 2, 6, 8).
+    -   Compare random and block missingness. Split: graph learning; imputation methods; missingness scenarios and evaluation.
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Success: at least 20 % lower error than per-channel linear interpolation under block missingness.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four exercises.
+
+1.  **Question (4 points).** Define weak stationarity and the spectral density of a stationary process. State the relation between the spectral density and the autocovariance. Explain why the raw periodogram is not a consistent estimator of the spectral density, and how Welch's method helps. *Expected*: Definition 1.3 and Theorem 1.7; the periodogram of a Gaussian white noise follows a scaled $\chi^2_2$ law whose variance does not decrease with $n$ (Proposition 1.9); averaging $K$ segments divides the variance by about $K$ and coarsens the frequency resolution by the same factor.
+
+2.  **Question (5 points).** A stationary series has $\gamma(0) = 2$, $\rho(1) = 0.6$ and $\rho(2) = 0.2$. Fit an AR(2) by the Yule–Walker equations, give the noise variance and check causality. Forecast the next two values from $x_t = 1$ and $x_{t-1} = 0.5$, with their error variances.
+
+    *Expected*: $\phi_1 = 0.75$, $\phi_2 = -0.25$ and $\sigma^2 = 2(1 - 0.45 + 0.05) = 1.2$. The roots of $1 - 0.75z + 0.25z^2$ are complex with modulus 2, so the model is causal.
+
+    The forecasts are 0.625 and $0.75 \times 0.625 - 0.25 = 0.219$, with error variances 1.2 and $1.2(1 + 0.75^2) = 1.875$.
+
+3.  **Question (5 points).** Let $y = (1.0, 1.2, 0.8, 3.1, 2.9, 3.0, 3.2)$ with noise level $\sigma = 0.2$. Using Proposition 5.3, find the best single change point, decide whether to keep it with the penalty $\beta = 2\sigma^2\log n$, and decide whether a second change point should be added.
+
+    *Expected*: the gains for $\tau = 1, \dots, 6$ are 1.60, 3.21, 7.20, 3.90, 2.41 and 1.23, so $\tau = 3$; with $\beta \approx 0.156$ it is kept.
+
+    Inside the two segments, the best gains are 0.06 and 0.03, both below $\beta$. There is one change point, between the segment means 1.0 and 3.05.
+
+4.  **Question (6 points).** (a) Prove that for an orthonormal matrix $W$, the minimiser of $\frac12\|y - x\|^2 + \lambda\|Wx\|_1$ is $W^\top S_\lambda(Wy)$, including the computation of the scalar proximal operator (3 points).
+
+    (b) Using $\mathbb{P}(|Z| > u) \le \sqrt{2/\pi}\, e^{-u^2/2}/u$ for a standard Gaussian $Z$, prove that the largest absolute value of $n$ i.i.d. $\mathcal{N}(0, \sigma^2)$ variables exceeds $\sigma\sqrt{2\log n}$ with probability at most $1/\sqrt{\pi\log n}$ (3 points).
+
+    *Expected*: (a) the change of variables $\theta = Wx$ and the case analysis of Proposition 4.5, as in Theorem 6.3; (b) the union bound and $e^{-\log n} = 1/n$, as in Proposition 6.4.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+The weights are those of the official assessment; the descriptions are a proposal.
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Lab reports (labs 1–3) | 25 % | Every lab question answered; figures with labelled axes; observations interpreted with the results of the chapter; evaluation that respects time (rolling origin, selection inside the cross-validation) |
+| Mini-project report | 25 % | A precise question; the method or paper restated correctly, with its main result and, when possible, its proof; experiments that actually test the claim; limits and failure cases discussed, in 4–6 pages (6–8 for a group) |
+| Source code | 25 % | Runs in a clean environment with one command; fixed seeds; tests on synthetic data with a known answer; baselines included; readable structure |
+| Oral defence | 25 % | A clear statement of the problem, the key idea and the evidence in the allotted time; answers to questions that show understanding beyond the slides; in a group, each member can explain every part |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   Wohlberg, B. (2015). Efficient algorithms for convolutional sparse representations. *IEEE Transactions on Image Processing*, 25(1), 301–315 (journal issue of January 2016).
+-   Hills, J., Lines, J., Baranauskas, E., Mapp, J., & Bagnall, A. (2014). Classification of time series by shapelet transformation. *Data Mining and Knowledge Discovery*, 28(4), 851–881.
+-   Bisgaard, S., & Kulahci, M. (2011). *Time Series Analysis and Forecasting by Example*. John Wiley & Sons.
+-   Tošić, I., & Frossard, P. (2011). Dictionary learning. *IEEE Signal Processing Magazine*, 28(2), 27–38.
+-   Truong, C., Oudre, L., & Vayatis, N. (2020). Selective review of offline change point detection methods. *Signal Processing*, 167, 107299.
+-   Chandola, V., Banerjee, A., & Kumar, V. (2009). Anomaly detection: A survey. *ACM Computing Surveys*, 41(3), 1–58.
+-   Li, J., Cheng, K., Wang, S., Morstatter, F., Trevino, R. P., Tang, J., & Liu, H. (2018). Feature selection: A data perspective. *ACM Computing Surveys*, 50(6), 94.
+-   Ortega, A., Frossard, P., Kovačević, J., Moura, J. M. F., & Vandergheynst, P. (2018). Graph signal processing: Overview, challenges, and applications. *Proceedings of the IEEE*, 106(5), 808–828.
+
+### Textbooks
+
+-   Brockwell, P. J., & Davis, R. A. (1991). *Time Series: Theory and Methods* (2nd ed.). Springer.
+-   Box, G. E. P., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015). *Time Series Analysis: Forecasting and Control* (5th ed.). Wiley.
+-   Hyndman, R. J., & Athanasopoulos, G. (2021). *Forecasting: Principles and Practice* (3rd ed.). OTexts.
+-   Durbin, J., & Koopman, S. J. (2012). *Time Series Analysis by State Space Methods* (2nd ed.). Oxford University Press.
+-   Mallat, S. (2009). *A Wavelet Tour of Signal Processing: The Sparse Way* (3rd ed.). Academic Press.
+-   Elad, M. (2010). *Sparse and Redundant Representations: From Theory to Applications in Signal and Image Processing*. Springer.
+-   Little, R. J. A., & Rubin, D. B. (2019). *Statistical Analysis with Missing Data* (3rd ed.). Wiley.
+
+### Representations, models and forecasting (ch. 1–2)
+
+-   Welch, P. D. (1967). The use of fast Fourier transform for the estimation of power spectra: a method based on time averaging over short, modified periodograms. *IEEE Transactions on Audio and Electroacoustics*, 15(2), 70–73.
+-   Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. (1990). STL: A seasonal-trend decomposition procedure based on loess. *Journal of Official Statistics*, 6(1), 3–73.
+-   Kalman, R. E. (1960). A new approach to linear filtering and prediction problems. *Journal of Basic Engineering*, 82(1), 35–45.
+-   Rauch, H. E., Tung, F., & Striebel, C. T. (1965). Maximum likelihood estimates of linear dynamic systems. *AIAA Journal*, 3(8), 1445–1450.
+-   Hyndman, R. J., & Koehler, A. B. (2006). Another look at measures of forecast accuracy. *International Journal of Forecasting*, 22(4), 679–688.
+-   Bergmeir, C., Hyndman, R. J., & Koo, B. (2018). A note on the validity of cross-validation for evaluating autoregressive time series prediction. *Computational Statistics & Data Analysis*, 120, 70–83.
+
+### Patterns and classification (ch. 3)
+
+-   Sakoe, H., & Chiba, S. (1978). Dynamic programming algorithm optimization for spoken word recognition. *IEEE Transactions on Acoustics, Speech, and Signal Processing*, 26(1), 43–49.
+-   Keogh, E., & Ratanamahatana, C. A. (2005). Exact indexing of dynamic time warping. *Knowledge and Information Systems*, 7(3), 358–386.
+-   Rakthanmanon, T., Campana, B., Mueen, A., Batista, G., Westover, B., Zhu, Q., Zakaria, J., & Keogh, E. (2012). Searching and mining trillions of time series subsequences under dynamic time warping. *Proceedings of ACM SIGKDD*, 262–270.
+-   Petitjean, F., Ketterlin, A., & Gançarski, P. (2011). A global averaging method for dynamic time warping, with applications to clustering. *Pattern Recognition*, 44(3), 678–693.
+-   Cuturi, M., & Blondel, M. (2017). Soft-DTW: a differentiable loss function for time-series. *Proceedings of ICML*, PMLR 70, 894–903.
+-   Cover, T., & Hart, P. (1967). Nearest neighbor pattern classification. *IEEE Transactions on Information Theory*, 13(1), 21–27.
+-   Saito, N. (1994). *Local Feature Extraction and Its Applications Using a Library of Bases*. PhD thesis, Yale University.
+-   Bagnall, A., Lines, J., Bostrom, A., Large, J., & Keogh, E. (2017). The great time series classification bake off: a review and experimental evaluation of recent algorithmic advances. *Data Mining and Knowledge Discovery*, 31(3), 606–660.
+-   Bagnall, A., Dau, H. A., Lines, J., Flynn, M., Large, J., Bostrom, A., Southam, P., & Keogh, E. (2018). The UEA multivariate time series classification archive, 2018. arXiv:1811.00075.
+-   Dau, H. A., Bagnall, A., Kamgar, K., Yeh, C.-C. M., Zhu, Y., Gharghabi, S., Ratanamahatana, C. A., & Keogh, E. (2019). The UCR time series archive. *IEEE/CAA Journal of Automatica Sinica*, 6(6), 1293–1305.
+-   Yeh, C.-C. M., Zhu, Y., Ulanova, L., Begum, N., Ding, Y., Dau, H. A., Silva, D. F., Mueen, A., & Keogh, E. (2016). Matrix Profile I: All pairs similarity joins for time series. *Proceedings of IEEE ICDM*, 1317–1322.
+-   Zhu, Y., Zimmerman, Z., Senobari, N. S., Yeh, C.-C. M., Funning, G., Mueen, A., Brisk, P., & Keogh, E. (2016). Matrix Profile II: Exploiting a novel algorithm and GPUs to break the one hundred million barrier for time series motifs and joins. *Proceedings of IEEE ICDM*, 739–748.
+-   Ye, L., & Keogh, E. (2009). Time series shapelets: a new primitive for data mining. *Proceedings of ACM SIGKDD*, 947–956.
+-   Grabocka, J., Schilling, N., Wistuba, M., & Schmidt-Thieme, L. (2014). Learning time-series shapelets. *Proceedings of ACM SIGKDD*, 392–401.
+
+### Sparse representations (ch. 4)
+
+-   Natarajan, B. K. (1995). Sparse approximate solutions to linear systems. *SIAM Journal on Computing*, 24(2), 227–234.
+-   Pati, Y. C., Rezaiifar, R., & Krishnaprasad, P. S. (1993). Orthogonal matching pursuit: recursive function approximation with applications to wavelet decomposition. *Proceedings of the 27th Asilomar Conference on Signals, Systems and Computers*, 40–44.
+-   Donoho, D. L., & Elad, M. (2003). Optimally sparse representation in general (nonorthogonal) dictionaries via ℓ1 minimization. *Proceedings of the National Academy of Sciences*, 100(5), 2197–2202.
+-   Tropp, J. A. (2004). Greed is good: algorithmic results for sparse approximation. *IEEE Transactions on Information Theory*, 50(10), 2231–2242.
+-   Beck, A., & Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm for linear inverse problems. *SIAM Journal on Imaging Sciences*, 2(1), 183–202.
+-   Engan, K., Aase, S. O., & Husøy, J. H. (1999). Method of optimal directions for frame design. *Proceedings of IEEE ICASSP*, 2443–2446.
+-   Aharon, M., Elad, M., & Bruckstein, A. (2006). K-SVD: An algorithm for designing overcomplete dictionaries for sparse representation. *IEEE Transactions on Signal Processing*, 54(11), 4311–4322.
+-   Mairal, J., Bach, F., Ponce, J., & Sapiro, G. (2010). Online learning for matrix factorization and sparse coding. *Journal of Machine Learning Research*, 11, 19–60.
+-   Dupré la Tour, T., Moreau, T., Jas, M., & Gramfort, A. (2018). Multivariate convolutional sparse coding for electromagnetic brain signals. *Advances in Neural Information Processing Systems* 31.
+
+### Changes and anomalies (ch. 5)
+
+-   Jackson, B., Scargle, J. D., Barnes, D., Arabhi, S., Alt, A., Gioumousis, P., Gwin, E., Sangtrakulcharoen, P., Tan, L., & Tsai, T. T. (2005). An algorithm for optimal partitioning of data on an interval. *IEEE Signal Processing Letters*, 12(2), 105–108.
+-   Killick, R., Fearnhead, P., & Eckley, I. A. (2012). Optimal detection of changepoints with a linear computational cost. *Journal of the American Statistical Association*, 107(500), 1590–1598.
+-   Fryzlewicz, P. (2014). Wild binary segmentation for multiple change-point detection. *The Annals of Statistics*, 42(6), 2243–2281.
+-   Harchaoui, Z., & Cappé, O. (2007). Retrospective multiple change-point estimation with kernels. *Proceedings of the IEEE/SP Workshop on Statistical Signal Processing*, 768–772.
+-   Arlot, S., Celisse, A., & Harchaoui, Z. (2019). A kernel multiple change-point algorithm via model selection. *Journal of Machine Learning Research*, 20(162), 1–56.
+-   Page, E. S. (1954). Continuous inspection schemes. *Biometrika*, 41(1/2), 100–115.
+-   Lorden, G. (1971). Procedures for reacting to a change in distribution. *The Annals of Mathematical Statistics*, 42(6), 1897–1908.
+-   Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. *Proceedings of IEEE ICDM*, 413–422.
+-   Kim, S., Choi, K., Choi, H.-S., Lee, B., & Yoon, S. (2022). Towards a rigorous evaluation of time-series anomaly detection. *Proceedings of the AAAI Conference on Artificial Intelligence*, 36.
+-   Wu, R., & Keogh, E. J. (2023). Current time series anomaly detection benchmarks are flawed and are creating the illusion of progress. *IEEE Transactions on Knowledge and Data Engineering*, 35(3), 2421–2429.
+
+### Repairing data (ch. 6)
+
+-   Rubin, D. B. (1976). Inference and missing data. *Biometrika*, 63(3), 581–592.
+-   Donoho, D. L., & Johnstone, I. M. (1994). Ideal spatial adaptation by wavelet shrinkage. *Biometrika*, 81(3), 425–455.
+-   Coifman, R. R., & Donoho, D. L. (1995). Translation-invariant de-noising. In *Wavelets and Statistics*, Lecture Notes in Statistics 103, Springer, 125–150.
+-   Rudin, L. I., Osher, S., & Fatemi, E. (1992). Nonlinear total variation based noise removal algorithms. *Physica D*, 60(1–4), 259–268.
+-   Condat, L. (2013). A direct algorithm for 1-D total variation denoising. *IEEE Signal Processing Letters*, 20(11), 1054–1057.
+-   Cai, J.-F., Candès, E. J., & Shen, Z. (2010). A singular value thresholding algorithm for matrix completion. *SIAM Journal on Optimization*, 20(4), 1956–1982.
+-   Mazumder, R., Hastie, T., & Tibshirani, R. (2010). Spectral regularization algorithms for learning large incomplete matrices. *Journal of Machine Learning Research*, 11, 2287–2322.
+-   Candès, E. J., & Recht, B. (2009). Exact matrix completion via convex optimization. *Foundations of Computational Mathematics*, 9(6), 717–772.
+
+### Features (ch. 7)
+
+-   Fulcher, B. D., & Jones, N. S. (2014). Highly comparative feature-based time-series classification. *IEEE Transactions on Knowledge and Data Engineering*, 26(12), 3026–3037.
+-   Lubba, C. H., Sethi, S. S., Knaute, P., Schultz, S. R., Fulcher, B. D., & Jones, N. S. (2019). catch22: CAnonical Time-series CHaracteristics. *Data Mining and Knowledge Discovery*, 33(6), 1821–1852.
+-   Christ, M., Braun, N., Neuffer, J., & Kempa-Liehr, A. W. (2018). Time series feature extraction on basis of scalable hypothesis tests (tsfresh — A Python package). *Neurocomputing*, 307, 72–77.
+-   Dempster, A., Petitjean, F., & Webb, G. I. (2020). ROCKET: exceptionally fast and accurate time series classification using random convolutional kernels. *Data Mining and Knowledge Discovery*, 34(5), 1454–1495.
+-   Tibshirani, R. (1996). Regression shrinkage and selection via the lasso. *Journal of the Royal Statistical Society: Series B*, 58(1), 267–288.
+-   Kraskov, A., Stögbauer, H., & Grassberger, P. (2004). Estimating mutual information. *Physical Review E*, 69(6), 066138.
+-   Peng, H., Long, F., & Ding, C. (2005). Feature selection based on mutual information: criteria of max-dependency, max-relevance, and min-redundancy. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 27(8), 1226–1238.
+-   Meinshausen, N., & Bühlmann, P. (2010). Stability selection. *Journal of the Royal Statistical Society: Series B*, 72(4), 417–473.
+-   Ambroise, C., & McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray gene-expression data. *Proceedings of the National Academy of Sciences*, 99(10), 6562–6566.
+
+### Graphs (ch. 8)
+
+-   Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. *Econometrica*, 37(3), 424–438.
+-   Shuman, D. I., Narang, S. K., Frossard, P., Ortega, A., & Vandergheynst, P. (2013). The emerging field of signal processing on graphs. *IEEE Signal Processing Magazine*, 30(3), 83–98.
+-   Friedman, J., Hastie, T., & Tibshirani, R. (2008). Sparse inverse covariance estimation with the graphical lasso. *Biostatistics*, 9(3), 432–441.
+-   Kalofolias, V. (2016). How to learn a graph from smooth signals. *Proceedings of AISTATS*, PMLR 51, 920–929.
+-   Dong, X., Thanou, D., Frossard, P., & Vandergheynst, P. (2016). Learning Laplacian matrix in smooth graph signal representations. *IEEE Transactions on Signal Processing*, 64(23), 6160–6173.
+-   Grassi, F., Loukas, A., Perraudin, N., & Ricaud, B. (2018). A time-vertex signal processing framework: scalable processing and meaningful representations for time-series on graphs. *IEEE Transactions on Signal Processing*, 66(3), 817–829.
+
+### Neural networks and research directions (ch. 9–10)
+
+-   van den Oord, A., Dieleman, S., Zen, H., Simonyan, K., Vinyals, O., Graves, A., Kalchbrenner, N., Senior, A., & Kavukcuoglu, K. (2016). WaveNet: A generative model for raw audio. arXiv:1609.03499.
+-   Hochreiter, S., & Schmidhuber, J. (1997). Long short-term memory. *Neural Computation*, 9(8), 1735–1780.
+-   Salinas, D., Flunkert, V., Gasthaus, J., & Januschowski, T. (2020). DeepAR: Probabilistic forecasting with autoregressive recurrent networks. *International Journal of Forecasting*, 36(3), 1181–1191.
+-   Oreshkin, B. N., Carpov, D., Chapados, N., & Bengio, Y. (2020). N-BEATS: Neural basis expansion analysis for interpretable time series forecasting. *International Conference on Learning Representations*.
+-   Ismail Fawaz, H., Lucas, B., Forestier, G., Pelletier, C., Schmidt, D. F., Weber, J., Webb, G. I., Idoumghar, L., Muller, P.-A., & Petitjean, F. (2020). InceptionTime: Finding AlexNet for time series classification. *Data Mining and Knowledge Discovery*, 34(6), 1936–1962.
+-   Nie, Y., Nguyen, N. H., Sinthong, P., & Kalagnanam, J. (2023). A time series is worth 64 words: Long-term forecasting with Transformers. *International Conference on Learning Representations*.
+-   Zeng, A., Chen, M., Zhang, L., & Xu, Q. (2023). Are Transformers effective for time series forecasting? *Proceedings of the AAAI Conference on Artificial Intelligence*, 37.
+-   Ansari, A. F., Stella, L., Turkmen, C., Zhang, X., Mercado, P., Shen, H., Shchur, O., Rangapuram, S. S., Pineda Arango, S., Kapoor, S., Zschiegner, J., Maddix, D. C., Mahoney, M. W., Torkkola, K., Wilson, A. G., Bohlke-Schneider, M., & Wang, Y. (2024). Chronos: Learning the language of time series. *Transactions on Machine Learning Research*.
+-   Das, A., Kong, W., Sen, R., & Zhou, Y. (2024). A decoder-only foundation model for time-series forecasting. *Proceedings of ICML*, PMLR 235.
+-   Demšar, J. (2006). Statistical comparisons of classifiers over multiple data sets. *Journal of Machine Learning Research*, 7, 1–30.
+-   Che, Z., Purushotham, S., Cho, K., Sontag, D., & Liu, Y. (2018). Recurrent neural networks for multivariate time series with missing values. *Scientific Reports*, 8, 6085.
+-   Rubanova, Y., Chen, R. T. Q., & Duvenaud, D. (2019). Latent ordinary differential equations for irregularly-sampled time series. *Advances in Neural Information Processing Systems* 32.
+-   Tashiro, Y., Song, J., Song, Y., & Ermon, S. (2021). CSDI: Conditional score-based diffusion models for probabilistic time series imputation. *Advances in Neural Information Processing Systems* 34.
+-   Jas, M., Dupré la Tour, T., Şimşekli, U., & Gramfort, A. (2017). Learning the morphology of brain signals using alpha-stable convolutional sparse coding. *Advances in Neural Information Processing Systems* 30.
+-   Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). Diffusion convolutional recurrent neural network: Data-driven traffic forecasting. *International Conference on Learning Representations*.
+-   Wu, Z., Pan, S., Long, G., Jiang, J., & Zhang, C. (2019). Graph WaveNet for deep spatial-temporal graph modeling. *Proceedings of IJCAI*, 1907–1913.

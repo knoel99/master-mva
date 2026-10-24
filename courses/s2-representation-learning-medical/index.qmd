@@ -1,0 +1,2358 @@
+---
+title: "Representation Learning for Computer Vision and Medical Imaging"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: losses, convolutional encoders and information](#ch0)
+-   [1. Representation learning](#ch1)
+-   [2. Transfer learning](#ch2)
+-   [3. Domain adaptation](#ch3)
+-   [4. Multi-task learning](#ch4)
+-   [5. Knowledge distillation](#ch5)
+-   [6. Attention and transformers](#ch6)
+-   [7. Self-supervised learning and foundation models](#ch7)
+-   [8. Disentangled representations with generative models](#ch8)
+-   [9. Uncertainty, interpretability and explainability](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Representation Learning for Computer Vision and Medical Imaging
+  Official title       Representation Learning for Computer Vision and Medical Imaging
+  Instructors          P.GORI, L. LE FOLGOC (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 24 h (lectures 12 h, tutorials 12 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label}[Track Santé]{.badge .track} · domains on master-mva.com: Computer Vision, Deep Learning, Machine Learning
+  Language             Not displayed (the course description on master-mva.com is written in English)
+  Assessment           Practical session reports (50 %) and a written or oral exam, depending on the number of students (50 %) (master-mva.com); “partial continuous assessment” (Université Paris-Saclay)
+  Prerequisites        At least one basic course in statistics, probability, differential calculus, optimisation and linear algebra; good knowledge of statistical learning; at least one introductory course on deep learning; at least one basic programming course (Python and PyTorch); basic concepts of image processing and computer vision; knowledge of medical imaging is not necessary (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics, computer science or physics who has trained a neural network once, and wants to understand what the network has learned to represent, and how to reuse, adapt, compress and trust that representation when labelled images are scarce.
+
+**Empirical first**: a pneumonia detector trained on chest radiographs from two hospital systems loses accuracy on radiographs from a third one, and the same kind of network can tell from the image alone which hospital took it (Zech et al., 2018). On a small medical data set, a network first trained on millions of everyday photographs often beats the same network trained from scratch (Tajbakhsh et al., 2016).
+
+Both facts are about representations: what an encoder keeps from an image, what it should discard, and how far it carries over to new images and new tasks. The course studies how deep networks learn representations, and how to transfer, adapt, share, distil, pretrain without labels, disentangle and explain them, with computer vision and medical imaging as running applications.
+
+It builds on [Deep Learning](../s1-deep-learning/index.html) and [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html), and runs alongside [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html) and [Multimodal Explainable AI](../s2-multimodal-xai/index.html).
+
+### What you will be able to do
+
+-   State what makes a representation good (sufficiency, invariance, disentanglement), and measure it with linear probes and representation similarity.
+-   Transfer a pretrained encoder to a new medical task by linear probing, fine-tuning or low-rank adaptation, and explain why fine-tuning can distort features.
+-   Diagnose covariate, label and concept shift between hospitals or scanners, and correct it by importance weighting, feature alignment or test-time adaptation.
+-   Train several tasks on a shared encoder, weight their losses, and resolve conflicting gradients.
+-   Compress a large model into a small one by knowledge distillation, and derive the temperature scaling of the distillation loss.
+-   Implement multi-head self-attention, prove its permutation equivariance, and size a vision transformer for 2D and 3D images.
+-   Pretrain an encoder without labels with contrastive, non-contrastive and masked-image objectives, and relate the InfoNCE loss to mutual information.
+-   Decompose the variational objective into information and total-correlation terms, and explain why unsupervised disentanglement is not identifiable without inductive biases.
+-   Separate aleatoric from epistemic uncertainty, calibrate a classifier, and build prediction sets with a coverage guarantee.
+-   Compute and criticise saliency, integrated-gradient, Grad-CAM and concept-based explanations.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from the observation that good and expressive data representations can improve the accuracy of machine learning problems and ease interpretability and transfer. For computer vision and medical imaging, handcrafting good representations (feature engineering) was traditionally hard.
+
+Deep learning changed this paradigm by discovering discriminative, relevant and well-organised representations (mappings) automatically from data: this is representation learning. The stated objective is an introduction to representation learning in computer vision and medical imaging applications. The course is organised as 8 lectures, each split into 1.5 h of theory and 1.5 h of practical session, plus one exam session; it is open to external auditors, without grade, assessment or certificate.
+
+| Official topic | Course section |
+|---|---|
+| Representation Learning | [ch. 1](#ch1): handcrafted and learned features, the priors of a good representation, PCA as the optimal linear encoder, invariance and equivariance, sufficiency and the information bottleneck, linear probes and CKA; tools in [ch. 0](#ch0); session 1 |
+| Transfer Learning | [ch. 2](#ch2): domains and tasks, feature extraction and fine-tuning, transfer from natural to medical images, 2D-to-3D inflation, feature distortion and LP-FT, low-rank adaptation; session 2 |
+| Domain Adaptation | [ch. 3](#ch3): covariate, label and concept shift, importance weighting, the Ben-David bound, DANN, MMD and CORAL, the limits of invariance, test-time adaptation and harmonisation; session 3 |
+| Multi-task Learning | [ch. 4](#ch4): hard and soft parameter sharing, shared low-rank structure, uncertainty weighting, PCGrad and MGDA; session 4 |
+| Knowledge Distillation | [ch. 5](#ch5): soft targets and temperature, the logit-matching limit, label smoothing, feature and relational distillation, privileged information; session 4 |
+| Self-Supervised Learning and Foundation models | [ch. 7](#ch7): pretext tasks, InfoNCE and its mutual-information bound, SimCLR and MoCo, collapse and non-contrastive methods, DINO, masked autoencoders, CLIP, medical foundation models; session 6 |
+| Attention and Transformers | [ch. 6](#ch6): scaled dot-product and multi-head attention, the transformer block, permutation equivariance, positional encodings, ViT, Swin, TransUNet and UNETR, attention-based multiple-instance learning; session 5 |
+| Disentangled Representations using Generative Models | [ch. 8](#ch8): VAEs and the ELBO, β-VAE, total correlation, MIG, the impossibility result, identifiability, contrastive analysis, InfoGAN; session 7 |
+| Uncertainty, Interpretability and Explainability in Neural Networks | [ch. 9](#ch9): aleatoric and epistemic uncertainty, MC dropout and ensembles, calibration, conformal prediction, saliency, integrated gradients, Grad-CAM, sanity checks, concept-based explanations; session 8 |
+| “Plus de détails” (end of the list of themes) | not covered — a link to the course website, not a topic |
+| “Les intervenants” (end of the list of themes) | not covered — a link to the instructors' pages, not a topic |
+| Organisation: 8 lectures of 1.5 h theory and 1.5 h practical session | [session plan](#sessions): each session pairs a theory half with a lab half built on the code blocks of its chapter |
+| Organisation: 1 exam session | outside the 24 h; an exam proposal is in [Projects and assessment](#projects-exam) |
+| Objective: representations that improve accuracy and ease interpretability and transfer | ch. 1.4 (measuring a representation), ch. 2 (transfer), ch. 9 (interpretability) |
+| Objective: from handcrafted features to automatically discovered, discriminative and well-organised representations | ch. 1.1 (feature engineering, radiomics), ch. 1.2–1.3, ch. 7 (learning without labels), ch. 8 (well-organised latent factors) |
+| Assessment: practical session reports (50 %), written or oral exam (50 %) | [Projects and assessment](#projects): lab-report subjects and an exam proposal |
+| Course website named on master-mva.com | [References](#refs) |
+
+Extensions beyond the syllabus: centred kernel alignment (ch. 1), low-rank adaptation (ch. 2), test-time adaptation and harmonisation (ch. 3), gradient-conflict methods (ch. 4), conformal prediction (ch. 9), and a self-study chapter on current research (ch. 10).
+
+### Where this course fits in the programme
+
+Official prerequisites (master-mva.com): basic courses in statistics, probability, differential calculus, optimisation and linear algebra; good knowledge of statistical learning; an introductory course on deep learning; basic programming in Python and PyTorch; basic image processing and computer vision. Knowledge of medical imaging is not necessary. The course page lists Pietro Gori and Loïc Le Folgoc, both of Télécom Paris (LTCI). Chapter 0 reviews what is used.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (entropy, Bayes' rule, Gaussian vectors), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, gradients, convexity), [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block).
+-   **First-semester courses that prepare it** — [Deep Learning](../s1-deep-learning/index.html), [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html), [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (variational inference), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Foundations of Large Language Models](../s1-foundations-llms/index.html) (transformers), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) (another view of domain adaptation), [Medical Image Analysis Based on Generative, Geometric and Biophysical Models](../s1-medical-image-analysis/index.html).
+-   **Related second-semester courses** — [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Multimodal Explainable AI](../s2-multimodal-xai/index.html), [Deep Learning in Practice / Advanced Deep Learning](../s2-deep-learning-in-practice/index.html), [Generative Models for Images](../s2-generative-models-images/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Responsible Machine Learning](../s2-responsible-ml/index.html), [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html) (the MMD of ch. 3), [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html) (distillation and adaptation at scale).
+-   **Throughout the year and afterwards** — the [Hospital Immersion](../year-hospital-immersion/index.html) pairs students with a physician, and the [Research Internship](../s3-research-internship/index.html) is a natural continuation for a project started here.
+
+### Course outline
+
+-   **Review: losses, convolutional encoders and information** — the softmax cross-entropy and its gradient, convolutional encoders and batch normalisation, entropy, KL divergence and mutual information.
+-   **Representation learning** — from handcrafted to learned features, PCA as the optimal linear encoder, invariance, sufficiency, and how to measure a representation.
+-   **Transfer learning** — reusing a pretrained encoder: linear probing, fine-tuning, feature distortion, low-rank adaptation.
+-   **Domain adaptation** — the same task on a shifted distribution: importance weights, a bound on the target error, invariant features and their limits.
+-   **Multi-task learning** — one encoder, several losses: sharing, weighting and conflicting gradients.
+-   **Knowledge distillation** — training a small student on the soft predictions or features of a large teacher.
+-   **Attention and transformers** — self-attention, the transformer block, vision transformers for 2D and 3D images, attention pooling.
+-   **Self-supervised learning and foundation models** — pretext tasks, contrastive and non-contrastive learning, masked autoencoders, language supervision.
+-   **Disentangled representations with generative models** — VAEs, total correlation, the impossibility theorem and what restores identifiability.
+-   **Uncertainty, interpretability and explainability** — uncertainty decomposition, calibration, conformal prediction, attribution methods and their sanity checks.
+-   **Research directions and open problems** — medical foundation models, theory of self-supervision, identifiability, robustness and trustworthy explanations (self-study).
+
+### Session plan {#sessions}
+
+**24 h in class = 8 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (12 h of lectures and 12 h of tutorials), and master-mva.com announces the matching organisation: 8 lectures of 1.5 h of theory followed by 1.5 h of practical session, plus an exam session outside these hours. The assignment of chapters to sessions is a proposal.
+
+It follows the official list of topics with one change: attention and transformers (session 5) come before self-supervised learning and foundation models (session 6), because the self-supervised methods of ch. 7 (DINO, masked autoencoders, CLIP) use transformer encoders.
+
+Level 1 = foundations (reviews, definitions, first worked examples), 2 = core methods with their proofs, 3 = advanced material close to current research; the level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: cross-entropy, convolutional encoders, information; ch. 1 Representation learning: priors, PCA, invariance, sufficiency, probes and CKA | Ex. 1, 2; lab: code of ch. 1 |
+| 2 | 3 h | 1 | ch. 2 Transfer learning: domains and tasks, linear probing and fine-tuning, inflation to 3D, feature distortion, LoRA | Ex. 3, 7; lab: code of ch. 2 |
+| 3 | 3 h | 2 | ch. 3 Domain adaptation: shifts, importance weighting, Ben-David bound, DANN, MMD, CORAL, limits of invariance, test-time adaptation | Ex. 4, 8; lab: code of ch. 3 |
+| 4 | 3 h | 2 | ch. 4 Multi-task learning: sharing, uncertainty weighting, PCGrad, MGDA; ch. 5 Knowledge distillation: temperature, logit matching, feature distillation | Ex. 5, 9; lab: code of ch. 4–5 |
+| 5 | 3 h | 2 | ch. 6 Attention and transformers: attention, transformer block, equivariance, ViT and Swin, medical transformers, attention-based MIL | Ex. 6, 10; lab: code of ch. 6 |
+| 6 | 3 h | 3 | ch. 7 Self-supervised learning and foundation models: pretext tasks, InfoNCE bound, collapse, DINO, MAE, CLIP, foundation models | Ex. 11; lab: SimCLR (code of ch. 7) |
+| 7 | 3 h | 3 | ch. 8 Disentangled representations: ELBO, β-VAE, total correlation, impossibility, identifiability, contrastive analysis, InfoGAN | Ex. 12, 14; lab: code of ch. 8 |
+| 8 | 3 h | 3 | ch. 9 Uncertainty, interpretability and explainability: uncertainty decomposition, calibration, conformal prediction, attributions, sanity checks | Ex. 13, 15; lab: code of ch. 9 |
+
+**Self-study, outside the 24 h** (about 5 h in total): ch. 10 Research directions and open problems (≈ 3 h, with Ex. 16) · writing up the practical-session reports from the labs (≈ 2 h).
+
+### How to study this module
+
+-   Read ch. 0 before the first session: the softmax gradient, the KL divergence and the data-processing inequality are used in every later chapter without warning.
+-   Each session has a theory half and a lab half. In the lab, run the code block of the chapter, change one parameter (number of labels, temperature, shift, mask ratio) and predict the effect before looking; keep the notes for the practical-session report.
+-   Do the exercises of the *Practice* column right after each session; the ★ ones check the session, the ★★ ones prepare the next.
+-   Keep a single mental picture: an encoder followed by heads. Transfer changes the data, domain adaptation adds a discriminator, multi-task learning adds heads, distillation adds a teacher, self-supervision invents the labels, and disentanglement adds a decoder.
+-   Environment: Python 3 with NumPy, SciPy, scikit-learn and PyTorch on CPU. Every code block uses the digits data set bundled with scikit-learn or synthetic data, and runs in well under a minute on a laptop.
+
+::: note
+[Independent notes]{.tag} These notes reconstruct the official description of the course; they are not the instructors' material. The facts of the fiche come from master-mva.com and the Université Paris-Saclay programme table.
+:::
+
+## 0. Review: losses, convolutional encoders and information {#ch0}
+
+Every chapter trains an encoder by minimising a loss, then asks what the encoder kept from the input. This chapter reviews the three tools used to answer: the softmax cross-entropy and its gradient, the convolutional encoder with batch normalisation, and the quantities of information theory.
+
+### 0.1 Softmax, cross-entropy and its gradient
+
+::: def
+[Definition 0.1 — Softmax and cross-entropy]{.tag} For logits $z \in \mathbb{R}^K$ and a temperature $T > 0$, the softmax is
+$$
+\mathrm{softmax}_T(z)_k = \frac{e^{z_k / T}}{\sum_{j=1}^K e^{z_j / T}} .
+$$
+
+The default is $T = 1$. The cross-entropy of a target distribution $p$ and a prediction $q$ is $H(p, q) = -\sum_k p_k \log q_k$. With a one-hot target $p = e_y$ it is the usual loss $-\log q_y$.
+:::
+
+:::: prop
+[Proposition 0.2 — Gradient of the softmax cross-entropy]{.tag} With $q = \mathrm{softmax}_1(z)$ and any target distribution $p$,
+$$
+\frac{\partial H(p, q)}{\partial z_k} = q_k - p_k .
+$$
+
+::: proof
+Write $\log q_k = z_k - \log \sum_j e^{z_j}$, so that $H(p, q) = -\sum_k p_k z_k + \log \sum_j e^{z_j}$, using $\sum_k p_k = 1$.
+
+The derivative of the first term is $-p_k$; the derivative of the log-sum-exp is $e^{z_k} / \sum_j e^{z_j} = q_k$. [∎]{.qed}
+:::
+::::
+
+The gradient is "prediction minus target". It returns in distillation (ch. 5), where the target is itself a softmax, and in Grad-CAM (ch. 9).
+
+### 0.2 Convolutional encoders and batch normalisation
+
+A convolutional encoder stacks convolutions, non-linearities and pooling, then averages the last feature map over space to obtain a vector $z \in \mathbb{R}^d$: the representation. A convolution commutes with translations of its input, which ch. 1.3 makes precise.
+
+::: def
+[Definition 0.3 — Batch normalisation]{.tag} For one channel with mini-batch mean $\mu_B$ and variance $\sigma_B^2$, batch normalisation outputs
+$$
+\mathrm{BN}(x) = \gamma \, \frac{x - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}} + \beta ,
+$$
+with learned $\gamma, \beta$. At test time, $\mu_B$ and $\sigma_B^2$ are replaced by running averages computed on the training data.
+:::
+
+These stored averages describe the training distribution. When a new scanner changes the intensities, they are wrong, and re-estimating them on the new images is a simple form of domain adaptation (ch. 3.5).
+
+### 0.3 Entropy, divergence and mutual information
+
+::: def
+[Definition 0.4 — Entropy, KL divergence, mutual information]{.tag} For distributions $p, q$ on the same space and a pair of random variables $(X, Y)$,
+$$
+H(p) = -\mathbb{E}_p \log p, \qquad \mathrm{KL}(p \,\|\, q) = \mathbb{E}_p \log \frac{p}{q}, \qquad I(X; Y) = \mathrm{KL}(p_{XY} \,\|\, p_X \otimes p_Y).
+$$
+
+Equivalently $I(X; Y) = H(X) - H(X \mid Y)$, and $H(p, q) = H(p) + \mathrm{KL}(p \,\|\, q)$.
+:::
+
+:::: prop
+[Proposition 0.5 — Gibbs' inequality]{.tag} For all distributions $p$ and $q$,
+$$
+\mathrm{KL}(p \,\|\, q) \geq 0 ,
+$$
+with equality if and only if $p = q$. Hence $H(p, q) \geq H(p)$ and $I(X; Y) \geq 0$.
+
+::: proof
+The logarithm is strictly concave. By Jensen's inequality,
+$$
+-\mathrm{KL}(p \,\|\, q) = \mathbb{E}_p \log \frac{q}{p} \leq \log \mathbb{E}_p \frac{q}{p} \leq \log 1 = 0 .
+$$
+
+Equality in Jensen requires $q / p$ constant on the support of $p$, hence $p = q$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 0.6 — Data-processing inequality]{.tag} If $Z$ depends on $Y$ only through $X$ (a Markov chain $Y \to X \to Z$, for instance $Z = f(X)$), then
+$$
+I(Y; Z) \leq I(Y; X) .
+$$
+
+::: proof
+Expand $I(Y; X, Z)$ by the chain rule in two orders. First, it equals $I(Y; X) + I(Y; Z \mid X) = I(Y; X)$, because $Z$ and $Y$ are independent given $X$.
+
+Second, it equals $I(Y; Z) + I(Y; X \mid Z) \geq I(Y; Z)$. [∎]{.qed}
+:::
+::::
+
+An encoder can therefore only lose information about the label: learning a representation means choosing what to lose. For a Gaussian pair with correlation $\rho$, the mutual information is $-\tfrac12 \log(1 - \rho^2)$; for $\rho = 0.9$ it equals
+$$
+I(X; Y) = -\tfrac12 \log 0.19 \approx 0.830 \text{ nats}.
+$$
+
+```python
+import math
+import torch
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+z = torch.tensor([2.0, 1.0, -1.0], requires_grad=True)   # logits
+p = torch.tensor([0.7, 0.2, 0.1])                         # target distribution
+q = torch.softmax(z, dim=0)
+loss = -(p * torch.log(q)).sum()                          # cross-entropy H(p, q)
+loss.backward()
+print("q        =", q.detach().numpy().round(4))
+print("autograd =", z.grad.numpy().round(4))
+print("q - p    =", (q - p).detach().numpy().round(4))
+
+# mutual information of a bivariate Gaussian pair with correlation rho
+for rho in (0.5, 0.9, 0.99):
+    print(f"rho = {rho}: I(X;Y) = {-0.5 * math.log(1 - rho ** 2):.3f} nats")
+```
+
+The automatic gradient equals $q - p = (0.0054, 0.0595, -0.0649)$, as Proposition 0.2 predicts.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   The gradient of the softmax cross-entropy with respect to the logits is $q - p$.
+-   Batch normalisation stores statistics of the training distribution; they become wrong under a change of scanner.
+-   KL divergence is non-negative, so cross-entropy is at least the entropy and mutual information is non-negative.
+-   A deterministic encoder cannot create information about the label: $I(Y; f(X)) \leq I(Y; X)$.
+::::
+
+## 1. Representation learning {#ch1}
+
+A representation maps raw pixels or voxels to a vector on which a simple model works well. This chapter says what "good" means, solves the linear case exactly, and gives the tools used in all later chapters to measure a representation.
+
+### 1.1 From feature engineering to learned features
+
+For decades, image analysis relied on handcrafted descriptors: SIFT and HOG for natural images, and in medical imaging the radiomic features of a segmented lesion (shape, intensity histogram, grey-level co-occurrence textures). Designing them required expertise and rarely transferred from one task to another.
+
+::: def
+[Definition 1.1 — Encoder, representation, head]{.tag} An encoder is a map $f_\theta : \mathcal{X} \to \mathbb{R}^d$; the representation of an input $x$ is $z = f_\theta(x)$. A head $g$ maps $z$ to the output of a task. Encoder and head are trained together (end to end), or the encoder is frozen and only the head is fitted.
+:::
+
+Bengio, Courville and Vincent (2013) list the priors that a good representation should reflect:
+
+-   **smoothness**: nearby inputs have nearby representations and labels;
+-   **multiple explanatory factors**: the data are generated by several factors that the representation should separate (ch. 8);
+-   **hierarchy**: abstract concepts are built from simpler ones, layer after layer;
+-   **shared factors across tasks**: what explains one task helps another (ch. 2 and 4);
+-   **manifolds and natural clustering**: the data concentrate near low-dimensional manifolds, and classes are separated regions;
+-   **simple dependencies**: in a good representation, the factors relate linearly, which is why a linear head often suffices.
+
+### 1.2 The linear case: PCA as the optimal linear encoder
+
+Take centred data $x_1, \dots, x_n \in \mathbb{R}^p$, stacked in $X \in \mathbb{R}^{n \times p}$, with empirical covariance $S = X^\top X / n$ and eigenvalues $\lambda_1 \geq \dots \geq \lambda_p$.
+
+A linear autoencoder encodes $z = W^\top x$ with $W \in \mathbb{R}^{p \times d}$ and decodes $\hat x = V z$.
+
+:::: thm
+[Theorem 1.2 — PCA is the optimal linear autoencoder (Eckart–Young)]{.tag} Over all $W, V \in \mathbb{R}^{p \times d}$,
+$$
+\min_{W, V} \sum_{i=1}^n \| x_i - V W^\top x_i \|^2 = n \sum_{k > d} \lambda_k ,
+$$
+attained when $V W^\top = U_d U_d^\top$, the orthogonal projector onto the top $d$ eigenvectors of $S$.
+
+::: proof
+The reconstruction is $X M$ with $M = W V^\top$ of rank at most $d$, so the error is $\| X - X M \|_F^2$ with $X M$ of rank at most $d$.
+
+By the Eckart–Young theorem, the best rank-$d$ approximation of $X$ in Frobenius norm is its truncated singular value decomposition. The error is the sum of the discarded squared singular values, $\sum_{k > d} \sigma_k^2 = n \sum_{k > d} \lambda_k$.
+
+The truncated SVD equals $X U_d U_d^\top$, where $U_d$ holds the top right singular vectors of $X$, that is the top eigenvectors of $S$. [∎]{.qed}
+:::
+::::
+
+Only the product $V W^\top$ is determined: $W A$ and $V A^{-\top}$ give the same reconstruction for any invertible $A$. This non-identifiability of the latent coordinates returns in ch. 8.
+
+With eigenvalues $(4, 2, 1, 0.5, 0.5)$ and $d = 2$, PCA keeps $6 / 8 = 75\,\%$ of the variance, and the error per sample is
+$$
+1 + 0.5 + 0.5 = 2 .
+$$
+
+### 1.3 Invariance, equivariance and sufficiency
+
+::: def
+[Definition 1.3 — Invariance and equivariance]{.tag} Let a group $G$ act on images (translations, rotations, intensity changes). An encoder $f$ is invariant if, for all $g \in G$,
+$$
+f(g \cdot x) = f(x),
+$$
+and equivariant if $f(g \cdot x) = \rho(g) f(x)$ for some action $\rho$ of $G$ on representations.
+:::
+
+:::: prop
+[Proposition 1.4 — Convolution is equivariant, global pooling makes it invariant]{.tag} Let $\tau_v$ be the circular translation by $v$ on a periodic grid and $w$ a kernel. Then
+$$
+w \star (\tau_v x) = \tau_v (w \star x),
+$$
+and the spatial average of $w \star x$ is invariant to $\tau_v$.
+
+::: proof
+For every position $u$,
+$$
+(w \star \tau_v x)(u) = \sum_s w(s) \, x(u - s - v) = (w \star x)(u - v) .
+$$
+
+Averaging over all positions $u$ of a periodic grid is unchanged by the re-indexing $u \mapsto u - v$. [∎]{.qed}
+:::
+::::
+
+Which invariances are desirable depends on the task. A brain MRI classifier should be invariant to small intensity rescalings between scanners, but not to left–right flips when the laterality of a lesion matters.
+
+::: def
+[Definition 1.5 — Sufficiency and the information bottleneck]{.tag} A representation $Z = f(X)$ is sufficient for $Y$ if $I(Z; Y) = I(X; Y)$. The information bottleneck (Tishby, Pereira and Bialek, 2000) seeks a representation that is as compressed as possible while staying informative:
+$$
+\min_{p(z \mid x)} \; I(X; Z) - \beta \, I(Z; Y) .
+$$
+:::
+
+By Proposition 0.6, $I(Z; Y) \leq I(X; Y)$ always. A minimal sufficient representation keeps everything about $Y$ and discards the rest, including nuisances such as the scanner, the site or the patient's position, which is the goal of domain adaptation (ch. 3).
+
+### 1.4 Measuring a representation
+
+A representation is judged by what a simple head can do with it.
+
+-   **Linear probe**: freeze $f$, fit a logistic regression on $z$, report the test accuracy.
+-   **$k$-nearest neighbours**: classify by the labels of the closest representations.
+-   **Label efficiency**: the same probes with 1, 5 or 10 labels per class.
+
+::: def
+[Definition 1.6 — Linear centred kernel alignment]{.tag} For two representations of the same $n$ inputs, centred column-wise, $Z_1 \in \mathbb{R}^{n \times d_1}$ and $Z_2 \in \mathbb{R}^{n \times d_2}$ (Kornblith et al., 2019),
+$$
+\mathrm{CKA}(Z_1, Z_2) = \frac{\| Z_2^\top Z_1 \|_F^2}{\| Z_1^\top Z_1 \|_F \, \| Z_2^\top Z_2 \|_F} \in [0, 1] .
+$$
+
+It is invariant to orthogonal transformations and isotropic scaling of each representation, but not to arbitrary invertible linear maps.
+:::
+
+CKA compares layers of two networks, or a network before and after fine-tuning (ch. 2), without matching their neurons one by one.
+
+```python
+import numpy as np
+from sklearn.datasets import load_digits
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+
+X, y = load_digits(return_X_y=True)
+X = X / 16.0
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.5, random_state=0, stratify=y)
+rng = np.random.default_rng(0)
+
+def probe(Ztr, Zte):
+    """Linear probe: logistic regression on frozen features."""
+    clf = LogisticRegression(max_iter=3000).fit(Ztr, ytr)
+    return clf.score(Zte, yte)
+
+pca = PCA(n_components=10, random_state=0).fit(Xtr)
+R = rng.standard_normal((64, 10)) / 8                  # a random linear encoder
+reps = {"raw pixels (d = 64)": (Xtr, Xte),
+        "PCA (d = 10)": (pca.transform(Xtr), pca.transform(Xte)),
+        "random projection (d = 10)": (Xtr @ R, Xte @ R)}
+for name, (a, b) in reps.items():
+    print(f"{name:27s} linear-probe accuracy {probe(a, b):.3f}")
+print("variance kept by PCA (10):", pca.explained_variance_ratio_.sum().round(3))
+
+def cka(Z1, Z2):
+    """Linear CKA between two representations of the same n inputs."""
+    Z1 = Z1 - Z1.mean(0)
+    Z2 = Z2 - Z2.mean(0)
+    num = np.linalg.norm(Z2.T @ Z1) ** 2
+    return num / (np.linalg.norm(Z1.T @ Z1) * np.linalg.norm(Z2.T @ Z2))
+
+Zp = pca.transform(Xte)
+Q, _ = np.linalg.qr(rng.standard_normal((10, 10)))     # a random rotation
+print("CKA(PCA, rotated PCA)     =", round(cka(Zp, Zp @ Q), 3))
+print("CKA(PCA, random proj.)    =", round(cka(Zp, Xte @ R), 3))
+```
+
+On the 8 × 8 digits, ten principal components keep 74 % of the variance and reach a probe accuracy of 0.918, against 0.794 for ten random projections and 0.961 for all 64 pixels. CKA is exactly 1 between PCA and a rotation of it, and 0.716 between PCA and the random projection.
+
+```python
+import torch
+import torch.nn as nn
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+conv = nn.Conv2d(1, 8, kernel_size=3, padding=1, padding_mode="circular", bias=False)
+x = torch.randn(1, 1, 16, 16)
+shift = lambda t: torch.roll(t, shifts=(3, 5), dims=(2, 3))   # a circular translation
+pool = lambda t: t.mean(dim=(2, 3))                           # global average pooling
+
+print("equivariance error :", (conv(shift(x)) - shift(conv(x))).abs().max().item())
+print("invariance error   :", (pool(conv(shift(x))) - pool(conv(x))).abs().max().item())
+print("without the shift  :", (conv(shift(x)) - conv(x)).abs().max().item())
+```
+
+The first two errors are zero up to rounding, as Proposition 1.4 states; the third shows that the feature map itself does move.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   A representation is the output of an encoder; it is judged by what a simple head can do with it.
+-   PCA is the optimal linear autoencoder, but its latent coordinates are defined only up to an invertible map.
+-   Convolutions are translation-equivariant and global pooling makes them invariant; the right invariances depend on the task.
+-   A good representation is sufficient for the label and discards nuisances; linear probes and CKA measure what it kept.
+::::
+
+## 2. Transfer learning {#ch2}
+
+Labelled medical images are scarce and expensive. Transfer learning reuses an encoder trained on a large source data set, often natural photographs, for a target task with few labels.
+
+### 2.1 Domains and tasks
+
+::: def
+[Definition 2.1 — Domain, task, transfer (Pan and Yang, 2010)]{.tag} A domain is a pair $\mathcal{D} = (\mathcal{X}, P_X)$ of an input space and a marginal distribution. A task is a pair $\mathcal{T} = (\mathcal{Y}, P_{Y \mid X})$. Transfer learning improves learning on a target $(\mathcal{D}_T, \mathcal{T}_T)$ with knowledge from a source $(\mathcal{D}_S, \mathcal{T}_S)$, where the domains or the tasks differ.
+:::
+
+When the tasks differ and some target labels exist, transfer is called inductive; this chapter treats it. When the task is the same and only the domain changes, often without target labels, it is domain adaptation (ch. 3).
+
+### 2.2 Feature extraction and fine-tuning
+
+Three strategies reuse a pretrained encoder $f_{\theta_0}$:
+
+-   **feature extraction** (linear probing): freeze $\theta_0$ and fit only a new head;
+-   **fine-tuning**: initialise at $\theta_0$ and train everything, with a smaller learning rate than from scratch;
+-   **partial fine-tuning**: freeze the first blocks and train the last ones.
+
+Yosinski et al. (2014) showed that the first layers of a convolutional network learn general features, close to oriented edge and colour detectors, while the last layers are specific to the source classes. Transferring lower layers is therefore safer than transferring upper ones.
+
+For medical images, Tajbakhsh et al. (2016) found that fine-tuning an ImageNet network was at least as good as training from scratch, and more robust to small training sets. Raghu et al. (2019) refined the picture: on large medical data sets, small networks gain little final accuracy from ImageNet pretraining, but converge faster, and the reused features concentrate in the lowest layers.
+
+Two practical details matter. A grey-level image is replicated over the three colour channels expected by the network. A 3D volume can reuse a 2D network by inflating its kernels, a construction of Carreira and Zisserman (2017).
+
+:::: prop
+[Proposition 2.2 — Inflating a 2D kernel into 3D]{.tag} Let $w$ be a $k \times k$ kernel and define the $k \times k \times k$ kernel $w_3(i, j, l) = w(i, j) / k$. If a volume is constant along depth, $x(i, j, l) = x_2(i, j)$ for all $l$, then away from the depth borders
+$$
+(w_3 \star x)(i, j, l) = (w \star x_2)(i, j) .
+$$
+
+::: proof
+Sum over the depth offset first: $\sum_{s, t, r} w(s, t) \, x_2(i - s, j - t) / k$. The term does not depend on $r$, and the $k$ values of $r$ cancel the factor $1/k$. [∎]{.qed}
+:::
+::::
+
+The inflated network thus starts by reproducing the 2D network on each slice, and fine-tuning teaches it to use depth.
+
+### 2.3 Why fine-tuning can distort features
+
+Fine-tuning starts with a pretrained encoder and a new, random head. Kumar et al. (2022) showed in a simple model that the encoder then changes only in the directions seen in the target training data.
+
+Consider a two-layer linear model $x \mapsto v^\top B x$ with $B \in \mathbb{R}^{k \times p}$ and $v \in \mathbb{R}^k$, trained by gradient descent on the squared loss over inputs $x_1, \dots, x_n$.
+
+Let $\mathcal{S}$ be the span of the inputs and $P_\perp$ the orthogonal projector onto $\mathcal{S}^\perp$.
+
+:::: prop
+[Proposition 2.3 — Fine-tuning leaves unseen directions untouched]{.tag} For every step $t$ of gradient descent,
+$$
+B_t P_\perp = B_0 P_\perp .
+$$
+
+::: proof
+With residuals $r_i = v^\top B x_i - y_i$, the gradient of $\tfrac12 \sum_i r_i^2$ with respect to $B$ is $\sum_i r_i \, v \, x_i^\top$.
+
+Each $x_i$ lies in $\mathcal{S}$, so $x_i^\top P_\perp = 0$ and the gradient times $P_\perp$ vanishes. Hence $B_{t+1} P_\perp = B_t P_\perp$, and the claim follows by induction. [∎]{.qed}
+:::
+::::
+
+On the training directions, the features move to fit a head that was random at the start. On unseen directions, typical of out-of-distribution images, they keep their pretrained values, now mismatched with the new head. Kumar et al. show that fine-tuning can then do worse than linear probing out of distribution.
+
+Their remedy is **LP-FT**: fit the head first with the encoder frozen, then fine-tune everything. Starting near a good head, the gradients on the encoder are small and the features are less distorted.
+
+### 2.4 Parameter-efficient fine-tuning
+
+Large pretrained models make full fine-tuning costly in memory and prone to overfitting on a few hundred scans. Low-rank adaptation (LoRA, Hu et al., 2022) freezes each pretrained weight matrix $W_0$, of size $d_{\text{out}} \times d_{\text{in}}$, and learns a low-rank update.
+
+::: def
+[Definition 2.4 — Low-rank adaptation]{.tag} For a rank $r$ and a scale $\alpha$, the adapted weight is
+$$
+W = W_0 + \frac{\alpha}{r} \, B A, \qquad B \in \mathbb{R}^{d_{\text{out}} \times r}, \; A \in \mathbb{R}^{r \times d_{\text{in}}},
+$$
+with $B$ initialised at zero, so that training starts from the pretrained model. It trains $r (d_{\text{in}} + d_{\text{out}})$ parameters instead of $d_{\text{in}} d_{\text{out}}$.
+:::
+
+For a $768 \times 768$ attention projection, full fine-tuning trains 589 824 parameters; LoRA with $r = 8$ trains
+$$
+8 \times (768 + 768) = 12\,288 ,
+$$
+about 2 % of them. Other light options train only the head, only the biases, or small adapter layers inserted between frozen blocks.
+
+The experiment below pretrains an encoder on digit identity, then transfers it to a new task on other images: counting the closed loops of a digit (0, 1 or 2), with only 10 labels per class.
+
+```python
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.datasets import load_digits
+torch.set_num_threads(1)
+
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32)
+y = torch.tensor(y)
+LOOPS = torch.tensor([1, 0, 0, 0, 1, 0, 1, 0, 2, 1])   # closed loops of digits 0..9
+
+def encoder():
+    return nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 32), nn.ReLU())
+
+def train(params, model, X, y, steps, lr):
+    opt = torch.optim.Adam(params, lr=lr)
+    for _ in range(steps):
+        opt.zero_grad()
+        nn.functional.cross_entropy(model(X), y).backward()
+        opt.step()
+
+def run(seed):
+    torch.manual_seed(seed)
+    perm = torch.randperm(len(X))
+    src, tgt = perm[:900], perm[900:]
+    # source task: digit identity (10 classes) on 900 labelled images
+    f = encoder()
+    train(list(f.parameters()), nn.Sequential(f, nn.Linear(32, 10)), X[src], y[src], 300, 1e-2)
+    pretrained = {k: v.clone() for k, v in f.state_dict().items()}
+    # target task: number of closed loops (3 classes) on other images, 10 labels per class
+    Xt, yt = X[tgt], LOOPS[y[tgt]]
+    rng = np.random.default_rng(seed)
+    lab = np.concatenate([rng.choice(np.where(yt.numpy() == c)[0], 10, replace=False)
+                          for c in range(3)])
+    m = np.zeros(len(yt), bool)
+    m[lab] = True
+    out = {}
+    for name in ["from scratch", "linear probe", "fine-tuning", "LP then FT"]:
+        torch.manual_seed(seed + 100)
+        enc, head = encoder(), nn.Linear(32, 3)
+        if name != "from scratch":
+            enc.load_state_dict(pretrained)
+        model = nn.Sequential(enc, head)
+        if name == "from scratch":
+            train(model.parameters(), model, Xt[m], yt[m], 200, 1e-2)
+        elif name == "linear probe":
+            train(head.parameters(), model, Xt[m], yt[m], 200, 1e-2)
+        elif name == "fine-tuning":
+            train(model.parameters(), model, Xt[m], yt[m], 200, 1e-3)
+        else:
+            train(head.parameters(), model, Xt[m], yt[m], 200, 1e-2)
+            train(model.parameters(), model, Xt[m], yt[m], 100, 1e-3)
+        out[name] = (model(Xt[~m]).argmax(1) == yt[~m]).float().mean().item()
+    return out
+
+runs = [run(s) for s in range(3)]
+for name in runs[0]:
+    accs = [r[name] for r in runs]
+    print(f"{name:13s} loop-count accuracy, 30 labels: {np.mean(accs):.3f} ± {np.std(accs):.3f}")
+```
+
+Over three seeds, training from scratch reaches 0.781, the linear probe 0.859, full fine-tuning with a random head only 0.787 with a large spread, and LP-FT 0.876. The pretrained features help; fine-tuning from a random head partly wastes them, as ch. 2.3 predicts.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   Transfer reuses an encoder: frozen with a new head, fine-tuned entirely, or fine-tuned in part; lower layers transfer best.
+-   ImageNet pretraining helps most when target data are small, and speeds up convergence even when it does not raise final accuracy.
+-   Fine-tuning moves features only along the directions of the training inputs; fitting the head first (LP-FT) limits the distortion.
+-   LoRA adapts a large model by learning low-rank updates, a few per cent of the parameters.
+::::
+
+## 3. Domain adaptation {#ch3}
+
+A model trained on images from one hospital, scanner or protocol is applied to images from another. The task is the same; the distribution is not. This chapter classifies the shifts, bounds the error on the new domain, and gives methods that align the two domains, together with their limits.
+
+### 3.1 Types of shift
+
+::: def
+[Definition 3.1 — Source, target and shifts]{.tag} The source distribution $P_S(X, Y)$ provides labelled data; the target distribution $P_T(X, Y)$ is where the model is used. The shift is called:
+
+-   **covariate shift** if $P_S(Y \mid X) = P_T(Y \mid X)$ but $P_S(X) \neq P_T(X)$;
+-   **label shift** if $P_S(X \mid Y) = P_T(X \mid Y)$ but $P_S(Y) \neq P_T(Y)$;
+-   **concept shift** if $P_S(Y \mid X) \neq P_T(Y \mid X)$.
+:::
+
+A new scanner vendor or reconstruction kernel causes an acquisition shift, close to covariate shift. Moving from a screening programme to a hospital ward changes the prevalence of the disease, a label shift. A revised diagnostic criterion is a concept shift. In unsupervised domain adaptation, the target images come without labels.
+
+### 3.2 Importance weighting
+
+:::: prop
+[Proposition 3.2 — Importance weighting under covariate shift]{.tag} Assume covariate shift and that $p_S(x) > 0$ wherever $p_T(x) > 0$. With the weight $w(x) = p_T(x) / p_S(x)$, for every predictor $h$ and loss $\ell$,
+$$
+\mathbb{E}_T \big[ \ell(h(X), Y) \big] = \mathbb{E}_S \big[ w(X) \, \ell(h(X), Y) \big] .
+$$
+
+::: proof
+Because $P(Y \mid X)$ is common to both domains, the conditional risk $\rho(x) = \mathbb{E}[\ell(h(X), Y) \mid X = x]$ is the same in both. Then
+$$
+\mathbb{E}_T[\rho(X)] = \int \rho \, p_T = \int \rho \, w \, p_S = \mathbb{E}_S[w(X) \rho(X)] . \qquad \blacksquare
+$$
+:::
+::::
+
+The densities are unknown, but their ratio can be estimated by a classifier that tells source from target.
+
+:::: prop
+[Proposition 3.3 — Weights from a domain classifier]{.tag} Pool $n_S$ source and $n_T$ target inputs and let $c(x)$ be the probability that $x$ comes from the target. Then
+$$
+w(x) = \frac{n_S}{n_T} \, \frac{c(x)}{1 - c(x)} .
+$$
+
+::: proof
+By Bayes' rule, $c(x) = n_T p_T(x) / (n_T p_T(x) + n_S p_S(x))$. Hence $c / (1 - c) = n_T p_T(x) / (n_S p_S(x))$; multiply by $n_S / n_T$. [∎]{.qed}
+:::
+::::
+
+Large weights make the reweighted risk noisy (Shimodaira, 2000). The effective sample size $(\sum_i w_i)^2 / \sum_i w_i^2$ measures the damage; when it is small, the domains barely overlap and reweighting cannot help.
+
+### 3.3 A bound on the target error
+
+For a hypothesis class $\mathcal{H}$ of binary classifiers, write $\varepsilon_D(h)$ for the error of a classifier $h$ on domain $D$, and $\varepsilon_D(h, h')$ for the probability that two classifiers disagree.
+
+The $\mathcal{H} \Delta \mathcal{H}$-divergence is twice the largest gap between disagreements across domains:
+$$
+d_{\mathcal{H} \Delta \mathcal{H}}(S, T) = 2 \sup_{h, h' \in \mathcal{H}} \big| \varepsilon_S(h, h') - \varepsilon_T(h, h') \big| .
+$$
+
+:::: thm
+[Theorem 3.4 — Ben-David et al. (2010)]{.tag} Let $h^\star \in \mathcal{H}$ minimise the joint error $\varepsilon_S + \varepsilon_T$ over the class, and let
+$$
+\lambda = \varepsilon_S(h^\star) + \varepsilon_T(h^\star) .
+$$
+
+For every $h \in \mathcal{H}$,
+$$
+\varepsilon_T(h) \leq \varepsilon_S(h) + \tfrac12 \, d_{\mathcal{H} \Delta \mathcal{H}}(S, T) + \lambda .
+$$
+
+::: proof
+Disagreement probabilities satisfy the triangle inequality, because $\{h \neq f\} \subset \{h \neq h'\} \cup \{h' \neq f\}$.
+
+Write $d$ for the divergence and chain three inequalities:
+$$
+\begin{aligned}
+\varepsilon_T(h) &\leq \varepsilon_T(h^\star) + \varepsilon_T(h, h^\star) && \text{(triangle inequality)}\\
+\varepsilon_T(h, h^\star) &\leq \varepsilon_S(h, h^\star) + \tfrac12 d && \text{(definition of } d)\\
+\varepsilon_S(h, h^\star) &\leq \varepsilon_S(h) + \varepsilon_S(h^\star) && \text{(triangle inequality)}
+\end{aligned}
+$$
+
+Adding them gives the bound, since the two remaining terms in $h^\star$ sum to $\lambda$. [∎]{.qed}
+:::
+::::
+
+The bound has three terms. The source error is controlled by supervised training. The divergence is small when no classifier of the class can tell the domains apart in feature space, which a domain classifier can test. The joint error $\lambda$ cannot be measured without target labels, and ch. 3.5 shows that it can grow when features are aligned.
+
+### 3.4 Learning invariant features: DANN, MMD and CORAL
+
+The bound suggests learning an encoder $f$ whose features have the same distribution in both domains. Domain-adversarial training (DANN, Ganin et al., 2016) adds a domain discriminator $d$ on top of $f$:
+$$
+\min_{f, g} \; \max_{d} \; \mathbb{E}_S \big[ \ell(g(f(X)), Y) \big] - \mu \, L_{\text{dom}}(d, f),
+$$
+where $L_{\text{dom}}$ is the cross-entropy of $d$ predicting the domain from $f(X)$. In practice, a gradient reversal layer, the identity in the forward pass and multiplication by $-\mu$ in the backward pass, trains all parts in one backward pass.
+
+:::: prop
+[Proposition 3.5 — What the discriminator measures]{.tag} With equal sample sizes and feature densities $p_S$ and $p_T$, the optimal discriminator is $d^\star = p_S / (p_S + p_T)$, and
+$$
+\min_d L_{\text{dom}}(d, f) = \log 2 - \mathrm{JS}(p_S, p_T) .
+$$
+
+::: proof
+By definition,
+$$
+L_{\text{dom}} = -\tfrac12 \int \big( p_S \log d + p_T \log (1 - d) \big) .
+$$
+
+For fixed $z$, the map $d \mapsto a \log d + b \log(1 - d)$ is maximal at $d = a / (a + b)$.
+
+Write $m = (p_S + p_T) / 2$, so that $d^\star = p_S / (2m)$ and $1 - d^\star = p_T / (2m)$. Substituting,
+$$
+L_{\text{dom}}(d^\star, f) = \log 2 - \tfrac12 \mathrm{KL}(p_S \,\|\, m) - \tfrac12 \mathrm{KL}(p_T \,\|\, m) ,
+$$
+and the last two terms together are the Jensen–Shannon divergence. [∎]{.qed}
+:::
+::::
+
+The encoder thus minimises the Jensen–Shannon divergence between the feature distributions, as the generator of a GAN does. Two non-adversarial alternatives align statistics directly:
+
+-   the **maximum mean discrepancy** for a kernel $k$ (Gretton et al., 2012; Long et al., 2015), with $z, z'$ independent source features and $t, t'$ independent target features,
+    $$
+    \mathrm{MMD}^2 = \mathbb{E}\,k(z, z') + \mathbb{E}\,k(t, t') - 2\,\mathbb{E}\,k(z, t) ;
+    $$
+-   **CORAL**, which matches second moments, $\| C_S - C_T \|_F^2 / (4 d^2)$ for feature covariances $C_S, C_T$ (Sun and Saenko, 2016). Its closed-form version recolours the source data with the target covariance (Sun, Feng and Saenko, 2016).
+
+### 3.5 Limits of invariance, and adaptation at test time
+
+Aligning features is not enough when the class proportions differ between domains. The following statement is a simple version of a result of Zhao et al. (2019).
+
+:::: prop
+[Proposition 3.6 — Invariance under label shift has a price]{.tag} If the encoder makes the feature distributions equal, $P_S^{f(X)} = P_T^{f(X)}$, then for every head $h$ and $\hat Y = h(f(X))$,
+$$
+\varepsilon_S + \varepsilon_T \geq d_{\mathrm{TV}}\big(P_S^Y, P_T^Y\big) .
+$$
+
+::: proof
+The prediction $\hat Y$ has the same distribution $Q$ in both domains. For any pair of variables, $P(\hat Y \neq Y) \geq d_{\mathrm{TV}}$ between their laws (coupling inequality).
+
+Hence $\varepsilon_S \geq d_{\mathrm{TV}}(Q, P_S^Y)$ and $\varepsilon_T \geq d_{\mathrm{TV}}(Q, P_T^Y)$, and the triangle inequality concludes. [∎]{.qed}
+:::
+::::
+
+With a disease prevalence of 30 % in the source hospital and 10 % in the target one, the total variation is 0.2: perfectly aligned features force the two error rates to sum to at least 0.2.
+
+When the target images arrive only at deployment, the model can still adapt at test time:
+
+-   **AdaBN** re-estimates the batch-normalisation statistics on target images (Li et al., 2018);
+-   **Tent** also updates the affine parameters of these layers to minimise the entropy of the target predictions (Wang et al., 2021);
+-   in neuroimaging, **ComBat harmonisation** removes site-specific location and scale effects from features before learning (Johnson et al., 2007; Fortin et al., 2018).
+
+The experiment below simulates a "scanner change" on the digits (lower contrast, an offset, slight blurring, noise) and applies closed-form CORAL.
+
+```python
+import numpy as np
+from scipy.linalg import sqrtm
+from sklearn.datasets import load_digits
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+
+rng = np.random.default_rng(0)
+X, y = load_digits(return_X_y=True)
+X = X / 16.0
+perm = rng.permutation(len(X))
+S, T = perm[:900], perm[900:]
+Xs, ys = X[S], y[S]
+# target "scanner": lower contrast, an offset and a little mixing of neighbouring pixels
+M = 0.5 * np.eye(64) + 0.1 * np.eye(64, k=1) + 0.1 * np.eye(64, k=-1)
+Xt, yt = X[T] @ M + 0.3 + 0.05 * rng.standard_normal((len(T), 64)), y[T]
+
+def coral(Xs, Xt, eps=1.0):
+    """Recolour the source with the target mean and covariance (Sun et al., 2016)."""
+    Cs = np.cov(Xs, rowvar=False) + eps * np.eye(Xs.shape[1])
+    Ct = np.cov(Xt, rowvar=False) + eps * np.eye(Xs.shape[1])
+    A = np.real(np.linalg.inv(sqrtm(Cs)) @ sqrtm(Ct))
+    return (Xs - Xs.mean(0)) @ A + Xt.mean(0)
+
+def domain_acc(A, B):
+    """Accuracy of a classifier telling the two domains apart (0.5 = indistinguishable)."""
+    Z = np.vstack([A, B])
+    d = np.r_[np.zeros(len(A)), np.ones(len(B))]
+    return cross_val_score(LogisticRegression(max_iter=2000), Z, d, cv=5).mean()
+
+clf = LogisticRegression(max_iter=3000).fit(Xs, ys)
+print("source only : target accuracy", round(clf.score(Xt, yt), 3),
+      "| domain classifier", round(domain_acc(Xs, Xt), 3))
+Xs2 = coral(Xs, Xt)
+clf2 = LogisticRegression(max_iter=3000).fit(Xs2, ys)
+print("CORAL       : target accuracy", round(clf2.score(Xt, yt), 3),
+      "| domain classifier", round(domain_acc(Xs2, Xt), 3))
+print("oracle (target labels):", round(cross_val_score(
+    LogisticRegression(max_iter=3000), Xt, yt, cv=5).mean(), 3))
+```
+
+Before alignment, a domain classifier separates the two domains perfectly (accuracy 1.0) and the source model reaches 0.934 on the target. After CORAL, the domain classifier is at chance level, and the target accuracy rises to 0.946, close to the 0.951 of a model trained on target labels.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   Covariate, label and concept shift call for different corrections; acquisition changes are close to covariate shift.
+-   Under covariate shift, weighting by $p_T / p_S$ makes the source risk unbiased; a domain classifier estimates the weights.
+-   Target error ≤ source error + domain divergence + joint error: alignment reduces the second term only.
+-   DANN minimises a Jensen–Shannon divergence between feature distributions; MMD and CORAL match moments.
+-   Under label shift, perfectly aligned features force errors; test-time adaptation and harmonisation are cheap alternatives.
+::::
+
+## 4. Multi-task learning {#ch4}
+
+One encoder can serve several tasks at once: segment a tumour and predict its grade, or classify a brain scan while regressing the patient's age as an auxiliary task. Sharing a representation acts as a regulariser; the price is to balance tasks whose gradients compete.
+
+### 4.1 Sharing a representation
+
+::: def
+[Definition 4.1 — Multi-task learning]{.tag} Given $T$ tasks with losses $L_1, \dots, L_T$, **hard parameter sharing** trains a common encoder with parameters $\theta_{\text{sh}}$ and one head per task with parameters $\theta_t$, minimising
+$$
+L(\theta_{\text{sh}}, \theta_1, \dots, \theta_T) = \sum_{t=1}^T w_t \, L_t(\theta_{\text{sh}}, \theta_t) .
+$$
+
+In **soft parameter sharing**, each task has its own network, and the networks are coupled by a penalty on their differences or by learned mixing of their features (cross-stitch units, Misra et al., 2016).
+:::
+
+Caruana (1997) described the auxiliary tasks as an inductive bias: features useful for several tasks are more likely to be the true explanatory factors. The gain is easiest to see when the tasks share a low-dimensional structure.
+
+Suppose $T$ linear regression tasks in dimension $p$ whose coefficient vectors lie in a common $r$-dimensional subspace, $\beta_t = U a_t$. Learning the tasks separately estimates $T p$ coefficients.
+
+Learning the subspace from all tasks, then $r$ coefficients per task, estimates $p r + T r$ numbers. With $p = 50$, $r = 3$ and $T = 20$, that is
+$$
+50 \times 3 + 20 \times 3 = 210 \quad \text{instead of} \quad 20 \times 50 = 1000 .
+$$
+
+Tasks that share nothing can also hurt each other: this negative transfer is why the weights $w_t$ and the gradients need care.
+
+### 4.2 Weighting the losses by uncertainty
+
+Hand-tuning the weights $w_t$ is costly, and the losses often have different units (a Dice loss, a squared error in years). Kendall, Gal and Cipolla (2018) derive the weights from a likelihood.
+
+:::: thm
+[Theorem 4.2 — Homoscedastic uncertainty weighting]{.tag} Model each regression output $t$ as Gaussian with a learned noise level $\sigma_t$. With $L_t$ the sum of squared errors of task $t$, the negative log-likelihood is, up to a constant,
+$$
+\mathcal{L}(\theta, \sigma) = \sum_{t=1}^T \Big( \frac{L_t(\theta)}{2 \sigma_t^2} + n \log \sigma_t \Big) .
+$$
+
+For fixed $\theta$, the minimum over $\sigma_t$ is reached at $\sigma_t^2 = L_t / n$, and then
+$$
+\mathcal{L} = \frac{n}{2} \sum_{t=1}^T \log L_t(\theta) + \text{const} .
+$$
+
+::: proof
+Each of the $n$ samples of task $t$ contributes $\| y - f_t(x) \|^2 / (2\sigma_t^2) + \log \sigma_t$ plus a constant; summing gives $\mathcal{L}$.
+
+The derivative in $\sigma_t$ is $-L_t / \sigma_t^3 + n / \sigma_t$, zero at $\sigma_t^2 = L_t / n$. Substituting gives $n/2 + (n/2) \log(L_t / n)$ for each task. [∎]{.qed}
+:::
+::::
+
+At the optimum, the gradient of $\tfrac{n}{2} \log L_t$ is $n \nabla L_t / (2 L_t)$: each task is weighted by the inverse of its current loss. Multiplying a loss by a constant no longer changes the solution. In practice one learns $s_t = \log \sigma_t^2$ for numerical stability.
+
+### 4.3 Conflicting gradients
+
+Let $g_t$ be the gradient of $L_t$ with respect to the shared parameters. Two tasks conflict when $g_1 \cdot g_2 < 0$: a step that helps one hurts the other.
+
+**PCGrad** (Yu et al., 2020) projects each gradient onto the normal plane of the other when they conflict:
+$$
+g_1' = g_1 - \frac{g_1 \cdot g_2}{\| g_2 \|^2} \, g_2, \qquad g_2' = g_2 - \frac{g_2 \cdot g_1}{\| g_1 \|^2} \, g_1, \qquad d = g_1' + g_2' .
+$$
+
+:::: prop
+[Proposition 4.3 — PCGrad gives a common non-ascent direction]{.tag} If $g_1 \cdot g_2 < 0$, the PCGrad direction satisfies
+$$
+g_1 \cdot d \geq 0 \quad \text{and} \quad g_2 \cdot d \geq 0 ,
+$$
+so a small step along $-d$ increases neither loss to first order.
+
+::: proof
+First, $g_1 \cdot g_2' = g_1 \cdot g_2 - g_1 \cdot g_2 = 0$. Second, by the Cauchy–Schwarz inequality,
+$$
+g_1 \cdot g_1' = \| g_1 \|^2 - \frac{(g_1 \cdot g_2)^2}{\| g_2 \|^2} \geq 0 .
+$$
+
+Hence $g_1 \cdot d \geq 0$; the case of $g_2$ is symmetric. [∎]{.qed}
+:::
+::::
+
+The **multiple-gradient descent algorithm** (MGDA; Désidéri, 2012; Sener and Koltun, 2018) takes instead the minimum-norm point $d$ of the convex hull of the gradients.
+
+:::: prop
+[Proposition 4.4 — The minimum-norm direction descends on every task]{.tag} If $d$ minimises $\| u \|$ over the convex hull of $g_1, \dots, g_T$, then for every $t$
+$$
+g_t \cdot d \geq \| d \|^2 .
+$$
+
+So $-d$ is a descent direction for all tasks unless $d = 0$, which defines a Pareto-stationary point.
+
+::: proof
+The hull $C$ is convex and $d$ is the projection of 0 onto it. The optimality condition of a projection reads $(u - d) \cdot d \geq 0$ for all $u \in C$. Take $u = g_t$. [∎]{.qed}
+:::
+::::
+
+For two tasks, the weight of $g_1$ in $d$ is $\alpha = \big((g_2 - g_1) \cdot g_2\big) / \| g_1 - g_2 \|^2$, clipped to $[0, 1]$.
+
+::: ex
+[Example 4.5 — Two conflicting gradients]{.tag} Take $g_1 = (1, 0)$ and $g_2 = (-0.5, 1)$, so $g_1 \cdot g_2 = -0.5$.
+
+-   PCGrad: $g_1' = (0.8, 0.4)$ and $g_2' = (0, 1)$, hence $d = (0.8, 1.4)$.
+
+    Both inner products are non-negative: $g_1 \cdot d = 0.8$ and $g_2 \cdot d = 1.0$.
+-   MGDA: $\alpha = 1.75 / 3.25 \approx 0.538$, hence $d \approx (0.308, 0.462)$, and both tasks see
+$$
+g_1 \cdot d = g_2 \cdot d = \| d \|^2 \approx 0.308 .
+$$
+:::
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+
+# T regression tasks whose coefficient vectors share an r-dimensional subspace
+p, r, T, n = 50, 3, 20, 30                   # dimension, rank, tasks, samples per task
+U = np.linalg.qr(rng.standard_normal((p, r)))[0]
+betas = U @ rng.standard_normal((r, T)) * 2  # beta_t = U a_t
+Xs = [rng.standard_normal((n, p)) for _ in range(T)]
+ys = [X @ betas[:, t] + rng.standard_normal(n) for t, X in enumerate(Xs)]
+
+def ridge(X, y, lam=1.0):
+    return np.linalg.solve(X.T @ X + lam * np.eye(X.shape[1]), X.T @ y)
+
+# single-task learning: one ridge regression per task
+B_single = np.column_stack([ridge(X, y) for X, y in zip(Xs, ys)])
+# multi-task learning: estimate the shared subspace from all tasks, then refit r coefficients
+U_hat = np.linalg.svd(B_single, full_matrices=False)[0][:, :r]
+B_multi = np.column_stack([U_hat @ ridge(X @ U_hat, y, 1e-3) for X, y in zip(Xs, ys)])
+
+err = lambda B: np.mean(np.sum((B - betas) ** 2, axis=0) / np.sum(betas ** 2, axis=0))
+print(f"relative error, single-task: {err(B_single):.3f}")
+print(f"relative error, shared r={r} : {err(B_multi):.3f}")
+print("subspace overlap ||U^T U_hat||_F^2 / r =",
+      round(np.linalg.norm(U.T @ U_hat) ** 2 / r, 3))
+
+# conflicting gradients: PCGrad and MGDA on Example 4.5
+g1, g2 = np.array([1.0, 0.0]), np.array([-0.5, 1.0])
+p1 = g1 - (g1 @ g2) / (g2 @ g2) * g2
+p2 = g2 - (g2 @ g1) / (g1 @ g1) * g1
+d_pc = p1 + p2
+a = np.clip((g2 - g1) @ g2 / ((g1 - g2) @ (g1 - g2)), 0, 1)
+d_mg = a * g1 + (1 - a) * g2
+print("PCGrad d =", d_pc, " g1.d =", g1 @ d_pc, " g2.d =", round(g2 @ d_pc, 3))
+print("MGDA alpha =", round(a, 3), " d =", d_mg.round(3),
+      " g1.d =", round(g1 @ d_mg, 3), " g2.d =", round(g2 @ d_mg, 3), " |d|^2 =", round(d_mg @ d_mg, 3))
+```
+
+With 30 samples per task in dimension 50, separate ridge regressions have a relative error of 0.661. Estimating the shared subspace from the 20 tasks and refitting three coefficients per task brings it down to 0.155.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   Hard sharing trains one encoder and several heads; it helps most when the tasks share low-dimensional structure.
+-   Learned noise levels weight each task by the inverse of its loss, which makes the objective insensitive to the units of the losses.
+-   PCGrad and MGDA turn conflicting gradients into a direction that does not increase any loss to first order.
+::::
+
+## 5. Knowledge distillation {#ch5}
+
+A large model, or an ensemble, is often too slow or too heavy for a scanner console or an ultrasound device. Knowledge distillation trains a small student to reproduce the predictions of a large teacher, using more information than the labels alone.
+
+### 5.1 Soft targets and temperature
+
+::: def
+[Definition 5.1 — Distillation loss (Hinton, Vinyals and Dean, 2015)]{.tag} Let $u$ be the teacher's logits and $z$ the student's. With a temperature $T$, write $p^T = \mathrm{softmax}_T(u)$ and $q^T = \mathrm{softmax}_T(z)$. The student minimises, for a weight $\alpha \in [0, 1]$,
+$$
+L = (1 - \alpha) \, H(e_y, q^1) + \alpha \, T^2 \, \mathrm{KL}(p^T \,\|\, q^T) .
+$$
+:::
+
+The idea of training a small model on the outputs of a large one goes back to Buciluǎ, Caruana and Niculescu-Mizil (2006). The soft targets need no labels, so the second term can use an unlabelled transfer set.
+
+A teacher with logits $(6, 3, 1)$ gives the soft targets $(0.946, 0.047, 0.006)$ at $T = 1$ and $(0.569, 0.269, 0.163)$ at $T = 4$. At high temperature, the student also sees that class 2 is more plausible than class 3: this "dark knowledge" encodes similarities between classes that a one-hot label hides.
+
+### 5.2 The role of $T^2$ and the logit-matching limit
+
+:::: prop
+[Proposition 5.2 — Gradient of the soft term]{.tag} For every class $k$,
+$$
+\frac{\partial}{\partial z_k} \mathrm{KL}(p^T \,\|\, q^T) = \frac{1}{T} \big( q^T_k - p^T_k \big) .
+$$
+
+::: proof
+$\mathrm{KL}(p^T \,\|\, q^T) = H(p^T, q^T) - H(p^T)$, and the entropy does not depend on $z$. Apply Proposition 0.2 to the logits $z / T$, and the chain rule gives the factor $1/T$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 5.3 — High temperature is logit matching]{.tag} Assume that both sets of logits have zero mean over the $K$ classes. Then, as $T \to \infty$,
+$$
+\frac{\partial}{\partial z_k} \mathrm{KL}(p^T \,\|\, q^T) = \frac{z_k - u_k}{K T^2} + O\big(T^{-3}\big) .
+$$
+
+::: proof
+Expand $e^{z_k / T} = 1 + z_k / T + O(T^{-2})$. Since $\sum_j z_j = 0$, the denominator of the softmax is $K + O(T^{-2})$, so
+$$
+q_k^T = \frac{1}{K} \Big( 1 + \frac{z_k}{T} \Big) + O(T^{-2}) .
+$$
+
+The same holds for $p_k^T$ with $u$. Hence $q_k^T - p_k^T = (z_k - u_k) / (K T) + O(T^{-2})$, and Proposition 5.2 divides by $T$. [∎]{.qed}
+:::
+::::
+
+The soft gradient shrinks like $1 / T^2$, so the factor $T^2$ in Definition 5.1 keeps its scale constant when $T$ changes. At high temperature, distillation becomes the squared-error matching of logits used by Ba and Caruana (2014).
+
+### 5.3 What the student learns
+
+Label smoothing is distillation from a uniform teacher: with smoothing $\varepsilon$ and the uniform distribution $\mathbf{u}$,
+$$
+H\big((1 - \varepsilon) e_y + \varepsilon \mathbf{u}, \, q\big) = (1 - \varepsilon) \, H(e_y, q) + \varepsilon \, H(\mathbf{u}, q) .
+$$
+
+Müller, Kornblith and Hinton (2019) showed that a teacher trained with label smoothing is a worse teacher, because smoothing erases the class similarities that distillation transmits.
+
+### 5.4 Distilling representations
+
+Matching outputs is not the only option:
+
+-   **hints** (FitNets, Romero et al., 2015): a small regressor maps an intermediate student layer to the teacher's, trained by squared error;
+-   **attention transfer** (Zagoruyko and Komodakis, 2017): match the spatial maps $\sum_c |A_c|^2$ of feature maps $A$;
+-   **relational distillation** (Park et al., 2019): match the pairwise distances between representations of a batch; contrastive distillation (Tian et al., 2020) uses the InfoNCE loss of ch. 7;
+-   **privileged information** (Lopez-Paz et al., 2016): the teacher sees an extra input at training time, such as a PET scan or the radiology report, and the student learns to do without it.
+
+Distillation reappears twice: DeiT (ch. 6) distils a convolutional teacher into a vision transformer, and DINO (ch. 7) distils a network into itself without labels.
+
+```python
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.datasets import load_digits
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32)
+y = torch.tensor(y)
+perm = torch.randperm(len(X))
+lab, unl, test = perm[:1000], perm[1000:1400], perm[1400:]
+few = lab[:50]                                    # the student sees only 50 labels
+
+def mlp(h):
+    return nn.Sequential(nn.Linear(64, h), nn.ReLU(), nn.Linear(h, 10))
+
+def fit(model, loss_fn, steps=400, lr=1e-2):
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    for _ in range(steps):
+        opt.zero_grad()
+        loss_fn(model).backward()
+        opt.step()
+    return (model(X[test]).argmax(1) == y[test]).float().mean().item()
+
+teacher = mlp(256)
+print("teacher (1000 labels)              :", round(fit(teacher, lambda m: F.cross_entropy(m(X[lab]), y[lab])), 3))
+with torch.no_grad():
+    u = teacher(X[unl])                            # teacher logits on unlabelled images
+
+T, alpha = 4.0, 0.9
+def kd_loss(m):
+    hard = F.cross_entropy(m(X[few]), y[few])
+    soft = F.kl_div(F.log_softmax(m(X[unl]) / T, 1), F.softmax(u / T, 1), reduction="batchmean")
+    return (1 - alpha) * hard + alpha * T ** 2 * soft
+
+torch.manual_seed(1)
+print("student, 50 labels only            :", round(fit(mlp(16), lambda m: F.cross_entropy(m(X[few]), y[few])), 3))
+torch.manual_seed(1)
+print("student, 50 labels + distillation  :", round(fit(mlp(16), kd_loss), 3))
+
+# soft targets of the example of ch. 5.1
+z = torch.tensor([6.0, 3.0, 1.0])
+for temp in (1, 4):
+    print(f"T = {temp}: soft targets", F.softmax(z / temp, 0).numpy().round(3))
+```
+
+The teacher, with 256 hidden units and 1000 labels, reaches 0.962. A student with 16 hidden units and 50 labels reaches 0.786; the same student distilled on 400 unlabelled images reaches 0.952, close to its teacher.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   The student matches the teacher's softened predictions; the temperature reveals the relative probabilities of wrong classes.
+-   The soft gradient is $(q^T - p^T) / T$; the factor $T^2$ keeps its scale, and at high temperature distillation is logit matching.
+-   Label smoothing is distillation from a uniform teacher and weakens later distillation.
+-   Features, attention maps, pairwise relations and privileged modalities can be distilled as well as outputs.
+::::
+
+## 6. Attention and transformers {#ch6}
+
+A convolution mixes information within a small neighbourhood with fixed weights. Attention lets every token of an image or a volume look at every other one, with weights computed from the data. Transformers, built from attention, now encode images, scans and reports alike.
+
+### 6.1 Scaled dot-product attention
+
+::: def
+[Definition 6.1 — Self-attention (Vaswani et al., 2017)]{.tag} Let $X \in \mathbb{R}^{n \times d}$ hold $n$ tokens. With learned matrices $W_Q, W_K \in \mathbb{R}^{d \times d_k}$ and $W_V \in \mathbb{R}^{d \times d_v}$, form the queries, keys and values
+$$
+Q = X W_Q, \qquad K = X W_K, \qquad V = X W_V .
+$$
+
+Self-attention outputs
+$$
+\mathrm{SA}(X) = \mathrm{softmax}\Big( \frac{Q K^\top}{\sqrt{d_k}} \Big) V ,
+$$
+where the softmax acts on each row. Row $i$ of the output is a weighted average of the values, with weights given by the similarity of query $i$ to every key.
+:::
+
+Attention appeared as an alignment mechanism for translation (Bahdanau, Cho and Bengio, 2015). It is also a kernel smoother: the output at token $i$ is a Nadaraya–Watson average of the values with the kernel $\exp(q_i \cdot k_j / \sqrt{d_k})$.
+
+:::: prop
+[Proposition 6.2 — Why divide by $\sqrt{d_k}$]{.tag} If $q, k \in \mathbb{R}^{d_k}$ are independent with independent entries of mean 0 and variance 1, then
+$$
+\mathbb{E}[q \cdot k] = 0, \qquad \mathrm{Var}(q \cdot k) = d_k .
+$$
+
+::: proof
+$q \cdot k = \sum_{i} q_i k_i$ is a sum of $d_k$ independent terms, each of mean $\mathbb{E}[q_i] \mathbb{E}[k_i] = 0$ and variance $\mathbb{E}[q_i^2] \mathbb{E}[k_i^2] = 1$. [∎]{.qed}
+:::
+::::
+
+Without scaling, for $d_k = 64$ the scores have a standard deviation of 8. The softmax then saturates on one token and its gradients vanish; dividing by $\sqrt{d_k}$ restores unit variance.
+
+**Multi-head attention** runs $h$ attention maps in parallel with dimension $d_k = d / h$, concatenates their outputs and mixes them with a matrix $W_O$. Each head can attend to a different relation: a neighbouring patch, the symmetric organ, the same structure at another scale.
+
+### 6.2 The transformer block and permutation equivariance
+
+A transformer encoder stacks $L$ blocks. With layer normalisation $\mathrm{LN}$ applied to each token, a pre-norm block computes
+$$
+X \leftarrow X + \mathrm{MHSA}(\mathrm{LN}(X)), \qquad X \leftarrow X + \mathrm{MLP}(\mathrm{LN}(X)) ,
+$$
+where the MLP acts on each token separately.
+
+:::: prop
+[Proposition 6.3 — Self-attention is permutation-equivariant]{.tag} For every permutation matrix $P$,
+$$
+\mathrm{SA}(P X) = P \, \mathrm{SA}(X) .
+$$
+
+The same holds for multi-head attention and for whole transformer blocks, and the average of the output tokens is permutation-invariant.
+
+::: proof
+Replacing $X$ by $PX$ replaces $Q, K, V$ by $PQ, PK, PV$, and the score matrix by $P Q K^\top P^\top$.
+
+A row-wise softmax commutes with permuting rows and with permuting columns, so the attention matrix becomes $P A P^\top$. Multiplying by $PV$ gives $P A P^\top P V = P A V$, since $P^\top P = I$.
+
+Layer normalisation, the MLP and residual connections act token by token and commute with $P$. [∎]{.qed}
+:::
+::::
+
+A transformer therefore sees a set, not a sequence: without extra information, it cannot know where a patch was. Positional encodings add this information to each token, either learned vectors or the sinusoids of Vaswani et al. (2017),
+$$
+\mathrm{PE}(m, 2i) = \sin\big(m / 10000^{2i/d}\big), \qquad \mathrm{PE}(m, 2i+1) = \cos\big(m / 10000^{2i/d}\big) .
+$$
+
+### 6.3 Vision transformers
+
+The vision transformer (ViT, Dosovitskiy et al., 2021) cuts an $H \times W$ image into $P \times P$ patches, embeds each patch linearly, adds a learned position embedding and a class token, and applies a transformer encoder. The class token's output is the representation.
+
+A $224 \times 224$ image with $16 \times 16$ patches gives 196 tokens. Self-attention costs $O(n^2 d)$ per layer and stores an $n \times n$ matrix per head.
+
+For a $128^3$ volume, $16^3$ patches give 512 tokens, but $8^3$ patches give 4096 tokens, and each attention matrix then takes
+$$
+4096^2 \times 4 \text{ bytes} = 64 \text{ MiB}
+$$
+per head and per layer.
+
+Convolutions build in locality and translation equivariance; a ViT must learn them from data. Trained on ImageNet alone, ViTs lag behind convolutional networks; with larger pretraining sets, self-supervision (ch. 7) or distillation from a convolutional teacher through a distillation token (DeiT, Touvron et al., 2021), they match or surpass them.
+
+Two designs reduce the quadratic cost or restore locality:
+
+-   **Swin** (Liu et al., 2021) restricts attention to windows of $M \times M$ patches, shifted from one layer to the next, which makes the cost linear in the number of tokens;
+-   **hybrid** medical models keep convolutions where resolution matters: TransUNet (Chen et al., 2021) places a transformer on top of a convolutional encoder inside a U-Net, and UNETR (Hatamizadeh et al., 2022) uses a ViT on 3D patches with a convolutional decoder.
+
+### 6.4 Attention pooling over sets of instances
+
+A whole-slide pathology image has billions of pixels and one label for the slide. It is cut into thousands of patches with embeddings $h_1, \dots, h_N$, a bag in the sense of multiple-instance learning.
+
+::: def
+[Definition 6.4 — Attention-based multiple-instance pooling (Ilse, Tomczak and Welling, 2018)]{.tag} With learned $V \in \mathbb{R}^{m \times d}$ and $w \in \mathbb{R}^m$, the bag representation is
+$$
+z = \sum_{k=1}^N a_k h_k, \qquad a_k = \frac{\exp\big(w^\top \tanh(V h_k)\big)}{\sum_{j=1}^N \exp\big(w^\top \tanh(V h_j)\big)} .
+$$
+:::
+
+The pooling is invariant to the order of the patches, as Proposition 6.3 requires of a set function. The weights $a_k$ form a heatmap of the patches that drove the decision; ch. 9 explains why such maps must be checked before being read as explanations (Jain and Wallace, 2019).
+
+```python
+import torch
+import torch.nn as nn
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+def mhsa(X, Wq, Wk, Wv, Wo, h):
+    """Multi-head self-attention on tokens X of shape (n, d), written out."""
+    n, d = X.shape
+    dk = d // h
+    Q, K, V = (X @ Wq).view(n, h, dk), (X @ Wk).view(n, h, dk), (X @ Wv).view(n, h, dk)
+    out = []
+    for i in range(h):
+        A = torch.softmax(Q[:, i] @ K[:, i].T / dk ** 0.5, dim=-1)   # (n, n), rows sum to 1
+        out.append(A @ V[:, i])
+    return torch.cat(out, dim=1) @ Wo
+
+n, d, h = 6, 16, 4
+X = torch.randn(n, d)
+ref = nn.MultiheadAttention(d, h, bias=False, batch_first=True)
+Wq, Wk, Wv = ref.in_proj_weight.detach().chunk(3)                   # PyTorch stores W^T
+Wo = ref.out_proj.weight.detach()
+mine = mhsa(X, Wq.T, Wk.T, Wv.T, Wo.T, h)
+theirs = ref(X[None], X[None], X[None])[0][0]
+print("difference with nn.MultiheadAttention:", (mine - theirs).abs().max().item())
+
+P = torch.eye(n)[torch.randperm(n)]                                  # a permutation matrix
+err = (mhsa(P @ X, Wq.T, Wk.T, Wv.T, Wo.T, h) - P @ mine).abs().max().item()
+print("permutation equivariance error       :", err)
+
+# token counts and attention memory (one head, one layer, float32)
+for name, n_tok in [("2D 224x224, 16x16 patches", (224 // 16) ** 2),
+                    ("3D 128^3, 16^3 patches", (128 // 16) ** 3),
+                    ("3D 128^3, 8^3 patches", (128 // 8) ** 3)]:
+    print(f"{name:27s}: {n_tok:5d} tokens, attention matrix {n_tok ** 2 * 4 / 2 ** 20:7.1f} MiB")
+```
+
+The hand-written attention agrees with PyTorch's to $10^{-7}$, and permuting the tokens permutes the output, as Proposition 6.3 states.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   Attention outputs data-dependent weighted averages; the $1/\sqrt{d_k}$ scaling keeps the scores at unit variance.
+-   Without positional encodings, a transformer is permutation-equivariant: it sees a set of tokens.
+-   A ViT turns patches into tokens; the attention cost is quadratic in their number, a hard constraint for 3D volumes.
+-   ViTs need large pretraining, self-supervision or distillation; Swin and hybrid models restore locality.
+-   Attention pooling turns a bag of patch embeddings into one slide-level representation.
+::::
+
+## 7. Self-supervised learning and foundation models {#ch7}
+
+Labels are the bottleneck of medical imaging, but unlabelled scans are plentiful. Self-supervised learning builds a training signal from the data themselves; the encoders it produces, trained at scale, are the foundation models adapted by the methods of ch. 2.
+
+### 7.1 Pretext tasks
+
+::: def
+[Definition 7.1 — Pretext task]{.tag} A pretext task is a supervised problem whose labels are computed from unlabelled data. An encoder is trained on it, and its representation is then evaluated or transferred on the downstream task of interest.
+:::
+
+Early pretext tasks predicted the relative position of two patches (Doersch, Gupta and Efros, 2015), solved jigsaw puzzles of shuffled patches (Noroozi and Favaro, 2016), or predicted which of four rotations had been applied (Gidaris, Singh and Komodakis, 2018). For 3D medical images, Models Genesis (Zhou et al., 2021) learns to restore sub-volumes after intensity transforms, local shuffling and painting.
+
+A pretext task must not be solvable by a shortcut. Predicting rotations is uninformative for microscopy images, whose orientation is arbitrary, and Doersch, Gupta and Efros (2015) found that patch positions could be guessed from chromatic aberration alone.
+
+### 7.2 Contrastive learning and the InfoNCE bound
+
+Contrastive methods create two views $x, x^+$ of the same image by random augmentations (crops, intensity changes, blur, elastic deformations), encode them with $f$ and a projection head $g$, and normalise the result: $z = g(f(x)) / \| g(f(x)) \|$.
+
+::: def
+[Definition 7.2 — InfoNCE loss (van den Oord, Li and Vinyals, 2018)]{.tag} With a critic $s(x, y)$, for instance $s = z_x \cdot z_y / \tau$ with temperature $\tau$, and $N$ candidates $y_1, \dots, y_N$ of which $y_1$ is the positive,
+$$
+L_{\text{NCE}} = -\mathbb{E} \log \frac{e^{s(x, y_1)}}{\sum_{j=1}^N e^{s(x, y_j)}} .
+$$
+:::
+
+SimCLR (Chen et al., 2020) takes as negatives the other views of a large batch; MoCo (He et al., 2020) keeps a queue of negatives encoded by a slowly updated momentum encoder.
+
+:::: thm
+[Theorem 7.3 — InfoNCE lower-bounds mutual information (van den Oord et al., 2018; Poole et al., 2019)]{.tag} Let $y_1 \sim p(y \mid x)$ and let $y_2, \dots, y_N$ be independent draws from $p(y)$, independent of $x$. For every critic $s$,
+$$
+I(X; Y) \geq \log N - L_{\text{NCE}}(s) .
+$$
+
+::: proof
+Place the positive at a uniformly random index $K \in \{1, \dots, N\}$ among the candidates $Y_{1:N}$; by symmetry this does not change the loss.
+
+1.  $L_{\text{NCE}}$ is the cross-entropy of the classifier $q(k \mid x, y_{1:N}) \propto e^{s(x, y_k)}$ that predicts $K$. By Proposition 0.5,
+    $$
+    L_{\text{NCE}} \geq H(K \mid X, Y_{1:N}) = \log N - I(K; X, Y_{1:N}) .
+    $$
+2.  The candidates alone carry no information on $K$, because each has law $p(y)$. Hence $I(K; X, Y_{1:N}) = I(K; X \mid Y_{1:N})$.
+3.  This is at most $I(X; K, Y_{1:N})$, by the chain rule. Given $(K, Y_{1:N})$, $X$ depends only on $Y_K$, so it equals $I(X; Y)$. [∎]{.qed}
+:::
+::::
+
+The bound can never exceed $\log N$: with 256 candidates it saturates at 5.5 nats, which is why contrastive methods need large batches or queues.
+
+Wang and Isola (2020) give a geometric reading: for many negatives, InfoNCE trades off **alignment**, $\mathbb{E} \| z - z^+ \|^2$ small, against **uniformity**, embeddings spread over the sphere. The augmentations decide which invariances are learned, as in ch. 1.3.
+
+In medical imaging, two patients with the same disease are pushed apart as negatives. Supervised contrastive learning (Khosla et al., 2020) uses labels to define positives. Dufumier et al. (2021) use continuous meta-data such as age instead, weighting pairs of brain MRIs by a kernel on their meta-data.
+
+### 7.3 Collapse and non-contrastive methods
+
+The invariance term alone, $\| z - z^+ \|^2$, is minimised by a constant encoder: the representation collapses. Contrastive methods avoid this with negatives; others avoid it without negatives:
+
+-   **BYOL** (Grill et al., 2020) and **SimSiam** (Chen and He, 2021) predict one view's embedding from the other with an extra predictor and stop the gradient on the target branch;
+-   **Barlow Twins** (Zbontar et al., 2021) pushes the cross-correlation matrix $C$ of the two views' standardised embeddings towards the identity, $\sum_i (1 - C_{ii})^2 + \lambda \sum_{i \neq j} C_{ij}^2$;
+-   **VICReg** (Bardes, Ponce and LeCun, 2022) combines invariance with a hinge keeping the standard deviation of each embedding dimension above a threshold and a penalty on off-diagonal covariances.
+
+**DINO** (Caron et al., 2021) is self-distillation without labels (ch. 5): a student matches the output distribution of a teacher whose weights are a moving average of the student's, and centring and sharpening the teacher's outputs prevents collapse. The attention maps of DINO-trained ViTs segment objects without any mask; DINOv2 (Oquab et al., 2024) scales this recipe.
+
+### 7.4 Masked image modelling
+
+The masked autoencoder (MAE, He et al., 2022) hides a random 75 % of the patches of an image. A ViT encoder processes only the visible patches, and a light decoder reconstructs the pixels of the hidden ones; the loss is computed on the hidden patches.
+
+Masking 75 % of 196 tokens leaves 49: the encoder's attention costs $(1/4)^2 = 1/16$ of the full cost, and its MLPs a quarter. A high mask ratio also makes the task hard enough to require a global understanding of the image, since neighbouring patches are mostly hidden.
+
+### 7.5 Language supervision and foundation models
+
+CLIP (Radford et al., 2021) trains an image encoder and a text encoder on image–caption pairs with a symmetric InfoNCE loss: in a batch of $N$ pairs, each image must find its caption, and each caption its image. A new class is recognised zero-shot by embedding a prompt such as "a photo of a {class}" and choosing the closest one.
+
+In medicine, ConVIRT (Zhang et al., 2022) applied the same contrastive pairing to chest radiographs and their radiology reports, before CLIP and as one of its inspirations.
+
+::: def
+[Definition 7.4 — Foundation model (Bommasani et al., 2021)]{.tag} A foundation model is trained on broad data, generally by self-supervision at scale, and can be adapted to a wide range of downstream tasks.
+:::
+
+The Segment Anything model (Kirillov et al., 2023) segments objects from point or box prompts; MedSAM (Ma et al., 2024) adapts it to medical images.
+
+Whatever the pretraining, a foundation model is evaluated by linear probes, few-shot fine-tuning or LoRA (ch. 2), and by its robustness across hospitals and scanners (ch. 3).
+
+The experiment below trains a SimCLR encoder on the digits with translations by one pixel and noise as augmentations, then probes it with 5 labels per class, on the test images and on translated test images.
+
+```python
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.datasets import load_digits
+from sklearn.linear_model import LogisticRegression
+torch.manual_seed(0)
+torch.set_num_threads(1)
+rng = np.random.default_rng(0)
+
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32).view(-1, 1, 8, 8)
+perm = torch.randperm(len(X))
+tr, te = perm[:1200], perm[1200:]
+
+def shift(x, max_shift=1):
+    """Translate each image by a random integer vector in [-max_shift, max_shift]^2."""
+    s = rng.integers(-max_shift, max_shift + 1, size=(len(x), 2))
+    return torch.stack([torch.roll(xi, (int(a), int(b)), dims=(1, 2)) for xi, (a, b) in zip(x, s)])
+
+def augment(x):
+    return shift(x) + 0.1 * torch.randn_like(x)
+
+def nt_xent(z1, z2, tau=0.5):
+    """SimCLR loss: each of the 2N views must find its partner among the 2N - 1 others."""
+    z = F.normalize(torch.cat([z1, z2]), dim=1)
+    sim = z @ z.T / tau
+    sim.fill_diagonal_(-1e9)
+    N = len(z1)
+    return F.cross_entropy(sim, torch.cat([torch.arange(N, 2 * N), torch.arange(N)]))
+
+def make_encoder():
+    return nn.Sequential(nn.Flatten(), nn.Linear(64, 256), nn.ReLU())
+
+enc = make_encoder()
+proj = nn.Sequential(nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 32))   # projection head
+opt = torch.optim.Adam(list(enc.parameters()) + list(proj.parameters()), lr=3e-3)
+for step in range(400):
+    xb = X[tr[torch.randint(0, len(tr), (256,))]]
+    loss = nt_xent(proj(enc(augment(xb))), proj(enc(augment(xb))))
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+print(f"final loss {loss.item():.2f}; Theorem 7.3 certifies I >= log(511) - loss = "
+      f"{np.log(511) - loss.item():.2f} nats between views")
+
+torch.manual_seed(0)
+rand = make_encoder()
+Xte_shifted = shift(X[te])
+ytr, yte = y[tr.numpy()], y[te.numpy()]
+for name, f in [("raw pixels", nn.Flatten()), ("random encoder", rand), ("SimCLR encoder", enc)]:
+    clean, moved = [], []
+    with torch.no_grad():
+        for s in range(5):            # linear probe on 5 labelled images per class
+            r = np.random.default_rng(s)
+            idx = np.concatenate([r.choice(np.where(ytr == c)[0], 5, replace=False) for c in range(10)])
+            clf = LogisticRegression(max_iter=3000).fit(f(X[tr])[idx].numpy(), ytr[idx])
+            clean.append(clf.score(f(X[te]).numpy(), yte))
+            moved.append(clf.score(f(Xte_shifted).numpy(), yte))
+    print(f"{name:15s} probe accuracy: clean test {np.mean(clean):.3f}, shifted test {np.mean(moved):.3f}")
+```
+
+With 5 labels per class, the probe on the SimCLR features reaches 0.856 on clean test images, against 0.851 for raw pixels and 0.831 for a random encoder of the same shape. On translated test images, the pixel and random-feature probes fall to about 0.36, the SimCLR probe to 0.46: the invariance taught by the augmentations is partly learned.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   Self-supervision invents labels from the data: pretext tasks, contrastive pairs of views, masked patches, paired text.
+-   InfoNCE is a cross-entropy over candidates and certifies $I(X; Y) \geq \log N - L_{\text{NCE}}$, a bound capped at $\log N$.
+-   The augmentations decide the learned invariances; negatives, stop-gradients or variance terms prevent collapse.
+-   MAE learns by reconstructing hidden patches, cheaply; CLIP aligns images with text and classifies zero-shot.
+-   Foundation models are evaluated by probing, few-shot adaptation and robustness across sites.
+::::
+
+## 8. Disentangled representations with generative models {#ch8}
+
+A generative model explains each image by latent variables. One would like each latent coordinate to carry one factor of variation, such as anatomy, pathology, scanner or age, so that the representation can be read and edited. This chapter derives the variational objective, isolates the term that favours independent latents, and shows why unsupervised disentanglement needs inductive biases.
+
+### 8.1 Variational autoencoders
+
+::: def
+[Definition 8.1 — Variational autoencoder (Kingma and Welling, 2014)]{.tag} A decoder $p_\theta(x \mid z)$ and a prior $p(z) = \mathcal{N}(0, I_d)$ define a generative model. An encoder approximates the posterior by a Gaussian with diagonal covariance,
+$$
+q_\phi(z \mid x) = \mathcal{N}\big(\mu_\phi(x), \mathrm{diag}\, \sigma^2_\phi(x)\big) .
+$$
+
+Both are trained by maximising the evidence lower bound (ELBO) below.
+:::
+
+:::: prop
+[Proposition 8.2 — The ELBO]{.tag} For every $x$,
+$$
+\log p_\theta(x) = \underbrace{\mathbb{E}_{q_\phi(z \mid x)} \log p_\theta(x \mid z) - \mathrm{KL}\big(q_\phi(z \mid x) \,\|\, p(z)\big)}_{\mathrm{ELBO}(x)} + \mathrm{KL}\big(q_\phi(z \mid x) \,\|\, p_\theta(z \mid x)\big) .
+$$
+
+Hence $\log p_\theta(x) \geq \mathrm{ELBO}(x)$.
+
+::: proof
+By Bayes' rule, for every $z$,
+$$
+\log p_\theta(x) = \log p_\theta(x \mid z) + \log p(z) - \log p_\theta(z \mid x) .
+$$
+
+Take the expectation under $q_\phi(z \mid x)$, then add and subtract $\mathbb{E}_q \log q_\phi(z \mid x)$. The last term is non-negative by Proposition 0.5. [∎]{.qed}
+:::
+::::
+
+The expectation is estimated with the reparameterisation $z = \mu_\phi(x) + \sigma_\phi(x) \odot \varepsilon$, $\varepsilon \sim \mathcal{N}(0, I)$, which lets gradients flow through the sampling. The Gaussian KL term has a closed form:
+$$
+\mathrm{KL}\big(q_\phi(z \mid x) \,\|\, p(z)\big) = \tfrac12 \sum_j \big(\mu_j^2 + \sigma_j^2 - 1 - \log \sigma_j^2\big) .
+$$
+
+The β-VAE (Higgins et al., 2017) multiplies the KL term by $\beta > 1$. On synthetic data with known factors, this tends to align latents with factors, at the cost of blurrier reconstructions.
+
+### 8.2 Measuring disentanglement
+
+Assume the data are generated from independent factors $v = (v_1, \dots, v_K)$ by $x = g(v)$. A representation is disentangled, informally, if each latent coordinate depends on one factor only and is insensitive to the others; Higgins et al. (2018) give a definition through symmetry groups.
+
+::: def
+[Definition 8.3 — Mutual information gap (Chen et al., 2018)]{.tag} For each factor $v_k$, let $j_1$ and $j_2$ be the latent coordinates with the largest and second largest mutual information with $v_k$. Then
+$$
+\mathrm{MIG} = \frac{1}{K} \sum_{k=1}^K \frac{I(z_{j_1}; v_k) - I(z_{j_2}; v_k)}{H(v_k)} \in [0, 1] .
+$$
+:::
+
+### 8.3 Total correlation
+
+Let $p(x)$ be the data distribution and $q(z) = \mathbb{E}_{p(x)} q(z \mid x)$ the aggregate posterior, the distribution of codes over the whole data set.
+
+:::: thm
+[Theorem 8.4 — Decomposition of the KL term (Hoffman and Johnson, 2016; Chen et al., 2018)]{.tag} For a factorised prior $p(z) = \prod_j p(z_j)$,
+$$
+\mathbb{E}_{p(x)} \mathrm{KL}\big(q(z \mid x) \,\|\, p(z)\big) = I_q(x; z) + \mathrm{KL}\Big(q(z) \,\Big\|\, \prod_j q(z_j)\Big) + \sum_j \mathrm{KL}\big(q(z_j) \,\|\, p(z_j)\big) .
+$$
+
+::: proof
+Under the joint law $q(x, z) = p(x) q(z \mid x)$, split the log-ratio into three:
+$$
+\log \frac{q(z \mid x)}{p(z)} = \log \frac{q(z \mid x)}{q(z)} + \log \frac{q(z)}{\prod_j q(z_j)} + \sum_j \log \frac{q(z_j)}{p(z_j)} .
+$$
+
+The expectations of the three terms are the mutual information between $x$ and $z$, the total correlation, and the sum of the marginal divergences. [∎]{.qed}
+:::
+::::
+
+The middle term, the **total correlation**, vanishes exactly when the coordinates of the code are independent over the data set. The β-VAE penalises all three terms, including the information the code carries about $x$. β-TCVAE (Chen et al., 2018) and FactorVAE (Kim and Mnih, 2018) penalise only the total correlation, which keeps reconstructions sharp; FactorVAE estimates it with a discriminator. For a Gaussian code with correlation $\rho$ between two coordinates, the total correlation is $-\tfrac12 \log(1 - \rho^2)$.
+
+### 8.4 Impossibility without inductive biases
+
+:::: thm
+[Theorem 8.5 — Unsupervised disentanglement is not identifiable (Locatello et al., 2019, Gaussian case)]{.tag} Let $z \sim \mathcal{N}(0, I_d)$ with $d \geq 2$ and $x = g(z)$. For every rotation $R$, the code $z' = R z$ has the same law as $z$.
+
+The decoder $g \circ R^{-1}$ maps this new code to the same images:
+$$
+(g \circ R^{-1})(z') = g(z) = x .
+$$
+
+The two models give exactly the same distribution of images.
+
+::: proof
+$Rz$ is Gaussian with mean 0 and covariance $R R^\top = I_d$. The second claim holds by construction. [∎]{.qed}
+:::
+::::
+
+If $z$ is disentangled, a rotation by $45°$ produces the code $z'_1 = (z_1 - z_2)/\sqrt{2}$, which mixes both factors. Since both models fit the data equally well, no method that only sees the distribution of images can prefer one to the other. Locatello et al. prove the general version for any factorised prior, and their study of 12 000 trained models found that random seeds and hyperparameters mattered more than the choice of objective.
+
+Identifiability returns with extra structure:
+
+-   **non-Gaussian independent sources** in the linear case, the setting of independent component analysis (Comon, 1994), whereas general non-linear ICA is not identifiable (Hyvärinen and Pajunen, 1999);
+-   **an observed auxiliary variable** $u$, such as a time index, a class or a clinical score, with a prior $p(z \mid u)$ factorised given $u$ (iVAE, Khemakhem et al., 2020);
+-   **weak supervision**, such as pairs of images that differ in a few factors (Locatello et al., 2020).
+
+### 8.5 Disentangling in medical imaging
+
+Medical data often come in two groups: healthy controls and patients. Contrastive analysis models the patients' images with common latents $c$, for the anatomical variability shared with controls, and salient latents $s$, specific to the disease, while controls have $s = 0$. The contrastive VAE of Abid and Zou (2019) implements this idea; the salient space can then be studied for disease subtypes.
+
+Generative adversarial networks can also be pushed towards interpretable codes. InfoGAN (Chen et al., 2016) maximises the mutual information between a code $c$ and the generated image, using an auxiliary network $Q$ and the bound below.
+
+:::: prop
+[Proposition 8.6 — Variational lower bound on mutual information]{.tag} For every conditional distribution $Q(c \mid x)$,
+$$
+I(c; x) \geq H(c) + \mathbb{E} \log Q(c \mid x) .
+$$
+
+::: proof
+Write $I(c; x) = H(c) - H(c \mid x)$. Then
+$$
+-H(c \mid x) = \mathbb{E} \log p(c \mid x) \geq \mathbb{E} \log Q(c \mid x) ,
+$$
+because the gap is an expected KL divergence (Proposition 0.5). [∎]{.qed}
+:::
+::::
+
+```python
+import numpy as np
+from sklearn.metrics import mutual_info_score
+rng = np.random.default_rng(0)
+
+n = 20000
+v = rng.standard_normal((n, 2))                  # two independent factors, e.g. size and contrast
+theta = np.pi / 4
+R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+z_good, z_rot = v.copy(), v @ R.T               # two latent codes with the same N(0, I) law
+print("covariance of the rotated code:\n", np.cov(z_rot, rowvar=False).round(3))
+
+def mi(a, b, bins=20):
+    """Plug-in mutual information (nats) after quantile binning."""
+    qa = np.digitize(a, np.quantile(a, np.linspace(0, 1, bins + 1)[1:-1]))
+    qb = np.digitize(b, np.quantile(b, np.linspace(0, 1, bins + 1)[1:-1]))
+    return mutual_info_score(qa, qb)
+
+def mig(z, v, bins=20):
+    """Mutual information gap (Chen et al., 2018), factor entropies after binning."""
+    gaps = []
+    for k in range(v.shape[1]):
+        m = sorted((mi(z[:, j], v[:, k], bins) for j in range(z.shape[1])), reverse=True)
+        h = mi(v[:, k], v[:, k], bins)           # entropy of the binned factor
+        gaps.append((m[0] - m[1]) / h)
+    return np.mean(gaps)
+
+print("MIG of the axis-aligned code:", round(mig(z_good, v), 3))
+print("MIG of the rotated code     :", round(mig(z_rot, v), 3))
+
+# total correlation of a correlated Gaussian code, closed form -1/2 log(1 - rho^2)
+for rho in (0.3, 0.6, 0.9):
+    print(f"rho = {rho}: TC = {-0.5 * np.log(1 - rho ** 2):.3f} nats")
+```
+
+The rotated code has the same identity covariance, hence the same likelihood, but its MIG drops from 0.997 to 0.002: Theorem 8.5 in numbers.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   A VAE maximises the ELBO; the β-VAE weights its KL term more heavily to favour disentangled latents.
+-   The averaged KL term splits into information, total correlation and marginal terms; penalising only the total correlation keeps reconstructions sharp.
+-   With a Gaussian prior, any rotation of the latents fits the data equally well: unsupervised disentanglement is not identifiable.
+-   Auxiliary variables, weak supervision and the healthy-versus-patient structure of medical data restore identifiability.
+::::
+
+## 9. Uncertainty, interpretability and explainability {#ch9}
+
+A clinician who uses a model's output needs to know how sure the model is and what its decision rests on. This chapter separates the sources of uncertainty, makes predicted probabilities trustworthy, gives prediction sets with a guarantee, and then studies explanations and how to test them.
+
+### 9.1 Aleatoric and epistemic uncertainty
+
+::: def
+[Definition 9.1 — Two kinds of uncertainty]{.tag} **Aleatoric** uncertainty is the noise of $Y$ given $X$: an ambiguous lesion boundary, disagreement between radiologists. It does not shrink with more data. **Epistemic** uncertainty is the uncertainty on the model parameters $\theta$ given the training data $\mathcal{D}$; it shrinks with data and grows far from them. A Bayesian model predicts with
+$$
+p(y \mid x, \mathcal{D}) = \int p(y \mid x, \theta) \, p(\theta \mid \mathcal{D}) \, d\theta .
+$$
+:::
+
+:::: prop
+[Proposition 9.2 — Decomposition of the predictive entropy]{.tag} With $\theta \sim p(\theta \mid \mathcal{D})$ and $y \sim p(y \mid x, \theta)$,
+$$
+H\big[p(y \mid x, \mathcal{D})\big] = \mathbb{E}_{\theta} H\big[p(y \mid x, \theta)\big] + I(y; \theta \mid x, \mathcal{D}) .
+$$
+
+The first term measures aleatoric uncertainty, the second epistemic uncertainty.
+
+::: proof
+This is $H(y) = H(y \mid \theta) + I(y; \theta)$, conditionally on $x$ and $\mathcal{D}$, by Definition 0.4. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 9.3 — Disagreeing and agreeing ensembles]{.tag} Three models predict $P(y = 1)$ as 0.9, 0.5 and 0.1. The mean is 0.5, so the total entropy is $\log 2 \approx 0.693$. The entropies of the members are 0.325, 0.693 and 0.325, with mean 0.448, so the epistemic part is
+$$
+0.693 - 0.448 = 0.245 \text{ nats}.
+$$
+
+If all three models predict 0.5, the total entropy is the same, but it is entirely aleatoric.
+:::
+
+In practice, the posterior is approximated:
+
+-   **MC dropout** (Gal and Ghahramani, 2016) keeps dropout active at test time and averages several stochastic passes; Le Folgoc et al. (2021) question how well this approximates the Bayesian posterior;
+-   **deep ensembles** (Lakshminarayanan, Pritzel and Blundell, 2017) average independently trained networks, and are often the most reliable under distribution shift (Ovadia et al., 2019);
+-   **heteroscedastic heads** predict a mean and a variance per input and minimise the Gaussian negative log-likelihood (Kendall and Gal, 2017), the per-input analogue of Theorem 4.2.
+
+### 9.2 Calibration and conformal prediction
+
+A classifier is calibrated if, among the cases predicted with confidence $c$, a fraction $c$ is correct. The expected calibration error (ECE) bins the confidences and averages the gap between accuracy and confidence, weighted by the bin sizes. Guo et al. (2017) found modern networks overconfident, and proposed **temperature scaling**: divide the logits by a single $T > 0$ fitted on validation data. Since this preserves the order of the logits, it leaves the predicted class, hence the accuracy, unchanged.
+
+Calibrated probabilities still give no guarantee on a single case. Conformal prediction outputs a set of labels instead.
+
+:::: thm
+[Theorem 9.4 — Split conformal prediction (Vovk, Gammerman and Shafer, 2005; Angelopoulos and Bates, 2023)]{.tag} Let $s(x, y) = 1 - q_y(x)$ be a score computed from any fixed model. On $n$ calibration cases, let $\hat q$ be the $k$-th smallest score with $k = \lceil (n + 1)(1 - \alpha) \rceil$, and define
+$$
+C(x) = \{ y : s(x, y) \leq \hat q \} .
+$$
+
+If the calibration cases and the test case are exchangeable, then
+$$
+P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
+$$
+
+::: proof
+$Y_{\text{test}} \in C(X_{\text{test}})$ exactly when the test score is at most the $k$-th smallest calibration score.
+
+By exchangeability, and assuming no ties, the rank of the test score among the $n + 1$ scores is uniform on $\{1, \dots, n+1\}$. The event holds when this rank is at most $k$, which has probability $k / (n + 1) \geq 1 - \alpha$. [∎]{.qed}
+:::
+::::
+
+The guarantee is marginal, averaged over cases, not conditional on a given patient. It requires exchangeability, so a change of hospital (ch. 3) breaks it unless the calibration set comes from the new site.
+
+### 9.3 Interpretability and explanations
+
+An **interpretable** model can be understood by design: a sparse linear model, a short decision list, or a concept bottleneck model, which predicts human-defined concepts first and the label from them (Koh et al., 2020). A **post-hoc explanation** describes a decision of a black-box model after the fact.
+
+The simplest post-hoc explanation is the saliency map $|\partial F / \partial x|$ of a class score $F$ (Simonyan, Vedaldi and Zisserman, 2014), or the product of the gradient with the input.
+
+::: def
+[Definition 9.5 — Integrated gradients (Sundararajan, Taly and Yan, 2017)]{.tag} For a baseline $x'$ (a black image, for instance), the attribution of input coordinate $i$ is
+$$
+\mathrm{IG}_i(x) = (x_i - x'_i) \int_0^1 \frac{\partial F}{\partial x_i}\big(x' + t (x - x')\big) \, dt .
+$$
+:::
+
+:::: prop
+[Proposition 9.6 — Completeness]{.tag} The attributions add up to the change of score:
+$$
+\sum_i \mathrm{IG}_i(x) = F(x) - F(x') .
+$$
+
+::: proof
+Let $\gamma(t) = x' + t(x - x')$. By the chain rule,
+$$
+\frac{d}{dt} F(\gamma(t)) = \sum_i \partial_i F(\gamma(t)) \, (x_i - x'_i) .
+$$
+
+Integrate from 0 to 1. [∎]{.qed}
+:::
+::::
+
+**Grad-CAM** (Selvaraju et al., 2017) works on the last convolutional feature maps $A^k$. It weights each map by the spatial average of the gradient of the class score, and keeps the positive part:
+$$
+\alpha_k = \frac{1}{Z} \sum_{i, j} \frac{\partial F}{\partial A^k_{ij}}, \qquad L = \mathrm{ReLU}\Big( \sum_k \alpha_k A^k \Big) .
+$$
+
+The map is coarse but class-specific, and is upsampled to the image size.
+
+Explanations must be tested. Adebayo et al. (2018) proposed sanity checks: randomise the network's weights layer by layer, or train it on random labels, and verify that the explanation changes. Some popular methods barely change, behaving like edge detectors rather than explanations of the model. Attention maps (ch. 6) need the same checks.
+
+**Concept-based** explanations ask about notions that clinicians use. TCAV (Kim et al., 2018) learns a direction in a layer's activation space that separates examples of a concept from random images, then measures how often moving along this direction increases the class score.
+
+Explanations are most useful to detect shortcuts. DeGrave, Janizek and Lee (2021) showed with saliency maps and generative counterfactuals that COVID-19 detectors trained on radiographs relied on text markers and image borders instead of lung findings.
+
+The first experiment calibrates an overconfident network by temperature scaling, then builds conformal sets.
+
+```python
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from scipy.optimize import minimize_scalar
+from sklearn.datasets import load_digits
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+X, y = load_digits(return_X_y=True)
+X = torch.tensor(X / 16.0, dtype=torch.float32)
+y = torch.tensor(y)
+perm = torch.randperm(len(X))
+tr, cal, te = perm[:300], perm[300:1000], perm[1000:]
+
+model = nn.Sequential(nn.Linear(64, 256), nn.ReLU(), nn.Linear(256, 10))
+opt = torch.optim.Adam(model.parameters(), lr=1e-2)
+for _ in range(500):                             # long training on few data: overconfidence
+    opt.zero_grad()
+    F.cross_entropy(model(X[tr]), y[tr]).backward()
+    opt.step()
+with torch.no_grad():
+    z_cal, z_te = model(X[cal]), model(X[te])
+
+def ece(probs, labels, bins=10):
+    conf, pred = probs.max(1)
+    edges = torch.linspace(0, 1, bins + 1)
+    total = 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        m = (conf > lo) & (conf <= hi)
+        if m.any():
+            total += m.float().mean() * ((pred[m] == labels[m]).float().mean() - conf[m].mean()).abs()
+    return float(total)
+
+nll = lambda T: F.cross_entropy(z_cal / T, y[cal]).item()
+T_star = minimize_scalar(nll, bounds=(0.05, 20), method="bounded").x
+acc = (z_te.argmax(1) == y[te]).float().mean().item()
+print(f"test accuracy {acc:.3f} (unchanged by temperature scaling), fitted T = {T_star:.2f}")
+print(f"ECE before {ece(F.softmax(z_te, 1), y[te]):.3f}, after {ece(F.softmax(z_te / T_star, 1), y[te]):.3f}")
+
+# split conformal prediction with the score s(x, y) = 1 - q_y(x)   (Theorem 9.4)
+alpha = 0.05
+with torch.no_grad():
+    p_all = F.softmax(torch.cat([z_cal, z_te]) / T_star, 1)
+y_all = torch.cat([y[cal], y[te]])
+s_all = 1 - p_all                                   # score of every candidate label
+covers, sizes = [], []
+g = torch.Generator().manual_seed(0)
+for rep in range(200):                              # 200 random calibration / test splits
+    idx = torch.randperm(len(y_all), generator=g)
+    c, t = idx[:500], idx[500:]
+    scores = s_all[c, y_all[c]]
+    k = int(np.ceil((len(c) + 1) * (1 - alpha)))
+    q_hat = torch.sort(scores).values[k - 1]
+    sets = s_all[t] <= q_hat
+    covers.append(sets[torch.arange(len(t)), y_all[t]].float().mean().item())
+    sizes.append(sets.sum(1).float().mean().item())
+print(f"conformal sets, alpha = {alpha}: mean coverage {np.mean(covers):.3f} "
+      f"(single splits from {min(covers):.3f} to {max(covers):.3f}), mean size {np.mean(sizes):.2f}")
+```
+
+Temperature scaling fits $T \approx 2.2$ and divides the ECE by more than four (0.042 to 0.009) at unchanged accuracy. Averaged over 200 random splits, the conformal sets cover the true label 95.1 % of the time for a target of 95 %; a single split ranges from 91.7 % to 97.8 %, because the guarantee is an average over draws.
+
+The second experiment checks Proposition 9.6 on a small network, and shows that the gradient-times-input attributions do not add up to the change of score.
+
+```python
+import torch
+import torch.nn as nn
+torch.manual_seed(0)
+torch.set_num_threads(1)
+
+F_net = nn.Sequential(nn.Linear(64, 32), nn.Tanh(), nn.Linear(32, 1))   # a scalar score F(x)
+x = torch.rand(64)
+x0 = torch.zeros(64)                                                    # black-image baseline
+
+def integrated_gradients(F_net, x, x0, steps=200):
+    """Riemann (midpoint) approximation of Definition 9.5."""
+    alphas = (torch.arange(steps) + 0.5) / steps
+    path = x0 + alphas[:, None] * (x - x0)
+    path.requires_grad_(True)
+    F_net(path).sum().backward()
+    return (x - x0) * path.grad.mean(0)
+
+ig = integrated_gradients(F_net, x, x0)
+with torch.no_grad():
+    gap = (F_net(x) - F_net(x0)).item()
+print(f"sum of attributions {ig.sum().item():.5f}  vs  F(x) - F(x0) = {gap:.5f}")
+x_req = x.clone().requires_grad_(True)
+F_net(x_req).backward()
+gxi = (x_req.grad * x).sum().item()
+print(f"gradient x input sums to {gxi:.5f}: no completeness in general")
+```
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Predictive entropy = expected entropy (aleatoric) + mutual information with the parameters (epistemic); ensembles and MC dropout estimate both.
+-   Temperature scaling repairs calibration without changing accuracy.
+-   Split conformal prediction gives sets that contain the true label with probability at least $1 - \alpha$, under exchangeability.
+-   Integrated gradients satisfy completeness; Grad-CAM gives coarse class maps; every explanation must pass sanity checks.
+-   Interpretable-by-design and concept-based models speak the clinician's language; explanations are most useful to expose shortcuts.
+::::
+
+## 10. Research directions and open problems {#ch10}
+
+This self-study chapter surveys active questions behind each topic of the course. It cites published work only, and states results as their authors do; it is a starting point for a project or an internship, not a review.
+
+### 10.1 Foundation models for medical imaging
+
+Self-supervised pretraining on unlabelled medical images, after ImageNet pretraining, improved dermatology and chest radiograph classifiers in the large-scale study of Azizi et al. (2021). Vision–language pretraining on radiographs and reports (Zhang et al., 2022) and promptable segmentation (Ma et al., 2024) extend the recipe of ch. 7. Moor et al. (2023) describe the goal of generalist medical models that handle images, text and other data together.
+
+Three questions remain open:
+
+-   **Volumes**: the token count of a 3D transformer grows with the cube of the resolution (ch. 6.3), so most pretrained models still work on 2D slices or small patches.
+-   **Evaluation**: a foundation model should be judged across hospitals, scanners and populations, not on one benchmark.
+-   **Governance**: pretraining at scale on patient data raises privacy and consent questions, which federated and privacy-preserving training address only in part.
+
+### 10.2 Why self-supervision works
+
+Arora et al. (2019) gave a first theoretical framework in which a small contrastive loss guarantees a good linear classifier for downstream classes. HaoChen et al. (2021) introduced a spectral contrastive loss whose minimisers recover the leading eigenvectors of the "augmentation graph", which links two images when augmentations can turn one into the other; downstream guarantees then follow from the connectivity of that graph.
+
+Balestriero and LeCun (2022) showed that contrastive and non-contrastive methods recover classical spectral embedding methods. Jing et al. (2022) documented dimensional collapse in contrastive learning: the embeddings occupy a low-dimensional subspace even when they do not collapse to a point.
+
+Tschannen et al. (2020) showed that maximising mutual information does not by itself explain the quality of the representations: the critic, the encoder and above all the augmentations matter more. For medical images, which augmentations are safe is an open, task-dependent question: a contrast change can erase a small lesion, and a flip can swap the side of a pathology.
+
+### 10.3 What networks represent, and how it transfers
+
+Representation-similarity tools such as CKA (ch. 1.4) compare architectures. Raghu et al. (2021) found that vision transformers have more uniform representations across layers than convolutional networks. In theory, Cordonnier, Loukas and Jaggi (2020) proved that multi-head self-attention with relative positional encodings and $K^2$ heads can express any $K \times K$ convolution.
+
+On transfer, Kornblith, Shlens and Le (2019) found that better ImageNet models tend to transfer better, both as fixed features and when fine-tuned. Kirichenko, Izmailov and Wilson (2023) showed that retraining only the last layer on a small balanced set can be enough for robustness to spurious correlations, in the spirit of the linear probing of ch. 2.3.
+
+On distillation, Stanton et al. (2021) found that students often do not match their teachers closely even when they could, and that this fidelity matters less than generalisation. Furlanello et al. (2018) showed that a student of the same size as its teacher can surpass it (born-again networks).
+
+### 10.4 Meta-data, weak supervision and identifiability
+
+Medical images come with meta-data (age, sex, scanner, clinical scores) that can guide representation learning. Dufumier et al. (2021) weight the positive pairs of a contrastive loss by a kernel on continuous meta-data, interpolating between SimCLR and supervised contrastive learning (Khosla et al., 2020).
+
+The theory of ch. 8.4 makes the role of such variables precise: an auxiliary variable that makes the latent factors conditionally independent restores identifiability (Khemakhem et al., 2020). Causal representation learning (Schölkopf et al., 2021) asks for representations whose variables are causes that can be intervened on. Castro, Walker and Glocker (2020) argue that the causal direction between image and label in a medical task determines which shifts can occur and whether semi-supervised learning can help.
+
+Contrastive analysis (ch. 8.5) and anatomy–appearance disentanglement belong to the same line. In cardiac MRI, SDNet (Chartsias et al., 2019) encodes anatomy as spatial multi-channel maps and the modality-dependent appearance as a vector, which helps segmentation across modalities and with few labels.
+
+### 10.5 Robustness across hospitals and populations
+
+Domain generalisation asks for a model that works on unseen domains, with no target images at all. Gulrajani and Lopez-Paz (2021) found that, under a careful and fair model selection, empirical risk minimisation matches most specialised algorithms. Invariant risk minimisation (Arjovsky et al., 2019) seeks features whose optimal classifier is the same in every training domain.
+
+The WILDS benchmark (Koh et al., 2021) collects real shifts, including tumour patches from different hospitals (Camelyon17). Glocker et al. (2019) measured how strongly scanner effects persist in multi-site brain imaging data, even after standard preprocessing.
+
+Shift also has a fairness side: Seyyed-Kalantari et al. (2021) found that chest radiograph classifiers underdiagnose under-served patient populations more often.
+
+### 10.6 Trustworthy uncertainty and explanations
+
+How Bayesian a deep network can be is debated. Wilson and Izmailov (2020) argue that deep ensembles approximate Bayesian model averaging, and Le Folgoc et al. (2021) show that the posterior implied by MC dropout can behave very differently from the true posterior.
+
+Conformal prediction needs exchangeability (Theorem 9.4). Tibshirani et al. (2019) restore coverage under covariate shift by weighting the calibration scores with the likelihood ratio $p_T / p_S$, the importance weights of ch. 3.2.
+
+On explanations, Rudin (2019) argues that high-stakes decisions should rely on interpretable models when they perform as well as black boxes. Doshi-Velez and Kim (2017) call for a rigorous science of interpretability, including evaluations grounded in real tasks with human users; in medical imaging, such evaluations with clinicians remain rare.
+
+### 10.7 Open problems
+
+-   Which augmentations, pretext tasks and meta-data give the best representations for a given clinical task, and can this choice be made without labels?
+-   How to pretrain and adapt 3D and multimodal (image and report) foundation models at an affordable cost?
+-   When does aligning representations across hospitals help, and how can the label-shift trap of Proposition 3.6 be detected in advance?
+-   Can disentangled or concept-based representations be identified from weak clinical supervision, and validated by clinicians?
+-   How to obtain uncertainty estimates and prediction sets that remain valid after a change of scanner or population?
+-   How to evaluate explanations by their effect on clinical decisions rather than by their visual appeal?
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 10
+:::
+
+-   Medical foundation models raise questions of 3D cost, evaluation across sites and data governance.
+-   Theory links self-supervision to spectral methods and the augmentation graph; the choice of augmentations is the crux.
+-   Meta-data and auxiliary variables are the medical route to identifiable, interpretable representations.
+-   Robustness, fairness, valid uncertainty under shift and evaluated explanations are open problems.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 11 and 15 are computational.
+
+1.  **★ Entropy, cross-entropy and the softmax gradient.** Let $p = (0.5, 0.25, 0.25)$ and $q = (0.25, 0.25, 0.5)$.
+
+    (a) Compute $H(p)$, $H(p, q)$ and $\mathrm{KL}(p \,\|\, q)$ in nats.
+
+    (b) If $q$ is the softmax of logits $z$, what is the gradient of $H(p, q)$ with respect to $z$?
+
+    *Solution*: (a) $H(p) = 0.5 \log 2 + 0.5 \log 4 \approx 1.040$. Then $H(p, q) = 0.75 \log 4 + 0.25 \log 2 \approx 1.213$, and the difference is $\mathrm{KL}(p \,\|\, q) \approx 0.173$ nats.
+
+    (b) By Proposition 0.2, the gradient is $q - p = (-0.25, 0, 0.25)$.
+
+2.  **★ PCA and CKA.** (a) A data set has covariance eigenvalues $(5, 3, 1, 0.5, 0.5)$. With $d = 2$ components, which fraction of the variance does PCA keep, and what is the mean squared reconstruction error?
+
+    (b) Let $Z_1$ have the four rows $(1, 0), (-1, 0), (0, 1), (0, -1)$ and $Z_2 = Z_1 A$ with $A = \mathrm{diag}(1, 2)$. Compute $\mathrm{CKA}(Z_1, Z_2)$. Why is it below 1?
+
+    *Solution*: (a) By Theorem 1.2, PCA keeps $8 / 10 = 80\,\%$, and the error per sample is $1 + 0.5 + 0.5 = 2$.
+
+    (b) $Z_1^\top Z_1 = \mathrm{diag}(2, 2)$, $Z_2^\top Z_2 = \mathrm{diag}(2, 8)$ and $Z_2^\top Z_1 = \mathrm{diag}(2, 4)$. Hence
+    $$
+    \mathrm{CKA} = \frac{4 + 16}{\sqrt{8} \, \sqrt{68}} \approx 0.857 .
+    $$
+
+    $A$ is invertible but not a multiple of an orthogonal matrix, and CKA is only invariant to orthogonal maps and isotropic scaling (Definition 1.6).
+
+3.  **★ Counting adapted parameters.** A ViT-Base has 12 blocks, each with four $768 \times 768$ attention projections. (a) How many parameters does fine-tuning the query and value projections of all blocks train? (b) And LoRA of rank 4 on the same matrices? (c) A $3 \times 3$ convolution with 64 input and 64 output channels is inflated to 3D (Proposition 2.2). How many weights does it have before and after?
+
+    *Solution*: (a) $12 \times 2 \times 768^2 = 14\,155\,776$.
+
+    (b) $12 \times 2 \times 4 \times (768 + 768) = 147\,456$, about 1 % of (a).
+
+    (c) $9 \times 64 \times 64 = 36\,864$ weights in 2D, and $27 \times 64 \times 64 = 110\,592$ in 3D.
+
+4.  **★ Importance weights and effective sample size.** A domain classifier is trained on $n_S = 1000$ source and $n_T = 500$ target images. (a) Give the importance weight of a source image with $c(x) = 0.8$, and of one with $c(x) = 0.2$. (b) Suppose 10 source images have weight 8 and 990 have weight 0.5. Compute the effective sample size and comment.
+
+    *Solution*: (a) By Proposition 3.3, $w = 2 \times 0.8 / 0.2 = 8$ and $w = 2 \times 0.2 / 0.8 = 0.5$.
+
+    (b) $\sum w_i = 80 + 495 = 575$ and $\sum w_i^2 = 640 + 247.5 = 887.5$. The effective sample size is
+    $$
+    575^2 / 887.5 \approx 373 ,
+    $$
+    so the reweighted risk is about as noisy as a risk on 373 images instead of 1000. The few heavily weighted images dominate.
+
+5.  **★ Distillation at two temperatures.** A teacher has logits $u = (2, 0, -2)$ and a student $z = (1, 0, -1)$.
+
+    (a) Compute the soft targets $p^T$ and $q^T$ at $T = 1$ and $T = 10$. (b) Compute the gradient of Proposition 5.2 at $T = 10$ and compare it with the approximation of Theorem 5.3.
+
+    *Solution*: (a) At $T = 1$, $p = (0.867, 0.117, 0.016)$ and $q = (0.665, 0.245, 0.090)$. At $T = 10$, $p = (0.402, 0.329, 0.269)$ and $q = (0.367, 0.332, 0.301)$.
+
+    (b) The exact gradient $(q - p) / T$ is $(-0.00346, 0.00033, 0.00313)$. Both logit vectors have zero mean, so Theorem 5.3 applies:
+    $$
+    \frac{z - u}{K T^2} = \frac{(-1, 0, 1)}{300} \approx (-0.00333, 0, 0.00333) .
+    $$
+
+6.  **★ Sizing a vision transformer for radiographs.** A chest radiograph of $512 \times 512$ pixels is cut into $16 \times 16$ patches, with a class token. (a) How many tokens are there? (b) How much memory does one attention matrix take in float32, and all of them for 12 heads and 12 layers? (c) What changes with $32 \times 32$ patches, or with an MAE that masks 75 % of the patches?
+
+    *Solution*: (a) $(512 / 16)^2 + 1 = 1025$ tokens.
+
+    (b) $1025^2 \times 4$ bytes $\approx 4.0$ MiB per matrix, and $144$ of them take about 577 MiB, kept for backpropagation.
+
+    (c) With $32 \times 32$ patches there are $256 + 1$ tokens, about 16 times less memory. The MAE encoder sees 256 of the 1024 patches, which also divides the attention cost by 16 (ch. 7.4).
+
+7.  **★★ Weight decay and the unseen directions.** In the setting of Proposition 2.3, gradient descent with step $\eta$ adds weight decay: $B_{t+1} = B_t - \eta (\nabla_B L + \lambda B_t)$. (a) Show that $B_t P_\perp = (1 - \eta \lambda)^t B_0 P_\perp$. (b) Interpret for a pretrained encoder fine-tuned on a few images. (c) Why does LoRA initialise $B$ at zero?
+
+    *Solution*: (a) As in the proof of Proposition 2.3, $\nabla_B L \, P_\perp = 0$. Hence $B_{t+1} P_\perp = (1 - \eta \lambda) B_t P_\perp$; iterate.
+
+    (b) The pretrained features along directions absent from the target training set are not adapted: without weight decay they stay frozen, with it they shrink geometrically towards zero. Either way, they no longer match the new head, which hurts out of distribution.
+
+    (c) With $B = 0$, the adapted model equals the pretrained one at the start, so fine-tuning starts from the pretrained function rather than from a random perturbation of it.
+
+8.  **★★ Label shift.** The prevalence of a disease is 30 % in a source hospital and 10 % in a target screening programme, and $P(X \mid Y)$ is the same in both. (a) Using Proposition 3.6, bound the sum of the error rates of any classifier built on perfectly aligned features. (b) Give the importance weights $w(y) = P_T(y) / P_S(y)$. (c) A calibrated source classifier outputs $P_S(Y = 1 \mid x) = 0.5$. What is $P_T(Y = 1 \mid x)$?
+
+    *Solution*: (a) The total variation between the label distributions is $|0.3 - 0.1| = 0.2$, so $\varepsilon_S + \varepsilon_T \geq 0.2$.
+
+    (b) $w(1) = 0.1 / 0.3 = 1/3$ and $w(0) = 0.9 / 0.7 \approx 1.286$.
+
+    (c) Bayes' rule with the same $P(x \mid y)$ gives $P_T(y \mid x) \propto w(y) P_S(y \mid x)$, hence
+    $$
+    P_T(Y = 1 \mid x) = \frac{0.5 / 3}{0.5 / 3 + 0.5 \times 1.286} \approx 0.206 .
+    $$
+
+9.  **★★ Weighting and combining task gradients.** (a) Redo Theorem 4.2 with a Laplace likelihood of scale $b_t$, whose negative log-likelihood per sample is $|y - f_t(x)| / b_t + \log b_t$ plus a constant. (b) Derive the weight $\alpha$ of MGDA for two tasks given after Proposition 4.4.
+
+    *Solution*: (a) With $L_t$ the sum of absolute errors, the objective is $\sum_t (L_t / b_t + n \log b_t)$. The derivative in $b_t$ vanishes at $b_t = L_t / n$, and the objective becomes $n \sum_t \log L_t$ plus a constant: again each task is weighted by the inverse of its loss.
+
+    (b) Minimise $\phi(\alpha) = \| \alpha g_1 + (1 - \alpha) g_2 \|^2$. Its derivative is $2 (g_1 - g_2) \cdot (\alpha g_1 + (1 - \alpha) g_2)$, zero at
+    $$
+    \alpha = \frac{(g_2 - g_1) \cdot g_2}{\| g_1 - g_2 \|^2} .
+    $$
+    $\phi$ is a convex quadratic, so clipping to $[0, 1]$ gives the constrained minimum.
+
+10. **★★ Positions and sets.** (a) Let $E$ hold positional encodings added to the tokens. Is $X \mapsto \mathrm{SA}(X + E)$ permutation-equivariant? What does $\mathrm{SA}(P(X + E)) = P \, \mathrm{SA}(X + E)$ mean? (b) Show that the attention pooling of Definition 6.4 is invariant to the order of the patches, and that $w = 0$ gives mean pooling.
+
+    *Solution*: (a) No: permuting the tokens without their encodings changes the input to $PX + E$, not $P(X + E)$, and the output changes in general. The identity in the question is Proposition 6.3 applied to $X + E$: if each token keeps its encoding, the output is permuted accordingly. The encoding is what lets the model tell positions apart.
+
+    (b) Each weight depends on its own embedding and on the whole bag through the sum in the denominator. Permuting the bag therefore permutes the pairs $(a_k, h_k)$ and leaves the sum $z$ unchanged.
+
+    With $w = 0$, every weight equals $1 / N$: mean pooling.
+
+11. **★★ InfoNCE on Gaussian pairs (computational).** Let $x \in \mathbb{R}^d$ be standard Gaussian and $y = \rho x + \sqrt{1 - \rho^2} \, \varepsilon$ with independent noise $\varepsilon$, so that $I(X; Y) = -\tfrac{d}{2} \log(1 - \rho^2)$.
+
+    (a) Compute $\log N - L_{\text{NCE}}$ with the optimal critic $\log p(y \mid x) - \log p(y)$, for $\rho = 0.9$, $d \in \{1, 5, 20\}$ and $N \in \{16, 128\}$.
+
+    (b) Compare with $I(X; Y)$ and $\log N$, and conclude.
+
+    *Solution*: the script below estimates the bound by Monte Carlo.
+
+    ```python
+    import numpy as np
+    rng = np.random.default_rng(0)
+
+    def infonce_bound(d, rho, N, batches=200):
+        """log N - InfoNCE with the optimal critic log p(y|x)/p(y), for Gaussian pairs."""
+        vals = []
+        for _ in range(batches):
+            x = rng.standard_normal((N, d))
+            y = rho * x + np.sqrt(1 - rho ** 2) * rng.standard_normal((N, d))
+            # critic f(x_i, y_j) = log p(y_j | x_i) - log p(y_j), up to terms that cancel
+            diff = y[None, :, :] - rho * x[:, None, :]          # (i, j, d)
+            f = -np.sum(diff ** 2, axis=2) / (2 * (1 - rho ** 2)) + np.sum(y ** 2, axis=1)[None, :] / 2
+            f = f - f.max(axis=1, keepdims=True)
+            log_softmax = f - np.log(np.exp(f).sum(axis=1, keepdims=True))
+            vals.append(np.log(N) + np.mean(np.diag(log_softmax)))   # log N - L_NCE
+        return np.mean(vals)
+
+    rho = 0.9
+    for d in (1, 5, 20):
+        true_mi = -0.5 * d * np.log(1 - rho ** 2)
+        est = [infonce_bound(d, rho, N) for N in (16, 128)]
+        print(f"d = {d:2d}: I = {true_mi:6.2f} nats | bound with N = 16: {est[0]:.2f} (log N = {np.log(16):.2f})"
+              f" | N = 128: {est[1]:.2f} (log N = {np.log(128):.2f})")
+    ```
+
+    For $d = 1$ ($I = 0.83$), the bound is close to the truth (0.77 and 0.81). For $d = 5$ ($I = 4.15$), it gives 2.44 and 3.58.
+
+    For $d = 20$ ($I = 16.6$), it equals $\log N$ exactly (2.77 and 4.85).
+
+    Theorem 7.3 holds in every case, but the bound saturates at $\log N$: InfoNCE cannot certify more than $\log N$ nats, however good the critic.
+
+12. **★★ Total correlation of a Gaussian code.** Let the aggregate posterior be $q(z) = \mathcal{N}(0, \Sigma)$ with correlation matrix $C$. (a) Show that the total correlation is $-\tfrac12 \log \det C$. (b) Compute it for two coordinates with correlation 0.6. (c) When is it zero?
+
+    *Solution*: (a) The product of the marginals is $\mathcal{N}(0, D)$ with $D = \mathrm{diag}(\Sigma)$. The KL divergence between two centred Gaussians gives
+    $$
+    \mathrm{KL}\big(\mathcal{N}(0, \Sigma) \,\|\, \mathcal{N}(0, D)\big) = \tfrac12 \big( \mathrm{tr}(D^{-1} \Sigma) - d + \log \det D - \log \det \Sigma \big) .
+    $$
+    Here $\mathrm{tr}(D^{-1} \Sigma) = d$, and $\det \Sigma / \det D = \det C$.
+
+    (b) $\det C = 1 - 0.36 = 0.64$, so the total correlation is $-\tfrac12 \log 0.64 \approx 0.223$ nats, as in the code of ch. 8.
+
+    (c) By Hadamard's inequality, $\det C \leq 1$ with equality if and only if $C = I$: the code is uncorrelated, hence independent since it is Gaussian.
+
+13. **★★ Attributions of a quadratic score.** Let $F(x) = (w^\top x)^2$ and the baseline $x' = 0$. (a) Compute the integrated gradients and check Proposition 9.6. (b) Compute the gradient-times-input attributions and their sum. (c) Which attribution would you show a clinician, and why?
+
+    *Solution*: (a) $\partial_i F(t x) = 2 t \, w_i \, (w^\top x)$, so
+    $$
+    \mathrm{IG}_i(x) = x_i \int_0^1 2 t \, w_i (w^\top x) \, dt = x_i w_i (w^\top x) .
+    $$
+    The sum is $(w^\top x)^2 = F(x) - F(0)$.
+
+    (b) $x_i \, \partial_i F(x) = 2 x_i w_i (w^\top x)$, which sums to $2 F(x)$: twice the change of score.
+
+    (c) Both attributions are proportional here, so they rank the inputs identically, but only integrated gradients add up to the score change. Neither is a clinical explanation without sanity checks (ch. 9.3).
+
+14. **★★★ Beyond Gaussian priors.** (a) Let $z$ be uniform on $[-1, 1]^2$. Does a rotation by $45°$ preserve its distribution? (b) Construct nevertheless a bijection $h$ that preserves the uniform distribution and mixes the two coordinates, which extends Theorem 8.5 to this prior. (c) Linear ICA recovers independent non-Gaussian sources up to permutation and scaling (Comon, 1994). Why does this not contradict (b)?
+
+    *Hints and expected result*: (a) No: the rotated square is a diamond, whose law is not uniform on the square.
+
+    (b) Map each coordinate to a standard Gaussian with $\Phi^{-1}((z_j + 1) / 2)$, rotate, and map back with $2 \Phi(\cdot) - 1$. Each step preserves the relevant product law, so the composition $h$ preserves the uniform law while every output coordinate depends on both inputs. Locatello et al. (2019) use this construction for any factorised prior.
+
+    (c) The map $h$ is non-linear. ICA restricts the mixing to be linear; this restriction is an inductive bias, which is exactly what Theorem 8.5 says is needed.
+
+15. **★★★ Conformal prediction after a change of scanner (computational).** Train a classifier on the digits, calibrate split conformal sets on the source with $\alpha = 0.1$, and test them on noisier "target" digits. (a) Measure the coverage on source and target test images. (b) Recalibrate on 200 labelled target images and measure again. (c) Propose a method that needs no target labels.
+
+    *Hints and expected result*: the script below gives the three coverages.
+
+    ```python
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    from sklearn.datasets import load_digits
+    torch.manual_seed(0)
+    torch.set_num_threads(1)
+
+    X, y = load_digits(return_X_y=True)
+    X = torch.tensor(X / 16.0, dtype=torch.float32)
+    y = torch.tensor(y)
+    perm = torch.randperm(len(X))
+    tr, cal, te = perm[:600], perm[600:1100], perm[1100:]
+    model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 10))
+    opt = torch.optim.Adam(model.parameters(), lr=1e-2)
+    for _ in range(300):
+        opt.zero_grad()
+        F.cross_entropy(model(X[tr]), y[tr]).backward()
+        opt.step()
+
+    def scores(Xb):
+        with torch.no_grad():
+            return 1 - F.softmax(model(Xb), 1)
+
+    def conformal(s_cal, y_cal, s_test, y_test, alpha=0.1):
+        k = int(np.ceil((len(y_cal) + 1) * (1 - alpha)))
+        q = torch.sort(s_cal[torch.arange(len(y_cal)), y_cal]).values[k - 1]
+        sets = s_test <= q
+        return sets[torch.arange(len(y_test)), y_test].float().mean().item(), sets.sum(1).float().mean().item()
+
+    g = torch.Generator().manual_seed(1)
+    X_shift = X + 0.35 * torch.randn(X.shape, generator=g)      # a noisier "scanner"
+    cov, size = conformal(scores(X[cal]), y[cal], scores(X[te]), y[te])
+    print(f"calibrated and tested on the source : coverage {cov:.3f}, mean set size {size:.2f}")
+    cov, size = conformal(scores(X[cal]), y[cal], scores(X_shift[te]), y[te])
+    print(f"source calibration, shifted test   : coverage {cov:.3f}, mean set size {size:.2f}")
+    idx = te[:200]                                               # 200 labelled target cases
+    cov, size = conformal(scores(X_shift[idx]), y[idx], scores(X_shift[te[200:]]), y[te[200:]])
+    print(f"target calibration, shifted test   : coverage {cov:.3f}, mean set size {size:.2f}")
+    ```
+
+    On the source, the coverage is about 0.89 for a target of 0.90, within the fluctuation of one split (ch. 9.2). On the noisy target, it falls to about 0.55: exchangeability is broken. Recalibrating on 200 target images restores it (about 0.93), with larger sets (2.5 labels on average instead of 0.9).
+
+    For (c), estimate the likelihood ratio with a domain classifier (Proposition 3.3) and use weighted conformal prediction (Tibshirani et al., 2019); this handles covariate shift, but not label or concept shift.
+
+16. **★★★ Contrastive learning with continuous meta-data.** Brain MRIs come with the age $a_i$ of each subject. Consider the loss in which the anchor $i$ attracts every other view $j$ with a weight given by a Gaussian kernel $K_\sigma$ of width $\sigma$,
+    $$
+    w_{ij} = \frac{K_\sigma(a_i - a_j)}{\sum_k K_\sigma(a_i - a_k)} .
+    $$
+
+    (a) What does the loss become when $\sigma \to 0$ and when $\sigma \to \infty$? (b) Which risk does a large $\sigma$ create? (c) Propose an experiment to choose $\sigma$ (ch. 10.4).
+
+    *Hints and expected result*: (a) When $\sigma \to 0$, only views of subjects of exactly the same age are positives; with continuous ages, this is SimCLR. When $\sigma \to \infty$, all views are equally positive, and nothing pushes subjects apart.
+
+    (b) Collapse: the representation then only needs to be constant, as in ch. 7.3, and loses everything that is not age.
+
+    (c) Train with several values of $\sigma$ on one data set, and evaluate linear probes on age and on a diagnostic task, preferably on another site. Plot both against $\sigma$; Dufumier et al. (2021) study this kind of trade-off.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) combines the reports of the practical sessions (50 %) and a written or oral exam, depending on the number of students (50 %); the Université Paris-Saclay table describes it as partial continuous assessment. The solo subjects below extend the labs of the session plan and are sized like a substantial practical-session report. The group subjects suit study groups or a longer project, and say how the work divides. The written exam is a proposal for self-assessment, not the official exam.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Linear probing, fine-tuning and LP-FT under a change of hospital (paper study).** Reproduce the main comparison of Kumar et al. (2022) on Camelyon17-WILDS (Koh et al., 2021), whose tumour patches come from five hospitals. Start from an ImageNet-pretrained ResNet-18 and compare linear probing, full fine-tuning and LP-FT, on the training hospitals and on the held-out one.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
+    -   *Chapters*: ch. 1.4, 2, 3.
+    -   *Success criterion*: in- and out-of-distribution accuracies with 3 seeds; a CKA plot, layer by layer, between the pretrained and the fine-tuned encoders that shows where the features moved.
+2.  **[Solo · ≈ 20 h] Self-supervised pretraining on a small medical data set (paper study).** Implement SimCLR (Chen et al., 2020) with a ResNet-18 on BloodMNIST or DermaMNIST from MedMNIST v2 (Yang et al., 2023), at $64 \times 64$ pixels. Compare with random initialisation and supervised pretraining under linear probes using 1 %, 10 % and 100 % of the labels, and ablate the augmentations.
+    -   *Deliverables*: code, a report, a talk.
+    -   *Chapters*: ch. 1.4, 7.
+    -   *Success criterion*: SimCLR features beat random features by a clear margin at 1 % of labels; an ablation table shows which augmentations matter, with a medical justification.
+3.  **[Solo · ≈ 20 h] Uncertainty that survives a shift.** On PneumoniaMNIST (Yang et al., 2023), compare temperature scaling, MC dropout and a deep ensemble of five networks. Measure accuracy, negative log-likelihood and ECE on the test set and under synthetic shifts (blur, contrast, noise), then build conformal sets and test weighted conformal prediction (Tibshirani et al., 2019).
+    -   *Deliverables*: code, a report, a talk.
+    -   *Chapters*: ch. 3.2, 9.
+    -   *Success criterion*: reliability diagrams and a coverage table at $\alpha = 0.1$ for every method and shift, showing the coverage loss under shift and its repair.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Domain adaptation across hospitals (paper study).** On Camelyon17-WILDS, built from the CAMELYON17 challenge data (Bándi et al., 2019), compare source-only training (ERM), DANN (Ganin et al., 2016), Deep CORAL (Sun and Saenko, 2016) and test-time adaptation (AdaBN, then Tent), with the official splits.
+    -   *Split*: one member per family of methods (adversarial, moment matching, test-time), with a shared data pipeline and evaluation code.
+    -   *Measure*: accuracy on the held-out hospital over 3 seeds, and the accuracy of a domain classifier on the learned features (ch. 3.3).
+    -   *Chapters*: ch. 3. *Deliverables*: code, an 8-page report, a 20-minute talk.
+    -   *Success criterion*: every method compared to a well-tuned ERM baseline, and an honest discussion of whether feature alignment helped, in the light of Gulrajani and Lopez-Paz (2021).
+2.  **[Group of 2–3 · ≈ 30 h each] How reliable is unsupervised disentanglement? (paper study).** On the public dSprites data set (Matthey et al., 2017), train a β-VAE, a β-TCVAE and a FactorVAE, each with 3 hyperparameter values and 5 seeds, and measure the MIG.
+    -   *Split*: one objective per member; a shared training loop, MIG code and plotting.
+    -   *Measure*: MIG and reconstruction error per run; variance across seeds compared with variance across objectives.
+    -   *Chapters*: ch. 8. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: reproduce the qualitative conclusion of Locatello et al. (2019) that seeds and hyperparameters matter at least as much as the objective, and check Theorem 8.4 numerically on one model.
+3.  **[Group of 2–3 · ≈ 30 h each] Distilling a large model for chest radiographs.** Fine-tune a large teacher (an ImageNet-pretrained ViT or a wide ResNet) on PneumoniaMNIST at $128 \times 128$ pixels, then distil it into a student with ten times fewer parameters.
+    -   *Split*: teacher and data pipeline; output distillation at $T \in \{1, 2, 4, 8\}$; feature distillation (FitNets hints, attention transfer).
+    -   *Measure*: AUC with bootstrap intervals, agreement between student and teacher, inference time on a laptop CPU.
+    -   *Chapters*: ch. 5, 6. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: a student within 2 AUC points of the teacher, and a discussion of fidelity versus accuracy in the spirit of Stanton et al. (2021).
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device; four exercises, 20 points in total.
+
+1.  **Question (5 points).** Course question. Define covariate, label and concept shift, with one medical example each. Prove that importance weighting makes the source risk unbiased under covariate shift. A disease has a prevalence of 40 % in the source hospital and 20 % in the target one: what does Proposition 3.6 imply for a model with perfectly aligned features?
+
+    *Expected*: Definition 3.1 with examples (scanner change, screening versus hospital prevalence, new diagnostic criteria); the proof of Proposition 3.2; the total variation is 0.2, so the source and target error rates sum to at least 0.2.
+
+2.  **Question (5 points).** Computation. One query $q = (1, 0)$ attends to three keys $(1, 0)$, $(0, 1)$, $(-1, 0)$ with scalar values 1, 2, 3, and $d_k = 2$. Compute the attention weights and the output.
+
+    Then give the number of tokens of a ViT on a $256 \times 256$ image with $16 \times 16$ patches and a class token, and the memory of one attention matrix in float32.
+
+    *Expected*: scores $(0.707, 0, -0.707)$, weights $(0.576, 0.284, 0.140)$, output $\approx 1.564$. There are $16^2 + 1 = 257$ tokens, and one matrix takes $257^2 \times 4 \approx 264$ kB.
+
+3.  **Question (5 points).** Short proof. State and prove the InfoNCE bound $I(X; Y) \geq \log N - L_{\text{NCE}}$. A contrastive model uses batches with $N = 64$ candidates and reaches a loss of 2.5: what does the bound certify, and why do contrastive methods use large batches?
+
+    *Expected*: Theorem 7.3 and its three-step proof. The bound certifies $I \geq \log 64 - 2.5 \approx 1.66$ nats. It can never exceed $\log N \approx 4.16$ nats, whence large batches or queues of negatives.
+
+4.  **Question (5 points).** Uncertainty and explanations. Three ensemble members predict $P(y = 1 \mid x) = 0.8$, $0.8$ and $0.2$. Decompose the predictive entropy into aleatoric and epistemic parts.
+
+    With 99 calibration scores and $\alpha = 0.1$, which order statistic defines the conformal threshold? State the completeness property of integrated gradients and one sanity check for saliency maps.
+
+    *Expected*: the mean is 0.6, total entropy $\approx 0.673$; each member has entropy 0.500, so the aleatoric part is 0.500 and the epistemic part $\approx 0.173$ nats (Proposition 9.2). The threshold is the $\lceil 100 \times 0.9 \rceil = 90$-th smallest score (Theorem 9.4). Proposition 9.6; weight randomisation (Adebayo et al., 2018).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of the method and the mathematics | 30 % | Losses, bounds and algorithms of the course used correctly; claims proved or cited |
+| Experimental protocol | 25 % | Fair baselines (training from scratch, ERM, random features), several seeds, splits by patient or by hospital, uncertainty on every number |
+| Analysis of the representation | 20 % | Probes, CKA, domain classifiers or disentanglement metrics used to explain the results, not only to report them |
+| Reproducibility of the code | 10 % | Fixed seeds, pinned dependencies, one command reproduces the main table or figure |
+| Report and talk | 15 % | Clear structure, honest figures, a fair account of the paper studied, answers to questions show understanding |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   The course page on master-mva.com lists no bibliography; it points to the course website: <https://perso.telecom-paristech.fr/pgori/teaching/RepLearnMVA.html>.
+
+### Textbooks and surveys
+
+-   Bengio, Y., Courville, A. and Vincent, P. (2013). Representation learning: a review and new perspectives. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 35(8), 1798–1828.
+-   Bommasani, R. et al. (2021). On the opportunities and risks of foundation models. arXiv:2108.07258.
+-   Goodfellow, I., Bengio, Y. and Courville, A. (2016). *Deep Learning*. MIT Press.
+-   Murphy, K. P. (2023). *Probabilistic Machine Learning: Advanced Topics*. MIT Press.
+-   Pan, S. J. and Yang, Q. (2010). A survey on transfer learning. *IEEE Transactions on Knowledge and Data Engineering*, 22(10), 1345–1359.
+-   Prince, S. J. D. (2023). *Understanding Deep Learning*. MIT Press.
+-   Angelopoulos, A. N. and Bates, S. (2023). Conformal prediction: a gentle introduction. *Foundations and Trends in Machine Learning*, 16(4), 494–591.
+
+### Representations, transfer and fine-tuning
+
+-   Carreira, J. and Zisserman, A. (2017). Quo vadis, action recognition? A new model and the Kinetics dataset. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L. and Chen, W. (2022). LoRA: low-rank adaptation of large language models. *International Conference on Learning Representations (ICLR)*.
+-   Kirichenko, P., Izmailov, P. and Wilson, A. G. (2023). Last layer re-training is sufficient for robustness to spurious correlations. *ICLR*.
+-   Kornblith, S., Norouzi, M., Lee, H. and Hinton, G. (2019). Similarity of neural network representations revisited. *International Conference on Machine Learning (ICML)*.
+-   Kornblith, S., Shlens, J. and Le, Q. V. (2019). Do better ImageNet models transfer better? *CVPR*.
+-   Kumar, A., Raghunathan, A., Jones, R., Ma, T. and Liang, P. (2022). Fine-tuning can distort pretrained features and underperform out-of-distribution. *ICLR*.
+-   Raghu, M., Zhang, C., Kleinberg, J. and Bengio, S. (2019). Transfusion: understanding transfer learning for medical imaging. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Tajbakhsh, N., Shin, J. Y., Gurudu, S. R., Hurst, R. T., Kendall, C. B., Gotway, M. B. and Liang, J. (2016). Convolutional neural networks for medical image analysis: full training or fine tuning? *IEEE Transactions on Medical Imaging*, 35(5), 1299–1312.
+-   Tishby, N., Pereira, F. C. and Bialek, W. (2000). The information bottleneck method. arXiv:physics/0004057.
+-   Yosinski, J., Clune, J., Bengio, Y. and Lipson, H. (2014). How transferable are features in deep neural networks? *NeurIPS*.
+
+### Domain adaptation and robustness
+
+-   Arjovsky, M., Bottou, L., Gulrajani, I. and Lopez-Paz, D. (2019). Invariant risk minimization. arXiv:1907.02893.
+-   Bándi, P. et al. (2019). From detection of individual metastases to classification of lymph node status at the patient level: the CAMELYON17 challenge. *IEEE Transactions on Medical Imaging*, 38(2), 550–560.
+-   Ben-David, S., Blitzer, J., Crammer, K., Kulesza, A., Pereira, F. and Vaughan, J. W. (2010). A theory of learning from different domains. *Machine Learning*, 79, 151–175.
+-   Castro, D. C., Walker, I. and Glocker, B. (2020). Causality matters in medical imaging. *Nature Communications*, 11, 3673.
+-   Fortin, J.-P. et al. (2018). Harmonization of cortical thickness measurements across scanners and sites. *NeuroImage*, 167, 104–120.
+-   Ganin, Y., Ustinova, E., Ajakan, H., Germain, P., Larochelle, H., Laviolette, F., Marchand, M. and Lempitsky, V. (2016). Domain-adversarial training of neural networks. *Journal of Machine Learning Research*, 17(59), 1–35.
+-   Glocker, B., Robinson, R., Castro, D. C., Dou, Q. and Konukoglu, E. (2019). Machine learning with multi-site imaging data: an empirical study on the impact of scanner effects. arXiv:1910.04597.
+-   Gretton, A., Borgwardt, K. M., Rasch, M. J., Schölkopf, B. and Smola, A. (2012). A kernel two-sample test. *Journal of Machine Learning Research*, 13, 723–773.
+-   Gulrajani, I. and Lopez-Paz, D. (2021). In search of lost domain generalization. *ICLR*.
+-   Johnson, W. E., Li, C. and Rabinovic, A. (2007). Adjusting batch effects in microarray expression data using empirical Bayes methods. *Biostatistics*, 8(1), 118–127.
+-   Koh, P. W. et al. (2021). WILDS: a benchmark of in-the-wild distribution shifts. *ICML*.
+-   Li, Y., Wang, N., Shi, J., Hou, X. and Liu, J. (2018). Adaptive batch normalization for practical domain adaptation. *Pattern Recognition*, 80, 109–117.
+-   Long, M., Cao, Y., Wang, J. and Jordan, M. I. (2015). Learning transferable features with deep adaptation networks. *ICML*.
+-   Seyyed-Kalantari, L., Zhang, H., McDermott, M. B. A., Chen, I. Y. and Ghassemi, M. (2021). Underdiagnosis bias of artificial intelligence algorithms applied to chest radiographs in under-served patient populations. *Nature Medicine*, 27, 2176–2182.
+-   Shimodaira, H. (2000). Improving predictive inference under covariate shift by weighting the log-likelihood function. *Journal of Statistical Planning and Inference*, 90(2), 227–244.
+-   Sun, B. and Saenko, K. (2016). Deep CORAL: correlation alignment for deep domain adaptation. *European Conference on Computer Vision (ECCV) Workshops*.
+-   Sun, B., Feng, J. and Saenko, K. (2016). Return of frustratingly easy domain adaptation. *AAAI Conference on Artificial Intelligence*.
+-   Wang, D., Shelhamer, E., Liu, S., Olshausen, B. and Darrell, T. (2021). Tent: fully test-time adaptation by entropy minimization. *ICLR*.
+-   Zech, J. R., Badgeley, M. A., Liu, M., Costa, A. B., Titano, J. J. and Oermann, E. K. (2018). Variable generalization performance of a deep learning model to detect pneumonia in chest radiographs: a cross-sectional study. *PLoS Medicine*, 15(11), e1002683.
+-   Zhao, H., des Combes, R. T., Zhang, K. and Gordon, G. (2019). On learning invariant representations for domain adaptation. *ICML*.
+
+### Multi-task learning and distillation
+
+-   Ba, J. and Caruana, R. (2014). Do deep nets really need to be deep? *NeurIPS*.
+-   Buciluǎ, C., Caruana, R. and Niculescu-Mizil, A. (2006). Model compression. *ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*.
+-   Caruana, R. (1997). Multitask learning. *Machine Learning*, 28, 41–75.
+-   Désidéri, J.-A. (2012). Multiple-gradient descent algorithm (MGDA) for multiobjective optimization. *Comptes Rendus Mathématique*, 350(5–6), 313–318.
+-   Furlanello, T., Lipton, Z., Tschannen, M., Itti, L. and Anandkumar, A. (2018). Born-again neural networks. *ICML*.
+-   Hinton, G., Vinyals, O. and Dean, J. (2015). Distilling the knowledge in a neural network. arXiv:1503.02531.
+-   Kendall, A., Gal, Y. and Cipolla, R. (2018). Multi-task learning using uncertainty to weigh losses for scene geometry and semantics. *CVPR*.
+-   Lopez-Paz, D., Bottou, L., Schölkopf, B. and Vapnik, V. (2016). Unifying distillation and privileged information. *ICLR*.
+-   Misra, I., Shrivastava, A., Gupta, A. and Hebert, M. (2016). Cross-stitch networks for multi-task learning. *CVPR*.
+-   Müller, R., Kornblith, S. and Hinton, G. (2019). When does label smoothing help? *NeurIPS*.
+-   Park, W., Kim, D., Lu, Y. and Cho, M. (2019). Relational knowledge distillation. *CVPR*.
+-   Romero, A., Ballas, N., Kahou, S. E., Chassang, A., Gatta, C. and Bengio, Y. (2015). FitNets: hints for thin deep nets. *ICLR*.
+-   Sener, O. and Koltun, V. (2018). Multi-task learning as multi-objective optimization. *NeurIPS*.
+-   Stanton, S., Izmailov, P., Kirichenko, P., Alemi, A. A. and Wilson, A. G. (2021). Does knowledge distillation really work? *NeurIPS*.
+-   Tian, Y., Krishnan, D. and Isola, P. (2020). Contrastive representation distillation. *ICLR*.
+-   Yu, T., Kumar, S., Gupta, A., Levine, S., Hausman, K. and Finn, C. (2020). Gradient surgery for multi-task learning. *NeurIPS*.
+-   Zagoruyko, S. and Komodakis, N. (2017). Paying more attention to attention: improving the performance of convolutional neural networks via attention transfer. *ICLR*.
+
+### Attention and transformers
+
+-   Bahdanau, D., Cho, K. and Bengio, Y. (2015). Neural machine translation by jointly learning to align and translate. *ICLR*.
+-   Chen, J. et al. (2021). TransUNet: transformers make strong encoders for medical image segmentation. arXiv:2102.04306.
+-   Cordonnier, J.-B., Loukas, A. and Jaggi, M. (2020). On the relationship between self-attention and convolutional layers. *ICLR*.
+-   Dosovitskiy, A. et al. (2021). An image is worth 16x16 words: transformers for image recognition at scale. *ICLR*.
+-   Hatamizadeh, A. et al. (2022). UNETR: transformers for 3D medical image segmentation. *IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)*.
+-   Ilse, M., Tomczak, J. M. and Welling, M. (2018). Attention-based deep multiple instance learning. *ICML*.
+-   Jain, S. and Wallace, B. C. (2019). Attention is not explanation. *Conference of the North American Chapter of the Association for Computational Linguistics (NAACL)*.
+-   Liu, Z. et al. (2021). Swin Transformer: hierarchical vision transformer using shifted windows. *IEEE/CVF International Conference on Computer Vision (ICCV)*.
+-   Raghu, M., Unterthiner, T., Kornblith, S., Zhang, C. and Dosovitskiy, A. (2021). Do vision transformers see like convolutional neural networks? *NeurIPS*.
+-   Touvron, H., Cord, M., Douze, M., Massa, F., Sablayrolles, A. and Jégou, H. (2021). Training data-efficient image transformers and distillation through attention. *ICML*.
+-   Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł. and Polosukhin, I. (2017). Attention is all you need. *NeurIPS*.
+
+### Self-supervised learning and foundation models
+
+-   Arora, S., Khandeparkar, H., Khodak, M., Plevrakis, O. and Saunshi, N. (2019). A theoretical analysis of contrastive unsupervised representation learning. *ICML*.
+-   Azizi, S. et al. (2021). Big self-supervised models advance medical image classification. *ICCV*.
+-   Balestriero, R. and LeCun, Y. (2022). Contrastive and non-contrastive self-supervised learning recover global and local spectral embedding methods. *NeurIPS*.
+-   Bardes, A., Ponce, J. and LeCun, Y. (2022). VICReg: variance-invariance-covariance regularization for self-supervised learning. *ICLR*.
+-   Caron, M., Touvron, H., Misra, I., Jégou, H., Mairal, J., Bojanowski, P. and Joulin, A. (2021). Emerging properties in self-supervised vision transformers. *ICCV*.
+-   Chen, T., Kornblith, S., Norouzi, M. and Hinton, G. (2020). A simple framework for contrastive learning of visual representations. *ICML*.
+-   Chen, X. and He, K. (2021). Exploring simple Siamese representation learning. *CVPR*.
+-   Doersch, C., Gupta, A. and Efros, A. A. (2015). Unsupervised visual representation learning by context prediction. *ICCV*.
+-   Dufumier, B., Gori, P. et al. (2021). Contrastive learning with continuous proxy meta-data for 3D MRI classification. *International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI)*.
+-   Gidaris, S., Singh, P. and Komodakis, N. (2018). Unsupervised representation learning by predicting image rotations. *ICLR*.
+-   Grill, J.-B. et al. (2020). Bootstrap your own latent: a new approach to self-supervised learning. *NeurIPS*.
+-   HaoChen, J. Z., Wei, C., Gaidon, A. and Ma, T. (2021). Provable guarantees for self-supervised deep learning with spectral contrastive loss. *NeurIPS*.
+-   He, K., Fan, H., Wu, Y., Xie, S. and Girshick, R. (2020). Momentum contrast for unsupervised visual representation learning. *CVPR*.
+-   He, K., Chen, X., Xie, S., Li, Y., Dollár, P. and Girshick, R. (2022). Masked autoencoders are scalable vision learners. *CVPR*.
+-   Jing, L., Vincent, P., LeCun, Y. and Tian, Y. (2022). Understanding dimensional collapse in contrastive self-supervised learning. *ICLR*.
+-   Khosla, P. et al. (2020). Supervised contrastive learning. *NeurIPS*.
+-   Kirillov, A. et al. (2023). Segment anything. *ICCV*.
+-   Ma, J., He, Y., Li, F., Han, L., You, C. and Wang, B. (2024). Segment anything in medical images. *Nature Communications*, 15, 654.
+-   Moor, M., Banerjee, O., Abad, Z. S. H., Krumholz, H. M., Leskovec, J., Topol, E. J. and Rajpurkar, P. (2023). Foundation models for generalist medical artificial intelligence. *Nature*, 616, 259–265.
+-   Noroozi, M. and Favaro, P. (2016). Unsupervised learning of visual representations by solving jigsaw puzzles. *ECCV*.
+-   Oquab, M. et al. (2024). DINOv2: learning robust visual features without supervision. *Transactions on Machine Learning Research*.
+-   Poole, B., Ozair, S., van den Oord, A., Alemi, A. and Tucker, G. (2019). On variational bounds of mutual information. *ICML*.
+-   Radford, A. et al. (2021). Learning transferable visual models from natural language supervision. *ICML*.
+-   Tschannen, M., Djolonga, J., Rubenstein, P. K., Gelly, S. and Lucic, M. (2020). On mutual information maximization for representation learning. *ICLR*.
+-   van den Oord, A., Li, Y. and Vinyals, O. (2018). Representation learning with contrastive predictive coding. arXiv:1807.03748.
+-   Wang, T. and Isola, P. (2020). Understanding contrastive representation learning through alignment and uniformity on the hypersphere. *ICML*.
+-   Yang, J., Shi, R., Wei, D., Liu, Z., Zhao, L., Ke, B., Pfister, H. and Ni, B. (2023). MedMNIST v2: a large-scale lightweight benchmark for 2D and 3D biomedical image classification. *Scientific Data*, 10, 41.
+-   Zbontar, J., Jing, L., Misra, I., LeCun, Y. and Deny, S. (2021). Barlow Twins: self-supervised learning via redundancy reduction. *ICML*.
+-   Zhang, Y., Jiang, H., Miura, Y., Manning, C. D. and Langlotz, C. P. (2022). Contrastive learning of medical visual representations from paired images and text. *Machine Learning for Healthcare Conference (MLHC)*.
+-   Zhou, Z., Sodha, V., Pang, J., Gotway, M. B. and Liang, J. (2021). Models Genesis. *Medical Image Analysis*, 67, 101840.
+
+### Disentanglement and generative models
+
+-   Abid, A. and Zou, J. (2019). Contrastive variational autoencoder enhances salient features. arXiv:1902.04601.
+-   Chartsias, A. et al. (2019). Disentangled representation learning in cardiac image analysis. *Medical Image Analysis*, 58, 101535.
+-   Chen, R. T. Q., Li, X., Grosse, R. and Duvenaud, D. (2018). Isolating sources of disentanglement in variational autoencoders. *NeurIPS*.
+-   Chen, X., Duan, Y., Houthooft, R., Schulman, J., Sutskever, I. and Abbeel, P. (2016). InfoGAN: interpretable representation learning by information maximizing generative adversarial nets. *NeurIPS*.
+-   Comon, P. (1994). Independent component analysis, a new concept? *Signal Processing*, 36(3), 287–314.
+-   Higgins, I. et al. (2017). β-VAE: learning basic visual concepts with a constrained variational framework. *ICLR*.
+-   Higgins, I., Amos, D., Pfau, D., Racanière, S., Matthey, L., Rezende, D. and Lerchner, A. (2018). Towards a definition of disentangled representations. arXiv:1812.02230.
+-   Hoffman, M. D. and Johnson, M. J. (2016). ELBO surgery: yet another way to carve up the variational evidence lower bound. *NIPS Workshop in Advances in Approximate Bayesian Inference*.
+-   Hyvärinen, A. and Pajunen, P. (1999). Nonlinear independent component analysis: existence and uniqueness results. *Neural Networks*, 12(3), 429–439.
+-   Khemakhem, I., Kingma, D. P., Monti, R. P. and Hyvärinen, A. (2020). Variational autoencoders and nonlinear ICA: a unifying framework. *International Conference on Artificial Intelligence and Statistics (AISTATS)*.
+-   Kim, H. and Mnih, A. (2018). Disentangling by factorising. *ICML*.
+-   Kingma, D. P. and Welling, M. (2014). Auto-encoding variational Bayes. *ICLR*.
+-   Locatello, F., Bauer, S., Lucic, M., Rätsch, G., Gelly, S., Schölkopf, B. and Bachem, O. (2019). Challenging common assumptions in the unsupervised learning of disentangled representations. *ICML*.
+-   Locatello, F., Poole, B., Rätsch, G., Schölkopf, B., Bachem, O. and Tschannen, M. (2020). Weakly-supervised disentanglement without compromises. *ICML*.
+-   Matthey, L., Higgins, I., Hassabis, D. and Lerchner, A. (2017). dSprites: disentanglement testing sprites dataset. <https://github.com/deepmind/dsprites-dataset>.
+-   Schölkopf, B., Locatello, F., Bauer, S., Ke, N. R., Kalchbrenner, N., Goyal, A. and Bengio, Y. (2021). Toward causal representation learning. *Proceedings of the IEEE*, 109(5), 612–634.
+
+### Uncertainty, interpretability and explainability
+
+-   Adebayo, J., Gilmer, J., Muelly, M., Goodfellow, I., Hardt, M. and Kim, B. (2018). Sanity checks for saliency maps. *NeurIPS*.
+-   DeGrave, A. J., Janizek, J. D. and Lee, S.-I. (2021). AI for radiographic COVID-19 detection selects shortcuts over signal. *Nature Machine Intelligence*, 3, 610–619.
+-   Doshi-Velez, F. and Kim, B. (2017). Towards a rigorous science of interpretable machine learning. arXiv:1702.08608.
+-   Gal, Y. and Ghahramani, Z. (2016). Dropout as a Bayesian approximation: representing model uncertainty in deep learning. *ICML*.
+-   Guo, C., Pleiss, G., Sun, Y. and Weinberger, K. Q. (2017). On calibration of modern neural networks. *ICML*.
+-   Kendall, A. and Gal, Y. (2017). What uncertainties do we need in Bayesian deep learning for computer vision? *NeurIPS*.
+-   Kim, B., Wattenberg, M., Gilmer, J., Cai, C., Wexler, J., Viegas, F. and Sayres, R. (2018). Interpretability beyond feature attribution: quantitative testing with concept activation vectors (TCAV). *ICML*.
+-   Koh, P. W., Nguyen, T., Tang, Y. S., Mussmann, S., Pierson, E., Kim, B. and Liang, P. (2020). Concept bottleneck models. *ICML*.
+-   Lakshminarayanan, B., Pritzel, A. and Blundell, C. (2017). Simple and scalable predictive uncertainty estimation using deep ensembles. *NeurIPS*.
+-   Le Folgoc, L., Baltatzis, V., Desai, S., Devaraj, A., Ellis, S., Martinez Manzanera, O. E., Nair, A., Qiu, H., Schnabel, J. and Glocker, B. (2021). Is MC dropout Bayesian? arXiv preprint.
+-   Ovadia, Y. et al. (2019). Can you trust your model's uncertainty? Evaluating predictive uncertainty under dataset shift. *NeurIPS*.
+-   Rudin, C. (2019). Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead. *Nature Machine Intelligence*, 1, 206–215.
+-   Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D. and Batra, D. (2017). Grad-CAM: visual explanations from deep networks via gradient-based localization. *ICCV*.
+-   Simonyan, K., Vedaldi, A. and Zisserman, A. (2014). Deep inside convolutional networks: visualising image classification models and saliency maps. *ICLR Workshop*.
+-   Sundararajan, M., Taly, A. and Yan, Q. (2017). Axiomatic attribution for deep networks. *ICML*.
+-   Tibshirani, R. J., Barber, R. F., Candès, E. J. and Ramdas, A. (2019). Conformal prediction under covariate shift. *NeurIPS*.
+-   Vovk, V., Gammerman, A. and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.
+-   Wilson, A. G. and Izmailov, P. (2020). Bayesian deep learning and a probabilistic perspective of generalization. *NeurIPS*.

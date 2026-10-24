@@ -1,0 +1,2508 @@
+---
+title: "Graphs in Machine Learning"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: symmetric matrices, Markov chains and concentration](#ch0)
+-   [1. Graphs, Laplacians and spectral graph theory](#ch1)
+-   [2. Spectral clustering](#ch2)
+-   [3. Graphs from flat data and manifold learning](#ch3)
+-   [4. Semi-supervised learning on graphs](#ch4)
+-   [5. Learnability on graphs: transductive learning](#ch5)
+-   [6. Adaptive online learning with graphs](#ch6)
+-   [7. Large graphs: scalability, approximation and sparsification](#ch7)
+-   [8. Decision-making on graphs: graph bandits](#ch8)
+-   [9. Applications: social networks, recommender systems and vision](#ch9)
+-   [10. Complements for self-study](#ch10)
+-   [11. Research directions and open problems](#ch11)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Graphs in Machine Learning
+  Official title       Graphs in machine learning
+  Instructors          D. CALANDRIELLO, M.VALKO, A.AZIZE (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 28 h (lectures 16 h, tutorials 12 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Machine Learning
+  Language             Not displayed (the master-mva.com course description is written in English)
+  Assessment           Short reports from the recitations; to be eligible for the resit (“rattrapage”), students must submit at least 2 homeworks on their deadlines and receive at least one third of the maximum homework score (master-mva.com); Université Paris-Saclay: “Evaluation Continue non Intégrale” (partial continuous assessment)
+  Prerequisites        Linear algebra and basic statistics; the other tools needed are covered in the lectures (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics or computer science who knows linear algebra and basic statistics, and who wants to learn from data that come with relations, or whose geometry is best captured by a neighbourhood graph.
+
+**Empirical first**: in Zachary's karate club (34 members, 78 friendships), the sign of a single eigenvector of the graph Laplacian, computed from the friendships alone, predicts which side of the later split 33 of the 34 members joined ([ch. 1](#ch1)). On the handwritten digits of scikit-learn, with only 2 labelled images per class, propagating labels along a nearest-neighbour graph classifies 91.5 % of the 1777 other images, against 80.4 % for a logistic regression on the 20 labelled ones ([ch. 4](#ch4)).
+
+This course explains both phenomena and builds on them. Graphs arise in two ways: as networks (social, biological, technological), and as neighbourhood graphs built from flat data such as images. The same object, the graph Laplacian, drives clustering, manifold learning, semi-supervised learning, online prediction and decision-making on graphs.
+
+Every method comes with the question of scale: what it costs on a graph with millions of nodes, and which approximation keeps its guarantees.
+
+The course shares tools with [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html) (the Laplacian pseudo-inverse is a kernel), [Sequential Learning](../s2-sequential-learning/index.html) and [Reinforcement Learning](../s2-reinforcement-learning/index.html) (bandits), and [Algorithms for Network Optimization and Management](../s2-network-optimization/index.html) (networks).
+
+### What you will be able to do
+
+-   Compute and interpret the spectrum of the Laplacians of a graph: connected components, smooth functions, random walks and the Cheeger inequality.
+-   Derive spectral clustering as a relaxation of a graph cut, implement it, and explain when it recovers the clusters.
+-   Build a similarity graph from flat data, choose its parameters, and use its eigenvectors as a nonparametric basis and as a manifold embedding.
+-   Solve semi-supervised problems with the harmonic function solution, its regularized variants and manifold regularization.
+-   Prove a transductive generalization bound for graph-regularized learning through algorithmic stability.
+-   Predict labels online on a graph with a perceptron, bound its mistakes, and run an online semi-supervised learner with bounded memory.
+-   Scale graph methods with sparse iterative solvers, Nyström approximations and spectral sparsification, and bound the error each approximation adds.
+-   Analyse bandit algorithms on graphs, from UCB1 to spectral bandits, and explain why the regret depends on an effective dimension rather than on the number of nodes.
+-   Apply these tools to social networks (centrality, link prediction, influence), recommender systems and vision (face recognition, segmentation).
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from the remark that graphs come in handy whenever we deal with relations between objects. The course, focused on learning, presents methods for two main sources of graphs in machine learning.
+
+The first source is networks: social, biological or technological. The second is flat data, often from vision, where a graph serves as a useful nonparametric basis and an effective data representation for spectral clustering, manifold learning and semi-supervised learning.
+
+The description also announces online decision-making on graphs, suitable for recommender systems or online advertising. It stresses that the scalability of every approach is always discussed, with how to address huge graphs in practice.
+
+According to the description, the lectures show not only how but mostly why things work. Students learn the relevant parts of spectral graph theory, learning theory and bandit theory, the necessary mathematics, and concrete graph-based approaches to typical machine learning problems.
+
+The practical sessions give hands-on experience on applications such as an online face recognizer, and with graph-processing tools such as GraphLab. The organisation announced is 7 lectures and 3 recitations (TP/TD) of 2 hours each, held online. The Université Paris-Saclay course detail gives only the type of assessment, with no programme of its own.
+
+| Official topic | Course section |
+|---|---|
+| Spectral graph theory, graph Laplacians and spectral clustering | [ch. 1](#ch1): Definition 1.2, Propositions 1.3–1.4, Theorem 1.7 (Cheeger); [ch. 2](#ch2): Propositions 2.2–2.3, Algorithm 2.4, Theorem 2.6 |
+| Constructing graphs from flat data – graphs as a non-parametric basis | [ch. 3](#ch3), sections 3.1–3.2: Definition 3.1, Proposition 3.2 |
+| Semi-supervised learning and manifold learning | [ch. 4](#ch4) (harmonic solution, soft harmonic, manifold regularization); [ch. 3](#ch3), sections 3.3–3.4 (Laplacian eigenmaps, diffusion maps) |
+| Learnability on graphs – transductive learning | [ch. 5](#ch5): Theorem 5.3 (stability), Lemma 5.4, Theorem 5.5 (transductive bound) |
+| Adaptive online learning with graphs | [ch. 6](#ch6): graph perceptron (Theorem 6.3), online harmonic solution on a quantized graph (Algorithm 6.5) |
+| Real-world graphs scalability and approximations | [ch. 7](#ch7), sections 7.1–7.3: real-world graphs, iterative solvers (Theorem 7.1), Nyström (Proposition 7.2) |
+| Large-graphs, approximation, sparsification and error analysis | [ch. 7](#ch7), sections 7.4–7.5: Theorem 7.4 (spectral sparsification), Proposition 7.5 (error of the sparsified solution); Proposition 6.4 |
+| Decision-making on graphs, graph bandits | [ch. 8](#ch8): UCB1, OFUL, spectral bandits (Proposition 8.5); [ch. 10](#ch10), section 10.3: side observations and other graph bandits |
+| Social networks and recommender systems applications | [ch. 9](#ch9), sections 9.1–9.2: centrality, communities, link prediction, random-walk recommenders; [ch. 10](#ch10), section 10.4: influence maximization (Theorem 10.2); [ch. 8](#ch8) for online recommendation |
+| Vision applications (e.g., face recognition) | [ch. 9](#ch9), section 9.3 (face recognition, segmentation); [ch. 6](#ch6), section 6.4 (the online face recognizer); [ch. 4](#ch4) code on digit images |
+| “Les intervenants” (last item of the list) | Not a topic: the heading of the instructors list, given in the fiche |
+| Objective: graphs coming from networks (social, biological, technology) | [ch. 1](#ch1), section 1.1; [ch. 7](#ch7), section 7.1 |
+| Objective: online decision-making for recommender systems or online advertising | [ch. 8](#ch8); [ch. 9](#ch9), section 9.2 |
+| Objective: scalability of all approaches | [ch. 7](#ch7), and a cost remark in each of ch. 2–6 |
+| Objective: spectral graph theory, learning theory, bandit theory | [ch. 1](#ch1), [ch. 5](#ch5), [ch. 8](#ch8) |
+| Practical sessions: an online face recognizer | [ch. 6](#ch6), section 6.4; session 10 of the [session plan](#sessions) |
+| Practical sessions: graph-processing tools (e.g., GraphLab) | [ch. 7](#ch7), section 7.6 (the vertex programs of GraphLab and PowerGraph); the labs use NetworkX and SciPy sparse matrices |
+| Organisation: 7 lectures and 3 recitations of 2 h, online | [Session plan](#sessions) |
+| Assessment: recitation reports; homework for resit eligibility | [Projects and assessment](#projects) |
+
+Every official topic has a section in these notes. The extensions beyond the syllabus are the review of ch. 0, and two self-study chapters: complements (ch. 10: the hard side of Cheeger, diffusion maps, graph neural networks as Laplacian smoothing, together with the self-study parts of two official topics, side observations and influence maximization) and research directions (ch. 11).
+
+### Where this course fits in the programme
+
+Official prerequisites: linear algebra and basic statistics; the description says that the other tools needed are covered in the lectures. Ch. 0 collects them: the spectral theorem and Rayleigh quotients, Markov chains, and the concentration inequalities used by the learning-theory and bandit chapters.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (symmetric matrices, eigenvalues), [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Markov chains, concentration) and [Scientific Python](../s0-refresher-python-scientific-computing/index.html) (NumPy, SciPy sparse matrices) cover the background.
+-   **Semester 1 courses that prepare it** — [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) (risk, generalization bounds), [Convex Optimization](../s1-convex-optimization/index.html) (quadratic problems, strong convexity), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (manifold learning), [ALTEGRAD](../s1-altegrad/index.html) (graph data and graph neural networks) and [Probabilistic Graphical Models](../s1-probabilistic-graphical-models/index.html) (another meaning of “graph”).
+-   **Related courses of semester 2** — [Kernel Methods](../s2-kernel-methods/index.html) (Laplacian kernels, Nyström), [Sequential Learning](../s2-sequential-learning/index.html) and [Reinforcement Learning](../s2-reinforcement-learning/index.html) (bandits), [Large Random Matrices](../s2-random-matrices-ml/index.html) (spectra of random graphs and kernel matrices), [Graphical Models: Discrete Inference and Learning](../s2-graphical-models-discrete/index.html) (graph cuts in vision), [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html) (neighbourhood graphs on 3D points) and [Network Optimization](../s2-network-optimization/index.html).
+-   **After the course** — the [research internship](../s3-research-internship/index.html); graph methods recur in [Responsible Machine Learning](../s2-responsible-ml/index.html) (fairness on networks) and [Protein Science](../s2-protein-science/index.html) (interaction graphs).
+
+### Course outline
+
+-   **0. Review** — spectral theorem, Rayleigh quotients, Markov chains, Hoeffding and Azuma inequalities.
+-   **1. Graphs, Laplacians and spectral graph theory** — where graphs come from, the three Laplacians, spectrum and connectivity, smoothness, random walks, the Cheeger inequality.
+-   **2. Spectral clustering** — graph cuts, their spectral relaxations, the algorithms and why they work.
+-   **3. Graphs from flat data and manifold learning** — similarity graphs, eigenvectors as a nonparametric basis, convergence to the Laplace–Beltrami operator, Laplacian eigenmaps.
+-   **4. Semi-supervised learning on graphs** — the harmonic function solution, random walks and electric networks, soft constraints, manifold regularization.
+-   **5. Learnability on graphs** — the transductive setting, algorithmic stability, concentration without replacement, a generalization bound.
+-   **6. Adaptive online learning with graphs** — the graph perceptron and its mistake bound, the online harmonic solution on a quantized graph, the online face recognizer.
+-   **7. Large graphs** — real-world graphs, iterative solvers, Nyström, spectral sparsification and its error analysis, distributed graph processing.
+-   **8. Decision-making on graphs** — UCB1, linear bandits, spectral bandits and the effective dimension.
+-   **9. Applications** — social networks, recommender systems and vision.
+-   **10. Complements for self-study** — the hard side of the Cheeger inequality, diffusion maps, side observations and more graph bandits, influence maximization, graph neural networks.
+-   **11. Research directions and open problems** — a self-study tour of current work.
+
+### Session plan {#sessions}
+
+**28 h in class = 14 sessions of 2 h.** The volume of 28 h, with 16 h of lectures and 12 h of tutorials, comes from the Université Paris-Saclay programme table. The master-mva.com page announces a lighter organisation: 7 lectures and 3 recitations of 2 hours, held online. The split below follows the 28 h and is a proposal: 8 lectures and 6 tutorials, three of which are the recitations with a short report.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material. The level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 2 h | 1 | Lecture — ch. 0 Review: spectral theorem, Courant–Fischer, Markov chains, concentration; ch. 1.1–1.3 graphs, Laplacians, spectrum and connectivity | Ex. 1, 2 |
+| 2 | 2 h | 1 | Tutorial — ch. 1.4–1.5 smooth functions and the graph Fourier basis, random walks, the Cheeger inequality; karate club lab | Ex. 8 |
+| 3 | 2 h | 2 | Lecture — ch. 2 Spectral clustering: cuts, relaxations, algorithms, perturbation analysis | Ex. 3, 6 |
+| 4 | 2 h | 2 | Lecture — ch. 3 Similarity graphs, nonparametric basis, convergence of graph Laplacians, Laplacian eigenmaps | Ex. 4, 10 |
+| 5 | 2 h | 2 | Lecture — ch. 4.1–4.4 Harmonic function solution, random walks, soft harmonic solution | Ex. 5, 9 |
+| 6 | 2 h | 2 | Recitation 1 (report) — ch. 4.5–4.6 manifold regularization; lab: spectral clustering and semi-supervised learning on digits | Ex. 16 |
+| 7 | 2 h | 2 | Lecture — ch. 5 Transductive setting, stability of the soft harmonic solution, concentration without replacement, generalization bound | Ex. 11 |
+| 8 | 2 h | 2 | Tutorial — ch. 5.5 stability experiment and discussion of the bound | Ex. 11 (b–c) |
+| 9 | 2 h | 3 | Lecture — ch. 6.1–6.3 Online learning: graph perceptron, mistake bound, online harmonic solution with quantization | Ex. 12 |
+| 10 | 2 h | 3 | Recitation 2 (report) — ch. 6.4 the online face recognizer | Ex. 14 |
+| 11 | 2 h | 3 | Lecture — ch. 7 Real-world graphs, iterative solvers, Nyström, spectral sparsification, error analysis, GraphLab | Ex. 17 |
+| 12 | 2 h | 3 | Lecture — ch. 8.1–8.3 UCB1, linear bandits, spectral bandits and the effective dimension | Ex. 13 |
+| 13 | 2 h | 3 | Tutorial — ch. 8 bandit simulations; ch. 9.1 social networks: centrality, communities, link prediction | Ex. 7, 15 |
+| 14 | 2 h | 3 | Recitation 3 (report) — ch. 9.2–9.3 recommender systems and vision: random-walk recommender, graph bandits, segmentation | code of ch. 9 |
+
+**Self-study, outside the 28 h** (about 8 h in total): ch. 10 Complements for self-study (≈ 4 h) · ch. 11 Research directions and open problems (≈ 4 h).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 if Rayleigh quotients or Markov chains feel distant; ch. 1–8 use them without warning.
+-   Keep one small graph in mind throughout, the two triangles of Example 1.5: every definition of the course can be checked on it by hand.
+-   After each session, do the exercises of its row, then run the code of the chapter and change one parameter (number of neighbours, bandwidth, regularization) to see its effect.
+-   The code uses NumPy, SciPy (sparse matrices), scikit-learn and NetworkX, with synthetic data or data sets bundled with scikit-learn and NetworkX; every block runs in seconds on a laptop.
+-   Each block sets `OMP_NUM_THREADS` to 1 before importing NumPy: at these problem sizes one BLAS thread is fastest, and some shared machines slow down badly with more.
+-   The three recitations ask for a short report: write it as you go, with one figure and one paragraph of interpretation per question.
+-   Start a project of the last section after session 6, once spectral and semi-supervised methods are in place.
+
+## 0. Review: symmetric matrices, Markov chains and concentration {#ch0}
+
+Graph methods compute with symmetric matrices, interpret them through random walks, and are analysed with concentration inequalities. This chapter collects the M1-level facts used later, with short proofs.
+
+The [Linear Algebra, Analysis and Optimization refresher](../s0-refresher-linear-algebra-optimization/index.html) and the [Probability and Statistics refresher](../s0-refresher-probability-statistics/index.html) cover the same ground at a slower pace.
+
+### 0.1 Symmetric matrices and Rayleigh quotients
+
+:::: thm
+[Theorem 0.1 — Spectral theorem, Courant–Fischer and Ky Fan]{.tag} Let $S \in \mathbb{R}^{n \times n}$ be symmetric. Then $S = U \Lambda U^\top$ with $U$ orthogonal and $\Lambda = \mathrm{diag}(\lambda_1, \dots, \lambda_n)$, where $\lambda_1 \leq \dots \leq \lambda_n$ are real.
+
+The eigenvalues are minima of the Rayleigh quotient over nested subspaces:
+$$
+\lambda_k = \min_{\dim V = k}\ \max_{x \in V \setminus \{0\}} \frac{x^\top S x}{x^\top x},
+\qquad
+\lambda_k = \min_{x \perp u_1, \dots, u_{k-1}} \frac{x^\top S x}{x^\top x} .
+$$
+
+For $p \leq n$, the smallest trace over orthonormal families is the sum of the $p$ smallest eigenvalues, reached at $Y = (u_1, \dots, u_p)$:
+$$
+\min_{Y \in \mathbb{R}^{n \times p},\ Y^\top Y = I_p} \mathrm{tr}\big(Y^\top S Y\big) = \lambda_1 + \dots + \lambda_p .
+$$
+
+::: proof
+Write $x = U\alpha$. Then the Rayleigh quotient is a weighted mean of eigenvalues:
+$$
+\frac{x^\top S x}{x^\top x} = \frac{\sum_i \lambda_i \alpha_i^2}{\sum_i \alpha_i^2} .
+$$
+
+-   If $x \perp u_1, \dots, u_{k-1}$, then $\alpha_1 = \dots = \alpha_{k-1} = 0$ and the mean is at least $\lambda_k$, with equality at $x = u_k$.
+-   Any $V$ of dimension $k$ meets $\mathrm{span}(u_k, \dots, u_n)$ in a non-zero vector, whose quotient is at least $\lambda_k$; the choice $V = \mathrm{span}(u_1, \dots, u_k)$ gives exactly $\lambda_k$.
+-   For the trace, $\mathrm{tr}(Y^\top S Y) = \sum_i \lambda_i c_i$ with $c_i = \|Y^\top u_i\|^2 \in [0, 1]$ and $\sum_i c_i = p$. A linear function of $c$ on this set is smallest when the $p$ smallest $\lambda_i$ get weight 1. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 0.2 — Loewner order and pseudo-inverse]{.tag} A symmetric matrix $S$ is **positive semidefinite**, written $S \succeq 0$, when $x^\top S x \geq 0$ for all $x$, that is when all its eigenvalues are non-negative. We write $A \preceq B$ when $B - A \succeq 0$.
+
+The **Moore–Penrose pseudo-inverse** of $S = \sum_i \lambda_i u_i u_i^\top$ inverts the non-zero eigenvalues and keeps the zero ones:
+$$
+S^{+} = \sum_{i:\ \lambda_i \neq 0} \lambda_i^{-1}\, u_i u_i^\top .
+$$
+:::
+
+If $\alpha I \preceq S \preceq \beta I$ with $\alpha > 0$, then $\|S^{-1}\| \leq 1/\alpha$, and the condition number of $S$ is at most $\beta / \alpha$. Ch. 5–7 use these two facts constantly.
+
+### 0.2 Markov chains on a finite set
+
+::: def
+[Definition 0.3 — Stationary and reversible chains]{.tag} A **transition matrix** $P$ on a finite set has non-negative entries and rows summing to 1. A probability vector $\pi$ is **stationary** when $\pi^\top P = \pi^\top$. The chain is **reversible** with respect to $\pi$ when
+$$
+\pi_i P_{ij} = \pi_j P_{ji} \qquad \text{for all } i, j .
+$$
+:::
+
+:::: prop
+[Proposition 0.4 — Spectrum of a reversible chain]{.tag} If $P$ is reversible with respect to $\pi > 0$, then $\Pi^{1/2} P\, \Pi^{-1/2}$ is symmetric, where $\Pi = \mathrm{diag}(\pi)$. Hence $P$ has real eigenvalues, all in $[-1, 1]$, and a basis of eigenvectors.
+
+::: proof
+The $(i, j)$ entry of $\Pi^{1/2} P\, \Pi^{-1/2}$ is $\sqrt{\pi_i}\, P_{ij} / \sqrt{\pi_j}$. Reversibility makes it equal to $\sqrt{\pi_j}\, P_{ji} / \sqrt{\pi_i}$, the $(j, i)$ entry.
+
+The matrix is similar to $P$, so they share eigenvalues. Since the rows of $P$ are probability vectors, $\|Px\|_\infty \leq \|x\|_\infty$, so every eigenvalue has modulus at most 1. [∎]{.qed}
+:::
+::::
+
+A random walk on a graph is reversible (ch. 1.5). This is why its analysis reduces to the spectrum of a symmetric matrix.
+
+### 0.3 Concentration inequalities
+
+:::: thm
+[Theorem 0.5 — Hoeffding and Azuma–Hoeffding]{.tag} Let $M_0, M_1, \dots, M_m$ be a martingale whose increments $D_k = M_k - M_{k-1}$ lie, given the past, in an interval of length $c_k$. Then for $t > 0$,
+$$
+\mathbb{P}\big(M_m - M_0 \geq t\big) \leq \exp\Big( - \frac{2 t^2}{\sum_{k=1}^m c_k^2} \Big) .
+$$
+
+For independent variables $X_k \in [a_k, b_k]$ and $M_m = \sum_k (X_k - \mathbb{E} X_k)$, this is Hoeffding's inequality with $c_k = b_k - a_k$.
+::::
+
+::: proof
+*Hoeffding's lemma*: a centred variable $D \in [a, a + c]$ satisfies
+$$
+\mathbb{E}\, e^{sD} \leq e^{s^2 c^2 / 8} .
+$$
+
+Applied conditionally on the past, and by induction on $m$, it gives
+$$
+\mathbb{E}\, e^{s(M_m - M_0)} \leq \exp\Big(\frac{s^2}{8} \sum_k c_k^2\Big) .
+$$
+
+Markov's inequality on $e^{s(M_m - M_0)}$ then gives the bound $\exp(-st + s^2 \sum_k c_k^2 / 8)$. The choice $s = 4t / \sum_k c_k^2$ concludes. [∎]{.qed}
+:::
+
+The **method of bounded differences** applies this to the Doob martingale $M_k = \mathbb{E}[h \mid Z_1, \dots, Z_k]$ of a function $h$ of independent variables. If changing one variable moves $h$ by at most $c_k$, the increments have ranges at most $c_k$: this is McDiarmid's inequality. Ch. 5 adapts the argument to sampling without replacement.
+
+::: recap
+Key takeaways — chapter 0
+
+-   Eigenvalues of a symmetric matrix are minima of Rayleigh quotients; the sum of the $p$ smallest is the minimal trace over orthonormal $p$-frames.
+-   A reversible Markov chain is a symmetric matrix in disguise: real spectrum in $[-1, 1]$.
+-   Martingales with bounded increments concentrate like sums of independent bounded variables.
+:::
+
+## 1. Graphs, Laplacians and spectral graph theory {#ch1}
+
+A graph encodes which objects are related and how strongly. This chapter introduces the matrix that turns the graph into a tool for learning, the Laplacian, and reads the structure of the graph from its spectrum.
+
+### 1.1 Where graphs come from
+
+Graphs reach machine learning by two routes.
+
+-   **Networks** are given by the application: people and friendships, proteins and their interactions, web pages and hyperlinks, users and the items they bought.
+-   **Similarity graphs** are built from flat data: each data point becomes a node, and close points are joined by an edge weighted by their similarity (ch. 3).
+
+In both cases the graph carries an assumption: related nodes tend to share labels or values. The course turns this assumption into algorithms and guarantees.
+
+::: def
+[Definition 1.1 — Weighted graph, degree, volume]{.tag} A **weighted undirected graph** on the nodes $V = \{1, \dots, n\}$ is given by a symmetric matrix $W \in \mathbb{R}^{n \times n}$ with $w_{ij} \geq 0$ and $w_{ii} = 0$. There is an edge $i \sim j$ when $w_{ij} > 0$.
+
+The **degree** of node $i$ and the **volume** of a set $A \subseteq V$ are
+$$
+d_i = \sum_{j} w_{ij}, \qquad \mathrm{vol}(A) = \sum_{i \in A} d_i .
+$$
+
+We write $D = \mathrm{diag}(d_1, \dots, d_n)$ and assume $d_i > 0$ (no isolated node). An unweighted graph has $w_{ij} \in \{0, 1\}$.
+:::
+
+### 1.2 The graph Laplacians
+
+::: def
+[Definition 1.2 — Three Laplacians]{.tag} The **unnormalized Laplacian**, the **symmetric normalized Laplacian** and the **random-walk Laplacian** are
+$$
+L = D - W, \qquad L_{\mathrm{sym}} = D^{-1/2} L\, D^{-1/2} = I - D^{-1/2} W D^{-1/2}, \qquad L_{\mathrm{rw}} = D^{-1} L = I - D^{-1} W .
+$$
+:::
+
+A vector $f \in \mathbb{R}^n$ is a function on the nodes, and $(Lf)_i = \sum_j w_{ij}(f_i - f_j)$ compares the value at $i$ with its neighbours. The quadratic form of $L$ measures how much $f$ varies along the edges.
+
+:::: prop
+[Proposition 1.3 — The Laplacian quadratic form]{.tag} For every $f \in \mathbb{R}^n$,
+
+::: key
+[Key formula — smoothness of a function on a graph]{.tag}
+$$
+f^\top L f = \frac{1}{2} \sum_{i,j=1}^n w_{ij}\, (f_i - f_j)^2 \ \geq\ 0 .
+$$
+:::
+
+Consequently $L$ and $L_{\mathrm{sym}}$ are symmetric positive semidefinite, and $L \mathbf{1} = 0$.
+
+Moreover $L_{\mathrm{rw}}$ has the same eigenvalues as $L_{\mathrm{sym}}$: each eigenvector $v$ of $L_{\mathrm{sym}}$ gives the eigenvector $D^{-1/2} v$ of $L_{\mathrm{rw}}$.
+
+::: proof
+-   Expand the right-hand side:
+    $$
+    \frac{1}{2}\sum_{ij} w_{ij}(f_i^2 + f_j^2) - \sum_{ij} w_{ij} f_i f_j .
+    $$
+-   The first sum equals $\sum_i d_i f_i^2 = f^\top D f$ by symmetry of $W$, and the second is $f^\top W f$.
+-   For $L_{\mathrm{sym}}$, apply the identity to $g = D^{-1/2} f$: $f^\top L_{\mathrm{sym}} f = g^\top L g \geq 0$.
+-   Finally, $L_{\mathrm{sym}} v = \lambda v$ is equivalent to $D^{-1} L (D^{-1/2} v) = \lambda D^{-1/2} v$. [∎]{.qed}
+:::
+::::
+
+The eigenvalue problem of $L_{\mathrm{rw}}$ is the generalized problem $L u = \lambda D u$. The three Laplacians differ in how they weigh the nodes; ch. 2 and ch. 3 explain when the difference matters.
+
+### 1.3 Spectrum and connectivity
+
+We order the eigenvalues of $L$ as $0 = \lambda_1 \leq \lambda_2 \leq \dots \leq \lambda_n$, with orthonormal eigenvectors $u_1, \dots, u_n$.
+
+:::: prop
+[Proposition 1.4 — Zero eigenvalues count the components]{.tag} The multiplicity of the eigenvalue 0 of $L$ equals the number $k$ of connected components $A_1, \dots, A_k$ of the graph. Its eigenspace is spanned by the indicator vectors $\mathbf{1}_{A_1}, \dots, \mathbf{1}_{A_k}$.
+
+The same holds for $L_{\mathrm{rw}}$. For $L_{\mathrm{sym}}$ the eigenspace is spanned by the vectors $D^{1/2} \mathbf{1}_{A_j}$.
+
+::: proof
+If $Lf = 0$, then $f^\top L f = 0$, so $f_i = f_j$ whenever $w_{ij} > 0$ by Proposition 1.3. Along a path the value cannot change, so $f$ is constant on each component.
+
+Conversely each indicator $\mathbf{1}_{A_j}$ satisfies $L \mathbf{1}_{A_j} = 0$, since no edge leaves $A_j$. The indicators are orthogonal, so the kernel has dimension exactly $k$. The statements for $L_{\mathrm{rw}}$ and $L_{\mathrm{sym}}$ follow from Proposition 1.3. [∎]{.qed}
+:::
+::::
+
+So $\lambda_2 > 0$ if and only if the graph is connected. Fiedler (1973) called $\lambda_2$ the **algebraic connectivity**, and $u_2$ is the **Fiedler vector**.
+
+::: ex
+[Example 1.5 — Two triangles joined by a bridge]{.tag} Take the nodes $0, 1, 2$ forming a triangle, the nodes $3, 4, 5$ forming another, and the bridge $2 \sim 3$, all weights 1.
+
+-   Degrees: $d = (2, 2, 3, 3, 2, 2)$, with $7$ edges and total volume $14$.
+-   The spectrum of $L$ is
+    $$
+    0,\quad \tfrac{5 - \sqrt{17}}{2} \approx 0.438,\quad 3,\quad 3,\quad 3,\quad \tfrac{5 + \sqrt{17}}{2} \approx 4.562 .
+    $$
+-   The Fiedler vector is $u_2 \approx (-0.465, -0.465, -0.261, 0.261, 0.465, 0.465)$. Its sign separates the two triangles, and its smallest values in modulus sit at the ends of the bridge.
+-   The spectrum of $L_{\mathrm{sym}}$ is $0, 0.205, 1.167, 1.5, 1.5, 1.629$.
+
+Removing the bridge gives two components and a second zero eigenvalue: $\lambda_2 = 0.438$ is small because the graph is *almost* disconnected.
+:::
+
+Two more spectra are worth remembering. The complete graph on $n$ nodes has eigenvalues $0$ and $n$, the latter with multiplicity $n - 1$.
+
+The path on $n$ nodes has eigenvalues $2 - 2\cos(\pi k / n)$ for $k = 0, \dots, n - 1$. Its $\lambda_2$ is of order $\pi^2 / n^2$: long paths are poorly connected.
+
+### 1.4 Smooth functions and the graph Fourier basis
+
+Expand a function on the nodes in the eigenbasis, $f = \sum_i \alpha_i u_i$ with $\alpha_i = u_i^\top f$. By Proposition 1.3 and orthonormality,
+$$
+f^\top L f = \sum_{i=1}^n \lambda_i\, \alpha_i^2 .
+$$
+
+The eigenvectors with small eigenvalues vary slowly along the edges, and those with large eigenvalues oscillate. By Theorem 0.1, $u_k$ is the smoothest unit function orthogonal to $u_1, \dots, u_{k-1}$.
+
+::: def
+[Definition 1.6 — Graph Fourier transform]{.tag} The **graph Fourier transform** of $f$ is the vector $\hat f = U^\top f$ of its coefficients in the eigenbasis of $L$. The eigenvalue $\lambda_i$ plays the role of a squared frequency. A **low-pass filter** keeps the coefficients of small $\lambda_i$:
+$$
+h(L)\, f = \sum_{i=1}^n h(\lambda_i)\, \alpha_i\, u_i, \qquad h \text{ decreasing}.
+$$
+:::
+
+On a cycle, the eigenvectors are sines and cosines, and the transform is the discrete Fourier transform. On a general graph there is no translation, but smoothness still has a meaning: the energy $f^\top L f$. Ch. 3 uses the first eigenvectors as a basis for regression, and ch. 4 and ch. 8 use $f^\top L f$ as a regularizer.
+
+### 1.5 Random walks and the Cheeger inequality
+
+The **random walk** on the graph moves from $i$ to $j$ with probability $P_{ij} = w_{ij} / d_i$, so $P = D^{-1} W$ and $L_{\mathrm{rw}} = I - P$.
+
+The distribution $\pi_i = d_i / \mathrm{vol}(V)$ is stationary, and the walk is reversible: $\pi_i P_{ij} = w_{ij} / \mathrm{vol}(V)$ is symmetric in $i, j$.
+
+By Proposition 0.4 the spectrum of $P$ is real: it consists of the values $1 - \lambda$, for the eigenvalues $\lambda$ of $L_{\mathrm{sym}}$.
+
+On a connected, non-bipartite graph the walk converges to $\pi$. A small $\lambda_2(L_{\mathrm{sym}})$ means a slow walk, trapped on one side of a bottleneck; the Cheeger inequality makes this exact.
+
+:::: thm
+[Theorem 1.7 — Cheeger inequality]{.tag} The **conductance** of a set $S$ and of the graph are
+$$
+\phi(S) = \frac{\mathrm{cut}(S, \bar S)}{\min\big(\mathrm{vol}(S), \mathrm{vol}(\bar S)\big)}, \qquad \phi(G) = \min_{\emptyset \neq S \subsetneq V} \phi(S),
+$$
+where $\mathrm{cut}(S, \bar S) = \sum_{i \in S, j \notin S} w_{ij}$ is the weight of the edges leaving $S$.
+
+Let $\lambda_2$ be the second smallest eigenvalue of $L_{\mathrm{sym}}$ of a connected graph. Then
+$$
+\frac{\lambda_2}{2} \ \leq\ \phi(G) \ \leq\ \sqrt{2 \lambda_2} .
+$$
+
+::: proof
+*Left inequality.* By Theorem 0.1 applied to $L_{\mathrm{sym}}$ and the substitution $g = D^{1/2} f$,
+$$
+\lambda_2 = \min_{f \neq 0,\ \sum_i d_i f_i = 0} \frac{f^\top L f}{f^\top D f} .
+$$
+
+Take any $S$, write $a = 1/\mathrm{vol}(S)$ and $b = 1/\mathrm{vol}(\bar S)$, and take the test function
+$$
+f = a\, \mathbf{1}_S - b\, \mathbf{1}_{\bar S}, \qquad \text{which satisfies} \quad \sum_i d_i f_i = 1 - 1 = 0 .
+$$
+
+-   Only the edges of the cut contribute to $f^\top L f$, each with the squared jump $(a + b)^2$.
+-   The denominator is $f^\top D f = a + b$, since $a^2\, \mathrm{vol}(S) = a$ and $b^2\, \mathrm{vol}(\bar S) = b$.
+-   The quotient is therefore $(a + b)\, \mathrm{cut}(S, \bar S)$, at most $2 \max(a, b)\, \mathrm{cut}(S, \bar S) = 2\phi(S)$.
+
+So $\lambda_2 \leq 2\phi(S)$ for every $S$, which is the left inequality.
+
+*Right inequality.* It is proved by a sweep: order the nodes by the values of $D^{-1/2} v_2$ and take the best of the $n - 1$ threshold sets. A co-area argument and the Cauchy–Schwarz inequality show that this set has conductance at most $\sqrt{2\lambda_2}$; ch. 10.1 gives the proof. [∎]{.qed}
+:::
+::::
+
+On the two triangles of Example 1.5, the cut at the bridge has conductance $1/7 \approx 0.143$. Cheeger's bounds are $0.102 \leq \phi(G) \leq 0.640$: the lower bound is close, the upper one is loose, as is typical.
+
+The code computes the Fiedler vector of Zachary's karate club, a friendship network of 34 members recorded before the club split in two (Zachary, 1977), shipped with NetworkX.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+import networkx as nx
+
+G = nx.karate_club_graph()                       # 34 members, 78 friendships
+L = nx.laplacian_matrix(G).toarray().astype(float)
+vals, vecs = np.linalg.eigh(L)
+print("n =", G.number_of_nodes(), " edges =", G.number_of_edges())
+print("lambda_2 =", round(vals[1], 4))
+side = np.array([G.nodes[v]["club"] == "Officer" for v in G])   # the side joined after the split
+pred = vecs[:, 1] > 0                            # sign of the Fiedler vector
+agree = max((pred == side).sum(), (pred != side).sum())
+print(f"the sign of u_2 matches the split for {agree} of 34 members")
+```
+
+It prints $\lambda_2 = 1.1871$ and 33 of 34: friendships alone predict the split, without any label. This is the starting point of spectral clustering.
+
+::: recap
+Key takeaways — chapter 1
+
+-   $L = D - W$, $L_{\mathrm{sym}} = D^{-1/2} L D^{-1/2}$, $L_{\mathrm{rw}} = D^{-1} L$; all are positive semidefinite and $f^\top L f = \frac{1}{2} \sum_{ij} w_{ij} (f_i - f_j)^2$.
+-   The multiplicity of the eigenvalue 0 is the number of connected components; a small $\lambda_2$ signals a bottleneck.
+-   Eigenvectors of $L$ form a Fourier basis ordered by smoothness.
+-   The random walk $P = D^{-1} W$ is reversible with stationary law $d / \mathrm{vol}(V)$, and Cheeger: $\lambda_2 / 2 \leq \phi(G) \leq \sqrt{2 \lambda_2}$.
+:::
+
+## 2. Spectral clustering {#ch2}
+
+Clustering a graph means cutting few edges while keeping the pieces large. The exact problem is NP-hard; spectral clustering solves a relaxation with eigenvectors of a Laplacian. This chapter derives the relaxation, states the algorithms, and explains when they recover the clusters.
+
+### 2.1 Graph cuts
+
+For disjoint sets $A, B \subseteq V$ write $\mathrm{cut}(A, B) = \sum_{i \in A, j \in B} w_{ij}$, and let $|A|$ be the number of nodes of $A$.
+
+::: def
+[Definition 2.1 — Balanced cuts]{.tag} For a partition $A_1, \dots, A_k$ of $V$, the **ratio cut** and the **normalized cut** are
+$$
+\mathrm{RatioCut}(A_1, \dots, A_k) = \sum_{j=1}^k \frac{\mathrm{cut}(A_j, \bar A_j)}{|A_j|}, \qquad \mathrm{NCut}(A_1, \dots, A_k) = \sum_{j=1}^k \frac{\mathrm{cut}(A_j, \bar A_j)}{\mathrm{vol}(A_j)} .
+$$
+:::
+
+The plain minimum cut is easy to compute but useless for clustering: it usually isolates a single weakly connected node. Dividing by the size or the volume penalizes small pieces. The price is complexity: minimizing these balanced cuts is NP-hard (Wagner and Wagner, 1993).
+
+### 2.2 Spectral relaxations
+
+The key observation is that a cut is a Laplacian quadratic form evaluated at a well-chosen vector.
+
+:::: prop
+[Proposition 2.2 — Ratio cut as a Rayleigh quotient]{.tag} For a partition $(A, \bar A)$, define $f \in \mathbb{R}^n$ by
+$$
+f_i = \sqrt{|\bar A| / |A|} \ \text{ if } i \in A, \qquad f_i = -\sqrt{|A| / |\bar A|} \ \text{ if } i \in \bar A .
+$$
+Then $f \perp \mathbf{1}$, $\|f\|^2 = n$ and $f^\top L f = n\, \mathrm{RatioCut}(A, \bar A)$.
+
+::: proof
+-   Only edges between $A$ and $\bar A$ contribute to $f^\top L f$ (Proposition 1.3).
+-   Each contributes its weight times the squared jump, $|\bar A|/|A| + |A|/|\bar A| + 2 = n/|A| + n/|\bar A|$.
+-   The sum is therefore
+    $$
+    \mathrm{cut}(A, \bar A)\, \Big(\frac{n}{|A|} + \frac{n}{|\bar A|}\Big) = n\,\mathrm{RatioCut}(A, \bar A) .
+    $$
+-   The other two identities are direct: $\sum_i f_i = \sqrt{|A||\bar A|} - \sqrt{|A||\bar A|} = 0$ and $\|f\|^2 = |\bar A| + |A|$. [∎]{.qed}
+:::
+::::
+
+Minimizing the ratio cut is thus minimizing $f^\top L f$ over vectors of this two-valued form, subject to $f \perp \mathbf{1}$ and $\|f\|^2 = n$.
+
+**Relaxing** the two-valued constraint to any real $f$ gives, by Theorem 0.1, the Fiedler vector $u_2$. One then rounds $u_2$ back to a partition, by its sign or by $k$-means on its values.
+
+:::: prop
+[Proposition 2.3 — Normalized cut and the generalized problem]{.tag} With $f_i = \sqrt{\mathrm{vol}(\bar A) / \mathrm{vol}(A)}$ on $A$ and $f_i = -\sqrt{\mathrm{vol}(A) / \mathrm{vol}(\bar A)}$ on $\bar A$, one has
+$$
+(Df)^\top \mathbf{1} = 0, \qquad f^\top D f = \mathrm{vol}(V), \qquad f^\top L f = \mathrm{vol}(V)\ \mathrm{NCut}(A, \bar A) .
+$$
+The relaxation is the second eigenvector of the generalized problem $L u = \lambda D u$, that is of $L_{\mathrm{rw}}$ (Shi and Malik, 2000).
+
+For $k$ clusters, let $H \in \mathbb{R}^{n \times k}$ have entries $H_{ij} = |A_j|^{-1/2}\, \mathbb{1}[i \in A_j]$. Then $H^\top H = I_k$ and
+$$
+\mathrm{RatioCut}(A_1, \dots, A_k) = \mathrm{tr}\big(H^\top L H\big) .
+$$
+Relaxing $H$ to any orthonormal $n \times k$ matrix gives, by the Ky Fan part of Theorem 0.1, the first $k$ eigenvectors of $L$. The same holds for the normalized cut with $L_{\mathrm{sym}}$.
+::::
+
+The proof of the two-set identities is that of Proposition 2.2 with volumes in place of sizes. For the trace, $(H^\top L H)_{jj} = \mathrm{cut}(A_j, \bar A_j) / |A_j|$ by the same computation applied to one indicator.
+
+### 2.3 The algorithms
+
+::: thm
+[Algorithm 2.4 — Spectral clustering]{.tag} Input: a similarity matrix $W$ and a number of clusters $k$.
+
+1.  Compute the first $k$ eigenvectors $u_1, \dots, u_k$ of a Laplacian, and stack them as the columns of $U \in \mathbb{R}^{n \times k}$:
+    -   *unnormalized*: eigenvectors of $L$;
+    -   *Shi–Malik*: generalized eigenvectors $L u = \lambda D u$, that is of $L_{\mathrm{rw}}$;
+    -   *Ng–Jordan–Weiss*: eigenvectors of $L_{\mathrm{sym}}$, then each row of $U$ normalized to norm 1.
+2.  Treat row $i$ of $U$ as a point $y_i \in \mathbb{R}^k$, the **spectral embedding** of node $i$.
+3.  Cluster $y_1, \dots, y_n$ with $k$-means, and give node $i$ the cluster of $y_i$.
+:::
+
+The row normalization of Ng, Jordan and Weiss (2002) compensates for the factor $D^{1/2}$ in the eigenvectors of $L_{\mathrm{sym}}$ (Proposition 1.4), which would otherwise pull low-degree nodes towards the origin.
+
+*Cost.* A dense eigendecomposition costs $O(n^3)$ time and $O(n^2)$ memory. On a sparse graph with $m$ edges, a Lanczos method computes the $k$ smallest eigenvectors in roughly $O(k\, m)$ operations per iteration; ch. 7 returns to this.
+
+### 2.4 Why it works
+
+Start from the ideal case, then perturb it.
+
+:::: prop
+[Proposition 2.5 — The ideal case]{.tag} Suppose the graph has exactly $k$ connected components $A_1, \dots, A_k$, and let $U$ be any orthonormal basis of the kernel of $L$.
+
+Then the rows $y_i$ of $U$ take exactly $k$ distinct values, one per component, and these values are pairwise orthogonal. Hence $k$-means recovers the components exactly.
+
+::: proof
+By Proposition 1.4, the kernel is spanned by the orthonormal columns of $H$, where $H_{ij} = |A_j|^{-1/2}\mathbb{1}[i \in A_j]$. So $U = H O$ for an orthogonal $k \times k$ matrix $O$.
+
+When $i \in A_j$, row $i$ of $U$ is row $j$ of $O$ divided by $\sqrt{|A_j|}$, and the rows of an orthogonal matrix are orthonormal. [∎]{.qed}
+:::
+::::
+
+A real graph has a few edges between clusters. Write $L = \tilde L + E$, where $\tilde L$ is the Laplacian without the between-cluster edges. The question is how far the eigenvectors of $L$ move from those of $\tilde L$.
+
+::: thm
+[Theorem 2.6 — Davis–Kahan, in the form of Yu, Wang and Samworth (2015)]{.tag} Let $L$ and $\tilde L$ be symmetric, with bottom-$k$ eigenvectors $U$ and $\tilde U$.
+
+Assume that the eigengap of $\tilde L$ is positive: $\tilde\lambda_{k+1} > \tilde\lambda_k$.
+
+Then there is an orthogonal $k \times k$ matrix $O$ with
+$$
+\big\| U O - \tilde U \big\|_F \ \leq\ \frac{2^{3/2} \sqrt{k}\ \|L - \tilde L\|}{\tilde\lambda_{k+1} - \tilde\lambda_k} .
+$$
+:::
+
+The proof is in Davis and Kahan (1970) and Yu, Wang and Samworth (2015). For spectral clustering it gives three messages.
+
+-   The embedding is stable when the between-cluster weight $\|E\|$ is small compared with the gap $\tilde\lambda_{k+1}$, that is when each cluster is itself well connected (Cheeger, Theorem 1.7).
+-   Rows that move by less than half the distance between ideal rows stay in the right cluster. Lei and Rinaldo (2015) turn this into a bound on the number of misclustered nodes in the stochastic block model.
+-   The **eigengap heuristic** chooses $k$ where $\lambda_{k+1} - \lambda_k$ is large.
+
+Which Laplacian? As the sample grows, normalized spectral clustering converges under mild conditions, while the unnormalized version can fail to (von Luxburg, Belkin and Bousquet, 2008). The safe default is $L_{\mathrm{rw}}$ or $L_{\mathrm{sym}}$.
+
+### 2.5 An example where $k$-means fails
+
+Two concentric noisy circles are not linearly separable, and no partition into two convex cells can split them. A 10-nearest-neighbour graph connects points along each circle and rarely across.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse.csgraph import laplacian
+from sklearn.datasets import make_circles
+from sklearn.neighbors import kneighbors_graph
+from sklearn.cluster import KMeans
+from sklearn.metrics import adjusted_rand_score
+
+X, y = make_circles(n_samples=600, factor=0.4, noise=0.08, random_state=0)
+W = kneighbors_graph(X, n_neighbors=10, include_self=False)
+W = 0.5 * (W + W.T)                                   # symmetric 10-NN graph
+vals, vecs = np.linalg.eigh(laplacian(W, normed=True).toarray())
+print("smallest eigenvalues of L_sym:", np.round(vals[:4], 4))
+
+U = vecs[:, :2]                                       # Ng-Jordan-Weiss: k = 2 eigenvectors
+U = U / np.linalg.norm(U, axis=1, keepdims=True)      # normalize the rows
+spectral = KMeans(2, n_init=10, random_state=0).fit_predict(U)
+direct = KMeans(2, n_init=10, random_state=0).fit_predict(X)
+print("adjusted Rand index, spectral clustering:", round(adjusted_rand_score(y, spectral), 3))
+print("adjusted Rand index, k-means on X       :", round(adjusted_rand_score(y, direct), 3))
+```
+
+The graph is connected, with smallest eigenvalues $0$, $0.0003$, $0.003$ and $0.0034$. The second is ten times smaller than the third: the eigengap heuristic says $k = 2$.
+
+Spectral clustering recovers the two circles exactly (adjusted Rand index 1.0), while $k$-means on the raw coordinates is at chance level (index $-0.002$).
+
+::: recap
+Key takeaways — chapter 2
+
+-   Ratio and normalized cuts are Laplacian quadratic forms of two-valued vectors; relaxing to real vectors gives eigenvectors.
+-   Spectral clustering = first $k$ eigenvectors of a Laplacian, rows as points, then $k$-means.
+-   It is exact when the clusters are components, and stable when the between-cluster weight is small compared with the eigengap (Davis–Kahan).
+-   Prefer the normalized Laplacians: they are consistent as the sample grows.
+:::
+
+## 3. Graphs from flat data and manifold learning {#ch3}
+
+Most data come as vectors without relations. A neighbourhood graph supplies the relations, and its Laplacian then serves as a nonparametric basis, as a description of the geometry of the data, and as a regularizer. This chapter builds the graph, says what its Laplacian converges to, and uses its eigenvectors as coordinates.
+
+### 3.1 Similarity graphs
+
+Let $x_1, \dots, x_n \in \mathbb{R}^p$ be data points, and $s(x, x') = \exp(-\|x - x'\|^2 / 2\sigma^2)$ a Gaussian similarity of bandwidth $\sigma$.
+
+::: def
+[Definition 3.1 — Three similarity graphs]{.tag}
+
+-   **$\varepsilon$-graph**: $i \sim j$ when $\|x_i - x_j\| \leq \varepsilon$, usually unweighted.
+-   **$k$-nearest-neighbour graph**: $i \sim j$ when one of the two points is among the $k$ nearest neighbours of the other (symmetric graph). The **mutual** graph requires both. Edges are unweighted or weighted by the similarity.
+-   **Fully connected graph**: $w_{ij} = s(x_i, x_j)$ for all $i \neq j$.
+:::
+
+The choice matters more than the choice of Laplacian. Three rules of thumb summarize experience and the theory below.
+
+-   **Connectivity first.** Spectral methods cannot transmit information between components. For $n$ uniform points in $[0, 1]^p$, the $\varepsilon$-graph becomes connected when $n\varepsilon^p$ is of order $\log n$ (Penrose, 2003).
+
+    For $k$-nearest-neighbour graphs, $k$ of order $\log n$ plays the same role.
+-   **Sparsity.** $k$-NN and $\varepsilon$-graphs have $O(nk)$ edges; the fully connected graph has $n^2/2$, which is prohibitive beyond a few thousand points without the approximations of ch. 7.
+-   **Adaptivity.** The $k$-NN graph adapts to the local density: it connects points in sparse regions as well as in dense ones. A single $\varepsilon$ cannot do both. A common bandwidth choice is the median distance to the $k$-th neighbour.
+
+### 3.2 Graphs as a nonparametric basis
+
+The eigenvectors $u_1, u_2, \dots$ of $L$ are ordered by smoothness on the graph (ch. 1.4). They play the role of a Fourier basis adapted to the data: no parametric model, only the graph.
+
+Suppose noisy values $y = f + \epsilon$ are observed at the nodes, with independent centred noise of variance $\sigma^2$. The **projection estimator** keeps the first $m$ coefficients:
+$$
+\hat f_m = U_m U_m^\top y, \qquad U_m = (u_1, \dots, u_m) .
+$$
+
+:::: prop
+[Proposition 3.2 — Bias and variance of the projection estimator]{.tag} With $\lambda_1 \leq \dots \leq \lambda_n$ the eigenvalues of $L$,
+$$
+\mathbb{E}\, \|\hat f_m - f\|^2 = \big\|(I - U_m U_m^\top) f\big\|^2 + m\, \sigma^2 \ \leq\ \frac{f^\top L f}{\lambda_{m+1}} + m\, \sigma^2 .
+$$
+
+::: proof
+Write $P = U_m U_m^\top$, an orthogonal projection of rank $m$. Then $\hat f_m - f = -(I - P) f + P\epsilon$.
+
+-   The cross term has zero mean, since $\mathbb{E}\,\epsilon = 0$.
+-   The variance term is $\mathbb{E}\|P\epsilon\|^2 = m \sigma^2$, since $P$ has trace $m$.
+-   With $\alpha_i = u_i^\top f$, the bias term is
+    $$
+    \sum_{i > m} \alpha_i^2 \leq \frac{1}{\lambda_{m+1}} \sum_{i > m} \lambda_i \alpha_i^2 \leq \frac{f^\top L f}{\lambda_{m+1}} .
+    $$
+    [∎]{.qed}
+:::
+::::
+
+The trade-off is the classical one: more basis vectors reduce the bias, at a cost $\sigma^2$ each. A function that is smooth on the graph, with small $f^\top L f$, is learned with few eigenvectors.
+
+### 3.3 What the graph Laplacian converges to
+
+As the sample grows and the bandwidth shrinks, the graph Laplacian approaches a differential operator on the space the data live in. The one-dimensional computation shows the mechanism.
+
+:::: prop
+[Proposition 3.3 — Pointwise limit in dimension one]{.tag} Let $X_1, \dots, X_n$ be i.i.d. with a smooth density $p$ on $\mathbb{R}$.
+
+Let $k$ be a symmetric kernel with $\int k = 1$ and $\mu_2 = \int u^2 k(u)\, du$, and set $k_h(z) = h^{-1} k(z / h)$. For a smooth $f$, define
+$$
+(L_{n,h} f)(x) = \frac{1}{n} \sum_{j=1}^n k_h(x - X_j)\, \big( f(x) - f(X_j) \big) .
+$$
+Then, as $h \to 0$,
+$$
+\mathbb{E}\,(L_{n,h} f)(x) = -\frac{\mu_2 h^2}{2}\, \big( p f'' + 2 p' f' \big)(x) + O(h^3) .
+$$
+
+::: proof
+Substitute $y = x + hu$ in the expectation $\int k_h(x - y)(f(x) - f(y))\, p(y)\, dy$:
+$$
+\int k(u)\, \big(f(x) - f(x + hu)\big)\, p(x + hu)\, du .
+$$
+
+-   Taylor: $f(x) - f(x + hu) = -hu f' - \tfrac{1}{2} h^2 u^2 f'' + O(h^3)$ and $p(x + hu) = p + hu\, p' + O(h^2)$.
+-   The product is
+    $$
+    -hu\, f' p - h^2 u^2 \Big(\tfrac{1}{2} f'' p + f' p'\Big) + O(h^3) .
+    $$
+-   Integrating against the symmetric $k$ kills the odd term and leaves $-\tfrac{1}{2}\mu_2 h^2 (p f'' + 2 p' f')$. [∎]{.qed}
+:::
+::::
+
+The variance of $L_{n,h} f(x)$ is of order $h / n$, so the rescaled operator $2 L_{n,h} / (\mu_2 h^2)$ converges in probability when $h \to 0$ and $n h^3 \to \infty$.
+
+The general result, for data sampled on a $d$-dimensional submanifold $\mathcal{M}$ with density $p$, is due to Belkin and Niyogi (2008) and Hein, Audibert and von Luxburg (2007). Up to constants, the unnormalized graph Laplacian converges to the weighted Laplace–Beltrami operator
+$$
+f \ \longmapsto\ -\, p\, \Big( \Delta_{\mathcal{M}} f + 2 \big\langle \nabla \log p,\ \nabla f \big\rangle \Big),
+$$
+when $h \to 0$ and $n h^{d+2} / \log n \to \infty$. The random-walk Laplacian divides by the degree, which approximates $p$, and removes the outer factor.
+
+Two consequences matter in practice. The graph sees the intrinsic dimension $d$ of the data, not the ambient dimension $p$. And the density enters the limit: graph methods favour functions that change where data are sparse, which is exactly the **cluster assumption** of ch. 4.
+
+### 3.4 Manifold learning with Laplacian eigenmaps
+
+To embed the nodes in $\mathbb{R}^q$ so that neighbours stay close, minimize the weighted spread of the embedding $y_1, \dots, y_n \in \mathbb{R}^q$, under a normalization that excludes collapse.
+
+:::: prop
+[Proposition 3.4 — Laplacian eigenmaps (Belkin and Niyogi, 2003)]{.tag} Let $Y \in \mathbb{R}^{n \times q}$ have rows $y_i$. The problem
+$$
+\min_{Y}\ \frac{1}{2} \sum_{i,j} w_{ij}\, \|y_i - y_j\|^2 \quad \text{subject to} \quad Y^\top D Y = I_q,\ \ Y^\top D \mathbf{1} = 0
+$$
+is solved by the generalized eigenvectors $u_2, \dots, u_{q+1}$ of $L u = \lambda D u$, and its value is $\lambda_2 + \dots + \lambda_{q+1}$.
+
+::: proof
+The objective equals $\mathrm{tr}(Y^\top L Y)$ by Proposition 1.3 applied to each column. With $Z = D^{1/2} Y$, it becomes $\mathrm{tr}(Z^\top L_{\mathrm{sym}} Z)$ under $Z^\top Z = I_q$ and $Z \perp D^{1/2}\mathbf{1}$.
+
+The vector $D^{1/2}\mathbf{1}$ is the first eigenvector of $L_{\mathrm{sym}}$. The Ky Fan part of Theorem 0.1, applied on its orthogonal complement, gives the next $q$ eigenvectors. Returning to $Y = D^{-1/2} Z$ gives generalized eigenvectors (Proposition 1.3). [∎]{.qed}
+:::
+::::
+
+Laplacian eigenmaps belong to a family of spectral embeddings. Isomap (Tenenbaum, de Silva and Langford, 2000) preserves graph geodesic distances. Locally linear embedding (Roweis and Saul, 2000) preserves local linear reconstructions. Diffusion maps (Coifman and Lafon, 2006) give a distance between nodes from powers of the random walk; ch. 10.2 derives them.
+
+The code builds a 10-NN graph on 1500 noisy points of a Swiss roll, a two-dimensional sheet rolled up in $\mathbb{R}^3$. It compares the first eigenmap coordinate with the position $t$ along the roll, then denoises $\sin t$ in the Laplacian basis.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse import diags
+from scipy.sparse.csgraph import laplacian, connected_components
+from scipy.sparse.linalg import eigsh
+from scipy.stats import spearmanr
+from sklearn.datasets import make_swiss_roll
+from sklearn.neighbors import kneighbors_graph
+from sklearn.decomposition import PCA
+
+X, t = make_swiss_roll(n_samples=1500, noise=0.1, random_state=0)   # t = position along the roll
+W = kneighbors_graph(X, n_neighbors=10, include_self=False)
+W = W.maximum(W.T)                                    # symmetric 10-NN graph ("or" rule)
+print("connected components:", connected_components(W)[0])
+L = laplacian(W).astype(float)
+D = diags(np.asarray(W.sum(axis=1)).ravel())
+
+# Laplacian eigenmaps: smallest solutions of L u = lambda D u (shift-invert near 0)
+vals, vecs = eigsh(L, k=3, M=D, sigma=-1e-3, which="LM")
+emb = vecs[:, np.argsort(vals)[1]]                    # first non-constant coordinate
+print("|Spearman(t, eigenmap)| =", round(abs(spearmanr(t, emb)[0]), 3))
+print("|Spearman(t, PCA)|      =", round(abs(spearmanr(t, PCA(1).fit_transform(X)[:, 0])[0]), 3))
+
+# eigenvectors of L as a nonparametric basis: denoise a smooth function of t
+rng = np.random.default_rng(0)
+f = np.sin(t)
+y = f + 0.5 * rng.normal(size=t.size)                 # noise level sigma = 0.5
+vals, U = eigsh(L, k=60, sigma=-1e-3, which="LM")
+U = U[:, np.argsort(vals)]
+for m in [2, 5, 10, 20, 40, 60]:
+    fhat = U[:, :m] @ (U[:, :m].T @ y)                # projection on the first m eigenvectors
+    print(f"m = {m:2d}: RMSE = {np.sqrt(np.mean((fhat - f) ** 2)):.3f}")
+```
+
+The first eigenmap coordinate orders the points along the roll almost perfectly: its rank correlation with $t$ is 0.999, against 0.213 for the first principal component, which only sees the ambient coordinates.
+
+The projection estimator shows the bias–variance trade-off of Proposition 3.2. The RMSE falls from 0.722 ($m = 2$) to 0.074 ($m = 20$), then rises again to 0.100 ($m = 60$), as each extra eigenvector adds variance.
+
+::: recap
+Key takeaways — chapter 3
+
+-   Build a connected, sparse graph: $k$-NN with $k$ of order $\log n$ is a robust default.
+-   The first eigenvectors of $L$ form a data-adapted basis; projecting on $m$ of them costs bias $f^\top L f / \lambda_{m+1}$ plus variance $m\sigma^2$.
+-   Rescaled graph Laplacians converge to a density-weighted Laplace–Beltrami operator on the data manifold.
+-   Laplacian eigenmaps = generalized eigenvectors $2, \dots, q+1$; they unroll curved data that PCA cannot.
+:::
+
+## 4. Semi-supervised learning on graphs {#ch4}
+
+Labels are expensive and unlabelled data are cheap: a handful of annotated face images, and thousands of unannotated frames. Semi-supervised learning uses the unlabelled points to shape the predictor. On a graph, the idea is simple: labels should vary little along the edges.
+
+### 4.1 Setting and assumptions
+
+The nodes $1, \dots, n$ are split into $l$ labelled nodes, with labels $y_1, \dots, y_l$, and $u = n - l$ unlabelled ones; typically $l \ll u$. We order the labelled nodes first and split matrices into blocks:
+$$
+L = \begin{pmatrix} L_{ll} & L_{lu} \\ L_{ul} & L_{uu} \end{pmatrix}, \qquad f = \begin{pmatrix} f_l \\ f_u \end{pmatrix} .
+$$
+
+The goal can be **transductive** (label the given unlabelled nodes) or **inductive** (predict at new points). Unlabelled data help only under an assumption linking the inputs to the labels:
+
+-   the **smoothness assumption**: close points in a high-density region have close labels;
+-   the **cluster assumption**: the decision boundary goes through low-density regions;
+-   the **manifold assumption**: the data lie near a low-dimensional manifold, on which the labels vary smoothly.
+
+The limit of ch. 3.3 shows that the Laplacian energy $f^\top L f$ encodes all three: it penalizes variations where the density is high, along the manifold.
+
+### 4.2 The harmonic function solution
+
+::: def
+[Definition 4.1 — Harmonic function solution (Zhu, Ghahramani and Lafferty, 2003)]{.tag} The harmonic solution minimizes the Laplacian energy under the constraint that it fits the labels exactly:
+$$
+f^\star = \arg\min_{f \in \mathbb{R}^n}\ f^\top L f \quad \text{subject to} \quad f_i = y_i \ \ (i \leq l) .
+$$
+:::
+
+:::: prop
+[Proposition 4.2 — Closed form and maximum principle]{.tag} If every connected component of the graph contains a labelled node, then $L_{uu}$ is invertible and the solution is unique:
+
+::: key
+[Key formula — the harmonic function solution]{.tag}
+$$
+f_u^\star = L_{uu}^{-1}\, W_{ul}\, y_l
+$$
+:::
+
+It is **harmonic** at every unlabelled node, $f^\star_i = \sum_j w_{ij} f^\star_j / d_i$. Hence its values lie between the smallest and the largest label.
+
+::: proof
+-   *Invertibility.* If $L_{uu} x = 0$, extend $x$ by zeros on the labelled nodes into $\tilde x$. Then $\tilde x^\top L \tilde x = x^\top L_{uu} x = 0$, so $\tilde x$ is constant on each component (Proposition 1.4), hence zero on every component that contains a labelled node, which is all of them.
+-   *Closed form.* The objective is $f_u^\top L_{uu} f_u + 2 f_u^\top L_{ul} y_l + \text{const}$, convex in $f_u$. Its gradient vanishes when $L_{uu} f_u = -L_{ul} y_l = W_{ul} y_l$.
+-   *Harmonicity.* Row $i$ of $L f^\star = 0$ on the unlabelled block reads $d_i f^\star_i - \sum_j w_{ij} f^\star_j = 0$.
+-   *Maximum principle.* Let $i$ be an unlabelled node where $f^\star$ is largest. As a weighted mean, $f^\star_i$ equals all its neighbours' values. Following a path to a labelled node shows that the maximum is a label. [∎]{.qed}
+:::
+::::
+
+For $C$ classes, solve one problem per class with the one-hot labels as $y_l$, and predict the class of largest value. When the classes are unbalanced, Zhu, Ghahramani and Lafferty (2003) rescale each column to the expected class proportion, a step called **class mass normalization**.
+
+### 4.3 Random walks and electric networks
+
+The harmonic solution has two classical interpretations, which explain why it works and when it fails.
+
+:::: prop
+[Proposition 4.3 — Absorption probabilities]{.tag} Let the labels be in $\{0, 1\}$ and every component contain a labelled node. Run the random walk $P = D^{-1} W$ from node $i$ until it first hits a labelled node. Then
+$$
+f^\star_i = \mathbb{P}_i\big(\text{the walk is absorbed at a node labelled } 1\big) .
+$$
+
+::: proof
+Let $h_i$ be this probability. The walk is absorbed almost surely, because from any node a labelled node is reachable in its component. At a labelled node, $h_i = y_i$.
+
+At an unlabelled node, conditioning on the first step gives $h_i = \sum_j P_{ij} h_j$, so $h$ is harmonic there. By the uniqueness in Proposition 4.2, $h = f^\star$. [∎]{.qed}
+:::
+::::
+
+In electrical terms (Doyle and Snell, 1984), put a resistor of conductance $w_{ij}$ on each edge, and hold the nodes labelled 1 at one volt and those labelled 0 at zero volts. Kirchhoff's laws say that the voltage at each free node is the weighted mean of its neighbours' voltages: the voltages are $f^\star$.
+
+A node connected to the 1-labelled nodes by many short paths takes a voltage close to 1, even far from them: labels flow easily within a dense cluster and poorly across a sparse boundary.
+
+### 4.4 Soft constraints and regularization
+
+Hard constraints trust every label. With noisy labels, or to obtain the stability of ch. 5, one replaces them by a penalty and adds a small ridge term.
+
+::: def
+[Definition 4.4 — Soft harmonic solution]{.tag} Let $C = \mathrm{diag}(c_1, \dots, c_n)$ with $c_i > 0$ on labelled nodes and $c_i = 0$ elsewhere, let $y_i = 0$ on unlabelled nodes, and $Q = L + \gamma I$ with $\gamma \geq 0$. The soft harmonic solution is
+$$
+f^\star = \arg\min_{f \in \mathbb{R}^n}\ (f - y)^\top C (f - y) + f^\top Q f \ =\ (C + Q)^{-1} C\, y .
+$$
+:::
+
+The closed form follows by setting the gradient $2C(f - y) + 2Qf$ to zero. As the label weights $c_i \to \infty$ with $\gamma = 0$, the solution tends to the hard harmonic solution.
+
+The ridge term $\gamma > 0$ makes $C + Q$ invertible even without labels in some component, and shrinks predictions towards 0 far from the labels. Zhou and coauthors (2004) use $L_{\mathrm{sym}}$ instead, which gives the iteration $F \leftarrow \alpha S F + (1 - \alpha) Y$ with $S = D^{-1/2} W D^{-1/2}$.
+
+There is a deeper reason to regularize. With a fixed number of labels and more and more unlabelled points in dimension at least 2, the hard harmonic solution becomes almost constant, with spikes at the labels (Nadler, Srebro and Zhou, 2009). Exercise 16 shows it.
+
+### 4.5 Manifold regularization
+
+The harmonic solution is transductive: it gives no value at a new point. Belkin, Niyogi and Sindhwani (2006) combine a kernel model with the graph penalty, to obtain a function defined everywhere.
+
+:::: thm
+[Theorem 4.5 — Representer theorem for manifold regularization]{.tag} Let $K$ be a positive definite kernel with RKHS $\mathcal{H}_K$, $V$ a loss, $\gamma_A, \gamma_I > 0$, and $\hat f = (f(x_1), \dots, f(x_n))$. Every minimizer over $\mathcal{H}_K$ of
+$$
+\frac{1}{l} \sum_{i=1}^l V\big(y_i, f(x_i)\big) + \gamma_A \|f\|_{K}^2 + \frac{\gamma_I}{n^2}\, \hat f^\top L \hat f
+$$
+has the form $f = \sum_{i=1}^{n} \alpha_i K(x_i, \cdot)$: an expansion over **all** points, labelled and unlabelled.
+
+::: proof
+Split $f = f_S + f_\perp$, with $f_S$ in the span $S$ of $K(x_1, \cdot), \dots, K(x_n, \cdot)$ and $f_\perp \perp S$.
+
+By the reproducing property, $f(x_i) = \langle f, K(x_i, \cdot)\rangle = f_S(x_i)$ for every $i \leq n$.
+
+The loss and the graph term depend on $f$ only through $\hat f$, so they do not see $f_\perp$. The norm term does: $\|f\|_K^2 = \|f_S\|_K^2 + \|f_\perp\|_K^2$. A minimizer therefore has $f_\perp = 0$. [∎]{.qed}
+:::
+::::
+
+With the squared loss (Laplacian regularized least squares), plug $\hat f = K\alpha$ into the objective. Let $J$ be the diagonal matrix with ones on the labelled nodes, and $Y$ the label vector padded with zeros. Setting the gradient to zero gives, for an invertible Gram matrix $K$,
+$$
+\alpha = \Big( J K + \gamma_A\, l\, I + \frac{\gamma_I\, l}{n^2}\, L K \Big)^{-1} Y .
+$$
+
+With $\gamma_I = 0$ this is kernel ridge regression on the labelled points; with $\gamma_A \to 0$ it approaches a harmonic-type solution. The [Kernel Methods](../s2-kernel-methods/index.html) course develops the RKHS side.
+
+### 4.6 Handwritten digits with 20 labels
+
+The code labels 2 images per class among the 1797 handwritten digits of scikit-learn. It builds a 10-NN graph with Gaussian weights and solves one harmonic problem per class.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse.csgraph import laplacian
+from scipy.sparse.linalg import spsolve
+from sklearn.datasets import load_digits
+from sklearn.neighbors import kneighbors_graph
+from sklearn.linear_model import LogisticRegression
+
+X, y = load_digits(return_X_y=True)            # 1797 images of 8 x 8 pixels, 10 classes
+X = X / 16.0
+rng = np.random.default_rng(0)
+lab = np.concatenate([rng.choice(np.flatnonzero(y == c), 2, replace=False) for c in range(10)])
+unl = np.setdiff1d(np.arange(len(y)), lab)      # 20 labelled, 1777 unlabelled
+
+W = kneighbors_graph(X, n_neighbors=10, mode="distance", include_self=False)
+W.data = np.exp(-W.data**2 / (2 * np.median(W.data) ** 2))   # Gaussian weights on the 10-NN graph
+W = W.maximum(W.T).tocsr()
+L = laplacian(W).tocsr()
+
+Y = np.eye(10)[y[lab]]                          # one-hot labels, one harmonic problem per class
+F_u = spsolve(L[unl][:, unl].tocsc(), W[unl][:, lab] @ Y)    # L_uu f_u = W_ul y_l
+print(f"harmonic solution on the graph : {(F_u.argmax(1) == y[unl]).mean():.3f}")
+clf = LogisticRegression(max_iter=2000).fit(X[lab], y[lab])
+print(f"logistic regression on 20 images: {(clf.predict(X[unl]) == y[unl]).mean():.3f}")
+```
+
+The harmonic solution classifies 91.5 % of the unlabelled images, the supervised logistic regression 80.4 %. The 1777 unlabelled images carry the information: they connect each labelled image to the many images of the same digit written slightly differently.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Harmonic solution: minimize $f^\top L f$ with the labels fixed; $f_u = L_{uu}^{-1} W_{ul} y_l$.
+-   It is the probability that a random walk is absorbed at a positive label, and the voltage of an electric network.
+-   Soft harmonic: $f = (C + L + \gamma I)^{-1} C y$; regularization handles noisy labels and is needed when unlabelled data abound.
+-   Manifold regularization adds $\hat f^\top L \hat f$ to a kernel method; the solution expands over all points.
+:::
+
+## 5. Learnability on graphs: transductive learning {#ch5}
+
+The harmonic solution fits the labelled nodes; does it predict the others? Classical learning theory assumes test points drawn from a distribution, but on a graph the test nodes are known in advance. This chapter sets up the transductive framework and proves a generalization bound for the soft harmonic solution, through algorithmic stability.
+
+### 5.1 The transductive setting
+
+::: def
+[Definition 5.1 — Transductive learning on a graph]{.tag} The graph and the labels $y_1, \dots, y_n$ of all its nodes are fixed. A set $S$ of $l$ nodes is drawn uniformly at random among all subsets of size $l$; its labels are revealed. The learner returns predictions $f_S \in \mathbb{R}^n$.
+
+For a loss $\ell(f_i, y_i)$, the **training** and **test** risks are
+$$
+\widehat R_S(f) = \frac{1}{l} \sum_{i \in S} \ell(f_i, y_i), \qquad R_U(f) = \frac{1}{u} \sum_{i \notin S} \ell(f_i, y_i), \qquad u = n - l .
+$$
+:::
+
+This is Vapnik's transduction: the only randomness is the choice of the labelled nodes, a sampling **without replacement**. There is no distribution over new points, and the bound must control the test risk on the $u$ given nodes.
+
+### 5.2 Stability of the soft harmonic solution
+
+Write $S^{ij} = (S \setminus \{i\}) \cup \{j\}$ for $i \in S$ and $j \notin S$: one labelled node is swapped for an unlabelled one.
+
+::: def
+[Definition 5.2 — Uniform stability under swaps]{.tag} A transductive algorithm is **$\beta$-stable** when, for every $S$, every $i \in S$ and every $j \notin S$,
+$$
+\big\| f_S - f_{S^{ij}} \big\|_\infty \leq \beta .
+$$
+:::
+
+We study the soft harmonic solution of Definition 4.4, with equal weights $c / l$ on the labelled nodes:
+$$
+f_S = \arg\min_{f}\ F_S(f), \qquad F_S(f) = \frac{c}{l} \sum_{i \in S} (f_i - y_i)^2 + f^\top (L + \gamma I) f .
+$$
+
+:::: thm
+[Theorem 5.3 — Stability of the soft harmonic solution]{.tag} Assume $|y_i| \leq M$ for all $i$, and $\gamma > 0$. Then $|f_{S,i}| \leq M$ for all nodes, and the algorithm is $\beta$-stable with
+$$
+\beta = \frac{2\sqrt{2}\, c\, M}{\gamma\, l} .
+$$
+
+::: proof
+*Step 1, boundedness.* Let $k$ be a node where $f = f_S$ is largest, and $c_k \in \{0, c/l\}$ its label weight. Row $k$ of $(C + L + \gamma I) f = C y$ reads
+$$
+(c_k + \gamma) f_k + \sum_j w_{kj} (f_k - f_j) = c_k\, y_k .
+$$
+The sum is non-negative at a maximum, so $(c_k + \gamma) f_k \leq c_k M$ and $f_k \leq M$. The same argument at a minimum gives $f \geq -M$.
+
+*Step 2, strong convexity.* The Hessian of $F_S$ is $2(C + L + \gamma I) \succeq 2\gamma I$. Hence, at its minimizer,
+$$
+F_S(g) - F_S(f_S) \geq \gamma\, \|g - f_S\|^2 \qquad \text{for all } g .
+$$
+
+*Step 3, comparison.* Let $f = f_S$ and $f' = f_{S^{ij}}$. Apply Step 2 to both problems and add:
+$$
+2\gamma\, \|f - f'\|^2 \leq \big[F_S - F_{S^{ij}}\big](f') - \big[F_S - F_{S^{ij}}\big](f) .
+$$
+The difference $F_S - F_{S^{ij}}$ keeps only two label terms, $\frac{c}{l}\big[(g_i - y_i)^2 - (g_j - y_j)^2\big]$.
+
+*Step 4, Lipschitz bound.* For $a, b, y \in [-M, M]$, $|(a - y)^2 - (b - y)^2| \leq 4M\, |a - b|$. The right-hand side of Step 3 is therefore at most
+$$
+\frac{4cM}{l}\big(|f_i - f'_i| + |f_j - f'_j|\big) \leq \frac{4\sqrt{2}\, cM}{l}\, \|f - f'\| .
+$$
+Dividing by $2\gamma\|f - f'\|$ gives the claim, since $\|f - f'\|_\infty \leq \|f - f'\|$:
+$$
+\|f - f'\|_\infty \leq \frac{2\sqrt{2}\, cM}{\gamma\, l} .
+$$
+[∎]{.qed}
+:::
+::::
+
+### 5.3 Concentration for sampling without replacement
+
+The labelled set is not a sequence of independent draws, so McDiarmid's inequality does not apply directly. The same martingale argument works with a coupling.
+
+:::: thm
+[Lemma 5.4 — Bounded swaps imply concentration]{.tag} Let $S$ be a uniformly random subset of size $l$ of $\{1, \dots, n\}$. Let $h$ be a function of subsets that moves by at most $\kappa$ under any swap:
+$$
+|h(S) - h(S^{ij})| \leq \kappa \qquad \text{for all } S,\ i \in S,\ j \notin S .
+$$
+Then, with $m = \min(l, n - l)$ and $t > 0$,
+$$
+\mathbb{P}\big( h(S) - \mathbb{E}\, h(S) \geq t \big) \leq \exp\Big( - \frac{2 t^2}{m\, \kappa^2} \Big) .
+$$
+
+::: proof
+Draw $S$ as the first $l$ entries $Z_1, \dots, Z_l$ of a uniform random ordering, and let $M_k = \mathbb{E}[h(S) \mid Z_1, \dots, Z_k]$, a martingale from $\mathbb{E}\, h$ to $h(S)$.
+
+-   Fix $Z_1, \dots, Z_{k-1}$, and two possible values $a, b$ of $Z_k$. Given $Z_k = a$, the remaining entries are a uniform ordered sample from the nodes not yet drawn.
+-   Exchange $a$ and $b$ wherever they appear. This maps the conditional law given $Z_k = a$ onto that given $Z_k = b$.
+-   Under this coupling the two sets are equal if $b$ is drawn later, and differ by one swap otherwise. So the two conditional expectations differ by at most $\kappa$.
+-   The increment $M_k - M_{k-1}$ therefore lies in an interval of length $\kappa$, and Theorem 0.5 gives the bound with $l$ steps.
+
+The complement of $S$ is a uniform subset of size $n - l$, and $h$ has the same bounded-swap property as a function of the complement. Revealing the complement instead takes $n - l$ steps, hence the minimum. [∎]{.qed}
+:::
+::::
+
+### 5.4 A transductive generalization bound
+
+:::: thm
+[Theorem 5.5 — Transductive bound for stable algorithms]{.tag} Let the loss $\ell(\cdot, y)$ be $\Lambda$-Lipschitz and bounded by $B$ on $[-M, M]$. Let the algorithm be $\beta$-stable with predictions in $[-M, M]$. Set
+$$
+\kappa = 2\Lambda\beta + B\Big(\frac{1}{l} + \frac{1}{u}\Big), \qquad m = \min(l, u) .
+$$
+Then, for $\delta \in (0, 1)$, with probability at least $1 - \delta$ over the labelled set,
+
+::: key
+[Key result — stability gives transductive generalization]{.tag}
+$$
+R_U(f_S) \ \leq\ \widehat R_S(f_S) + \Lambda \beta + \kappa \sqrt{\frac{m \log(1/\delta)}{2}}
+$$
+:::
+
+::: proof
+Let $\Phi(S) = R_U(f_S) - \widehat R_S(f_S)$.
+
+*Expectation.* Draw $S$, then $I$ uniform in $S$ and $J$ uniform outside $S$. Then
+$$
+\mathbb{E}\,\widehat R_S(f_S) = \mathbb{E}\,\ell(f_{S,I}, y_I), \qquad \mathbb{E}\, R_U(f_S) = \mathbb{E}\,\ell(f_{S,J}, y_J) .
+$$
+
+The map $(S, I, J) \mapsto (S^{IJ}, J, I)$ is a bijection of the triples that preserves their uniform law. Hence
+$$
+\mathbb{E}\,\ell(f_{S,J}, y_J) = \mathbb{E}\,\ell(f_{S^{IJ}, I}, y_I), \qquad \text{so} \qquad \mathbb{E}\,\Phi = \mathbb{E}\big[\ell(f_{S^{IJ}, I}, y_I) - \ell(f_{S,I}, y_I)\big] \leq \Lambda\beta .
+$$
+
+*Bounded swaps.* Replacing $S$ by $S^{ij}$ changes every prediction by at most $\beta$, so every loss by at most $\Lambda\beta$.
+
+It also exchanges one term of each average, which costs at most $B/u$ for $R_U$ and $B/l$ for $\widehat R_S$. Hence $|\Phi(S) - \Phi(S^{ij})| \leq \kappa$.
+
+*Concentration.* Lemma 5.4 with $t = \kappa\sqrt{m \log(1/\delta) / 2}$ bounds the probability that $\Phi - \mathbb{E}\Phi \geq t$ by $\delta$. [∎]{.qed}
+:::
+::::
+
+For the squared loss on $[-M, M]$, $\Lambda = 4M$ and $B = 4M^2$. With Theorem 5.3 the gap between test and training risk is of order
+$$
+\frac{c\, M^2}{\gamma \sqrt{l}} + \frac{M^2}{\sqrt{l}} \qquad \text{when } u \geq l .
+$$
+
+Bounds of this type were proved by Belkin, Matveeva and Niyogi (2004) for graph regularization, and by Cortes, Mohri, Pechyony and Rastogi (2008) for transductive regression. El-Yaniv and Pechyony (2009) develop a transductive Rademacher complexity.
+
+### 5.5 What the bound says
+
+The bound decreases as $1/\sqrt{l}$ and improves as $\gamma$ grows relative to $c$. But strong regularization also shrinks the predictions towards 0. The experiment measures stability on two moons with 100 labels.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse import diags, identity
+from scipy.sparse.csgraph import laplacian
+from scipy.sparse.linalg import spsolve
+from sklearn.datasets import make_moons
+from sklearn.neighbors import kneighbors_graph
+
+X, yc = make_moons(n_samples=1000, noise=0.1, random_state=0)
+y = 2.0 * yc - 1                                    # labels in {-1, +1}, so M = 1
+W = kneighbors_graph(X, n_neighbors=10, include_self=False)
+L = laplacian(W.maximum(W.T)).tocsc()
+n, l, c = len(y), 100, 1.0
+rng = np.random.default_rng(0)
+S = rng.choice(n, l, replace=False)                 # the labelled nodes
+U = np.setdiff1d(np.arange(n), S)
+
+def soft_harmonic(S, gamma):
+    """argmin_f (c/l) sum_{i in S} (f_i - y_i)^2 + f^T (L + gamma I) f  (Definition 4.4)."""
+    C = np.zeros(n); C[S] = c / l
+    return spsolve((diags(C) + L + gamma * identity(n)).tocsc(), C * y)
+
+for gamma in [1e-3, 1e-2, 1e-1, 1.0]:
+    f = soft_harmonic(S, gamma)
+    worst = 0.0
+    for _ in range(10):                             # swap a labelled node for an unlabelled one
+        i, j = rng.choice(S), rng.choice(U)
+        worst = max(worst, np.abs(soft_harmonic(np.append(S[S != i], j), gamma) - f).max())
+    beta = 2 * np.sqrt(2) * c / (gamma * l)         # Theorem 5.3 with M = 1
+    print(f"gamma = {gamma:5g}: largest change {worst:.4f} <= beta = {beta:7.4g};"
+          f" max |f| = {np.abs(f).max():.3f}, test sign error = {np.mean(np.sign(f[U]) != y[U]):.3f}")
+```
+
+| $\gamma$ | largest observed change | $\beta$ (Theorem 5.3) | $\max_i \lvert f_i \rvert$ | test sign error |
+|---|---|---|---|---|
+| 0.001 | 0.0157 | 28.3 | 0.274 | 0.341 |
+| 0.01 | 0.0058 | 2.83 | 0.103 | 0.063 |
+| 0.1 | 0.0022 | 0.283 | 0.017 | 0.002 |
+| 1 | 0.0012 | 0.0283 | 0.003 | 0.001 |
+
+Three lessons follow.
+
+-   The theorem holds with a large margin: the worst case is far from a typical swap on a well-connected graph.
+-   Larger $\gamma$ makes the solution more stable, and here also more accurate in sign. With $\gamma = 0.001$ the label term is too weak and the solution nearly flat.
+-   Stability is bought with shrinkage: $\max|f|$ falls to $0.003$. The squared loss then stays close to 1 on both sets, while the classification by sign is excellent; margin-based losses suit this regime better (Exercise 11).
+
+::: recap
+Key takeaways — chapter 5
+
+-   Transduction: fixed nodes, random labelled subset drawn without replacement, test risk on the given unlabelled nodes.
+-   The soft harmonic solution with ridge $\gamma$ and label weight $c/l$ is $2\sqrt{2}\,cM/(\gamma l)$-stable, by strong convexity.
+-   Bounded swaps give concentration without replacement, through a coupled martingale.
+-   Stability plus concentration: test risk $\leq$ training risk $+\ O\big(1/(\gamma\sqrt{l})\big)$; regularization trades stability against shrinkage.
+:::
+
+## 6. Adaptive online learning with graphs {#ch6}
+
+In many applications the data arrive one at a time and a prediction is needed at once: a camera that must name the person in front of it, a network whose nodes are queried in an arbitrary order. This chapter studies two online problems on graphs. The first predicts the labels of a fixed graph with a perceptron; the second learns from a stream of points with bounded memory.
+
+### 6.1 Online prediction of a graph labelling
+
+The graph is fixed and connected, with an unknown labelling $y \in \{-1, +1\}^n$. At each round $t = 1, 2, \dots$ a node $i_t$ is chosen, possibly by an adversary; the learner predicts $\hat y_t$, then sees $y_{i_t}$. The goal is to make few **mistakes**.
+
+No algorithm can do well on every labelling, so the bound must depend on the labelling. The natural complexity is the **cut size**, the weight of the edges whose ends disagree:
+$$
+\Phi(y) = \sum_{i < j:\ y_i \neq y_j} w_{ij} = \frac{1}{4}\, y^\top L y .
+$$
+
+### 6.2 The graph perceptron
+
+The perceptron runs in a reproducing kernel Hilbert space; on a graph the right space comes from the Laplacian.
+
+:::: prop
+[Proposition 6.1 — The Laplacian RKHS]{.tag} Let the graph be connected and $M = L + \mathbf{1}\mathbf{1}^\top / n^2$. Then $M$ is positive definite, $\langle f, g \rangle = f^\top M g$ is an inner product on $\mathbb{R}^n$, and the reproducing kernel is
+$$
+K = M^{-1} = L^{+} + \mathbf{1}\mathbf{1}^\top, \qquad f_i = \langle K e_i, f \rangle \ \ \text{for all } f, i .
+$$
+
+::: proof
+On $\mathbf{1}^\perp$, $M$ acts as $L$, which is positive definite there since $\lambda_2 > 0$. On $\mathbf{1}$, $M \mathbf{1} = \mathbf{1}/n$.
+
+So $M$ is positive definite. Its inverse is $L^+$ on $\mathbf{1}^\perp$, plus $n$ times the projector $\mathbf{1}\mathbf{1}^\top / n$.
+
+Finally $\langle K e_i, f \rangle = e_i^\top K M f = f_i$. [∎]{.qed}
+:::
+::::
+
+The diagonal of $K$ is controlled by **effective resistances**. View each edge as a resistor of conductance $w_{ij}$; the effective resistance between $i$ and $j$ is
+$$
+r(i, j) = (e_i - e_j)^\top L^{+} (e_i - e_j) .
+$$
+Let $R_G = \max_{i,j} r(i, j)$. On an unweighted graph, $R_G$ is at most the diameter, because a shortest path alone has resistance equal to its length, and adding edges only lowers resistances.
+
+:::: thm
+[Theorem 6.2 — Kernel perceptron (Novikoff, 1962)]{.tag} The perceptron starts from $w = 0$, predicts $\hat y_t = \mathrm{sign}\big(w(i_t)\big)$, and on a mistake updates $w \leftarrow w + y_{i_t} K e_{i_t}$. If some $g$ satisfies $y_{i_t}\, g(i_t) \geq 1$ for all $t$, the number of mistakes is at most
+$$
+\|g\|^2\ \max_t K_{i_t i_t} .
+$$
+
+::: proof
+Let $w_k$ be the hypothesis after $k$ mistakes, and $\kappa = \max_t K_{i_t i_t}$.
+
+-   At a mistake on node $i = i_t$, the reproducing property gives the progress
+    $$
+    \langle w_{k+1}, g \rangle = \langle w_k, g \rangle + y_i\, g(i) \geq \langle w_k, g \rangle + 1 .
+    $$
+-   The norm grows slowly, because a mistake means $y_i\, w_k(i) \leq 0$:
+    $$
+    \|w_{k+1}\|^2 = \|w_k\|^2 + 2 y_i\, w_k(i) + K_{ii} \leq \|w_k\|^2 + \kappa .
+    $$
+-   After $k$ mistakes, $\langle w_k, g \rangle \geq k$ and $\|w_k\|^2 \leq k\kappa$. Cauchy–Schwarz gives $k \leq \sqrt{k\kappa}\, \|g\|$, so $k \leq \kappa \|g\|^2$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 6.3 — Mistake bound of the graph perceptron]{.tag} On a connected graph, the perceptron with the kernel of Proposition 6.1 makes at most
+$$
+\big(4\, \Phi(y) + 1\big)\,\big(R_G + 1\big)
+$$
+mistakes on any sequence of nodes, in any order, with any number of repetitions.
+
+::: proof
+Take $g = y$, which has margin $y_i g(i) = 1$. Its norm satisfies
+$$
+\|y\|^2 = y^\top L y + \frac{(\mathbf{1}^\top y)^2}{n^2} \leq 4\Phi(y) + 1 .
+$$
+
+For the kernel diagonal, $L^+\mathbf{1} = 0$ gives $\sum_j r(i, j) = n L^+_{ii} + \mathrm{tr}\, L^+$ and $\sum_{i,j} r(i, j) = 2n\, \mathrm{tr}\, L^+$. Hence
+$$
+L^+_{ii} = \frac{1}{n}\sum_j r(i, j) - \frac{1}{2n^2}\sum_{j,k} r(j, k) \leq R_G ,
+$$
+and $K_{ii} = L^+_{ii} + 1 \leq R_G + 1$. Theorem 6.2 concludes. [∎]{.qed}
+:::
+::::
+
+The bound depends neither on $n$ nor on the order of the nodes: only on the cut and on how well the graph conducts. This is the result of Herbster, Pontil and Wainer (2005), up to the normalization of the kernel. On a long path $R_G$ is large and the bound weak; Herbster and Pontil (2006) discuss remedies.
+
+The code runs the perceptron on a stochastic block model: two communities of 100 nodes, edge probability 0.1 inside and 0.005 across.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+import networkx as nx
+
+G = nx.stochastic_block_model([100, 100], [[0.10, 0.005], [0.005, 0.10]], seed=1)
+n = G.number_of_nodes()
+y = np.array([1.0 if G.nodes[v]["block"] == 0 else -1.0 for v in G])
+L = nx.laplacian_matrix(G).toarray().astype(float)
+K = np.linalg.inv(L + np.ones((n, n)) / n**2)       # kernel L^+ + 1 1^T (Proposition 6.1)
+Lp = K - 1.0                                         # pseudo-inverse L^+
+r = np.diag(Lp)[:, None] + np.diag(Lp)[None, :] - 2 * Lp   # effective resistances
+cut = sum(y[a] != y[b] for a, b in G.edges())
+print(f"cut size {cut}, R_G = {r.max():.3f}, bound (4 cut + 1)(R_G + 1) = {(4 * cut + 1) * (r.max() + 1):.0f}")
+
+rng = np.random.default_rng(0)
+alpha, mistakes = np.zeros(n), 0                     # perceptron in dual form: w = K alpha
+for epoch in range(3):
+    for t in rng.permutation(n):                     # nodes arrive in random order
+        pred = 1.0 if K[t] @ alpha >= 0 else -1.0
+        if pred != y[t]:
+            alpha[t] += y[t]
+            mistakes += 1
+    print(f"after pass {epoch + 1}: {mistakes} mistakes in total")
+```
+
+The labelling cuts 49 edges and $R_G = 0.461$, so the bound is 288 mistakes. The perceptron makes 4, all in the first pass, and none afterwards.
+
+### 6.3 Online semi-supervised learning with bounded memory
+
+Now the graph itself grows. Points $x_1, x_2, \dots$ arrive in a stream, a few of them labelled, and at time $t$ the learner must label $x_t$. Solving the harmonic problem on all $t$ points seen so far costs at least linear time in $t$ per step, and the memory grows without bound.
+
+The remedy of Valko, Kveton, Huang and Ting (2010) is to **quantize**: keep at most $k$ centres $z_1, \dots, z_k$, each with the number $v_j$ of points it stands for. Replacing every point by its centre gives a graph on the centres with weights $v_i v_j\, w(z_i, z_j)$. For functions constant on each cell, its Laplacian quadratic form is that of the replaced full graph.
+
+How much does the solution change when the graph is perturbed? The next proposition answers, and serves again in ch. 7.
+
+:::: prop
+[Proposition 6.4 — Perturbation of the soft harmonic solution]{.tag} Let $L$ and $L'$ be two Laplacians on the same nodes and $\gamma > 0$.
+
+Let $f$ and $f'$ be the soft harmonic solutions (Definition 4.4) computed with $L$ and with $L'$. Then
+$$
+\|f - f'\| \leq \frac{\|L - L'\|}{\gamma}\, \|f'\| .
+$$
+
+::: proof
+Subtracting the two linear systems gives $(C + L + \gamma I)(f - f') = (L' - L) f'$. The matrix on the left is at least $\gamma I$ in the Loewner order, so its inverse has norm at most $1/\gamma$. [∎]{.qed}
+:::
+::::
+
+If the similarity $w(x, x')$ is $\Lambda_w$-Lipschitz in each argument, moving every point by at most $R$ to its centre changes each weight by at most $2\Lambda_w R$. By Gershgorin's theorem, the Laplacian then changes by at most $4 n \Lambda_w R$ in operator norm. The quantization error vanishes with the distortion $R$ of the quantizer.
+
+::: thm
+[Algorithm 6.5 — Online harmonic solution on a quantized graph]{.tag} Parameters: a budget $k$, a similarity, a regularization $\gamma$. Keep the labelled points apart.
+
+1.  When $x_t$ arrives, build the graph on the labelled points, the current centres (with their multiplicities) and $x_t$.
+2.  Solve the regularized harmonic problem on this graph of at most $l + k + 1$ nodes, and predict the label of $x_t$.
+3.  Add $x_t$ to the quantizer. If more than $k$ centres exist, merge centres, for instance by the doubling rule of the incremental $k$-centre algorithm of Charikar, Chekuri, Feder and Motwani (1997), which keeps a constant-factor approximation of the best $k$-centre radius.
+:::
+
+Each step costs a solve on $l + k + 1$ nodes, independent of $t$. Valko and coauthors bound the online error by three terms: a transductive generalization term (ch. 5), an online-learning term, and a quantization term that decreases with the distortion.
+
+### 6.4 The online face recognizer
+
+The official description cites an online face recognizer among the applications of the practical sessions. A camera produces frames, a detector crops the faces, and each face becomes a vector of low-resolution pixels. The user labels a handful of faces per person; the system then names everyone it sees, in real time. With Algorithm 6.5, the unlabelled frames teach the graph how each face varies with pose and lighting, in constant memory.
+
+The code runs the pipeline on the 8 × 8 digit images of scikit-learn, a stand-in for faces since no face data set ships with the library. Two images per class are labelled and the other 1777 arrive in random order. The quantizer merges the two closest centres whenever there are more than 100.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from sklearn.datasets import load_digits
+
+X, y = load_digits(return_X_y=True)
+X = X / 16.0
+rng = np.random.default_rng(0)
+order = rng.permutation(len(y)); X, y = X[order], y[order]       # a random stream of images
+lab = np.concatenate([np.flatnonzero(y == c)[:2] for c in range(10)])   # 2 labelled per class
+stream = np.setdiff1d(np.arange(len(y)), lab)
+Yl, nl, k_nn, gamma, k_max = np.eye(10)[y[lab]], len(lab), 8, 1e-3, 100
+
+def harmonic(P):
+    """Regularized harmonic solution on a k-NN graph; the first nl rows of P are labelled."""
+    sq = (P**2).sum(1)
+    D2 = np.maximum(sq[:, None] + sq[None] - 2 * P @ P.T, 0); np.fill_diagonal(D2, np.inf)
+    nn = np.argpartition(D2, k_nn, axis=1)[:, :k_nn]
+    rows = np.repeat(np.arange(len(P)), k_nn)
+    d2 = D2[rows, nn.ravel()]
+    W = np.zeros_like(D2); W[rows, nn.ravel()] = np.exp(-d2 / np.median(d2))
+    W = np.maximum(W, W.T)
+    L = np.diag(W.sum(1)) - W
+    return np.linalg.solve(L[nl:, nl:] + gamma * np.eye(len(P) - nl), W[nl:, :nl] @ Yl)
+
+Z, v, hits = np.empty((0, 64)), np.empty(0), []
+for i in stream:
+    F = harmonic(np.vstack([X[lab], Z, X[i]]))          # graph on labelled + centres + new image
+    hits.append(F[-1].argmax() == y[i])                  # predict, then learn
+    Z, v = np.vstack([Z, X[i]]), np.append(v, 1.0)
+    if len(Z) > k_max:                                   # merge the two closest centres
+        sq = (Z**2).sum(1); D2 = sq[:, None] + sq[None] - 2 * Z @ Z.T
+        np.fill_diagonal(D2, np.inf)
+        a, b = np.unravel_index(D2.argmin(), D2.shape)
+        Z[a] = (v[a] * Z[a] + v[b] * Z[b]) / (v[a] + v[b]); v[a] += v[b]
+        Z, v = np.delete(Z, b, 0), np.delete(v, b)
+hits = np.array(hits)
+print(f"online, {k_max} centres: accuracy {hits.mean():.3f}"
+      f" (first 300 images {hits[:300].mean():.3f}, last 300 {hits[-300:].mean():.3f})")
+F = harmonic(np.vstack([X[lab], X[stream]]))             # batch: all images at once
+print(f"batch, all {len(stream)} images: accuracy {(F.argmax(1) == y[stream]).mean():.3f}")
+```
+
+The online learner labels 75.1 % of the stream correctly with 100 centres in memory. The batch harmonic solution, which sees all 1777 images at once with the same labels and graph rule, reaches 79.8 %: the gap is the price of constant memory and of predicting before seeing the future.
+
+The code drops the multiplicities, which are designed for a fully connected graph rather than a $k$-NN graph; Exercise 14 compares the two variants. With two labels per class the accuracy also depends on which images are labelled: ch. 4.6 drew another set and reached 91.5 % in batch.
+
+::: recap
+Key takeaways — chapter 6
+
+-   The kernel $K = L^+ + \mathbf{1}\mathbf{1}^\top$ turns the perceptron into a graph learner; its mistakes are at most $(4\Phi(y) + 1)(R_G + 1)$, whatever the order of the nodes.
+-   Effective resistances measure how well the graph conducts information; they bound the kernel diagonal.
+-   On a stream, quantize: keep $k$ centres with multiplicities and solve on $O(l + k)$ nodes per step.
+-   The soft harmonic solution moves by at most $\|L - L'\|\, \|f'\| / \gamma$ when the graph is perturbed.
+:::
+
+## 7. Large graphs: scalability, approximation and sparsification {#ch7}
+
+The methods of ch. 2–6 solve linear systems and eigenproblems with Laplacians. Dense linear algebra stops at a few tens of thousands of nodes, while real graphs have millions or billions. This chapter shows how to keep the cost near-linear in the number of edges, and how to bound the error that each approximation adds.
+
+### 7.1 Real-world graphs
+
+Large real networks share a few features, which shape the algorithms that work on them.
+
+-   **Sparsity.** The number of edges $m$ is a small multiple of $n$: people have hundreds of friends, not millions. Algorithms must cost $O(m)$, up to logarithmic factors.
+-   **Heavy-tailed degrees.** A few hubs have huge degrees; the preferential attachment model of Barabási and Albert (1999) produces such power laws. Hubs unbalance the work in parallel computations.
+-   **Small world.** Typical distances are short while local clustering is high, as in the model of Watts and Strogatz (1998).
+
+A dense $n \times n$ matrix for $n = 10^6$ takes 8 terabytes in double precision, and an $O(n^3)$ eigendecomposition is out of reach. What remains possible are products $Lx$, in $O(m)$ operations, and algorithms built on them.
+
+### 7.2 Iterative solvers and eigensolvers
+
+The soft harmonic solution solves $A f = C y$ with $A = C + L + \gamma I$, which is symmetric and positive definite. The conjugate gradient method needs only products with $A$.
+
+::: thm
+[Theorem 7.1 — Convergence of conjugate gradient]{.tag} For a symmetric positive definite $A$ with condition number $\kappa = \lambda_{\max}(A) / \lambda_{\min}(A)$, the iterates of conjugate gradient satisfy
+$$
+\|f_k - f^\star\|_A \ \leq\ 2 \left( \frac{\sqrt{\kappa} - 1}{\sqrt{\kappa} + 1} \right)^{k} \|f_0 - f^\star\|_A ,
+$$
+where $\|x\|_A = \sqrt{x^\top A x}$. Reaching relative accuracy $\varepsilon$ takes $O(\sqrt{\kappa}\, \log(1/\varepsilon))$ iterations, each costing $O(m)$.
+:::
+
+The proof compares the iterate with the best polynomial of degree $k$ in $A$ and uses Chebyshev polynomials; see Saad (2003). For the Laplacian system, $\lambda_{\min}(A) \geq \gamma$, and $\lambda_{\max}(A) \leq \max_i c_i + 2 d_{\max} + \gamma$, because $\lambda_{\max}(L) \leq 2 d_{\max}$ by Gershgorin. So
+$$
+\kappa \ \leq\ \frac{\max_i c_i + 2 d_{\max} + \gamma}{\gamma} .
+$$
+
+Small $\gamma$ makes the system ill-conditioned. Preconditioning helps, and Spielman and Teng (2014) proved that Laplacian systems can be solved to accuracy $\varepsilon$ in time $O(m \log^{c} n\, \log(1/\varepsilon))$ for a constant $c$. Their solvers rest on the sparsifiers of section 7.4.
+
+For eigenvectors, the Lanczos method, also built on products with $L$, computes extreme eigenpairs; its speed depends on the eigengap of ch. 2 again.
+
+The code solves the soft harmonic system on a 10-NN graph of 50 000 points with conjugate gradient, for two values of $\gamma$.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import time
+import numpy as np
+from scipy.sparse import diags, identity
+from scipy.sparse.csgraph import laplacian
+from scipy.sparse.linalg import cg
+from sklearn.datasets import make_moons
+from sklearn.neighbors import kneighbors_graph
+
+X, yc = make_moons(n_samples=50_000, noise=0.08, random_state=0)
+y = 2.0 * yc - 1
+W = kneighbors_graph(X, 10, include_self=False)
+W = W.maximum(W.T)
+print(f"n = {len(y)} nodes, {W.nnz // 2} edges, max degree {int(W.sum(1).max())}")
+L = laplacian(W).tocsr()
+lab = np.random.default_rng(0).choice(len(y), 20, replace=False)      # 20 labels
+c = np.zeros(len(y)); c[lab] = 1.0
+for gamma in [1e-2, 1e-4]:
+    A = diags(c) + L + gamma * identity(len(y))    # soft harmonic system (C + L + gamma I) f = C y
+    count = [0]
+    t0 = time.time()
+    f, info = cg(A, c * y, rtol=1e-6, maxiter=20_000, callback=lambda xk: count.__setitem__(0, count[0] + 1))
+    print(f"gamma = {gamma:g}: {count[0]} CG iterations in {time.time() - t0:.1f} s,"
+          f" sign error {np.mean(np.sign(f) != y):.4f}")
+```
+
+The graph has 288 444 edges and maximum degree 19. Conjugate gradient needs 277 iterations for $\gamma = 0.01$ and 978 for $\gamma = 10^{-4}$, about a second each. The bound on $\kappa$ grows by a factor 100, the number of iterations by less than its square root, as Theorem 7.1 allows. With 20 labels, the sign error is 0.15 % and 0.01 %.
+
+### 7.3 Building large graphs: Nyström approximations
+
+The $k$-NN graph needs nearest neighbours, and an exact search costs $O(n^2)$ distance evaluations; approximate search with trees or hashing is the practical answer. A fully connected Gaussian graph, used by spectral clustering or by quantized graphs, can instead be approximated in low rank.
+
+Let $W$ be a positive semidefinite similarity matrix, such as a Gaussian kernel matrix, and $J$ a set of $s$ **landmark** nodes. The **Nyström approximation** uses only the $n \times s$ block $W_{:,J}$:
+$$
+\widetilde W = W_{:,J}\ W_{JJ}^{+}\ W_{J,:} .
+$$
+
+:::: prop
+[Proposition 7.2 — Nyström as a projection]{.tag} Write $W = \Phi^\top \Phi$ with feature vectors $\varphi_1, \dots, \varphi_n$, and let $P$ be the orthogonal projection onto the span of the landmark features $\{\varphi_j : j \in J\}$. Then
+$$
+\widetilde W_{ab} = \langle P \varphi_a,\ P \varphi_b \rangle, \qquad W - \widetilde W = \big[\langle (I - P)\varphi_a,\ (I - P)\varphi_b \rangle\big]_{a,b} \succeq 0 .
+$$
+The error vanishes on the rows and columns of the landmarks, and its trace is $\sum_a \|(I - P)\varphi_a\|^2$.
+
+::: proof
+Let $\Phi_J$ hold the landmark features, so that $\Phi_J^\top \Phi_J = W_{JJ}$. The projection and the inner products it induces are
+$$
+P = \Phi_J\, W_{JJ}^{+}\, \Phi_J^\top, \qquad \langle P\varphi_a, P\varphi_b \rangle = \varphi_a^\top P\, \varphi_b = W_{a,J}\, W_{JJ}^+\, W_{J,b} = \widetilde W_{ab} .
+$$
+
+The error is therefore the Gram matrix of the residuals $(I - P)\varphi_a$, which vanish for landmarks. [∎]{.qed}
+:::
+::::
+
+The cost is $O(n s^2)$ time and $O(ns)$ memory. Approximate spectral embeddings follow from an $s \times s$ eigenproblem, as in the image segmentation of Fowlkes, Belongie, Chung and Malik (2004). Sampling the landmarks by ridge leverage scores (Calandriello, Lazaric and Valko, 2017) gives guarantees with $s$ of the order of an effective dimension.
+
+### 7.4 Spectral sparsification
+
+A dense graph, with $m$ close to $n^2$, can be replaced by a sparse one whose Laplacian is almost the same quadratic form.
+
+::: def
+[Definition 7.3 — Spectral approximation]{.tag} A graph $H$ on the same nodes is an **$\varepsilon$-spectral approximation** of $G$ when, for every $x \in \mathbb{R}^n$,
+$$
+(1 - \varepsilon)\, x^\top L_G\, x \ \leq\ x^\top L_H\, x \ \leq\ (1 + \varepsilon)\, x^\top L_G\, x .
+$$
+:::
+
+Taking $x = \mathbf{1}_S$ shows that every cut is preserved within a factor $1 \pm \varepsilon$. By Theorem 0.1 every eigenvalue is too, and so is the solution of any Laplacian system (section 7.5).
+
+Write $L = \sum_e w_e\, b_e b_e^\top$, where $b_e = e_i - e_j$ for the edge $e = (i, j)$.
+
+The importance of an edge is its weight times its **effective resistance** $r_e = b_e^\top L^+ b_e$. These leverage scores sum to the rank (Foster's theorem):
+$$
+\sum_e w_e\, r_e = \mathrm{tr}\Big(L^+ \sum_e w_e\, b_e b_e^\top\Big) = \mathrm{tr}(L^+ L) = n - 1 .
+$$
+
+:::: thm
+[Theorem 7.4 — Sparsification by effective resistances (Spielman and Srivastava, 2011)]{.tag} Let $G$ be connected. Draw $q$ edges independently, edge $e$ with probability $p_e = w_e r_e / (n - 1)$.
+
+Give each draw of $e$ the weight $w_e / (q\, p_e)$ in the new graph $H$.
+
+There is a universal constant $C$ such that, if $q \geq C\, n \log n / \varepsilon^2$, then $H$ is an $\varepsilon$-spectral approximation of $G$ with probability at least $1/2$.
+
+::: proof
+*Sketch.* Normalize by $L^{+/2}$: each draw contributes the positive semidefinite matrix
+$$
+Y_t = \frac{w_e}{q\, p_e}\, L^{+/2} b_e b_e^\top L^{+/2}, \qquad \|Y_t\| = \frac{w_e r_e}{q\, p_e} = \frac{n - 1}{q} .
+$$
+The sum $\sum_t Y_t$ has expectation $L^{+/2} L L^{+/2}$, the projection onto $\mathbf{1}^\perp$.
+
+The matrix Chernoff bound (Tropp, 2012) applies to a sum of independent PSD matrices of norm at most $R$ whose expectation is a projection. All its eigenvalues on that range lie within $1 \pm \varepsilon$ with probability at least $1 - 2n\, e^{-\varepsilon^2 / (3R)}$.
+
+With $R = (n - 1)/q$, this is at least $1/2$ once $q$ is of order $n \log n / \varepsilon^2$. [∎]{.qed}
+:::
+::::
+
+Sampling by effective resistance matters because some edges are indispensable: a bridge between two dense communities has resistance close to 1 and is almost always kept, whereas uniform sampling drops it or overweights it. The code compares the two schemes on two dense random graphs of 200 nodes joined by two bridges.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+import networkx as nx
+from scipy import sparse
+from scipy.linalg import eigh
+
+G = nx.disjoint_union(nx.gnp_random_graph(200, 0.6, seed=1), nx.gnp_random_graph(200, 0.6, seed=2))
+G.add_edges_from([(0, 200), (1, 201)])              # two bridges between dense halves
+n, E = G.number_of_nodes(), np.array(G.edges())
+m = len(E)
+B = sparse.csr_matrix((np.r_[np.ones(m), -np.ones(m)],
+                       (np.r_[np.arange(m), np.arange(m)], np.r_[E[:, 0], E[:, 1]])), shape=(m, n))
+L = (B.T @ B).toarray()                             # Laplacian = B^T B (incidence matrix B)
+J = np.ones((n, n)) / n
+Lp = np.linalg.inv(L + J) - J                       # pseudo-inverse L^+
+r = Lp[E[:, 0], E[:, 0]] + Lp[E[:, 1], E[:, 1]] - 2 * Lp[E[:, 0], E[:, 1]]   # resistances
+bridge = (E[:, 1] - E[:, 0]) == 200
+print(f"m = {m} edges, sum of r_e = {r.sum():.1f}, bridges r_e = {r[bridge].round(3)},"
+      f" median r_e = {np.median(r):.4f}")
+
+Q = np.linalg.svd(np.eye(n) - J)[0][:, :n - 1]      # orthonormal basis of the complement of 1
+def eps(H):
+    """Smallest eps with (1 - eps) L <= H <= (1 + eps) L."""
+    ev = eigh(Q.T @ H @ Q, Q.T @ L @ Q, eigvals_only=True)
+    return max(1 - ev.min(), ev.max() - 1)
+
+rng = np.random.default_rng(0)
+for q in [4000, 16000]:
+    for name, p in [("resistance", r / r.sum()), ("uniform", np.full(m, 1 / m))]:
+        errs, kept = [], []
+        for _ in range(5):
+            w = np.bincount(rng.choice(m, size=q, p=p), minlength=m) / (q * p)   # reweighted sample
+            errs.append(eps((B.T @ sparse.diags(w) @ B).toarray()))
+            kept.append((w > 0).sum())
+        print(f"q = {q:5d}, {name:10s}: about {int(np.mean(kept))} edges kept, eps = {np.round(errs, 2)}")
+```
+
+The resistances sum to $399 = n - 1$, as Foster's theorem says. The bridges have resistance 0.508, thirty times the median edge (0.0166).
+
+| draws $q$ | scheme | edges kept (of 23 921) | $\varepsilon$ over 5 draws |
+|---|---|---|---|
+| 4000 | resistance | about 3690 | 0.73 to 0.95 |
+| 4000 | uniform | about 3660 | 1.00 to 2.06 |
+| 16 000 | resistance | about 11 620 | 0.39 to 0.47 |
+| 16 000 | uniform | about 11 640 | 0.37 to 1.00 |
+
+An $\varepsilon \geq 1$ means a direction where $H$ is zero, here a lost bridge, or one weighted more than twice its value. Resistance sampling never fails this way, and its error shrinks steadily as $q$ grows, roughly as $1/\sqrt{q}$.
+
+### 7.5 Error analysis: from the sparsifier to the solution
+
+An approximation of the graph is useful only if the learning output changes little. For the soft harmonic solution, the spectral guarantee transfers directly.
+
+:::: prop
+[Proposition 7.5 — Error of the sparsified soft harmonic solution]{.tag} Let $H$ be an $\varepsilon$-spectral approximation of $G$ with $\varepsilon < 1$. Define the two systems and their solutions
+$$
+A = C + L_G + \gamma I, \quad A_H = C + L_H + \gamma I, \qquad f = A^{-1} C y, \quad f_H = A_H^{-1} C y .
+$$
+Then
+$$
+\|f_H - f\|_A \ \leq\ \frac{\varepsilon}{1 - \varepsilon}\ \|f\|_A .
+$$
+
+::: proof
+The part $C + \gamma I \succeq 0$ is common to both systems, so $L_G \preceq A$ and
+$$
+-\varepsilon A \preceq -\varepsilon L_G \preceq L_G - L_H \preceq \varepsilon L_G \preceq \varepsilon A, \qquad A_H \succeq (1 - \varepsilon) A .
+$$
+
+Subtracting the systems gives $f_H - f = A_H^{-1}(L_G - L_H) f$. In the norm of $A$,
+$$
+\|f_H - f\|_A \leq \big\|A^{1/2} A_H^{-1} A^{1/2}\big\|\ \big\|A^{-1/2}(L_G - L_H) A^{-1/2}\big\|\ \|f\|_A \leq \frac{1}{1 - \varepsilon}\cdot \varepsilon \cdot \|f\|_A .
+$$
+[∎]{.qed}
+:::
+::::
+
+Unlike Proposition 6.4, this bound does not degrade as $\gamma \to 0$: the approximation is relative to $L$ itself. An error budget splits into a statistical part (ch. 5) and an approximation part, $\varepsilon / (1 - \varepsilon)$. Calandriello, Lazaric, Koutis and Valko (2018) carry out this programme with sparsifiers built in a single distributed pass.
+
+### 7.6 Distributed graph processing
+
+When the graph does not fit on one machine, the computation is written as a **vertex program**: each node repeatedly gathers from its neighbours, updates its state, and signals them. Pregel (Malewicz and coauthors, 2010) runs such programs in synchronous rounds; GraphLab (Low and coauthors, 2010) allows asynchronous updates with consistency guarantees.
+
+PowerGraph (Gonzalez and coauthors, 2012) splits each program into **gather**, **apply** and **scatter** phases, and cuts the graph through vertices, so that the work of a hub is shared among machines.
+
+The soft harmonic solution is a natural vertex program, through the Jacobi iteration for $(C + D + \gamma I - W) f = C y$:
+
+-   **gather**: $s_i = \sum_j w_{ij} f_j$ over the neighbours of $i$;
+-   **apply**: $f_i \leftarrow (s_i + c_i y_i) / (d_i + c_i + \gamma)$;
+-   **scatter**: if $f_i$ changed by more than a tolerance, schedule its neighbours.
+
+The iteration matrix $(C + D + \gamma I)^{-1} W$ has maximum row sum $\max_i d_i / (d_i + c_i + \gamma) < 1$, so the iteration converges geometrically. This label propagation is how graph-based semi-supervised learning runs on billions of edges; the labs use NetworkX and SciPy sparse matrices on one machine.
+
+::: recap
+Key takeaways — chapter 7
+
+-   Real graphs are sparse with heavy-tailed degrees: keep every algorithm at $O(m)$ per iteration.
+-   Conjugate gradient needs $O(\sqrt{\kappa}\log(1/\varepsilon))$ products; for Laplacian systems $\kappa \lesssim (2d_{\max} + \max_i c_i)/\gamma$.
+-   Nyström = projection onto landmark features; its error is a PSD Gram matrix of residuals.
+-   Sampling $O(n \log n / \varepsilon^2)$ edges by effective resistance preserves every quadratic form within $1 \pm \varepsilon$, and the soft harmonic solution within $\varepsilon / (1 - \varepsilon)$.
+-   Distributed engines run graph learning as gather–apply–scatter vertex programs.
+:::
+
+## 8. Decision-making on graphs: graph bandits {#ch8}
+
+A recommender system shows an item, observes a click or not, and chooses the next item. With thousands of items and a few hundred interactions it cannot try everything, but neighbours in an item graph have similar payoffs. This chapter builds the bandit theory that exploits this structure, from UCB1 to spectral bandits.
+
+### 8.1 Stochastic bandits and UCB1
+
+::: def
+[Definition 8.1 — Stochastic multi-armed bandit, regret]{.tag} There are $N$ arms. Pulling arm $a$ gives a random reward in $[0, 1]$ with unknown mean $\mu_a$, independently of the past. A policy chooses $a_t$ from the past rewards.
+
+With $\mu^\star = \max_a \mu_a$ and gaps $\Delta_a = \mu^\star - \mu_a$, the **regret** after $T$ rounds is
+$$
+R_T = T \mu^\star - \mathbb{E} \sum_{t=1}^T \mu_{a_t} = \sum_a \Delta_a\, \mathbb{E}\, n_a(T),
+$$
+where $n_a(T)$ counts the pulls of arm $a$.
+:::
+
+The dilemma is between **exploration**, pulling uncertain arms to learn them, and **exploitation**, pulling the arm that looks best. The principle of *optimism in the face of uncertainty* resolves it: act as if each arm were as good as plausibly possible.
+
+:::: thm
+[Theorem 8.2 — UCB1 (Auer, Cesa-Bianchi and Fischer, 2002)]{.tag} Pull each arm once, then at time $t$ pull the arm maximizing
+$$
+\hat\mu_a + \sqrt{\frac{2 \log t}{n_a}},
+$$
+where $\hat\mu_a$ is the empirical mean of the $n_a$ rewards of arm $a$. Then
+$$
+R_T \ \leq\ \sum_{a:\ \Delta_a > 0} \frac{8 \log T}{\Delta_a} + \Big(1 + \frac{\pi^2}{3}\Big) \sum_a \Delta_a .
+$$
+
+::: proof
+*Sketch.* Fix a suboptimal arm $a$ and $\ell = \lceil 8 \log T / \Delta_a^2 \rceil$. Once $n_a \geq \ell$, the bonus of $a$ is at most $\Delta_a / 2$. Arm $a$ can then beat the best arm only if one of two events occurs.
+
+-   The best arm's index falls below $\mu^\star$.
+-   Arm $a$'s empirical mean exceeds $\mu_a + \Delta_a / 2$.
+
+By Hoeffding's inequality (Theorem 0.5), each has probability at most $t^{-4}$ for each value of the counts. A union bound over the counts and a sum over $t$ give at most $\pi^2/3$ extra pulls in expectation. Hence $\mathbb{E}\, n_a(T) \leq \ell + 1 + \pi^2/3$. [∎]{.qed}
+:::
+::::
+
+The bound is excellent when $N$ is small. With $T < N$ rounds, however, UCB1 cannot even pull each arm once, and its regret grows linearly: structure is needed.
+
+### 8.2 Linear bandits and optimism
+
+In a **linear bandit**, each arm is a vector $x \in \mathbb{R}^D$ and its reward is $\langle x, \theta^\star \rangle$ plus centred $R$-sub-Gaussian noise, with $\theta^\star$ unknown. Given a positive definite regularizer $\Lambda$, the regularized least-squares estimate after $t$ rounds is
+$$
+V_t = \Lambda + \sum_{s \leq t} x_s x_s^\top, \qquad \hat\theta_t = V_t^{-1} \sum_{s \leq t} r_s\, x_s .
+$$
+
+::: thm
+[Theorem 8.3 — Confidence ellipsoid (Abbasi-Yadkori, Pál and Szepesvári, 2011)]{.tag} With probability at least $1 - \delta$, simultaneously for all $t \geq 0$,
+$$
+\big\|\hat\theta_t - \theta^\star\big\|_{V_t} \ \leq\ \beta_t := R \sqrt{2 \log \frac{\det(V_t)^{1/2}}{\delta\, \det(\Lambda)^{1/2}}} + \|\theta^\star\|_{\Lambda} .
+$$
+:::
+
+The proof uses a self-normalized martingale inequality. The algorithm **OFUL** (optimism in the face of uncertainty for linear bandits) pulls the arm maximizing the upper confidence bound
+$$
+\langle x, \hat\theta_{t-1} \rangle + \beta_{t-1}\, \|x\|_{V_{t-1}^{-1}} .
+$$
+LinUCB (Li, Chu, Langford and Schapire, 2010) is the same idea, applied to news recommendation.
+
+:::: thm
+[Lemma 8.4 — Regret of OFUL through the log-determinant]{.tag} Assume $|\langle x, \theta^\star \rangle| \leq 1$ for all arms, and $1 \leq \beta_t \leq \beta_T$ for $t \leq T$. On the event of Theorem 8.3,
+
+::: key
+[Key result — regret of optimism]{.tag}
+$$
+\sum_{t=1}^T \big( \langle x^\star, \theta^\star \rangle - \langle x_t, \theta^\star \rangle \big) \ \leq\ 2 \beta_T \sqrt{2 T \log \frac{\det V_T}{\det \Lambda}}
+$$
+:::
+
+::: proof
+-   *Optimism.* The index of $x_t$ is at least that of the best arm $x^\star$, which is at least $\langle x^\star, \theta^\star \rangle$ on the event. By Cauchy–Schwarz in the $V_{t-1}$ norm, the regret of round $t$ is therefore at most
+    $$
+    \langle x_t, \hat\theta_{t-1} - \theta^\star \rangle + \beta_{t-1}\|x_t\|_{V_{t-1}^{-1}} \leq 2 \beta_T \|x_t\|_{V_{t-1}^{-1}} .
+    $$
+-   It is also at most 2. Since $\beta_T \geq 1$, it is at most $2 \beta_T \min\big(1, \|x_t\|_{V_{t-1}^{-1}}\big)$.
+-   *Elliptical potential.* The determinant lemma gives $\det V_t = \det V_{t-1}\,(1 + \|x_t\|^2_{V_{t-1}^{-1}})$. With $\min(1, u) \leq 2\log(1 + u)$ for $u \geq 0$,
+    $$
+    \sum_{t=1}^T \min\big(1, \|x_t\|^2_{V_{t-1}^{-1}}\big) \leq 2 \log \frac{\det V_T}{\det \Lambda} .
+    $$
+-   Cauchy–Schwarz over the $T$ rounds concludes. [∎]{.qed}
+:::
+::::
+
+With $\Lambda = \lambda I$ in dimension $D$, the log-determinant is at most $D \log(1 + T / (\lambda D))$, and the regret is of order $D\sqrt{T}$, up to logarithms. On a graph with $N$ nodes treated as independent arms, $D = N$: no better than before.
+
+### 8.3 Spectral bandits
+
+Now the arms are the $N$ nodes of a graph, and the payoff vector $f \in \mathbb{R}^N$ is smooth on it: $f^\top L f$ is small. Following Valko, Munos, Kveton and Kocák (2014), take the node indicators as arms and the regularizer
+$$
+\Lambda = L + \lambda I, \qquad \|f\|_\Lambda^2 = f^\top L f + \lambda \|f\|^2 .
+$$
+This is OFUL with $x_a = e_a$, called **SpectralUCB**; in the eigenbasis of $L$ the arms become the rows of the eigenvector matrix. The confidence width $\beta_t$ contains $\|f\|_\Lambda$, which is small for smooth payoffs.
+
+The log-determinant no longer grows like $N$: arms whose eigen-directions have large $\lambda_i$ are already well constrained by the regularizer.
+
+:::: prop
+[Proposition 8.5 — Effective dimension of a graph bandit]{.tag} Let $\lambda_1 \leq \dots \leq \lambda_N$ be the eigenvalues of $\Lambda = L + \lambda I$. After any $T$ pulls of node indicators,
+$$
+\log \frac{\det V_T}{\det \Lambda} \ \leq\ \max_{t_i \geq 0,\ \sum_i t_i = T}\ \sum_{i=1}^N \log\Big(1 + \frac{t_i}{\lambda_i}\Big) \ \leq\ \min_{k}\ \Big[ k \log\Big(1 + \frac{T}{\lambda}\Big) + \frac{T}{\lambda_{k+1}} \Big] .
+$$
+Let the **effective dimension** $d$ be the smallest $k$ with $T / \lambda_{k+1} \leq k \log(1 + T/\lambda)$. Then the log-determinant is at most $2 d \log(1 + T/\lambda)$, and the regret of SpectralUCB is of order
+$$
+\big( R\sqrt{d} + \|f\|_\Lambda \big) \sqrt{d\, T} \quad \text{up to logarithmic factors.}
+$$
+
+::: proof
+-   Write $V_T$ in the eigenbasis $Q$ of $L$, with the unit vectors $q_t = Q^\top e_{a_t}$:
+    $$
+    Q^\top V_T Q = \mathrm{diag}(\lambda_1, \dots, \lambda_N) + \sum_t q_t q_t^\top .
+    $$
+-   *Hadamard's inequality*: the determinant of a positive definite matrix is at most the product of its diagonal entries. The diagonal entries are $\lambda_i + t_i$, with $t_i = \sum_t (q_t)_i^2 \geq 0$ and $\sum_i t_i = \sum_t \|q_t\|^2 = T$. This gives the first inequality.
+-   For any $k$, bound the first $k$ terms by $\log(1 + T/\lambda)$, since $t_i \leq T$ and $\lambda_i \geq \lambda$.
+-   Bound the others by $t_i / \lambda_i \leq t_i / \lambda_{k+1}$, which sum to at most $T / \lambda_{k+1}$.
+-   At $k = d$ both parts are at most $d\log(1 + T/\lambda)$. Theorem 8.3 and Lemma 8.4 then give the regret. [∎]{.qed}
+:::
+::::
+
+The effective dimension counts the eigen-directions that $T$ rounds can explore, those with eigenvalue below about $T$. When the Laplacian spectrum grows quickly, it is far smaller than $N$. This is the definition of Valko and coauthors (2014) up to constants.
+
+The code compares SpectralUCB, the same algorithm with independent arms ($\Lambda = I$), and UCB1. The arms are 200 nodes of a 10-NN graph on random points of the plane, and the payoff is a bump of width 0.15; $T = 300$, over five instances.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse.csgraph import laplacian
+from sklearn.neighbors import kneighbors_graph
+
+rng = np.random.default_rng(0)
+N, T, noise, lam, beta = 200, 300, 0.1, 0.01, 1.0
+
+def instance():
+    """Arms = nodes of a 10-NN graph on random points; payoff = a smooth bump on the graph."""
+    P = rng.uniform(size=(N, 2))
+    W = kneighbors_graph(P, 10, include_self=False)
+    L = laplacian(W.maximum(W.T)).toarray()
+    f = np.exp(-((P - P[rng.integers(N)]) ** 2).sum(1) / (2 * 0.15**2))
+    return L, f
+
+def optimistic(M, f):
+    """OFUL with regularizer M, in the node basis: V = M + sum_t e_a e_a^T (SpectralUCB if M = L + lam I)."""
+    Vinv, b, regret = np.linalg.inv(M), np.zeros(N), 0.0
+    for t in range(T):
+        score = Vinv @ b + beta * np.sqrt(np.diag(Vinv)) + 1e-9 * rng.random(N)   # random tie-break
+        a = np.argmax(score)
+        u = Vinv[:, a].copy(); Vinv -= np.outer(u, u) / (1 + u[a])               # Sherman-Morrison
+        b[a] += f[a] + noise * rng.normal()
+        regret += f.max() - f[a]
+    return regret
+
+def ucb1(f):
+    counts, sums, regret = np.zeros(N), np.zeros(N), 0.0
+    for t in range(T):
+        a = t if t < N else np.argmax(sums / counts + np.sqrt(2 * np.log(t) / counts))
+        counts[a] += 1; sums[a] += f[a] + noise * rng.normal()
+        regret += f.max() - f[a]
+    return regret
+
+res = {"SpectralUCB, M = L + lam I": [], "independent arms, M = I": [], "UCB1": []}
+for _ in range(5):
+    L, f = instance()
+    res["SpectralUCB, M = L + lam I"].append(optimistic(L + lam * np.eye(N), f))
+    res["independent arms, M = I"].append(optimistic(np.eye(N), f))
+    res["UCB1"].append(ucb1(f))
+for name, v in res.items():
+    print(f"{name:27s}: mean regret after T = {T} rounds: {np.mean(v):6.1f}")
+ev = np.linalg.eigvalsh(L) + lam
+d = next(k for k in range(1, N) if T / ev[k] <= k * np.log(1 + T / lam))
+print(f"effective dimension (last instance): d = {d} for N = {N} arms")
+```
+
+The mean regrets are 39.5 for SpectralUCB, 115.7 with independent arms and 251.9 for UCB1, which spends its 300 rounds exploring. The effective dimension is 11 for 200 arms. A fixed $\beta = 1$ replaces the conservative theoretical $\beta_t$ (Exercise 15).
+
+::: recap
+Key takeaways — chapter 8
+
+-   UCB1: regret $O(\sum_a \log T / \Delta_a)$, but it must try every arm, hopeless when $N > T$.
+-   OFUL: optimism within a confidence ellipsoid; regret $\leq 2\beta_T \sqrt{2T \log(\det V_T / \det\Lambda)}$.
+-   Spectral bandits regularize with $L + \lambda I$; Hadamard's inequality bounds the log-determinant by an effective dimension $d \ll N$, and the regret is $\tilde O(d\sqrt{T})$.
+:::
+
+## 9. Applications: social networks, recommender systems and vision {#ch9}
+
+The tools of ch. 1–8 meet three families of applications named in the official description. For each, this chapter shows the graph, the method, and a small reproducible example.
+
+### 9.1 Social networks
+
+A social network is a graph of people, with edges for friendships, follows or messages. Four questions recur.
+
+**Who matters?** Degree counts direct contacts. PageRank (Brin and Page, 1998) also counts who the contacts are: it is the stationary law of a random walk that, at each step, follows an edge with probability $\alpha$ or jumps to a uniform node with probability $1 - \alpha$. Its row-vector form is
+$$
+\pi^\top = \frac{1 - \alpha}{n}\, \mathbf{1}^\top \big(I - \alpha P\big)^{-1}, \qquad P = D^{-1} W .
+$$
+The jump makes the chain irreducible and aperiodic, so $\pi$ is unique, and the power iteration converges at rate $\alpha^k$.
+
+**Which communities?** Spectral clustering (ch. 2) applies directly. Modularity maximization (Newman, 2006) compares the weight inside the communities with its expectation under a random graph with the same degrees. The stochastic block model of ch. 6.2 is the standard generative model of communities.
+
+**Who will connect?** Link prediction ranks the pairs of nodes that are not yet linked. Liben-Nowell and Kleinberg (2007) compared many scores; four of them follow.
+
+::: def
+[Definition 9.1 — Link prediction scores]{.tag} For two nodes $a, b$ with neighbourhoods $\mathcal{N}(a), \mathcal{N}(b)$:
+
+-   **common neighbours**: $|\mathcal{N}(a) \cap \mathcal{N}(b)|$;
+-   **Adamic–Adar** (Adamic and Adar, 2003): the common neighbours $z$, each weighted by $1 / \log d_z$, so that a shared hub counts little;
+-   **preferential attachment**: $d_a\, d_b$;
+-   **Katz** (Katz, 1953): the number of paths of each length $k$ between $a$ and $b$, weighted by $\beta^k$:
+    $$
+    \mathrm{Katz}(a, b) = \sum_{k \geq 1} \beta^k\, (A^k)_{ab} = \big[(I - \beta A)^{-1} - I\big]_{ab}, \qquad \beta < 1 / \lambda_{\max}(A) .
+    $$
+:::
+
+The code hides 10 % of the edges of a synthetic social network of 1000 nodes with heavy-tailed degrees and many triangles. It ranks them against as many random non-edges and reports the area under the ROC curve (AUC).
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+import networkx as nx
+from sklearn.metrics import roc_auc_score
+
+rng = np.random.default_rng(0)
+G = nx.powerlaw_cluster_graph(1000, 4, 0.5, seed=0)      # heavy-tailed degrees and many triangles
+E = np.array(G.edges())
+test = E[rng.choice(len(E), len(E) // 10, replace=False)]   # hide 10 % of the edges
+H = G.copy(); H.remove_edges_from(map(tuple, test))
+non = set()
+while len(non) < len(test):                              # as many random non-edges
+    a, b = rng.integers(1000, size=2)
+    if a != b and not G.has_edge(a, b): non.add((min(a, b), max(a, b)))
+pairs = [tuple(e) for e in test] + sorted(non)
+truth = np.r_[np.ones(len(test)), np.zeros(len(non))]
+
+A = nx.to_scipy_sparse_array(H, nodelist=range(1000), format="csr").astype(float)
+deg = np.asarray(A.sum(1)).ravel()
+katz, Ak = 0, A.copy()
+for k in range(1, 5):                                    # Katz index truncated at length 4
+    katz = katz + 0.05**k * Ak; Ak = Ak @ A
+katz = katz.tocsr()
+scores = {
+    "common neighbours": [len(list(nx.common_neighbors(H, a, b))) for a, b in pairs],
+    "Adamic-Adar": [s for _, _, s in nx.adamic_adar_index(H, pairs)],
+    "preferential attachment": [deg[a] * deg[b] for a, b in pairs],
+    "Katz (beta = 0.05)": [katz[a, b] for a, b in pairs],
+}
+for name, s in scores.items():
+    print(f"{name:24s} AUC = {roc_auc_score(truth, s):.3f}")
+```
+
+The AUCs are 0.795 for common neighbours, 0.803 for Adamic–Adar, 0.702 for preferential attachment and 0.811 for Katz. Scores that count paths, short or long, beat degrees alone, because this network closes triangles.
+
+**Whom to target?** In the independent cascade model, each newly active node gets one chance to activate each neighbour, with the probability attached to the edge. Influence maximization chooses $k$ seed nodes that maximize the expected number of nodes finally active. Kempe, Kleinberg and Tardos (2003) proved that greedy seeding reaches a fraction $1 - 1/e$ of the optimum; ch. 10.4 gives the proof.
+
+### 9.2 Recommender systems
+
+Users and items form a **bipartite graph**, with an edge for each purchase, click or rating. Two families of methods use this graph.
+
+-   **Random walks.** A random walk with restart from a user, also called personalized PageRank, scores every item by its proximity to the user through paths user–item–user–item (Tong, Faloutsos and Pan, 2006). It is the harmonic idea of ch. 4, with a restart in place of labels.
+-   **Graph-regularized factorization.** A rating matrix $R \approx U V^\top$ is fitted on the observed entries, with penalties $\mathrm{tr}(U^\top L_{\mathrm{users}} U)$ and $\mathrm{tr}(V^\top L_{\mathrm{items}} V)$ that make friends, or similar items, have close factors (Rao, Yu, Ravikumar and Dhillon, 2015).
+
+New users and new items have no history: this is the **cold-start** problem. It is a bandit problem, and ch. 8 applies: spectral bandits exploit the item graph, and the side observations of ch. 10.3 model what is learned from friends.
+
+The code builds a synthetic data set of 300 users and 120 items in 4 taste groups, with 12 items per user and a few very popular items. It hides one item per user and checks whether it appears in the top 10 recommendations.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy import sparse
+
+rng = np.random.default_rng(0)
+n_u, n_i, g = 300, 120, 4                                # users, items, taste groups
+ug, ig = rng.integers(g, size=n_u), np.arange(n_i) % g
+pop = rng.zipf(1.6, size=n_i).clip(max=50).astype(float) # a few items are very popular
+R = np.zeros((n_u, n_i))
+for u in range(n_u):                                     # 12 items per user, 85 % from its group
+    inside = ig == ug[u]
+    p = pop * np.where(inside, 0.85 / pop[inside].sum(), 0.15 / pop[~inside].sum())
+    R[u, rng.choice(n_i, 12, replace=False, p=p / p.sum())] = 1
+held = np.array([rng.choice(np.flatnonzero(R[u])) for u in range(n_u)])
+Rtr = R.copy(); Rtr[np.arange(n_u), held] = 0            # hide one item per user
+
+A = sparse.bmat([[None, sparse.csr_matrix(Rtr)], [sparse.csr_matrix(Rtr.T), None]]).tocsr()
+deg = np.maximum(np.asarray(A.sum(1)).ravel(), 1)
+P = sparse.diags(1 / deg) @ A                            # random walk on users + items
+
+def rwr(u, alpha=0.3, iters=40):
+    """Random walk with restart to user u (personalized PageRank), by power iteration."""
+    e = np.zeros(n_u + n_i); e[u] = 1; x = e.copy()
+    for _ in range(iters):
+        x = alpha * e + (1 - alpha) * (P.T @ x)
+    return x[n_u:]
+
+hit_rwr = hit_pop = 0
+for u in range(n_u):
+    seen = Rtr[u] > 0
+    hit_rwr += held[u] in np.argsort(-np.where(seen, -np.inf, rwr(u)))[:10]
+    hit_pop += held[u] in np.argsort(-np.where(seen, -np.inf, Rtr.sum(0)))[:10]
+print(f"hit rate at 10: random walk with restart {hit_rwr / n_u:.3f}, popularity {hit_pop / n_u:.3f}")
+```
+
+The hidden item is in the top 10 for 57.7 % of the users with the random walk, against 41.0 % when recommending the most popular items. The walk finds the taste group of each user through the users who share items with them.
+
+### 9.3 Vision: face recognition and segmentation
+
+Images enter the course as flat data (ch. 3): each image is a point, and a neighbourhood graph links images that look alike.
+
+**Face recognition.** Images of one person under varying pose and lighting lie near a low-dimensional manifold, and two people in the same pose can be closer than one person in two poses. A graph over many unlabelled images connects each pose to the next, so labels travel along each person's manifold: the harmonic solution of ch. 4, or on a camera stream the online face recognizer of ch. 6.4.
+
+**Segmentation.** In the other direction, the pixels of one image are the nodes. Neighbouring pixels are linked with a weight that decreases with their intensity difference.
+
+-   Normalized cuts (Shi and Malik, 2000) split the pixel graph with the spectral relaxation of ch. 2.2. Their weights combine intensity and position over a small neighbourhood.
+-   The **random walker** (Grady, 2006) is interactive: the user marks a few seed pixels in the object and in the background. Each pixel gets the probability that a random walk from it reaches an object seed first: the harmonic solution of ch. 4.3, solved as a sparse linear system.
+
+The code segments a disc in a noisy image of 60 × 60 pixels, with contrast 0.2 and noise of standard deviation 0.15, from 3 object seeds and 4 background seeds.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy.sparse.csgraph import laplacian
+from scipy.sparse.linalg import spsolve
+from sklearn.feature_extraction.image import img_to_graph
+
+rng = np.random.default_rng(0)
+h = 60
+yy, xx = np.mgrid[:h, :h]
+truth = ((yy - 30) ** 2 + (xx - 26) ** 2 < 15 ** 2).ravel()     # a disc, 20 % of the pixels
+img = 0.4 + 0.2 * truth.reshape(h, h) + 0.15 * rng.normal(size=(h, h))
+W = img_to_graph(img).tocsr()                                    # 4-neighbour grid, |I_i - I_j|
+W.data = np.exp(-W.data**2 / (2 * 0.1**2)); W.setdiag(0); W.eliminate_zeros()
+L = laplacian(W).tocsr()
+seeds = np.r_[np.ravel_multi_index(([30, 25, 35], [26, 22, 30]), (h, h)),      # 3 object seeds
+              np.ravel_multi_index(([3, 56, 5, 55], [3, 4, 56, 55]), (h, h))]  # 4 background seeds
+lab = np.r_[np.ones(3), np.zeros(4)]
+free = np.setdiff1d(np.arange(h * h), seeds)
+p = np.zeros(h * h); p[seeds] = lab                              # harmonic = random-walker probabilities
+p[free] = spsolve(L[free][:, free].tocsc(), -L[free][:, seeds] @ lab)
+acc = lambda s: (s == truth).mean()
+print(f"pixel accuracy: random walker {acc(p > 0.5):.3f}, thresholding {acc(img.ravel() > 0.5):.3f}")
+```
+
+The random walker classifies 92.7 % of the pixels correctly, against 75.5 % for the threshold 0.5 halfway between the two intensities: the graph pools the evidence of neighbouring pixels.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Social networks: PageRank for centrality, spectral and modularity methods for communities, path-counting scores for link prediction, and greedy seeding with a $(1 - 1/e)$ guarantee for influence.
+-   Recommender systems: random walks with restart on the user–item graph, graph-regularized factorization, and bandits for cold start.
+-   Vision: graphs of images for face recognition with few labels; graphs of pixels for segmentation by normalized cuts or random walks.
+:::
+
+## 10. Complements for self-study {#ch10}
+
+This chapter completes five topics of the course with proofs and extensions that do not fit in the 28 hours. Read each section after the chapter it extends.
+
+### 10.1 The hard side of the Cheeger inequality (complement to ch. 1)
+
+We prove $\phi(G) \leq \sqrt{2\lambda_2}$, with $\lambda_2$ the second eigenvalue of $L_{\mathrm{sym}}$. For a vector $h$ write the Rayleigh quotient
+$$
+\mathcal{R}(h) = \frac{\sum_{i \sim j} w_{ij} (h_i - h_j)^2}{\sum_i d_i h_i^2},
+$$
+where the numerator sums over edges, each counted once.
+
+-   *Centre.* Let $g$ solve $L g = \lambda_2 D g$, and let $c$ be a weighted median of its values: the nodes above the median, and those below it, each carry at most half the total volume.
+
+    Shifting does not change the numerator, and since $\sum_i d_i g_i = 0$ it only increases the denominator. So $\mathcal{R}(g - c) \leq \lambda_2$.
+-   *Split.* Write $g - c = h^+ - h^-$ with $h^\pm \geq 0$ of disjoint supports. Each edge contributes at least as much to the numerator of $g - c$ as to those of $h^+$ and $h^-$ together.
+
+    Hence one of them, call it $h$, has $\mathcal{R}(h) \leq \lambda_2$, and its support has volume at most $\mathrm{vol}(V)/2$.
+-   *Co-area.* For $t > 0$ let $S_t = \{i : h_i^2 > t\}$. Integrating over $t$,
+    $$
+    \int_0^\infty \mathrm{cut}(S_t, \bar S_t)\, dt = \sum_{i \sim j} w_{ij}\, |h_i^2 - h_j^2|, \qquad \int_0^\infty \mathrm{vol}(S_t)\, dt = \sum_i d_i h_i^2 .
+    $$
+-   *Cauchy–Schwarz.* Since $|h_i^2 - h_j^2| = |h_i - h_j|\,|h_i + h_j|$ and $(h_i + h_j)^2 \leq 2 h_i^2 + 2 h_j^2$,
+    $$
+    \sum_{i \sim j} w_{ij} |h_i^2 - h_j^2| \leq \Big(\sum_{i \sim j} w_{ij}(h_i - h_j)^2\Big)^{1/2} \Big(2 \sum_i d_i h_i^2\Big)^{1/2} .
+    $$
+-   *Conclusion.* The ratio of the two integrals is at most $\sqrt{2\mathcal{R}(h)} \leq \sqrt{2\lambda_2}$. So some $t$ has
+    $$
+    \mathrm{cut}(S_t, \bar S_t) \leq \sqrt{2\lambda_2}\ \mathrm{vol}(S_t) .
+    $$
+    As $\mathrm{vol}(S_t) \leq \mathrm{vol}(V)/2$, this is $\phi(S_t) \leq \sqrt{2\lambda_2}$. [∎]{.qed}
+
+The proof is constructive: the best threshold set of the eigenvector, the **sweep cut**, achieves the bound. Lee, Oveis Gharan and Trevisan (2014) extend the inequality to $k$ sets with the $k$-th eigenvalue, which justifies spectral clustering with more than two clusters.
+
+### 10.2 Diffusion maps (complement to ch. 3)
+
+Coifman and Lafon (2006) define a distance between nodes from the random walk $P = D^{-1} W$ run for $t$ steps. Two nodes are close when the walks started from them have similar distributions:
+$$
+\mathcal{D}_t(i, j)^2 = \sum_k \frac{\big(P^t_{ik} - P^t_{jk}\big)^2}{\pi_k}, \qquad \pi_k = \frac{d_k}{\mathrm{vol}(V)} .
+$$
+
+:::: prop
+[Proposition 10.1 — Diffusion distance as a Euclidean distance]{.tag} Let $S = D^{-1/2} W D^{-1/2} = \sum_l \mu_l v_l v_l^\top$, with orthonormal $v_l$ and $\mu_1 = 1$. Set $\psi_l = \sqrt{\mathrm{vol}(V)}\, D^{-1/2} v_l$. Then
+$$
+\mathcal{D}_t(i, j)^2 = \sum_{l \geq 2} \mu_l^{2t}\, \big(\psi_l(i) - \psi_l(j)\big)^2 .
+$$
+
+::: proof
+-   Since $P = D^{-1/2} S D^{1/2}$, its powers are
+    $$
+    P^t_{ik} = \sum_l \mu_l^t\, (D^{-1/2} v_l)_i\, (D^{1/2} v_l)_k .
+    $$
+-   Dividing by $\sqrt{\pi_k}$ turns $(D^{1/2} v_l)_k$ into $\sqrt{\mathrm{vol}(V)}\,(v_l)_k$. So $\mathcal{D}_t(i, j)^2$ is the squared norm of $\sum_l a_l v_l$, with $a_l = \mu_l^t (\psi_l(i) - \psi_l(j))$.
+-   By orthonormality this is $\sum_l a_l^2$. The term $l = 1$ vanishes: $v_1 \propto D^{1/2}\mathbf{1}$, so $\psi_1$ is constant. [∎]{.qed}
+:::
+::::
+
+The **diffusion map** sends node $i$ to the point
+$$
+\big(\mu_2^t\, \psi_2(i), \dots, \mu_{q+1}^t\, \psi_{q+1}(i)\big) \in \mathbb{R}^q .
+$$
+Its Euclidean distances approximate diffusion distances, truncated at the $q$ largest $|\mu_l|$. The coordinates are Laplacian eigenmaps (Proposition 3.4), rescaled by $\mu_l^t$; the time $t$ sets the scale at which the geometry is read.
+
+Coifman and Lafon also renormalize the kernel by a power $\alpha$ of the estimated density before building $P$. With $\alpha = 1$ the limit operator is the Laplace–Beltrami operator itself, free of the density term of ch. 3.3.
+
+### 10.3 More graph bandits (complement to ch. 8)
+
+**Side observations.** A graph can also describe **feedback** rather than payoffs. In some problems, pulling an arm reveals the rewards of its neighbours too. When a user accepts a promotion, for example, one may learn how her friends would have reacted.
+
+Mannor and Shamir (2011) introduced this setting. Alon, Cesa-Bianchi, Gentile and Mansour (2013) showed that, for an undirected observation graph and adversarial rewards, a variant of the Exp3 algorithm has regret of order
+$$
+\sqrt{\alpha(G)\, T \log N},
+$$
+where $\alpha(G)$ is the independence number of the graph: the size of the largest set of arms that observe nothing of each other. With no edges $\alpha = N$, the bandit rate; with a complete graph $\alpha = 1$, the full-information rate.
+
+Kocák, Neu, Valko and Munos (2014) obtained such rates without knowing the graph in advance, through **implicit exploration**: the importance weights $1 / p$ of Exp3 are replaced by $1 / (p + \eta)$, slightly biased but with controlled variance.
+
+-   **A bandit per user.** In a social network, each user is a linear bandit with her own parameter, and friends have close parameters. Cesa-Bianchi, Gentile and Zappella (2013) couple the users through a Laplacian penalty on the parameters, the multi-task analogue of spectral bandits. Gentile, Li and Zappella (2014) instead learn clusters of users online, and share statistics within each cluster.
+-   **Online influence maximization.** When the activation probabilities of Theorem 10.2 are unknown, the seeds are chosen over repeated campaigns, observing which nodes become active. This is a combinatorial bandit with a submodular objective.
+-   **Gaussian-process bandits.** A smooth payoff on a graph is a Gaussian process with covariance $(L + \lambda I)^{-1}$, and GP-UCB on this kernel is close to SpectralUCB. Scaling such methods requires the sketching of ch. 7.3; Calandriello, Carratino, Lazaric, Valko and Rosasco (2019) give a version with adaptive sketching and no-regret guarantees.
+
+### 10.4 Influence maximization (complement to ch. 9)
+
+In the independent cascade model, a seed set $S$ is active at time 0; each newly active node gets one chance to activate each inactive neighbour, with the probability attached to the edge. Let $\sigma(S)$ be the expected number of nodes finally active.
+
+:::: thm
+[Theorem 10.2 — Greedy influence maximization (Kempe, Kleinberg and Tardos, 2003)]{.tag} Under the independent cascade model, $\sigma$ is monotone and submodular. Hence the greedy algorithm, which adds at each step the node of largest marginal gain, returns a set $S_k$ with
+$$
+\sigma(S_k) \ \geq\ \Big(1 - \frac{1}{e}\Big) \max_{|S| = k} \sigma(S) .
+$$
+
+::: proof
+*Greedy step* (Nemhauser, Wolsey and Fisher, 1978). Let $S^\star$ be optimal and $S_i$ the greedy set after $i$ steps.
+
+-   By monotonicity and submodularity, then by the greedy choice,
+    $$
+    \sigma(S^\star) \leq \sigma(S_i) + \sum_{v \in S^\star} \big[\sigma(S_i \cup \{v\}) - \sigma(S_i)\big] \leq \sigma(S_i) + k\big[\sigma(S_{i+1}) - \sigma(S_i)\big] .
+    $$
+-   So the gap $g_i = \sigma(S^\star) - \sigma(S_i)$ satisfies $g_{i+1} \leq (1 - 1/k)\, g_i$. Hence
+    $$
+    g_k \leq \Big(1 - \frac{1}{k}\Big)^k \sigma(S^\star) \leq \frac{\sigma(S^\star)}{e} .
+    $$
+
+Submodularity of $\sigma$ follows by sampling in advance which edges are "live": each outcome is a reachability function, which is submodular, and $\sigma$ is their average. [∎]{.qed}
+:::
+::::
+
+When the edge probabilities are unknown, they must be learned while seeding, which is the online influence maximization problem of section 10.3.
+
+### 10.5 Graph neural networks as Laplacian smoothing (complement to ch. 4)
+
+The graph convolutional network of Kipf and Welling (2017) was introduced for semi-supervised node classification, the problem of ch. 4. With $\tilde A = A + I$ (self-loops) and its degree matrix $\tilde D$, one layer computes
+$$
+H' = \sigma\big(\hat A\, H\, \Theta\big), \qquad \hat A = \tilde D^{-1/2} \tilde A\, \tilde D^{-1/2} .
+$$
+
+The matrix $\hat A$ equals $I - \tilde L_{\mathrm{sym}}$, where $\tilde L_{\mathrm{sym}}$ is the normalized Laplacian of the graph with self-loops. It multiplies the graph Fourier coefficient of eigenvalue $\tilde\lambda$ by $1 - \tilde\lambda$, which lies in $(-1, 1]$ once self-loops are added: a **low-pass filter** in the sense of Definition 1.6.
+
+Wu and coauthors (2019) showed that removing the nonlinearities, $K$ propagations $\hat A^K X$ followed by logistic regression, often performs as well. As $K \to \infty$, $\hat A^K X$ converges to its projection onto the eigenvector $\tilde D^{1/2}\mathbf{1}$: all nodes collapse to the same direction. This is **over-smoothing**, analysed for GCNs by Li, Han and Wu (2018).
+
+The code trains a logistic regression on the propagated features $\hat A^K X$ of the digits graph, with 2 labels per class.
+
+```python
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")   # one BLAS thread is fastest at these sizes
+import numpy as np
+from scipy import sparse
+from sklearn.datasets import load_digits
+from sklearn.neighbors import kneighbors_graph
+from sklearn.linear_model import LogisticRegression
+
+X, y = load_digits(return_X_y=True)
+X = X / 16.0
+rng = np.random.default_rng(0)
+lab = np.concatenate([rng.choice(np.flatnonzero(y == c), 2, replace=False) for c in range(10)])
+unl = np.setdiff1d(np.arange(len(y)), lab)
+A = kneighbors_graph(X, 10, include_self=False)
+A = A.maximum(A.T) + sparse.identity(len(y))                 # add self-loops
+dm = sparse.diags(1 / np.sqrt(np.asarray(A.sum(1)).ravel()))
+S = dm @ A @ dm                                              # normalized propagation matrix
+H, K_done = X.copy(), 0
+for K in [0, 2, 8, 32, 128, 512]:
+    while K_done < K:
+        H = S @ H; K_done += 1                               # H = S^K X (SGC features)
+    clf = LogisticRegression(max_iter=3000).fit(H[lab], y[lab])
+    spread = np.linalg.norm(H - H.mean(0), axis=1).mean()
+    print(f"K = {K:3d}: accuracy {np.mean(clf.predict(H[unl]) == y[unl]):.3f}, mean distance to centroid {spread:.3f}")
+```
+
+The accuracy rises from 0.804 without propagation ($K = 0$) to 0.912 at $K = 8$, close to the harmonic solution of ch. 4.6, then falls to 0.846, 0.612 and 0.217 at $K = 32$, 128 and 512. Meanwhile the mean distance of the features to their centroid shrinks from 2.155 to 0.349: the features over-smooth.
+
+::: recap
+Key takeaways — chapter 10
+
+-   The sweep cut on the second eigenvector has conductance at most $\sqrt{2\lambda_2}$.
+-   Diffusion distances are Euclidean distances in the eigenmap coordinates scaled by $\mu_l^t$.
+-   Side-observation graphs interpolate between bandit and full information through the independence number; graph bandits extend to many users, influence campaigns and Gaussian processes.
+-   Influence under the independent cascade is monotone submodular, so greedy seeding is within $1 - 1/e$ of the optimum.
+-   A GCN layer is a low-pass Laplacian filter; too many layers over-smooth.
+:::
+
+## 11. Research directions and open problems {#ch11}
+
+This chapter is a self-study guide to current research connected with the course. It cites only published work; each item ends with questions that a project or an internship could address.
+
+### Graph learning at scale with guarantees
+
+Spectral sparsification (ch. 7.4) needs effective resistances, which are as hard to compute as the problem itself. Work by Calandriello, Lazaric, Koutis and Valko (2018) builds sparsifiers in a single distributed pass with ridge-leverage-score sampling, and bounds the error of the semi-supervised solution, as in Proposition 7.5. The same sampling idea underlies adaptive Nyström approximations of kernel matrices (Calandriello, Lazaric and Valko, 2017).
+
+Questions: which approximation error is affordable given the statistical error of ch. 5? Can sparsification be done online, as the graph grows?
+
+### Semi-supervised learning with very few labels
+
+The hard harmonic solution degenerates when unlabelled data abound (Nadler, Srebro and Zhou, 2009); commute and hitting times on large neighbourhood graphs lose their meaning for the same reason (von Luxburg, Radl and Hein, 2014). The $p$-Laplacian family offers a remedy: Alamgir and von Luxburg (2011) identify a phase transition in $p$ for $p$-resistances. Calder, Cook, Thorpe and Slepčev (2020) propose Poisson learning, which replaces the boundary conditions by sources at the labelled nodes and performs well at very low label rates.
+
+Questions: what is the right continuum limit when the number of labels grows slowly with $n$? How should the graph and the bandwidth scale with it?
+
+### Which graph?
+
+Every method of the course assumes the graph given or built by a simple rule. Learning the graph itself from signals assumed smooth on it is an active topic; Kalofolias (2016) formulates it as a convex problem on the weights. Graph neural networks (ch. 10.5) learn the features but usually keep the graph fixed, and their behaviour on graphs where neighbours tend to have different labels is still poorly understood.
+
+Questions: can the graph be learned jointly with the predictor, with guarantees? How do spectral methods behave when the smoothness assumption fails?
+
+### Bandits on graphs: structure, privacy and scale
+
+Spectral bandits (ch. 8.3) assume a known graph and a smooth payoff. Open directions include unknown or noisy graphs, graphs that change over time, and combinations with side observations (ch. 10.3). Recommender systems also raise privacy questions: work by Azize and Basu (2022) analyses bandits under differential privacy and quantifies its cost in regret.
+
+Questions: what is the regret of a spectral bandit under differential privacy? Can sketching (ch. 10.3) make spectral bandits scale to millions of arms without losing the effective-dimension rate?
+
+### Spectral theory beyond two clusters
+
+Higher-order Cheeger inequalities (Lee, Oveis Gharan and Trevisan, 2014) relate the $k$-th eigenvalue to partitions into $k$ sets, and justify $k$-way spectral clustering. Perturbation bounds such as Theorem 2.6 give guarantees for random graph models (Lei and Rinaldo, 2015).
+
+Questions: how many nodes does spectral clustering misclassify on a $k$-NN graph built from a mixture? Which Laplacian is optimal for sparse, degree-heterogeneous networks?
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. Exercises 6, 14, 15 and 16 are computational.
+
+1.  **★ The two triangles by hand.** For the graph of Example 1.5, write $L$, check that its trace equals the sum of the eigenvalues, find three independent eigenvectors for the eigenvalue 3, and derive the two remaining non-zero eigenvalues.
+
+    *Solution*: $L$ has diagonal $(2, 2, 3, 3, 2, 2)$ and $-1$ for each of the 7 edges. Its trace is 14, and $0 + 9 + \frac{5 - \sqrt{17}}{2} + \frac{5 + \sqrt{17}}{2} = 14$.
+
+    For the eigenvalue 3, the vectors $(1, -1, 0, 0, 0, 0)$, $(0, 0, 0, 0, 1, -1)$ and $(1, 1, -2, -2, 1, 1)$ work: check each row of $Lv = 3v$.
+
+    The orthogonal complement of these vectors and of $\mathbf{1}$ consists of the antisymmetric vectors $(a, a, b, -b, -a, -a)$. Rows 0 and 2 of $Lv = \lambda v$ give $a - b = \lambda a$ and $-2a + 4b = \lambda b$.
+
+    So $\lambda^2 - 5\lambda + 2 = 0$, and $\lambda = (5 \pm \sqrt{17})/2$.
+
+2.  **★ Complete graphs, stars, and adding edges.** Compute the Laplacian spectrum of the complete graph $K_n$ and of the star with $n$ nodes. Show that adding an edge never decreases any eigenvalue of $L$.
+
+    *Solution*: for $K_n$, $L = nI - \mathbf{1}\mathbf{1}^\top$, with eigenvalues $0$ and $n$ (multiplicity $n - 1$).
+
+    For the star, the eigenvalue 0 has eigenvector $\mathbf{1}$. Vectors that vanish at the centre and sum to zero on the leaves give the eigenvalue 1, with multiplicity $n - 2$. The vector equal to $-(n - 1)$ at the centre and 1 on the leaves gives the eigenvalue $n$.
+
+    Adding an edge $e$ of weight $w$ gives $L' = L + w\, b_e b_e^\top \succeq L$. By Courant–Fischer (Theorem 0.1), $\lambda_k(L') \geq \lambda_k(L)$ for every $k$.
+
+3.  **★ Comparing cuts.** On the two triangles, compute the ratio cut and the normalized cut of the bridge cut $\{0, 1, 2\}$ and of the cut isolating node 0. Check Proposition 2.2 on the bridge cut, and compare with $\lambda_2(L)$.
+
+    *Solution*: bridge cut: $\mathrm{RatioCut} = 1/3 + 1/3 = 0.667$ and $\mathrm{NCut} = 1/7 + 1/7 = 0.286$. Isolating node 0: $\mathrm{RatioCut} = 2/1 + 2/5 = 2.4$ and $\mathrm{NCut} = 2/2 + 2/12 = 1.167$. Both criteria prefer the bridge.
+
+    For the bridge cut, $f = (1, 1, 1, -1, -1, -1)$, $f^\top L f = 4 = 6 \times 0.667$, and the Rayleigh quotient is $4/6 = 0.667$. It is above $\lambda_2 = 0.438$, as it must be: the relaxation gives a lower bound on the best ratio cut.
+
+4.  **★ Three neighbourhood graphs.** Take the points $0, 1, 3, 10, 12$ on the real line. Build the symmetric and the mutual 1-nearest-neighbour graphs and the $\varepsilon$-graph with $\varepsilon = 2$. Give the components of each.
+
+    *Solution*: the nearest neighbours are $0 \to 1$, $1 \to 0$, $3 \to 1$, $10 \to 12$ and $12 \to 10$.
+
+    -   Symmetric graph: edges $\{0, 1\}$, $\{1, 3\}$, $\{10, 12\}$; components $\{0, 1, 3\}$ and $\{10, 12\}$.
+    -   Mutual graph: edges $\{0, 1\}$ and $\{10, 12\}$; node 3 is isolated, so there are three components.
+    -   $\varepsilon$-graph with $\varepsilon = 2$: the same edges as the symmetric graph.
+
+    The mutual graph isolates the point in the sparse region, which illustrates the connectivity warning of ch. 3.1.
+
+5.  **★ Harmonic functions on a path.** On the path $0 - 1 - 2 - 3 - 4$ with $y_0 = 0$ and $y_4 = 1$, compute the harmonic solution, first with unit weights, then with $w_{01} = 2$ and the other weights 1.
+
+    *Solution*: with unit weights, harmonicity forces $f$ to be linear, $f_i = i/4$.
+
+    With $w_{01} = 2$, use the electric analogy: resistances $1/2, 1, 1, 1$ in series, total $3.5$. The voltages are cumulative resistances divided by $3.5$:
+    $$
+    f_1 = \tfrac{1}{7}, \qquad f_2 = \tfrac{3}{7}, \qquad f_3 = \tfrac{5}{7} .
+    $$
+
+6.  **★ The eigengap in practice (Python).** Rerun the code of ch. 2.5 with noise levels $0.06$, $0.08$, $0.10$ and $0.12$, and 10 neighbours. Report the number of components, the first three eigenvalues of $L_{\mathrm{sym}}$ and the adjusted Rand index.
+
+    *Hints and expected result*: at noise $0.06$ the graph has two components, hence two zero eigenvalues and an exact recovery. At $0.08$ the graph is connected but $\lambda_3 / \lambda_2 \approx 10$, and the recovery is still exact.
+
+    At $0.10$ the eigenvalues are about $0$, $0.0039$ and $0.0046$: no gap, and the index drops to about $0.44$. At $0.12$ it is close to 0. The eigengap predicts success.
+
+7.  **★ Link prediction scores by hand.** Take the graph on the nodes a, b, c, d, e with the edges ab, ac, bc, bd, cd and de. Compute the four scores of Definition 9.1 for the pairs (a, d) and (a, e), with the Katz index truncated at length 3 and $\beta = 0.1$.
+
+    *Solution*: the degrees are $d_a = 2$, $d_b = d_c = d_d = 3$, $d_e = 1$.
+
+    -   Pair (a, d): 2 common neighbours, b and c; Adamic–Adar $2 / \log 3 = 1.82$; preferential attachment 6. There are 2 paths of length 2 and 2 walks of length 3 (abcd and acbd), so Katz $= 2\beta^2 + 2\beta^3 = 0.022$.
+    -   Pair $(a, e)$: no common neighbour, Adamic–Adar 0, preferential attachment 2. The walks $a b d e$ and $a c d e$ give Katz $= 2\beta^3 = 0.002$.
+
+    All scores rank $(a, d)$ first.
+
+8.  **★★ Is the square root in Cheeger necessary?** For the cycle with $n$ nodes ($n$ even), compute $\lambda_2(L_{\mathrm{sym}})$ and the conductance of a half. Compare with both sides of Theorem 1.7.
+
+    *Solution*: every degree is 2, so $L_{\mathrm{sym}} = L/2$ and $\lambda_2 = 1 - \cos(2\pi/n) \approx 2\pi^2/n^2$. A half has cut 2 and volume $n$, so $\phi = 2/n$, and no set does better.
+
+    The lower bound $\lambda_2 / 2 \approx \pi^2/n^2$ is off by a factor of order $n$. The upper bound $\sqrt{2\lambda_2} \approx 2\pi / n$ is off by a constant only. The square root is therefore necessary: no bound linear in $\lambda_2$ can hold for cycles.
+
+9.  **★★ Absorption probabilities and hitting times.** (a) Prove Proposition 4.3 by first-step analysis. (b) Show that the expected time $h_i$ for the walk from an unlabelled node $i$ to reach the labelled set solves $L_{uu} h = d_u$. (c) Compute $h$ on the unit-weight path of Exercise 5.
+
+    *Solution*: (a) is the proof in ch. 4.3.
+
+    (b) Conditioning on the first step gives $h_i = 1 + \sum_j P_{ij} h_j$, with $h_j = 0$ on labelled nodes. Multiplying by $d_i$ gives $d_i h_i - \sum_{j \text{ unlabelled}} w_{ij} h_j = d_i$, which is row $i$ of $L_{uu} h = d_u$.
+
+    (c) On the path, $h_i = i(4 - i)$, so $h = (3, 4, 3)$ at nodes 1, 2, 3: the duration of the gambler's ruin.
+
+10. **★★ How many eigenvectors?** On the path with $n$ nodes, show that $\lambda_{m+1} \geq 4m^2/n^2$. Deduce from Proposition 3.2 the number $m$ of eigenvectors that minimizes the bound, and the resulting mean squared error per node.
+
+    *Solution*: $\lambda_{m+1} = 2 - 2\cos(\pi m / n)$, and $1 - \cos x \geq 2x^2/\pi^2$ on $[0, \pi]$, which gives the inequality.
+
+    With $E = f^\top L f$, the bound is $a / m^2 + \sigma^2 m$ with $a = E n^2 / 4$. It is minimized at
+    $$
+    m^\star = \Big(\frac{E n^2}{2 \sigma^2}\Big)^{1/3},
+    $$
+    where it equals $\frac{3}{2}\sigma^2 m^\star$. Divided by $n$, the error per node decreases like $n^{-1/3}$ for fixed $E$ and $\sigma$.
+
+11. **★★ The transductive bound in numbers.** (a) Evaluate Theorem 5.5 for the squared loss with 100 labelled and 900 unlabelled nodes, $c = \gamma = M = 1$ and $\delta = 0.05$. (b) With $u = 9l$, how many labels make the gap smaller than 0.5? (c) For the ramp loss $\min(1, \max(0, 1 - y f / \rho))$, state the bound and discuss the choice of $\rho$.
+
+    *Solution*: (a) $\beta = 2\sqrt{2}/100 = 0.0283$ and $\Lambda = B = 4$, so $\Lambda\beta = 0.113$ and $\kappa = 0.226 + 4\,(0.01 + 0.0011) = 0.271$.
+
+    With $m = 100$, the deviation term is $0.271 \times \sqrt{100 \ln 20 / 2} = 3.31$. The total gap of 3.43 is vacuous for a loss bounded by 4.
+
+    (b) The gap is about $33.1/\sqrt{l} + 11.3/l$, below 0.5 once $l \approx 4500$.
+
+    (c) The ramp loss is $1/\rho$-Lipschitz and bounded by 1, so the gap is
+    $$
+    \frac{\beta}{\rho} + \Big(\frac{2\beta}{\rho} + \frac{1}{l} + \frac{1}{u}\Big)\sqrt{\frac{m \log(1/\delta)}{2}} .
+    $$
+    A $\rho$ much larger than the typical $|f_i|$ makes the training ramp loss close to 1; a much smaller one makes $\beta/\rho$ large. The margin must follow the scale of the predictions, which shrinks with $\gamma$ (ch. 5.5).
+
+12. **★★ Perceptron bounds on trees and cliques.** (a) Show that on a tree the effective resistance between two nodes is their distance. (b) Evaluate Theorem 6.3 on a path of $n$ nodes labelled $+$ on the first half and $-$ on the second. (c) Same labelling on the complete graph $K_n$. Comment.
+
+    *Solution*: (a) On a tree there is a single path between two nodes, and resistances in series add up.
+
+    (b) $\Phi = 1$ and $R_G = n - 1$, so the bound is $5n$: weaker than the trivial bound $n$ for one pass, because the path conducts poorly.
+
+    (c) $L^+ = (I - \mathbf{1}\mathbf{1}^\top / n)/n$ gives $r(i, j) = 2/n$, while $\Phi = n^2/4$. The bound $(n^2 + 1)(1 + 2/n)$ is useless: the labelling is not smooth on $K_n$. The bound is good only when the labelling cuts few edges of a well-conducting graph.
+
+13. **★★ Effective dimension of extreme graphs.** With $\Lambda = L + \lambda I$, $\lambda = 0.01$, $N = 100$ arms and $T = 1000$, compute the effective dimension of Proposition 8.5 for the complete graph and for the graph without edges. Prove that $\min(1, u) \leq 2\log(1 + u)$ for $u \geq 0$.
+
+    *Solution*: for the complete graph, the eigenvalues of $\Lambda$ are $0.01$ once and $100.01$ otherwise. For $k = 1$, the ratio $T/\lambda_2 = 9.999$ is below $\log(1 + 10^5) = 11.5$.
+
+    So $d = 1$: a smooth function on a clique is almost constant.
+
+    Without edges, every eigenvalue is $0.01$, $T/\lambda = 10^5$, and no $k < N$ satisfies the condition: $d = N$, the independent-arms case.
+
+    For $u \leq 1$, $\log(1 + u) \geq u - u^2/2 \geq u/2$; for $u > 1$, $2\log(1 + u) > 2\log 2 > 1$.
+
+14. **★★ The online face recognizer (Python).** Run the code of ch. 6.4 with budgets of 50, 100 and 200 centres. Then multiply the weights by the multiplicities $v_i v_j$, as in Valko and coauthors (2010), and compare. If you can download a face data set, such as the Olivetti faces through `sklearn.datasets.fetch_olivetti_faces`, redo the experiment on faces.
+
+    *Hints and expected result*: in our runs the online accuracy is about 0.72, 0.75 and 0.79 for 50, 100 and 200 centres, against 0.80 in batch. With multiplicity weights on the $k$-NN graph it drops to about 0.33 with 100 centres.
+
+    Merged centres with large multiplicities dominate their neighbourhoods, and the two labelled images per class weigh little. Multiplicities suit a fully connected graph, where every node sees every centre; try a Gaussian graph to check it.
+
+15. **★★ Exploration in spectral bandits (Python).** In the code of ch. 8.3, vary the exploration parameter $\beta \in \{0.1, 0.3, 1, 3\}$ and the bump width $s \in \{0.1, 0.25\}$. Then compute the effective dimension for $T = 100$, 300, 1000 and 3000.
+
+    *Hints and expected result*: with $s = 0.1$ the mean regrets of SpectralUCB are about 233, 114, 58 and 116 for the four values of $\beta$; with independent arms they are 222, 124, 98 and 271. Too little exploration gets stuck on a mediocre arm, too much wastes rounds. The graph matters most when exploration is generous.
+
+    The effective dimension grows slowly with the horizon: $d = 7$, 11, 17 and 28.
+
+16. **★★★ Watching the harmonic solution flatten (Python).** Draw $n$ uniform points in the unit square, add a point labelled 0 at $(0.25, 0.5)$ and a point labelled 1 at $(0.75, 0.5)$. Compute the harmonic solution on the symmetric 10-NN graph for $n = 500$, 2000, 8000 and 32 000.
+
+    Track the standard deviation of $f$ and the fraction of nodes with $|f - 1/2| < 0.1$. Then try a remedy: the soft solution, a $p$-Laplacian, or Poisson learning (ch. 11).
+
+    *Hints and expected result*: in our runs the standard deviation decreases from 0.13 to 0.106, 0.104 and 0.09, and the fraction near $1/2$ grows from 0.47 to 0.70. The solution tends to a constant with spikes at the two labels (Nadler, Srebro and Zhou, 2009).
+
+    The decay is slow in dimension 2, where the capacity of a point vanishes only logarithmically; it is much faster in higher dimension. A good report shows the trend, explains it with the continuum limit of ch. 3.3, and quantifies how a remedy changes it.
+
+17. **★★★ An error budget for sparsify-then-solve.** Combine Proposition 7.5 with Theorems 5.3 and 5.5. (a) Show that the soft harmonic solution on an $\varepsilon$-sparsifier satisfies
+    $$
+    \|f_H - f\|_\infty \leq \frac{\varepsilon}{1 - \varepsilon}\, M \sqrt{c / \gamma} .
+    $$
+    (b) Which $\varepsilon$, and how many sampled edges, make this approximation error smaller than the statistical gap of ch. 5? (c) Discuss what this suggests about solving the problem exactly.
+
+    *Hints and expected result*: (a) $\|x\|_\infty \leq \|x\| \leq \|x\|_A / \sqrt{\gamma}$. Since $Af = Cy$, $\|f\|_A^2 = f^\top C y \leq c M^2$ by Theorem 5.3, step 1.
+
+    (b) For the squared loss, the approximation changes the risk by at most $4M\|f_H - f\|_\infty$. Asking it to be below $cM^2/(\gamma\sqrt{l})$ gives $\varepsilon \lesssim \sqrt{c/\gamma}/(4\sqrt{l})$, hence of order $n \log n \cdot l\gamma / c$ sampled edges.
+
+    (c) Solving more accurately than the statistical error is wasted work: the sparsifier only needs the accuracy that the labels can certify. This is the viewpoint of Calandriello and coauthors (2018).
+
+## Projects and assessment {#projects}
+
+The official assessment, per master-mva.com, consists of short reports from the recitations. To be eligible for the resit (“rattrapage”), students must submit at least 2 homeworks on their deadlines and receive at least one third of the maximum homework score. The Université Paris-Saclay course detail classifies the assessment as “Evaluation Continue non Intégrale” (partial continuous assessment). The solo subjects below are sized like an extended recitation report, and the group subjects like a short research project. The written exam proposal shows what a final test on the course could look like. None of these proposals is official material.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Harmonic functions and class mass normalization: a paper study.** Reproduce the main experiments of Zhu, Ghahramani and Lafferty (2003) on handwritten digits.
+    -   *Implement*: the harmonic solution, class mass normalization, and a supervised baseline, with $k$-NN and Gaussian graphs.
+    -   *Data*: the digits of scikit-learn, then MNIST (public, through OpenML) subsampled to 10 000 images.
+    -   *Success criterion*: learning curves of accuracy against the number of labels (1 to 50 per class), with error bars over 20 random draws. They should show where the graph beats the baseline, and the gain of class mass normalization on unbalanced labelled sets.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 3, 4.
+
+2.  **[Solo · ≈ 20 h] Spectral bandits for recommendation: a paper study.** Study and reimplement SpectralUCB from Valko, Munos, Kveton and Kocák (2014).
+    -   *Implement*: SpectralUCB with the confidence width of Theorem 8.3, LinUCB with $\Lambda = \lambda I$, UCB1, and the effective dimension of Proposition 8.5.
+    -   *Data*: an item graph built from MovieLens 100K (public, GroupLens), with payoffs from a low-rank completion of the ratings, or synthetic smooth payoffs on the same graph.
+    -   *Success criterion*: regret curves over 20 runs that rank the three algorithms as the paper does, and a plot of the effective dimension against $T$ compared with $N$.
+    -   *Deliverables*: code, report, talk. Chapters 1, 8.
+
+3.  **[Solo · ≈ 15 h] An online face recognizer on real faces.** Implement Algorithm 6.5 with the doubling quantizer of Charikar and coauthors (1997).
+    -   *Data*: the Olivetti faces (40 people, 10 images each, public, downloadable through scikit-learn), streamed in random order with one or two labelled images per person.
+    -   *Success criterion*: a curve of online accuracy against the memory budget $k$, compared with the batch harmonic solution, for $k$-NN and Gaussian graphs, with and without multiplicities (Exercise 14).
+    -   *Deliverables*: code, report, talk with a live demonstration. Chapters 4, 6.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Large-scale semi-supervised learning with spectral sparsifiers: a paper study.** Reproduce the pipeline of Spielman and Srivastava (2011), applied to learning as in Calandriello, Lazaric, Koutis and Valko (2018).
+    -   *Data*: a 10-NN graph on the 70 000 MNIST images (public), or a large SNAP network with planted labels.
+    -   *Work split*: one member estimates effective resistances with random projections and a Laplacian solver; one implements the sparsified soft harmonic solution with conjugate gradient and measures $\varepsilon$ (Definition 7.3); one runs the experiments and the error budget of Exercise 17.
+    -   *Success criterion*: a sparsifier keeping at most 10 % of the edges, whose solution agrees in sign with the exact one on at least 99 % of the nodes, with plots of $\varepsilon$, accuracy and time against the number of samples.
+    -   *Deliverables*: code, a 6-page report, a 15-minute talk. Chapters 4, 5, 7.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Anatomy of a social network.** Analyse a public social network from the SNAP collection, such as the ego-Facebook network of McAuley and Leskovec (2012).
+    -   *Work split*: one member detects communities (spectral clustering with $L_{\mathrm{sym}}$, modularity) and compares them; one benchmarks link prediction (Definition 9.1, Laplacian eigenmaps features) over 5 random splits; one implements greedy influence maximization under the independent cascade with Monte Carlo estimates of $\sigma$.
+    -   *Success criterion*: an AUC table with confidence intervals, and spread curves showing greedy seeding against the top-degree heuristic.
+    -   *Deliverables*: code, report, talk. Chapters 1, 2, 9.
+
+3.  **[Group of 2–3 · ≈ 30 h each] A graph recommender with cold start.** Build a recommender on MovieLens 100K (public).
+    -   *Work split*: one member implements random walks with restart on the user–item graph; one implements graph-regularized matrix factorization (Rao, Yu, Ravikumar and Dhillon, 2015) with a user or item similarity graph; one simulates cold-start users served by a spectral bandit on the item graph.
+    -   *Success criterion*: hit rate at 10 on held-out ratings for the first two methods against a popularity baseline, and cumulative regret curves for the cold-start simulation.
+    -   *Deliverables*: code, report, talk. Chapters 8, 9.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 3 hours, one handwritten A4 sheet allowed, no electronic device; four independent exercises.
+
+1.  **Course question (4 points).** Define the unnormalized Laplacian of a weighted graph. Prove the formula for its quadratic form, and that the multiplicity of its eigenvalue 0 is the number of connected components. Explain in a few lines how the ratio cut leads to the Fiedler vector.
+
+    *Expected*: Definition 1.2; Proposition 1.3 with the expansion of the sum; Proposition 1.4 with constancy on components and the indicator vectors; Proposition 2.2 and the relaxation of the two-valued vector.
+
+2.  **Computation (6 points).** The graph has the nodes a, b, c, d, e and the unit-weight edges ab, bc, cd, bd and de. Node a is labelled 1 and node e is labelled 0. (a) Compute the harmonic solution. (b) Explain the value at c by a symmetry and by random walks. (c) Compute the effective resistance between a and e, and check it against the current that leaves a in (a).
+
+    *Expected*: (a) harmonicity at $b$, $c$, $d$ gives $f_d = 0.6 f_b$ and $f_c = 0.8 f_b$, then
+    $$
+    f_b = 0.625, \qquad f_c = 0.5, \qquad f_d = 0.375 .
+    $$
+    (b) Exchanging a with e and b with d maps the graph onto itself and $f$ onto $1 - f$, so $f_c = 1/2$: a walk from c is equally likely to reach a or e first (Proposition 4.3).
+
+    (c) The edge bd is in parallel with the path bcd, which gives $2/3$, so $r(a, e) = 1 + 2/3 + 1 = 8/3$. Under one volt the current is $3/8$, equal to $f_a - f_b = 0.375$ on the edge ab.
+
+3.  **Short proof (5 points).** (a) Show that $L_{\mathrm{sym}}$ and $L_{\mathrm{rw}}$ have the same eigenvalues. (b) Prove that $\lambda_2(L_{\mathrm{sym}}) \leq 2\phi(S)$ for every set $S$, and deduce the left Cheeger inequality.
+
+    *Expected*: (a) $L_{\mathrm{rw}} = D^{-1/2} L_{\mathrm{sym}} D^{1/2}$ is similar to $L_{\mathrm{sym}}$.
+
+    (b) The variational formula with the $D$-orthogonality constraint, the test vector $a\mathbf{1}_S - b\mathbf{1}_{\bar S}$ with $a = 1/\mathrm{vol}(S)$ and $b = 1/\mathrm{vol}(\bar S)$, and the inequality $a + b \leq 2\max(a, b)$ (Theorem 1.7).
+
+4.  **Problem (5 points).** Arms are the nodes of a graph with Laplacian $L$; rewards are $f_a$ plus noise. (a) Explain why UCB1 has linear regret when $T < N$. (b) Write SpectralUCB. (c) Prove the elliptical potential bound
+    $$
+    \sum_{t=1}^T \min\big(1, \|x_t\|^2_{V_{t-1}^{-1}}\big) \leq 2\log\frac{\det V_T}{\det \Lambda} .
+    $$
+    (d) Compute the effective dimension for the complete graph $K_N$ with $\lambda = 0.01$ and $T = 1000$, and interpret.
+
+    *Expected*: (a) UCB1 pulls every arm once before using any index, and each pull of a bad arm costs a constant. (b) OFUL with $x_a = e_a$ and $\Lambda = L + \lambda I$ (ch. 8.3). (c) The determinant lemma and $\min(1, u) \leq 2\log(1 + u)$ (Lemma 8.4). (d) $d = 1$ (Exercise 13): smooth functions on a clique are almost constant.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 30 % | Correct derivations, assumptions stated, proofs or precise references for every claim used |
+| Implementation | 25 % | Sparse data structures where needed, code tested against small cases computed by hand, seeds fixed, runs end to end |
+| Experimental method | 20 % | Several random draws of labels or graphs, error bars, baselines, parameters (graph, bandwidth, regularization) chosen on validation data |
+| Analysis | 15 % | Results explained with the course (spectra, stability, effective dimension, approximation error), negative results discussed |
+| Communication | 10 % | Clear report within the page limit, readable figures, a talk that fits its time slot |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+The 2026–2027 master-mva.com page of the course lists no reference. The works below are standard sources for its topics; those cited in the text appear by chapter.
+
+### Textbooks and surveys
+
+-   S. Boucheron, G. Lugosi and P. Massart. *Concentration Inequalities: A Nonasymptotic Theory of Independence*. Oxford University Press, 2013.
+-   N. Cesa-Bianchi and G. Lugosi. *Prediction, Learning, and Games*. Cambridge University Press, 2006.
+-   O. Chapelle, B. Schölkopf and A. Zien (eds.). *Semi-Supervised Learning*. MIT Press, 2006.
+-   F. R. K. Chung. *Spectral Graph Theory*. CBMS Regional Conference Series in Mathematics 92, American Mathematical Society, 1997.
+-   P. G. Doyle and J. L. Snell. *Random Walks and Electric Networks*. Mathematical Association of America, 1984.
+-   T. Lattimore and C. Szepesvári. *Bandit Algorithms*. Cambridge University Press, 2020.
+-   D. A. Levin, Y. Peres and E. L. Wilmer. *Markov Chains and Mixing Times*. American Mathematical Society, 2009.
+-   M. E. J. Newman. *Networks: An Introduction*. Oxford University Press, 2010.
+-   M. Penrose. *Random Geometric Graphs*. Oxford University Press, 2003.
+-   Y. Saad. *Iterative Methods for Sparse Linear Systems*, 2nd edition. SIAM, 2003.
+-   V. N. Vapnik. *Statistical Learning Theory*. Wiley, 1998.
+-   U. von Luxburg. A tutorial on spectral clustering. *Statistics and Computing*, 17(4):395–416, 2007.
+-   X. Zhu. Semi-supervised learning literature survey. Technical Report 1530, Computer Sciences, University of Wisconsin–Madison, 2005.
+
+### Spectral graph theory and spectral clustering (ch. 1–2)
+
+-   N. Alon and V. D. Milman. $\lambda_1$, isoperimetric inequalities for graphs, and superconcentrators. *Journal of Combinatorial Theory, Series B*, 38(1):73–88, 1985.
+-   C. Davis and W. M. Kahan. The rotation of eigenvectors by a perturbation. III. *SIAM Journal on Numerical Analysis*, 7(1):1–46, 1970.
+-   M. Fiedler. Algebraic connectivity of graphs. *Czechoslovak Mathematical Journal*, 23(2):298–305, 1973.
+-   J. R. Lee, S. Oveis Gharan and L. Trevisan. Multiway spectral partitioning and higher-order Cheeger inequalities. *Journal of the ACM*, 61(6):37, 2014.
+-   J. Lei and A. Rinaldo. Consistency of spectral clustering in stochastic block models. *The Annals of Statistics*, 43(1):215–237, 2015.
+-   A. Y. Ng, M. I. Jordan and Y. Weiss. On spectral clustering: analysis and an algorithm. *Advances in Neural Information Processing Systems 14*, 2002.
+-   J. Shi and J. Malik. Normalized cuts and image segmentation. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 22(8):888–905, 2000.
+-   U. von Luxburg, M. Belkin and O. Bousquet. Consistency of spectral clustering. *The Annals of Statistics*, 36(2):555–586, 2008.
+-   D. Wagner and F. Wagner. Between min cut and graph bisection. *Mathematical Foundations of Computer Science (MFCS)*, Lecture Notes in Computer Science 711, 744–750, Springer, 1993.
+-   Y. Yu, T. Wang and R. J. Samworth. A useful variant of the Davis–Kahan theorem for statisticians. *Biometrika*, 102(2):315–323, 2015.
+-   W. W. Zachary. An information flow model for conflict and fission in small groups. *Journal of Anthropological Research*, 33(4):452–473, 1977.
+
+### Graphs from data and manifold learning (ch. 3, 10.2)
+
+-   M. Belkin and P. Niyogi. Laplacian eigenmaps for dimensionality reduction and data representation. *Neural Computation*, 15(6):1373–1396, 2003.
+-   M. Belkin and P. Niyogi. Towards a theoretical foundation for Laplacian-based manifold methods. *Journal of Computer and System Sciences*, 74(8):1289–1308, 2008.
+-   R. R. Coifman and S. Lafon. Diffusion maps. *Applied and Computational Harmonic Analysis*, 21(1):5–30, 2006.
+-   M. Hein, J.-Y. Audibert and U. von Luxburg. Graph Laplacians and their convergence on random neighborhood graphs. *Journal of Machine Learning Research*, 8:1325–1368, 2007.
+-   S. T. Roweis and L. K. Saul. Nonlinear dimensionality reduction by locally linear embedding. *Science*, 290(5500):2323–2326, 2000.
+-   J. B. Tenenbaum, V. de Silva and J. C. Langford. A global geometric framework for nonlinear dimensionality reduction. *Science*, 290(5500):2319–2323, 2000.
+
+### Semi-supervised and transductive learning (ch. 4–5)
+
+-   M. Belkin, I. Matveeva and P. Niyogi. Regularization and semi-supervised learning on large graphs. *Conference on Learning Theory (COLT)*, 2004.
+-   M. Belkin, P. Niyogi and V. Sindhwani. Manifold regularization: a geometric framework for learning from labeled and unlabeled examples. *Journal of Machine Learning Research*, 7:2399–2434, 2006.
+-   O. Bousquet and A. Elisseeff. Stability and generalization. *Journal of Machine Learning Research*, 2:499–526, 2002.
+-   C. Cortes, M. Mohri, D. Pechyony and A. Rastogi. Stability of transductive regression algorithms. *International Conference on Machine Learning (ICML)*, 2008.
+-   R. El-Yaniv and D. Pechyony. Transductive Rademacher complexity and its applications. *Journal of Artificial Intelligence Research*, 35:193–234, 2009.
+-   L. Grady. Random walks for image segmentation. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 28(11):1768–1783, 2006.
+-   C. McDiarmid. On the method of bounded differences. *Surveys in Combinatorics*, London Mathematical Society Lecture Note Series 141, 148–188, Cambridge University Press, 1989.
+-   B. Nadler, N. Srebro and X. Zhou. Statistical analysis of semi-supervised learning: the limit of infinite unlabelled data. *Advances in Neural Information Processing Systems 22*, 2009.
+-   D. Zhou, O. Bousquet, T. N. Lal, J. Weston and B. Schölkopf. Learning with local and global consistency. *Advances in Neural Information Processing Systems 16*, 2004.
+-   X. Zhu, Z. Ghahramani and J. Lafferty. Semi-supervised learning using Gaussian fields and harmonic functions. *International Conference on Machine Learning (ICML)*, 2003.
+
+### Online learning with graphs (ch. 6)
+
+-   M. Charikar, C. Chekuri, T. Feder and R. Motwani. Incremental clustering and dynamic information retrieval. *ACM Symposium on Theory of Computing (STOC)*, 1997.
+-   M. Herbster, M. Pontil and L. Wainer. Online learning over graphs. *International Conference on Machine Learning (ICML)*, 2005.
+-   M. Herbster and M. Pontil. Prediction on a graph with a perceptron. *Advances in Neural Information Processing Systems 19*, 2006.
+-   A. B. J. Novikoff. On convergence proofs on perceptrons. *Symposium on the Mathematical Theory of Automata*, Polytechnic Institute of Brooklyn, 615–622, 1962.
+-   M. Valko, B. Kveton, L. Huang and D. Ting. Online semi-supervised learning on quantized graphs. *Conference on Uncertainty in Artificial Intelligence (UAI)*, 2010.
+
+### Large graphs (ch. 7)
+
+-   A.-L. Barabási and R. Albert. Emergence of scaling in random networks. *Science*, 286(5439):509–512, 1999.
+-   D. Calandriello, A. Lazaric and M. Valko. Distributed adaptive sampling for kernel matrix approximation. *International Conference on Artificial Intelligence and Statistics (AISTATS)*, 2017.
+-   D. Calandriello, A. Lazaric, I. Koutis and M. Valko. Improved large-scale graph learning through ridge spectral sparsification. *International Conference on Machine Learning (ICML)*, 2018.
+-   C. Fowlkes, S. Belongie, F. Chung and J. Malik. Spectral grouping using the Nyström method. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 26(2):214–225, 2004.
+-   J. E. Gonzalez, Y. Low, H. Gu, D. Bickson and C. Guestrin. PowerGraph: distributed graph-parallel computation on natural graphs. *USENIX Symposium on Operating Systems Design and Implementation (OSDI)*, 2012.
+-   Y. Low, J. Gonzalez, A. Kyrola, D. Bickson, C. Guestrin and J. M. Hellerstein. GraphLab: a new framework for parallel machine learning. *Conference on Uncertainty in Artificial Intelligence (UAI)*, 2010.
+-   G. Malewicz, M. H. Austern, A. J. C. Bik, J. C. Dehnert, I. Horn, N. Leiser and G. Czajkowski. Pregel: a system for large-scale graph processing. *ACM SIGMOD International Conference on Management of Data*, 2010.
+-   D. A. Spielman and N. Srivastava. Graph sparsification by effective resistances. *SIAM Journal on Computing*, 40(6):1913–1926, 2011.
+-   D. A. Spielman and S.-H. Teng. Nearly linear time algorithms for preconditioning and solving symmetric, diagonally dominant linear systems. *SIAM Journal on Matrix Analysis and Applications*, 35(3):835–885, 2014.
+-   J. A. Tropp. User-friendly tail bounds for sums of random matrices. *Foundations of Computational Mathematics*, 12(4):389–434, 2012.
+-   D. J. Watts and S. H. Strogatz. Collective dynamics of “small-world” networks. *Nature*, 393:440–442, 1998.
+-   C. K. I. Williams and M. Seeger. Using the Nyström method to speed up kernel machines. *Advances in Neural Information Processing Systems 13*, 2001.
+
+### Bandits (ch. 8, 10.3)
+
+-   Y. Abbasi-Yadkori, D. Pál and C. Szepesvári. Improved algorithms for linear stochastic bandits. *Advances in Neural Information Processing Systems 24*, 2011.
+-   N. Alon, N. Cesa-Bianchi, C. Gentile and Y. Mansour. From bandits to experts: a tale of domination and independence. *Advances in Neural Information Processing Systems 26*, 2013.
+-   P. Auer, N. Cesa-Bianchi and P. Fischer. Finite-time analysis of the multiarmed bandit problem. *Machine Learning*, 47(2–3):235–256, 2002.
+-   D. Calandriello, L. Carratino, A. Lazaric, M. Valko and L. Rosasco. Gaussian process optimization with adaptive sketching: scalable and no regret. *Conference on Learning Theory (COLT)*, 2019.
+-   N. Cesa-Bianchi, C. Gentile and G. Zappella. A gang of bandits. *Advances in Neural Information Processing Systems 26*, 2013.
+-   C. Gentile, S. Li and G. Zappella. Online clustering of bandits. *International Conference on Machine Learning (ICML)*, 2014.
+-   T. Kocák, G. Neu, M. Valko and R. Munos. Efficient learning by implicit exploration in bandit problems with side observations. *Advances in Neural Information Processing Systems 27*, 2014.
+-   L. Li, W. Chu, J. Langford and R. E. Schapire. A contextual-bandit approach to personalized news article recommendation. *International World Wide Web Conference (WWW)*, 2010.
+-   S. Mannor and O. Shamir. From bandits to experts: on the value of side-observations. *Advances in Neural Information Processing Systems 24*, 2011.
+-   M. Valko, R. Munos, B. Kveton and T. Kocák. Spectral bandits for smooth graph functions. *International Conference on Machine Learning (ICML)*, 2014.
+
+### Applications (ch. 9)
+
+-   L. A. Adamic and E. Adar. Friends and neighbors on the Web. *Social Networks*, 25(3):211–230, 2003.
+-   S. Brin and L. Page. The anatomy of a large-scale hypertextual Web search engine. *Computer Networks and ISDN Systems*, 30(1–7):107–117, 1998.
+-   L. Katz. A new status index derived from sociometric analysis. *Psychometrika*, 18(1):39–43, 1953.
+-   D. Kempe, J. Kleinberg and É. Tardos. Maximizing the spread of influence through a social network. *ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 2003.
+-   D. Liben-Nowell and J. Kleinberg. The link-prediction problem for social networks. *Journal of the American Society for Information Science and Technology*, 58(7):1019–1031, 2007.
+-   J. McAuley and J. Leskovec. Learning to discover social circles in ego networks. *Advances in Neural Information Processing Systems 25*, 2012.
+-   G. L. Nemhauser, L. A. Wolsey and M. L. Fisher. An analysis of approximations for maximizing submodular set functions—I. *Mathematical Programming*, 14(1):265–294, 1978.
+-   M. E. J. Newman. Modularity and community structure in networks. *Proceedings of the National Academy of Sciences*, 103(23):8577–8582, 2006.
+-   N. Rao, H.-F. Yu, P. Ravikumar and I. S. Dhillon. Collaborative filtering with graph information: consistency and scalable methods. *Advances in Neural Information Processing Systems 28*, 2015.
+-   H. Tong, C. Faloutsos and J.-Y. Pan. Fast random walk with restart and its applications. *IEEE International Conference on Data Mining (ICDM)*, 2006.
+
+### Graph neural networks and research directions (ch. 10.5, 11)
+
+-   M. Alamgir and U. von Luxburg. Phase transition in the family of $p$-resistances. *Advances in Neural Information Processing Systems 24*, 2011.
+-   A. Azize and D. Basu. When privacy meets partial information: a refined analysis of differentially private bandits. *Advances in Neural Information Processing Systems 35*, 2022.
+-   J. Calder, B. Cook, M. Thorpe and D. Slepčev. Poisson learning: graph based semi-supervised learning at very low label rates. *International Conference on Machine Learning (ICML)*, 2020.
+-   V. Kalofolias. How to learn a graph from smooth signals. *International Conference on Artificial Intelligence and Statistics (AISTATS)*, 2016.
+-   T. N. Kipf and M. Welling. Semi-supervised classification with graph convolutional networks. *International Conference on Learning Representations (ICLR)*, 2017.
+-   Q. Li, Z. Han and X.-M. Wu. Deeper insights into graph convolutional networks for semi-supervised learning. *AAAI Conference on Artificial Intelligence*, 2018.
+-   U. von Luxburg, A. Radl and M. Hein. Hitting and commute times in large random neighborhood graphs. *Journal of Machine Learning Research*, 15:1751–1798, 2014.
+-   F. Wu, T. Zhang, A. H. de Souza Jr., C. Fifty, T. Yu and K. Q. Weinberger. Simplifying graph convolutional networks. *International Conference on Machine Learning (ICML)*, 2019.

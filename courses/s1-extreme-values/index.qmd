@@ -1,0 +1,2245 @@
+---
+title: "Statistical Learning with Extreme Values"
+subtitle: "M2 MVA · Semester 1 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: quantiles, maxima and concentration](#ch0)
+-   [1. Block maxima and the extremal types theorem](#ch1)
+-   [2. Peaks over thresholds and the generalised Pareto distribution](#ch2)
+-   [3. Regular variation and tail measures](#ch3)
+-   [4. The Hill estimator and extreme quantiles](#ch4)
+-   [5. Multivariate extremes](#ch5)
+-   [6. Statistical learning guarantees for rare events](#ch6)
+-   [7. High-dimensional extremes: sparsity, PCA and anomaly detection](#ch7)
+-   [8. Supervised learning with extreme values](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Statistical Learning with Extreme Values
+  Official title       Statistical learning with extreme values
+  Instructors          A. SABOURIN ; S. CLEMENÇON (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 25 h (lectures 15 h, tutorials 6 h, labs 4 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label}
+  Language             Not displayed (the master-mva.com description is written in English)
+  Assessment           master-mva.com: 50 % homework (theoretical and practical exercises: each course comes with a list of exercises, partly coding, partly theory, to be handed in at most 2 weeks after release; a bonus rule lets students improve upon up to 4 past exercises after the Q&A course) and 50 % written exam · Université Paris-Saclay: “Evaluation Continue non Intégrale” (literally, non-integral continuous assessment)
+  Prerequisites        Not displayed (neither on master-mva.com nor on the Université Paris-Saclay course detail)
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: an M2 student with a solid M1 in probability and statistics who must say something reliable about events rarer than anything in the data: a 100-year flood, a record insurance loss, a failure that a monitoring system has never recorded.
+
+**Empirical first**: take fifty years of daily data (18 250 values) from a Student law with 4 degrees of freedom. A Gaussian fitted to them puts the 100-year daily level at 5.7, while the true value is 18.1; the 1000-year level, 32.3, lies far beyond the largest observation (about 17). Modelling the tail instead of the bulk, with the tools of [ch. 1–4](#ch1), recovers the right order of magnitude from the few largest values.
+
+Extreme value theory (EVT) is the part of probability and statistics that studies the tails of distributions. This course starts from its classical core, block maxima, peaks over thresholds and regular variation, then moves to its recent statistical-learning side: non-asymptotic guarantees for rare events, sparsity and dimension reduction in high-dimensional tails, anomaly detection and supervised learning in extreme regions. It uses the learning theory of [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) and complements the rare-event simulation of [Computational Statistics](../s1-computational-statistics/index.html).
+
+### What you will be able to do
+
+-   Prove the Fisher–Tippett–Gnedenko theorem along its main steps, and compute norming constants for classical distributions.
+-   Fit generalised extreme value and generalised Pareto models, choose block sizes and thresholds, and compute return levels with their uncertainty.
+-   Manipulate regularly varying functions with Karamata's representation and the Potter bounds.
+-   Prove the weak consistency of the Hill estimator, and estimate quantiles far beyond the sample with the Weissman estimator.
+-   Describe the dependence of multivariate extremes with the exponent measure, the angular measure and the stable tail dependence function.
+-   Simulate max-stable vectors exactly, and estimate tail dependence non-parametrically from ranks.
+-   Derive concentration bounds for rare events whose error scales with the number $k$ of extreme observations, not with the sample size $n$.
+-   Detect sparse dependence structures and anomalies in high-dimensional extremes.
+-   Train and analyse classifiers and dimension-reduction methods that target the extreme region.
+-   Read and present a recent research article on statistical learning with extreme values.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from an observation: with sensors everywhere, rare and extreme phenomena are now observed in significant numbers in science, industry, health, environment, commerce and security. These observations often carry the critical information, for example in the health monitoring of complex infrastructures, where worst cases matter most.
+
+EVT has long studied such events mainly through parametric modelling. The description reports a growing interest of the EVT community in machine-learning algorithms and statistical learning theory, in line with the statistical community's effort to handle larger dimensions with computationally feasible methods, and points to the review of Engelke and Ivanovs (2021).
+
+Let $X$ be a random element (variable, vector or function), $\|\cdot\|$ a semi-norm and $t$ a large threshold. A major goal of EVT is to describe and infer the conditional law of $t^{-1}X$ given that $\|X\|$ is large.
+
+The relevant thresholds may be as high as the largest of $n$ observations, so probabilistic extrapolation must use the $k_n \ll n$ observations with the largest norms.
+
+This requires regular variation and maximum domains of attraction, which ensure that a limit
+$$
+\mu = \lim_{t \to \infty} \mathrm{Law}\big(t^{-1}X \,\big|\, \|X\| > t\big)
+$$
+exists up to standardisation, with applications in climate science, insurance and industrial monitoring. The course aims to introduce the most recent statistical-learning viewpoints on EVT: recent learning theory for rare events, the probabilistic background on EVT and regular variation, and algorithms for anomaly detection, extreme event classification and dimension reduction in tails.
+
+The description announces seven lectures, each split into about 2 h of lecture and 1 h of tutorial, then a question-and-answer session, a seminar in which students present research articles, and a written exam. The Université Paris-Saclay course detail gives the volume, the credits and the nature of the assessment, but no programme items. The table has one row per announced topic.
+
+| Official topic | Course section |
+|---|---|
+| Objective: rare and extreme phenomena now observed in many domains; worst cases matter (e.g. health monitoring of infrastructures) | [ch. 1.1](#ch1) (return levels, risk, anomaly detection); Empirical first above |
+| Objective: conditional law of $t^{-1}X$ given large $\|X\|$, limit $\mu$ up to standardisation | [ch. 3.2](#ch3) (tail measure, Proposition 3.5), [ch. 5.4](#ch5) (multivariate version, Definition 5.11) |
+| Objective: probabilistic extrapolation from the $k_n \ll n$ largest observations | [ch. 2.4](#ch2) (POT quantiles), [ch. 4.4](#ch4) (Weissman estimator), [ch. 5.5](#ch5) (rank-based estimators) |
+| Objective: regular variation and maximum domains of attraction | [ch. 1.2–1.3](#ch1), [ch. 3](#ch3) (Theorems 3.13–3.14) |
+| Objective: applications in climate science, insurance, industrial monitoring | [ch. 1.1](#ch1), Example 1.8 (return levels), [ch. 7.4](#ch7) (monitoring and anomalies) |
+| Objective: recent statistical learning theory for rare events | [ch. 6](#ch6) |
+| Objective: algorithms for anomaly detection | [ch. 7.2](#ch7) and 7.4 |
+| Objective: extreme event classification | [ch. 8.1](#ch8) |
+| Objective: dimension reduction in distributional tails | [ch. 7.3](#ch7) (PCA of extremes), [ch. 8.2](#ch8) (extreme targets) |
+| Lecture 1: basics of EVT, learning from block maxima | [ch. 1](#ch1) |
+| Lecture 1: context and applications in risk management and anomaly detection | [ch. 1.1](#ch1) |
+| Lecture 1: Fisher and Tippett's theorem with elements of proof | [ch. 1.2](#ch1): Lemma 1.4, Theorem 1.5 and its proof |
+| Lecture 1: method of block maxima | [ch. 1.4](#ch1) |
+| Tutorial 1: derivation of norming constants; numerical illustration of the weak convergence of block maxima; case studies; choice of the block size | Example 1.7 and Exercise 1; the code of [ch. 1.3](#ch1); Example 1.8; [ch. 1.5](#ch1) (Example 1.9) |
+| Lecture 2: peaks over thresholds and regular variation | [ch. 2](#ch2), [ch. 3.1–3.2](#ch3) |
+| Lecture 2: link between POT and block maxima | Theorem 2.2, Proposition 2.4 |
+| Lecture 2: generalised Pareto distributions | [ch. 2.1–2.2](#ch2) |
+| Lecture 2: basics of regular variation and vague convergence | [ch. 3.1–3.2](#ch3) |
+| Lecture 2: informal introduction to the Hill estimator | Example 3.8 |
+| Tutorial 2: elements of proof; POT modelling on case studies; threshold choice; Hill estimator in practice | proofs of [ch. 2](#ch2); [ch. 2.4](#ch2) (Example 2.5); [ch. 4.3](#ch4) and Example 4.7 |
+| Lecture 3: regular variation II, tail measures and weak convergence; more on regular variation | [ch. 3.2–3.4](#ch3) |
+| Lecture 3: Karamata representation theorem | Theorem 3.10, Corollary 3.11, Proposition 3.12 |
+| Lecture 3: weak consistency of the Hill estimator | Theorem 4.3 |
+| Lecture 3: quantile estimation | [ch. 4.4](#ch4) |
+| Tutorial 3: visualisation of weak convergence of tail measures; elements of proof for Karamata | Example 3.9; proof of Theorem 3.10 |
+| Lecture 4: multivariate extremes | [ch. 5](#ch5) |
+| Lecture 4: reduction to the standard case | [ch. 5.1](#ch5), Proposition 5.2 |
+| Lecture 4: characterising max-id distributions | [ch. 5.2](#ch5), Theorem 5.4 |
+| Lecture 4: characterising simple max-stable distributions | Proposition 5.5 |
+| Lecture 4: angular measure | Theorem 5.6, Definition 5.7, Proposition 5.8 |
+| Lecture 4: multivariate peaks over thresholds | [ch. 5.4](#ch5) |
+| Tutorial 4: elements of proofs; simulation; basics of non-parametric estimation in moderate dimension (kernel and histogram methods) | proofs of [ch. 5](#ch5); Algorithm 5.10; [ch. 5.5](#ch5) (Example 5.14) |
+| Lecture 5: statistical learning guarantees for extremes | [ch. 6](#ch6) |
+| Lecture 5: Vapnik-type concentration inequalities for rare events | [ch. 6.2](#ch6), Theorems 6.1–6.3 |
+| Lecture 5: illustrations on estimation tasks (stable tail dependence function and angular measure) | [ch. 6.3](#ch6) |
+| Tutorial 5: elements of proof and numerical illustration of the error bounds | proofs of Theorems 6.1–6.2; Example 6.5 |
+| Lecture 6: high-dimensional extremes | [ch. 7](#ch7) |
+| Lecture 6: notions of sparsity in multivariate extremes | [ch. 7.1–7.2](#ch7) |
+| Lecture 6: applications to anomaly detection | [ch. 7.4](#ch7) |
+| Tutorial 6: PCA; multiple subspace clustering; anomaly detection | [ch. 7.3](#ch7) (Example 7.4, subspace clustering); Example 7.6 |
+| Lecture 7: supervised learning with extreme values | [ch. 8](#ch8) |
+| Lecture 7: learning with extreme covariates (classification) | [ch. 8.1](#ch8) |
+| Lecture 7: dimension reduction with extreme targets | [ch. 8.2](#ch8) |
+| Tutorial 7: demo and elements of proof | Examples 8.4 and 8.7; proofs of Propositions 8.2 and 8.6 |
+| Session 8: Q&A session, help with articles and homework | Session plan, session 8 |
+| Last lectures: seminar / working group with student presentations of recent research articles | Session plan, session 9; [Research directions](#ch9) (reading list); paper studies of the [Projects section](#projects) |
+| Session 9: written exam | [Written exam (proposal)](#projects-exam) |
+| Organisation: each session about 2 h of lecture and 1 h of tutorial | Session plan, sessions 1–7 |
+| Assessment: 50 % homework (exercises after each course, 2-week deadline, bonus rule) and 50 % written exam | [Exercises](#ex), [Projects and assessment](#projects) |
+
+Beyond the syllabus, the page adds the exact simulation of max-stable vectors (Algorithm 5.10), the moment estimator of the extreme value index ([ch. 4.4](#ch4)) and, in self-study, graphical models, hidden regular variation and a reading list for the seminar ([ch. 9](#ch9)).
+
+### Where this course fits in the programme
+
+Official prerequisites: not displayed. The material assumes M1 probability (distribution functions, convergence in distribution, laws of large numbers, the Poisson distribution), M1 statistics (maximum likelihood), the basics of Vapnik–Chervonenkis theory, and fluent NumPy.
+
+-   **Preparation** — the refreshers [Probability and Statistics for MVA](../s0-refresher-probability-statistics/index.html), [Linear Algebra, Analysis and Optimization for MVA](../s0-refresher-linear-algebra-optimization/index.html) and [Scientific Python, NumPy and PyTorch for MVA](../s0-refresher-python-scientific-computing/index.html); [ch. 0](#ch0) restates what this course uses.
+-   **Related courses in semester 1** — [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) (VC theory, used in [ch. 6](#ch6) and 8), [Computational Statistics](../s1-computational-statistics/index.html) (simulation and importance sampling of rare events), [Machine Learning for Time Series](../s1-time-series/index.html) (anomaly detection in signals), [Statistical Learning for Scientific Imaging and Physical Measurements: Geosciences](../s1-ml-geosciences/index.html) (geophysical extremes) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (PCA and clustering, [ch. 7](#ch7)).
+-   **Courses that share tools with it in semester 2** — [Interactions: Complexity, Stochasticity, Extrema and Rare Events](../s2-interactions/index.html), [Learning Physical Phenomena: Metamodelling and Uncertainty Quantification](../s2-physics-learning-uq/index.html) (rare-event probabilities), [Detection Theory and Industrial Applications](../s2-detection-theory/index.html), [Artificial Intelligence and the Environment](../s2-ai-environment/index.html) (climate extremes) and [Sequential Learning](../s2-sequential-learning/index.html) (concentration inequalities).
+
+### Course outline
+
+-   **0. Review: quantiles, maxima and concentration** — generalised inverses, convergence in distribution, the Poisson approximation of rare counts, Hoeffding, Bernstein and VC inequalities.
+-   **1. Block maxima and the extremal types theorem** — return levels, max-stability, the Fisher–Tippett–Gnedenko theorem, norming constants, fitting the GEV to block maxima.
+-   **2. Peaks over thresholds and the generalised Pareto distribution** — the Balkema–de Haan–Pickands theorem, threshold stability, the Poisson–GPD link with block maxima, threshold choice.
+-   **3. Regular variation and tail measures** — regularly varying functions, vague convergence, the tail empirical measure, Karamata's representation, domains of attraction.
+-   **4. The Hill estimator and extreme quantiles** — exact Pareto case, weak consistency, bias and choice of $k$, the Weissman estimator.
+-   **5. Multivariate extremes** — standardisation, max-id and max-stable laws, the angular measure and the stable tail dependence function, multivariate peaks over thresholds, rank-based estimation.
+-   **6. Statistical learning guarantees for rare events** — Vapnik-type inequalities whose error scales as $1/\sqrt{k}$, applied to tail dependence.
+-   **7. High-dimensional extremes: sparsity, PCA and anomaly detection** — faces of the angular measure, the DAMEX algorithm, PCA and clustering of extreme angles, scoring anomalies.
+-   **8. Supervised learning with extreme values** — classification in extreme regions, dimension reduction for extreme responses.
+-   **9. Research directions and open problems** — graphical models, sparsity, non-asymptotic theory, hidden regular variation (self-study, seminar reading list).
+
+### Session plan {#sessions}
+
+**25 h in class = 9 sessions (7 × 3 h + 2 × 2 h).**
+
+The volume is the Université Paris-Saclay programme table (15 h of lectures, 6 h of tutorials, 4 h of labs). The master-mva.com organisation has seven 3 h sessions (about 2 h of lecture and 1 h of tutorial each), a Q&A session, a seminar and a written exam; the split below, which gives 2 h to each of the last two sessions, is a proposal.
+
+The master-mva.com page is not fully consistent about the last slots: it mentions both "the last two lectures" as a seminar and a Q&A session followed by the exam. This plan keeps both the Q&A and the seminar, and assumes the written exam is held outside the 25 h. Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | [ch. 0](#ch0) Review: quantiles, Poisson approximation, Bernstein; [ch. 1](#ch1) context, Fisher–Tippett–Gnedenko, norming constants, block maxima, block size | Ex. 1, 2; tutorial: Examples 1.7–1.9 |
+| 2 | 3 h | 2 | [ch. 2](#ch2) GPD, Balkema–de Haan–Pickands, Poisson–GPD link, threshold choice; [ch. 3.1–3.2](#ch3) regular variation, vague convergence, informal Hill | Ex. 3, 4, 8; tutorial: Example 2.5 |
+| 3 | 3 h | 2 | [ch. 3.3–3.4](#ch3) Karamata, Potter bounds, domains of attraction; [ch. 4](#ch4) Hill estimator, weak consistency, choice of $k$, extreme quantiles | Ex. 5, 6, 9; tutorial: Examples 3.9 and 4.7 |
+| 4 | 3 h | 2 | [ch. 5](#ch5) standardisation, max-id and simple max-stable laws, angular measure, multivariate POT, rank-based estimation | Ex. 7, 10; tutorial: Algorithm 5.10, Example 5.14 |
+| 5 | 3 h | 3 | [ch. 6](#ch6) Vapnik-type inequalities for rare events, stable tail dependence function and angular measure | Ex. 11; tutorial: Example 6.5 |
+| 6 | 3 h | 3 | [ch. 7](#ch7) sparsity, DAMEX, PCA and subspace clustering of extremes, anomaly detection | Ex. 14; tutorial: Examples 7.4 and 7.6 |
+| 7 | 3 h | 3 | [ch. 8](#ch8) classification in extreme regions, dimension reduction with extreme targets | Ex. 13, 15; tutorial: Examples 8.4 and 8.7 |
+| 8 | 2 h | 3 | Q&A session: help with homework and articles; the bonus rule (up to 4 past exercises improved); revision with the [written-exam proposal](#projects-exam) | Ex. 12; homework |
+| 9 | 2 h | 3 | Seminar / working group: student presentations of research articles from the [reading list](#ch9) and the paper studies of the [Projects section](#projects) | talks |
+
+**Self-study, outside the 25 h** (about 4 h in total): [ch. 9](#ch9) Research directions and open problems — graphical models for extremes, sparsity, non-asymptotic theory, regular variation in general spaces, supervised learning, hidden regular variation, choosing a seminar article (≈ 4 h).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before the first session: the Poisson approximation (Proposition 0.4) and Bernstein's inequality (Theorem 0.5) return in almost every later proof.
+-   After each lecture, redo the proofs of the central results without notes: Theorem 1.5, Theorem 2.2, Theorem 3.10, Theorem 4.3, Theorem 5.6 and Theorem 6.2.
+-   Run every code block of a chapter during its tutorial, then change one parameter (block size, threshold, $k$, $\varepsilon$) and predict the effect before running again.
+-   Do the exercises of the *Practice* column within two weeks of the session, the delay announced for the official homework.
+-   Python environment: NumPy and SciPy, plus scikit-learn in [ch. 8](#ch8); every block fixes its seed and runs in under 30 seconds on a laptop.
+
+::: note
+[Independent notes]{.tag} These notes reconstruct the official syllabus from public sources; they are not the instructors' material. The master-mva.com page links to a presentation of the course, which is not reproduced here.
+:::
+
+## 0. Review: quantiles, maxima and concentration {#ch0}
+
+Extreme value statistics uses four M1 tools in a specific form: generalised inverses of distribution functions, convergence in distribution, the Poisson approximation of rare counts, and concentration inequalities that see the variance. This chapter states each tool as it is used later, with short proofs.
+
+Background is in the refresher [Probability and Statistics for MVA](../s0-refresher-probability-statistics/index.html).
+
+### 0.1 Quantile functions
+
+::: def
+[Definition 0.1 — Quantile function, endpoint, tail quantile function]{.tag} For a distribution function $F$, the quantile function and the right endpoint are
+$$
+F^{\leftarrow}(p) = \inf\{x \in \mathbb{R} : F(x) \ge p\}, \quad 0 < p < 1, \qquad x_F = \sup\{x : F(x) < 1\} \le +\infty .
+$$
+The tail quantile function is
+$$
+U(t) = F^{\leftarrow}(1 - 1/t), \qquad t > 1,
+$$
+so that $U(t)$ is exceeded with probability about $1/t$.
+:::
+
+:::: prop
+[Proposition 0.2 — Quantile transform]{.tag} For $0 < p < 1$ and real $x$, $F^{\leftarrow}(p) \le x$ if and only if $p \le F(x)$. Consequently:
+
+-   if $U$ is uniform on $(0,1)$, then $F^{\leftarrow}(U)$ has distribution function $F$;
+-   if $F$ is continuous and $X \sim F$, then $F(X)$ is uniform, and $V = 1/(1 - F(X))$ is standard Pareto:
+$$
+P(V > v) = 1/v, \qquad v \ge 1 .
+$$
+
+::: proof
+If $p \le F(x)$, then $x$ belongs to the set that defines $F^{\leftarrow}(p)$, so $F^{\leftarrow}(p) \le x$.
+
+Conversely, right-continuity gives $F(F^{\leftarrow}(p)) \ge p$, and monotonicity then gives $F(x) \ge p$ for every $x \ge F^{\leftarrow}(p)$.
+
+The first consequence follows: $P(F^{\leftarrow}(U) \le x) = P(U \le F(x)) = F(x)$. For continuous $F$, $F(F^{\leftarrow}(p)) = p$, hence $P(F(X) < p) = P(X < F^{\leftarrow}(p)) = p$. [∎]{.qed}
+:::
+::::
+
+The Pareto standardisation $V = 1/(1 - F(X))$ is the one used for multivariate extremes in [ch. 5](#ch5).
+
+### 0.2 Convergence in distribution
+
+Random variables $X_n$ converge in distribution to $X$ when $F_n(x) \to F(x)$ at every continuity point $x$ of $F$.
+
+Equivalently (portmanteau theorem), $\mathbb{E} f(X_n) \to \mathbb{E} f(X)$ for every bounded continuous $f$.
+
+:::: prop
+[Lemma 0.3 — Pólya]{.tag} If $F_n(x) \to F(x)$ for every $x$ and $F$ is continuous, the convergence is uniform:
+$$
+\sup_{x \in \mathbb{R}} |F_n(x) - F(x)| \longrightarrow 0 .
+$$
+
+::: proof
+Fix $m$ and points $x_1 < \dots < x_{m-1}$ with $F(x_i) = i/m$; set $x_0 = -\infty$ and $x_m = +\infty$. For $x \in [x_{i-1}, x_i]$, monotonicity gives
+$$
+F_n(x_{i-1}) - F(x_i) \le F_n(x) - F(x) \le F_n(x_i) - F(x_{i-1}) .
+$$
+Since $F(x_i) - F(x_{i-1}) = 1/m$, the supremum is at most $\max_i |F_n(x_i) - F(x_i)| + 1/m$, which tends to $1/m$. Let $m \to \infty$. [∎]{.qed}
+:::
+::::
+
+### 0.3 Maxima and rare counts
+
+Let $X_1, \dots, X_n$ be independent with distribution function $F$, and $M_n = \max(X_1, \dots, X_n)$. Then
+$$
+P(M_n \le x) = F(x)^n ,
+$$
+which tends to 0 for $x < x_F$ and to 1 for $x \ge x_F$: without rescaling, the maximum has a degenerate limit. The next result says which thresholds $u_n$ keep $P(M_n \le u_n)$ away from 0 and 1.
+
+:::: prop
+[Proposition 0.4 — Poisson approximation]{.tag} Let $0 \le \tau \le \infty$ and let $(u_n)$ be real numbers. Then
+$$
+P(M_n \le u_n) \longrightarrow e^{-\tau} \quad \Longleftrightarrow \quad n\,\big(1 - F(u_n)\big) \longrightarrow \tau .
+$$
+Moreover the number $N_n$ of exceedances of $u_n$ is binomial with parameters $n$ and $1 - F(u_n)$. It converges in law to a Poisson variable of mean $\tau$ when $\tau < \infty$, and
+$$
+\{M_n \le u_n\} = \{N_n = 0\} .
+$$
+
+::: proof
+Write $p_n = 1 - F(u_n)$.
+
+-   If $n p_n \to \tau < \infty$, then $p_n \to 0$ and
+$$
+\log P(M_n \le u_n) = n \log(1 - p_n) = -n p_n (1 + o(1)) \to -\tau .
+$$
+-   If $n p_n \to \infty$, then $\log(1 - p) \le -p$ gives $P(M_n \le u_n) \le e^{-n p_n} \to 0$.
+-   Conversely, if $n p_n$ does not tend to $\tau$, a subsequence has a limit $\tau' \ne \tau$ in $[0, \infty]$. Along it, the first two steps give the limit $e^{-\tau'} \ne e^{-\tau}$, a contradiction. [∎]{.qed}
+:::
+::::
+
+### 0.4 Concentration that sees the variance
+
+Estimating the probability $p$ of a rare event from $n$ observations means estimating a small number whose natural scale is $k = np$, the expected count. Inequalities that ignore the variance give errors of order $1/\sqrt{n}$, which is useless when $p$ itself is smaller than that.
+
+::: thm
+[Theorem 0.5 — Hoeffding and Bernstein]{.tag} Let $\hat p$ be the frequency of an event of probability $p$ in $n$ independent trials, and $\varepsilon > 0$. Then
+$$
+P(|\hat p - p| \ge \varepsilon) \le 2 e^{-2 n \varepsilon^2} \quad \text{(Hoeffding)}, \qquad
+P(|\hat p - p| \ge \varepsilon) \le 2 \exp\Big(- \frac{n \varepsilon^2}{2p(1-p) + 2\varepsilon/3}\Big) \quad \text{(Bernstein)} .
+$$
+:::
+
+Both are proved by bounding the moment generating function and optimising Markov's inequality (Boucheron, Lugosi and Massart, 2013, ch. 2). Solving the Bernstein bound for $\varepsilon$ gives the form used throughout [ch. 6](#ch6).
+
+:::: key
+[Key result — relative error of a rare frequency]{.tag} With probability at least $1 - \delta$,
+$$
+|\hat p - p| \le \sqrt{\frac{2 p \log(2/\delta)}{n}} + \frac{2 \log(2/\delta)}{3n},
+\qquad\text{so}\qquad
+\frac{|\hat p - p|}{p} \lesssim \sqrt{\frac{2 \log(2/\delta)}{k}}, \quad k = np .
+$$
+::::
+
+The relative error depends on the expected number $k$ of rare events, not on $n$. This is why every estimator of the course is driven by the $k$ largest observations.
+
+::: ex
+[Example 0.6 — One rare frequency]{.tag} Take $n = 10^4$, $p = 0.01$ (so $k = 100$) and $\delta = 0.05$. Hoeffding's radius is $\sqrt{\log 40 / (2n)} = 0.0136$, larger than $p$ itself. Bernstein's radius is
+$$
+0.0030 ,
+$$
+a relative error of 30 %. A simulation gives the true 95 % deviation, 0.0019.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+n, p, delta = 10_000, 0.01, 0.05
+L = np.log(2 / delta)
+hoeffding = np.sqrt(L / (2 * n))
+bernstein = np.sqrt(2 * p * L / n) + 2 * L / (3 * n)
+
+# empirical (1 - delta)-quantile of |p_hat - p| over 20 000 data sets
+p_hat = rng.binomial(n, p, size=20_000) / n
+empirical = np.quantile(np.abs(p_hat - p), 1 - delta)
+print(f"Hoeffding {hoeffding:.4f}  Bernstein {bernstein:.4f}  "
+      f"empirical {empirical:.4f}  (p = {p})")
+# Hoeffding 0.0136  Bernstein 0.0030  empirical 0.0019  (p = 0.01)
+```
+
+Learning needs the same control uniformly over a class of events. A class $\mathcal{A}$ of sets has Vapnik–Chervonenkis (VC) dimension $V$ if $V$ is the largest size of a point set on which $\mathcal{A}$ realises all $2^V$ subsets.
+
+::: thm
+[Theorem 0.7 — VC inequality]{.tag} There is a universal constant $C$ such that, for every class $\mathcal{A}$ of VC dimension $V$ and every $n \ge 1$, the empirical measure $P_n$ of $n$ independent observations satisfies
+$$
+\mathbb{E} \sup_{A \in \mathcal{A}} |P_n(A) - P(A)| \le C \sqrt{\frac{V}{n}} .
+$$
+By the bounded-differences inequality, the supremum exceeds its mean by more than $\sqrt{\log(1/\delta)/(2n)}$ with probability at most $\delta$.
+:::
+
+The proof (symmetrisation and chaining) is in Boucheron, Lugosi and Massart (2013, ch. 13); the course [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) develops it. Chapter 6 makes this bound see the variance, as Bernstein does for a single event.
+
+::: recap
+**Key takeaways — chapter 0**
+
+-   $F^{\leftarrow}(p) \le x$ if and only if $p \le F(x)$; for continuous $F$, $1/(1 - F(X))$ is standard Pareto.
+-   Pointwise convergence to a continuous distribution function is uniform (Pólya).
+-   $P(M_n \le u_n) \to e^{-\tau}$ exactly when the expected number of exceedances $n(1 - F(u_n))$ tends to $\tau$.
+-   Bernstein's inequality gives a relative error of order $\sqrt{\log(1/\delta)/k}$ for an event with expected count $k$; Hoeffding's does not.
+:::
+
+## 1. Block maxima and the extremal types theorem {#ch1}
+
+The central limit theorem describes sums; it says nothing about the largest observation. This chapter finds every possible limit of a normalised maximum, shows that these limits form a one-parameter family, and turns the result into a first statistical method: fitting that family to block maxima.
+
+### 1.1 Context: return levels, risk and anomalies
+
+Three applications share the same question.
+
+-   *Hydrology and climate.* A dyke is designed for the level exceeded on average once in 100 or 1000 years, often beyond fifty years of records.
+-   *Insurance and finance.* Capital requirements are set by high quantiles of a loss distribution, the value-at-risk, at levels such as 99.5 %.
+-   *Monitoring and anomaly detection.* In the health monitoring of an aircraft engine or a bridge, the extreme sensor readings carry the critical information, and an alarm threshold must have a controlled false-alarm rate.
+
+::: def
+[Definition 1.1 — Return level]{.tag} Let $G$ be the distribution function of the maximum over one period (a year, say). The $T$-period return level is
+$$
+z_T = G^{\leftarrow}(1 - 1/T),
+$$
+the level exceeded on average once every $T$ periods.
+:::
+
+In all three cases the target lies near or beyond the edge of the sample. Extrapolation needs a model justified by a limit theorem, exactly as the central limit theorem justifies Gaussian confidence intervals.
+
+### 1.2 Max-stability and the Fisher–Tippett–Gnedenko theorem
+
+::: def
+[Definition 1.2 — Maximum domain of attraction]{.tag} A distribution function $F$ is in the maximum domain of attraction of a non-degenerate distribution function $G$, written $F \in D(G)$, if there are constants $a_n > 0$ and $b_n$ such that
+$$
+P\Big(\frac{M_n - b_n}{a_n} \le x\Big) = F^n(a_n x + b_n) \longrightarrow G(x)
+$$
+at every continuity point $x$ of $G$.
+:::
+
+
+::: def
+[Definition 1.3 — Max-stable laws and the GEV family]{.tag} A non-degenerate $G$ is max-stable if for every $n \ge 1$ there are $\alpha_n > 0$ and $\beta_n$ with $G^n(\alpha_n x + \beta_n) = G(x)$. The generalised extreme value (GEV) distribution with index $\gamma \in \mathbb{R}$ is
+$$
+G_\gamma(x) = \exp\big(-(1 + \gamma x)^{-1/\gamma}\big), \quad 1 + \gamma x > 0, \qquad G_0(x) = \exp(-e^{-x}) .
+$$
+It is max-stable: one checks that
+$$
+G_\gamma^n\big(n^\gamma x + (n^\gamma - 1)/\gamma\big) = G_\gamma(x) .
+$$
+:::
+
+The sign of $\gamma$ separates three types.
+
+-   $\gamma > 0$, Fréchet type: polynomial right tail, infinite endpoint.
+-   $\gamma = 0$, Gumbel type: exponentially light tail.
+-   $\gamma < 0$, reversed Weibull type: finite right endpoint $-1/\gamma$.
+
+::: prop
+[Lemma 1.4 — Convergence of types]{.tag} Let $F_n$ be distribution functions and $G, G^*$ non-degenerate. If $F_n(a_n x + b_n) \to G(x)$ and $F_n(\alpha_n x + \beta_n) \to G^*(x)$ at continuity points, with $a_n, \alpha_n > 0$, then
+$$
+\frac{\alpha_n}{a_n} \to A \in (0, \infty), \qquad \frac{\beta_n - b_n}{a_n} \to B, \qquad G^*(x) = G(Ax + B) .
+$$
+:::
+
+The lemma says that the limit is unique up to location and scale; its proof uses quantile functions and is in Resnick (2008, ch. 0).
+
+:::: thm
+[Theorem 1.5 — Fisher–Tippett (1928), Gnedenko (1943)]{.tag} If $F \in D(G)$, then $G$ is max-stable, and there are $\sigma > 0$, $\mu$ and $\gamma$ such that
+$$
+G(x) = G_\gamma\Big(\frac{x - \mu}{\sigma}\Big) .
+$$
+Conversely, every GEV distribution is in its own domain of attraction.
+
+::: proof
+*Step 1: the limit is max-stable.* Fix a real $t > 0$ and set $n_t = \lfloor n t \rfloor$. Since $n_t \to \infty$ and $n / n_t \to 1/t$,
+$$
+F^n(a_{n_t} x + b_{n_t}) = \big[F^{n_t}(a_{n_t} x + b_{n_t})\big]^{n/n_t} \longrightarrow G(x)^{1/t} .
+$$
+The same functions $F^n$ also converge to $G$ under the normalisation $(a_n, b_n)$. Lemma 1.4 gives $G^{1/t}(x) = G(A x + B)$ for some $A = A(t) > 0$ and $B = B(t)$.
+
+Equivalently, for every $t > 0$ there are $\alpha(t) > 0$ and $\beta(t)$ with
+$$
+G^t\big(\alpha(t) x + \beta(t)\big) = G(x) .
+$$
+
+*Step 2: a functional equation.* To keep the sketch short, assume that $G$ is continuous and increasing where $0 < G < 1$ (de Haan and Ferreira, 2007, ch. 1, treat the general case). Set $\psi(x) = -\log(-\log G(x))$ and let $H$ be its inverse. Taking $-\log(-\log)$ of the last display gives $\psi(\alpha(t)x + \beta(t)) = \psi(x) + \log t$, that is
+$$
+H(s + u) = \alpha(e^u)\, H(s) + \beta(e^u) \qquad \text{for all real } s, u .
+$$
+
+After a shift we may take $H(0) = 0$. Then $s = 0$ gives $\beta(e^u) = H(u)$, so with $a(u) = \alpha(e^u)$,
+$$
+H(s + u) - H(u) = a(u)\, H(s) .
+$$
+Exchanging $s$ and $u$ and subtracting yields $H(s)\,(1 - a(u)) = H(u)\,(1 - a(s))$.
+
+*Step 3: solving it.*
+
+-   If $a \equiv 1$, $H$ is additive and monotone, so $H(s) = c s$ with $c > 0$; then $\psi(x) = x/c$ and $G(x) = \exp(-e^{-x/c})$, the Gumbel type.
+-   Otherwise $a(u_0) \ne 1$ for some $u_0$, so $H(s) = c\,(1 - a(s))$ with $c \ne 0$.
+-   Substituting gives $a(s + u) = a(s) a(u)$. A positive measurable solution is $a(s) = e^{\gamma s}$ with $\gamma \ne 0$.
+-   Hence $H(s) = c'(e^{\gamma s} - 1)/\gamma$ with $c' > 0$, so $\psi(x) = \gamma^{-1}\log(1 + \gamma x / c')$, and
+$$
+G(x) = \exp\big(-(1 + \gamma x/c')^{-1/\gamma}\big) ,
+$$
+a GEV law. The converse is the max-stability identity of Definition 1.3. [∎]{.qed}
+:::
+::::
+
+The index $\gamma$ is the *extreme value index*. It is the only parameter that matters for extrapolation; location and scale only fix units.
+
+### 1.3 Domains of attraction and norming constants
+
+Proposition 0.4, applied with $u_n = a_n x + b_n$ and $e^{-\tau} = G_\gamma(x)$, turns the definition of a domain of attraction into a statement about expected numbers of exceedances.
+
+::: prop
+[Proposition 1.6 — Domains via exceedance counts]{.tag} $F \in D(G_\gamma)$ with constants $a_n, b_n$ if and only if, for every $x$ with $1 + \gamma x > 0$,
+$$
+n\,\big(1 - F(a_n x + b_n)\big) \longrightarrow (1 + \gamma x)^{-1/\gamma} .
+$$
+:::
+
+::: ex
+[Example 1.7 — Norming constants]{.tag}
+
+-   *Exponential*, $1 - F(x) = e^{-x}$: with $a_n = 1$ and $b_n = \log n$, $n e^{-x - \log n} = e^{-x}$, so the limit is Gumbel ($\gamma = 0$).
+-   *Pareto*, $1 - F(x) = x^{-\alpha}$ for $x \ge 1$: with $\gamma = 1/\alpha$, $b_n = n^\gamma$ and $a_n = \gamma n^\gamma$, the expected count is exactly
+$$
+n\,\big(n^\gamma(1 + \gamma x)\big)^{-1/\gamma} = (1 + \gamma x)^{-1/\gamma} .
+$$
+-   *Uniform* on $(0,1)$: with $a_n = 1/n$ and $b_n = 1 - 1/n$, the count is $n(1/n - x/n) = 1 - x$, the case $\gamma = -1$.
+-   *Gaussian*: $a_n = (2\log n)^{-1/2}$ and
+$$
+b_n = \sqrt{2 \log n} - \frac{\log\log n + \log 4\pi}{2\sqrt{2\log n}}
+$$
+give a Gumbel limit, with an error of order $1/\log n$ only.
+-   *Poisson or geometric*: no non-degenerate limit exists, because the jumps of $F$ do not vanish relative to its tail (Leadbetter, Lindgren and Rootzén, 1983, ch. 1).
+:::
+
+The tutorial illustrates the weak convergence numerically. Because $P(M_n \le x) = F^n(x)$ is explicit, the distance to the limit can be computed exactly instead of simulated.
+
+```python
+import numpy as np
+from scipy import stats
+
+x = np.linspace(-2, 8, 4001)
+gumbel = np.exp(-np.exp(-x))
+for n in [10, 100, 1_000, 10**4, 10**6]:
+    # exponential: P(M_n - log n <= x) = (1 - e^{-x}/n)^n
+    u = x + np.log(n)
+    f_exp = np.exp(n * np.log1p(-np.minimum(np.exp(-u), 1.0)))
+    # Gaussian with the classical norming constants
+    ln = np.log(n)
+    a_n = 1 / np.sqrt(2 * ln)
+    b_n = np.sqrt(2 * ln) - (np.log(ln) + np.log(4 * np.pi)) / (2 * np.sqrt(2 * ln))
+    f_gau = np.exp(n * np.log1p(-stats.norm.sf(a_n * x + b_n)))
+    print(f"n = {n:>7}:  sup|F^n - Gumbel|  exponential {np.abs(f_exp - gumbel).max():.1e}"
+          f"   Gaussian {np.abs(f_gau - gumbel).max():.3f}")
+# exponential: 2.8e-02, 2.7e-03, 2.7e-04, 2.7e-05, 2.7e-07
+# Gaussian:    0.064,   0.059,   0.048,   0.040,   0.031
+```
+
+The exponential maximum converges at rate $1/n$; the Gaussian maximum is still 3 % away from its limit after a million observations. The rate of convergence, not only the limit, decides how well a GEV model fits finite blocks.
+
+### 1.4 The method of block maxima
+
+Split $n = m k$ observations into $k$ blocks of size $m$ and keep the $k$ block maxima. If $m$ is large, they are approximately independent GEV variables with parameters $(\mu, \sigma, \gamma)$.
+
+Writing $z_i = (M_{(i)} - \mu)/\sigma$, the log-likelihood for $\gamma \ne 0$ is
+$$
+\ell(\mu, \sigma, \gamma) = -k \log \sigma - \Big(1 + \frac1\gamma\Big) \sum_{i=1}^k \log(1 + \gamma z_i) - \sum_{i=1}^k (1 + \gamma z_i)^{-1/\gamma} ,
+$$
+on the set where every $1 + \gamma z_i > 0$. The support depends on the parameters, so the usual regularity theory does not apply directly.
+
+Smith (1985) shows that the maximum-likelihood estimator is consistent and asymptotically normal, with the usual rate, when $\gamma > -1/2$. This range contains almost all applications.
+
+:::: key
+[Key result — GEV return level]{.tag} Inverting $G(z_p) = 1 - p$ with $y_p = -\log(1 - p)$ gives
+$$
+z_p = \mu - \frac{\sigma}{\gamma}\Big(1 - y_p^{-\gamma}\Big), \qquad \gamma \ne 0 .
+$$
+::::
+
+::: ex
+[Example 1.8 — A 100-year return level]{.tag} We simulate 50 years of daily data from a Student law with 4 degrees of freedom, whose extreme value index is $\gamma = 1/4$. The true 100-year return level solves $F^{365}(z) = 0.99$. The GEV fitted to the 50 annual maxima gives $\hat\gamma = 0.17$ and a return level of 16.2, against a true value of
+$$
+z_{100} = 18.1 .
+$$
+The estimate lies below the largest annual maximum, 16.7: with 50 maxima, the shape parameter is poorly determined, and the return level inherits that uncertainty.
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(2)
+years, m, nu = 50, 365, 4                      # 50 "years" of daily Student-t(4) data
+x = rng.standard_t(nu, size=(years, m))
+annual_max = x.max(axis=1)
+
+# scipy's genextreme uses the shape c = -gamma
+c, loc, scale = stats.genextreme.fit(annual_max)
+gamma = -c
+z100 = stats.genextreme.isf(0.01, c, loc=loc, scale=scale)
+true_z100 = stats.t.ppf(0.99 ** (1 / m), nu)   # F^365(z) = 0.99
+print(f"gamma_hat = {gamma:.3f} (true 1/nu = {1/nu})")
+print(f"100-year return level: GEV {z100:.2f}, truth {true_z100:.2f}, "
+      f"largest of the 50 annual maxima {annual_max.max():.2f}")
+# gamma_hat = 0.166 (true 1/nu = 0.25)
+# 100-year return level: GEV 16.21, truth 18.08, largest of the 50 annual maxima 16.68
+```
+
+### 1.5 Choosing the block size
+
+With $n$ fixed, the block size $m$ trades bias against variance.
+
+-   Large blocks make the GEV approximation accurate (low bias) but leave few maxima (high variance).
+-   Small blocks give many maxima, but each is far from its limit law (high bias).
+-   In environmental case studies, one-year blocks are the default: they remove seasonality and make the blocks comparable.
+
+::: ex
+[Example 1.9 — Bias and variance in the block size]{.tag} For the Student law of Example 1.8 and $n = 18\,250$, fifty repetitions give the estimates of $\gamma = 0.25$ below. The root-mean-square error is smallest for blocks of one to three months, not one year.
+
+| Block size | Blocks | Mean of $\hat\gamma$ | Standard deviation | RMSE |
+|---|---|---|---|---|
+| 10 | 1825 | 0.121 | 0.019 | 0.130 |
+| 30 | 608 | 0.184 | 0.033 | 0.074 |
+| 91 | 200 | 0.196 | 0.052 | 0.075 |
+| 365 | 50 | 0.238 | 0.123 | 0.124 |
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(3)
+n, nu, reps = 18_250, 4, 50
+for m in [10, 30, 91, 365]:
+    k = n // m
+    g = []
+    for _ in range(reps):
+        maxima = rng.standard_t(nu, size=(k, m)).max(axis=1)
+        g.append(-stats.genextreme.fit(maxima)[0])
+    g = np.array(g)
+    rmse = np.sqrt(np.mean((g - 1 / nu) ** 2))
+    print(f"block size {m:>3} ({k:>4} blocks): mean {g.mean():.3f}, sd {g.std():.3f}, RMSE {rmse:.3f}")
+# block size  10 (1825 blocks): mean 0.121, sd 0.019, RMSE 0.130
+# block size  30 ( 608 blocks): mean 0.184, sd 0.033, RMSE 0.074
+# block size  91 ( 200 blocks): mean 0.196, sd 0.052, RMSE 0.075
+# block size 365 (  50 blocks): mean 0.238, sd 0.123, RMSE 0.124
+```
+
+Block maxima waste information: the second-largest value of a stormy year is discarded while the maximum of a calm year is kept. The next chapter uses all large values instead.
+
+::: recap
+**Key takeaways — chapter 1**
+
+-   The only possible limits of normalised maxima are the GEV laws $G_\gamma$, up to location and scale (Theorem 1.5); they are exactly the max-stable laws.
+-   $F \in D(G_\gamma)$ if and only if $n(1 - F(a_n x + b_n)) \to (1 + \gamma x)^{-1/\gamma}$.
+-   Norming constants follow from the tail of $F$: Gumbel for exponential tails, Fréchet for Pareto tails, reversed Weibull for finite endpoints; convergence can be slow (Gaussian).
+-   Block maxima are fitted by maximum likelihood, regular for $\gamma > -1/2$; return levels follow from the key formula; the block size trades bias against variance.
+:::
+
+## 2. Peaks over thresholds and the generalised Pareto distribution {#ch2}
+
+Block maxima keep one value per block. The peaks-over-threshold (POT) approach keeps every observation above a high threshold $u$ and models the excesses $X - u$. This chapter derives their limit law, links it to block maxima, and discusses the choice of the threshold.
+
+### 2.1 The generalised Pareto limit
+
+::: def
+[Definition 2.1 — Generalised Pareto distribution]{.tag} The generalised Pareto distribution (GPD) with scale $\sigma > 0$ and index $\gamma$ has distribution function
+$$
+H_{\sigma,\gamma}(y) = 1 - \Big(1 + \frac{\gamma y}{\sigma}\Big)^{-1/\gamma}, \qquad y > 0,\ 1 + \gamma y/\sigma > 0 ,
+$$
+with $H_{\sigma,0}(y) = 1 - e^{-y/\sigma}$. For $\gamma > 0$ it is a shifted Pareto law, for $\gamma = 0$ the exponential law, and for $\gamma < 0$ its support ends at $-\sigma/\gamma$.
+:::
+
+The conditional law of the excess over $u$ is $F_u(y) = P(X - u \le y \mid X > u)$.
+
+:::: thm
+[Theorem 2.2 — Balkema and de Haan (1974), Pickands (1975)]{.tag} $F \in D(G_\gamma)$ if and only if there is a positive function $\sigma(u)$ such that
+$$
+\lim_{u \uparrow x_F}\ \sup_{0 \le y < x_F - u} \big|F_u(y) - H_{\sigma(u),\gamma}(y)\big| = 0 .
+$$
+The index $\gamma$ is the same as for block maxima.
+
+::: proof
+We prove the direct implication along the thresholds $u = b_n$; the converse runs the same argument backwards with $u = U(n)$.
+
+-   By Proposition 1.6, $n(1 - F(b_n + a_n y)) \to (1 + \gamma y)^{-1/\gamma}$, and at $y = 0$, $n(1 - F(b_n)) \to 1$.
+-   Dividing the two limits,
+$$
+P(X - b_n > a_n y \mid X > b_n) = \frac{1 - F(b_n + a_n y)}{1 - F(b_n)} \longrightarrow (1 + \gamma y)^{-1/\gamma} = 1 - H_{1,\gamma}(y) .
+$$
+-   So the excess over $u = b_n$, divided by $\sigma(u) = a_n$, converges in law to the standard GPD. Since the limit is continuous, Lemma 0.3 makes the convergence uniform in $y$.
+-   Passing from the sequence $b_n$ to a continuous threshold uses the monotonicity of $F$ and the facts $a_{n+1}/a_n \to 1$ and $(b_{n+1} - b_n)/a_n \to 0$ (de Haan and Ferreira, 2007, ch. 1). [∎]{.qed}
+:::
+::::
+
+### 2.2 Properties of the GPD
+
+:::: prop
+[Proposition 2.3 — Threshold stability and mean excess]{.tag} Let $Y$ follow the GPD with parameters $(\sigma, \gamma)$ and let $v \ge 0$ be in its support.
+
+Then $Y - v$ given $Y > v$ follows the GPD with parameters $(\sigma + \gamma v, \gamma)$. For $\gamma < 1$ the mean excess is linear in $v$:
+$$
+e(v) = \mathbb{E}[Y - v \mid Y > v] = \frac{\sigma + \gamma v}{1 - \gamma} .
+$$
+
+::: proof
+For $y > 0$,
+$$
+P(Y - v > y \mid Y > v) = \frac{(1 + \gamma (v + y)/\sigma)^{-1/\gamma}}{(1 + \gamma v/\sigma)^{-1/\gamma}} = \Big(1 + \frac{\gamma y}{\sigma + \gamma v}\Big)^{-1/\gamma} .
+$$
+When $\gamma < 1$, the mean of a GPD is
+$$
+\int_0^\infty \Big(1 + \frac{\gamma y}{\sigma}\Big)^{-1/\gamma} dy = \frac{\sigma}{1 - \gamma} ;
+$$
+apply it with scale $\sigma + \gamma v$. [∎]{.qed}
+:::
+::::
+
+Threshold stability is the POT analogue of max-stability: raising the threshold changes the scale but not the index. The moment of order $r$ of a GPD is finite if and only if $r < 1/\gamma$, so heavy tails with $\gamma \ge 1/2$ have infinite variance.
+
+### 2.3 POT and block maxima: the Poisson–GPD model
+
+The two approaches describe the same tail. Suppose that, within one period, the number of exceedances of $u$ is Poisson with mean $\lambda$, and that the excesses are independent GPD variables, independent of their number.
+
+:::: prop
+[Proposition 2.4 — From Poisson–GPD to GEV]{.tag} Under this model, the maximum $M$ over one period satisfies, for $x \ge 0$,
+$$
+P(M \le u + x) = \exp\Big(-\lambda \Big(1 + \frac{\gamma x}{\sigma}\Big)^{-1/\gamma}\Big) ,
+$$
+a GEV distribution with the same index $\gamma$, scale $\tilde\sigma = \sigma \lambda^\gamma$ and location $\tilde\mu = u + \sigma(\lambda^\gamma - 1)/\gamma$.
+
+::: proof
+Condition on the number $N$ of exceedances. The maximum stays below $u + x$ exactly when every excess is at most $x$:
+$$
+P(M \le u + x) = \sum_{j \ge 0} e^{-\lambda} \frac{\lambda^j}{j!} H_{\sigma,\gamma}(x)^j = \exp\big(-\lambda\,(1 - H_{\sigma,\gamma}(x))\big) .
+$$
+For the GEV form, a direct computation gives
+$$
+\Big(1 + \gamma\,\frac{u + x - \tilde\mu}{\tilde\sigma}\Big)^{-1/\gamma} = \Big(\frac{\sigma + \gamma x}{\sigma \lambda^\gamma}\Big)^{-1/\gamma} = \lambda \Big(1 + \frac{\gamma x}{\sigma}\Big)^{-1/\gamma} .
+$$
+[∎]{.qed}
+:::
+::::
+
+In practice one fits the POT model, which uses more data, and reports return levels on the annual scale through Proposition 2.4 (Exercise 8).
+
+### 2.4 Threshold choice and inference
+
+Let $u$ be a high threshold exceeded by $k$ of the $n$ observations. The excesses $y_1, \dots, y_k$ are fitted by maximising the GPD log-likelihood
+$$
+\ell(\sigma, \gamma) = -k \log \sigma - \Big(1 + \frac1\gamma\Big) \sum_{i=1}^k \log\Big(1 + \frac{\gamma y_i}{\sigma}\Big) .
+$$
+Combining the empirical exceedance rate $k/n$ with the fitted GPD gives a model for the whole tail beyond $u$:
+$$
+1 - F(x) \approx \frac{k}{n}\Big(1 + \gamma\,\frac{x - u}{\sigma}\Big)^{-1/\gamma}, \qquad x > u .
+$$
+
+:::: key
+[Key result — POT quantile]{.tag} Solving $1 - F(x_p) = p$ in the tail model gives
+$$
+x_p = u + \frac{\sigma}{\gamma}\Big[\Big(\frac{k}{np}\Big)^{\gamma} - 1\Big] ,
+$$
+valid even when $p < 1/n$, that is beyond the range of the data.
+::::
+
+The threshold trades bias against variance, as the block size did. Three diagnostics guide its choice.
+
+-   *Mean residual life plot*: the empirical mean excess over $v$ should be roughly linear in $v$ above a good threshold (Proposition 2.3).
+-   *Parameter stability plot*: above a good threshold, $\hat\gamma$ and the modified scale $\hat\sigma(v) - \hat\gamma v$ should stay constant, up to sampling noise.
+-   *Quantile–quantile plot* of the excesses against the fitted GPD.
+
+::: ex
+[Example 2.5 — POT on the daily data]{.tag} We reuse a sample of 18 250 values of the Student law with 4 degrees of freedom, and estimate the daily level exceeded with probability $p = 1/36\,500$, whose true value is 18.1. As the threshold rises from the 90 % to the 99 % sample quantile, $\hat\gamma$ moves from 0.17 to 0.20 and the estimate from 15.5 to 17.0.
+
+The empirical mean excess grows from 0.90 to 1.49 between $v = 1$ and $v = 4$. Its slope, about 0.2 and increasing, is still below the asymptotic value $\gamma/(1 - \gamma) = 1/3$: the same second-order effect makes $\hat\gamma$ too small.
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(2)
+nu, n = 4, 18_250                      # 50 years of daily data, as in ch. 1
+x = rng.standard_t(nu, size=n)
+p = 1 / (365 * 100)                    # daily exceedance probability of the 100-year level
+truth = stats.t.isf(p, nu)
+
+for q in [0.90, 0.95, 0.99]:
+    u = np.quantile(x, q)
+    exc = x[x > u] - u
+    k = exc.size
+    gam, _, sig = stats.genpareto.fit(exc, floc=0)   # scipy's shape c is gamma
+    x_p = u + sig / gam * ((k / (n * p)) ** gam - 1)
+    print(f"u = {u:.2f} (k = {k:>4}): gamma {gam:.3f}, sigma {sig:.3f}, "
+          f"x_p {x_p:.2f}  [truth {truth:.2f}]")
+
+# empirical mean excess: asymptotically linear in u, slope gamma / (1 - gamma) = 1/3
+for u in [1, 2, 3, 4]:
+    print(f"mean excess over {u}: {np.mean(x[x > u] - u):.2f}")
+# u = 1.54 (k = 1825): gamma 0.172, sigma 0.779, x_p 15.54  [truth 18.10]
+# u = 2.12 (k =  913): gamma 0.197, sigma 0.843, x_p 16.61  [truth 18.10]
+# u = 3.68 (k =  183): gamma 0.201, sigma 1.176, x_p 17.00  [truth 18.10]
+# mean excess over 1, 2, 3, 4: 0.90, 1.03, 1.28, 1.49
+```
+
+Both POT and block maxima underestimate $\gamma$ for the Student law at moderate thresholds: its tail is Pareto only up to a correction term, a second-order effect quantified in [ch. 4.3](#ch4).
+
+::: recap
+**Key takeaways — chapter 2**
+
+-   Excesses over a high threshold converge to a generalised Pareto law with the same index $\gamma$ as block maxima (Theorem 2.2).
+-   The GPD is threshold-stable: raising the threshold by $v$ changes the scale to $\sigma + \gamma v$, and the mean excess is linear in $v$.
+-   A Poisson number of GPD excesses produces a GEV maximum (Proposition 2.4): the two approaches describe one tail.
+-   The POT quantile $u + (\sigma/\gamma)[(k/(np))^\gamma - 1]$ extrapolates beyond the data; the threshold is chosen with mean-excess and stability plots.
+:::
+
+## 3. Regular variation and tail measures {#ch3}
+
+For heavy tails, the whole of extreme value theory rests on one property: the tail behaves like a power function at large scales. This chapter develops that property, regular variation, and the measure-theoretic language of tail measures, which is the one that extends to vectors ([ch. 5](#ch5)) and to learning ([ch. 6–8](#ch6)).
+
+### 3.1 Regularly varying functions
+
+::: def
+[Definition 3.1 — Regular and slow variation]{.tag} A measurable function $f : (0, \infty) \to (0, \infty)$ is regularly varying at infinity with index $\rho$, written $f \in RV_\rho$, if
+$$
+\lim_{t \to \infty} \frac{f(tx)}{f(t)} = x^\rho \qquad \text{for every } x > 0 .
+$$
+It is slowly varying if $\rho = 0$. Every $f \in RV_\rho$ writes $f(x) = x^\rho L(x)$ with $L$ slowly varying.
+:::
+
+::: ex
+[Example 3.2 — Slowly varying or not]{.tag}
+
+-   $\log x$, $\log\log x$ and $\exp(\sqrt{\log x})$ are slowly varying; for the last one, $\sqrt{\log tx} - \sqrt{\log t} \to 0$.
+-   $2 + \sin x$ is not: the ratio $(2 + \sin tx)/(2 + \sin t)$ keeps oscillating.
+-   The Pareto, Student ($\nu$ degrees of freedom), Cauchy and Fréchet laws have tails $1 - F$ in $RV_{-\alpha}$ with $\alpha$ equal to the shape, $\nu$, 1 and the shape.
+-   Gaussian and exponential tails are not regularly varying: their ratio tends to 0 for every $x > 1$.
+:::
+
+::: thm
+[Theorem 3.3 — Uniform convergence theorem]{.tag} If $L$ is slowly varying, then for every $0 < a < b$,
+$$
+\sup_{x \in [a, b]} \Big|\frac{L(tx)}{L(t)} - 1\Big| \longrightarrow 0 \qquad (t \to \infty) .
+$$
+:::
+
+The proof is a measure-theoretic argument based on Egorov's theorem (Bingham, Goldie and Teugels, 1987, Theorem 1.2.1). Uniformity is what makes the representation of [ch. 3.3](#ch3) possible.
+
+### 3.2 Vague convergence and the tail measure
+
+Tail measures live on spaces from which the origin has been removed: $E = (0, \infty]$ in dimension one, $E = [0, \infty]^d \setminus \{0\}$ for vectors. A measure on $E$ is a Radon measure if it is finite on Borel sets bounded away from the origin; it may have infinite total mass.
+
+::: def
+[Definition 3.4 — Vague convergence]{.tag} Radon measures $\mu_n$ on $E$ converge vaguely to $\mu$ if $\int f\,d\mu_n \to \int f\,d\mu$ for every continuous bounded $f \ge 0$ that vanishes on a neighbourhood of the origin.
+
+Equivalently, $\mu_n(A) \to \mu(A)$ for every Borel set $A$ bounded away from the origin with $\mu(\partial A) = 0$.
+:::
+
+Hult and Lindskog (2006) extend this notion, under the name $M_0$-convergence, to general metric spaces such as function spaces.
+
+:::: prop
+[Proposition 3.5 — Three faces of a regularly varying tail]{.tag} Let $X \sim F$ with $x_F = \infty$, $\alpha > 0$ and $U$ the tail quantile function. The following are equivalent.
+
+1.  $1 - F \in RV_{-\alpha}$.
+2.  The tail measure exists: $t\,P(X/U(t) \in \cdot\,) \to \nu_\alpha$ vaguely on $(0, \infty]$, where $\nu_\alpha((x, \infty]) = x^{-\alpha}$.
+3.  The rescaled exceedances converge to a Pareto law: $P(X > ux \mid X > u) \to x^{-\alpha}$ for every $x \ge 1$.
+
+::: proof
+(1) $\Leftrightarrow$ (3): (3) is (1) restricted to $x \ge 1$. For $x < 1$, write the ratio as the inverse of the ratio at the threshold $ux$ and the level $1/x$.
+
+(1) $\Rightarrow$ (2): by definition of $U$, $1 - F(y) > 1/t \ge 1 - F(U(t))$ for every $y < U(t)$. Hence, for $0 < \varepsilon < 1$,
+$$
+1 \ \ge\ t\,(1 - F(U(t)))\ \ge\ \frac{1 - F(U(t))}{1 - F((1 - \varepsilon)U(t))} \longrightarrow (1 - \varepsilon)^{\alpha} ,
+$$
+so $t(1 - F(U(t))) \to 1$. Then $t\,P(X > U(t)x) \to x^{-\alpha}$, and the half-lines $(x, \infty]$ determine vague convergence on $(0, \infty]$. The converse is similar. [∎]{.qed}
+:::
+::::
+
+Statement 3 is the one-dimensional case of the objective of the course: the law of $t^{-1}X$ given a large norm has a limit $\mu$, here a Pareto law. In practice the limit is estimated from the observations that are large relative to an intermediate level.
+
+::: def
+[Definition 3.6 — Tail empirical measure]{.tag} Let $k = k_n$ satisfy $k \to \infty$ and $k/n \to 0$, an *intermediate sequence*. The tail empirical measure is
+$$
+\nu_n = \frac1k \sum_{i=1}^n \delta_{X_i / U(n/k)} .
+$$
+:::
+
+:::: prop
+[Proposition 3.7 — Consistency of the tail empirical measure]{.tag} If $1 - F \in RV_{-\alpha}$, then for every $x > 0$, $\nu_n((x, \infty]) \to x^{-\alpha}$ in probability.
+
+::: proof
+The count $k\,\nu_n((x, \infty])$ is binomial with parameters $n$ and $p_n = 1 - F(U(n/k)x)$. Its normalised mean $(n/k)p_n$ tends to $x^{-\alpha}$ by Proposition 3.5 with $t = n/k$. Its variance satisfies
+$$
+\mathrm{Var}\,\nu_n((x, \infty]) = \frac{n p_n (1 - p_n)}{k^2} \le \frac{1}{k} \cdot \frac{n p_n}{k} \longrightarrow 0 ,
+$$
+and Chebyshev's inequality concludes. [∎]{.qed}
+:::
+::::
+
+Resnick (2007, ch. 4) shows more: $\nu_n \to \nu_\alpha$ vaguely in probability, as random measures. The variance bound has the same structure as Bernstein's inequality: the error is of order $1/\sqrt{k}$.
+
+::: ex
+[Example 3.8 — The Hill estimator, informally]{.tag} For every observation and every level $b > 0$,
+$$
+\int_1^\infty \mathbb{1}\{X_i/b > y\}\,\frac{dy}{y} = \log\Big(\frac{X_i}{b}\Big)_+ .
+$$
+Integrating $\nu_n((y, \infty])$ against $dy/y$ therefore gives
+$$
+\frac1k \sum_{i=1}^n \log\Big(\frac{X_i}{b}\Big)_+ \approx \int_1^\infty y^{-\alpha}\,\frac{dy}{y} = \frac1\alpha , \qquad b = U(n/k) .
+$$
+
+The level $b$ is unknown, but about $k$ observations exceed it, so it is replaced by the $(k+1)$-th largest observation. The result is the Hill estimator of $\gamma = 1/\alpha$, studied in [ch. 4](#ch4).
+:::
+
+::: ex
+[Example 3.9 — Seeing the tail measure converge]{.tag} For the absolute value of a Student variable with 3 degrees of freedom, compare $\nu_n((x, \infty])$ with $x^{-3}$.
+
+With $k/n = 0.05$, the value at $x = 0.5$ is 4.1 instead of 8: the level $U(n/k)/2$ is not yet in the tail.
+
+With $k/n = 0.001$, the values at $x = 1, 2, 4$ agree with the limit within two standard deviations of the counts. The relative noise is largest where the counts are small ($x = 4$).
+
+A gap remains at $x = 0.5$. The exact expectation there is 7.5, not 8: the level $U(n/k)/2 \approx 6.5$ is only moderately far in the tail. This is the second-order bias of [ch. 4.3](#ch4).
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(4)
+nu = 3                                   # |Student-t(3)|: 1 - F is regularly varying, alpha = 3
+grid = np.array([0.5, 1, 2, 4])
+print("x       :", "  ".join(f"{t:7.2f}" for t in grid))
+print("x^-3    :", "  ".join(f"{t ** -3.0:7.4f}" for t in grid))
+for n, k in [(10_000, 500), (1_000_000, 1_000)]:
+    x = np.abs(rng.standard_t(nu, size=n))
+    b = stats.t.isf(k / (2 * n), nu)     # U(n/k): P(|X| > b) = k/n
+    nu_n = [np.sum(x > b * t) / k for t in grid]
+    print(f"k/n={k/n:.3f}:", "  ".join(f"{v:7.4f}" for v in nu_n))
+# x^-3     :  8.0000   1.0000   0.1250   0.0156
+# k/n=0.050:  4.1040   1.0140   0.1720   0.0240
+# k/n=0.001:  7.2720   0.9380   0.1250   0.0220
+```
+
+### 3.3 Karamata's representation and its consequences
+
+:::: thm
+[Theorem 3.10 — Karamata representation]{.tag} $L$ is slowly varying if and only if there are $t_0 > 0$, a measurable $c(x) \to c \in (0, \infty)$ and a measurable $\varepsilon(u) \to 0$ such that
+$$
+L(x) = c(x) \exp\Big(\int_{t_0}^{x} \frac{\varepsilon(u)}{u}\,du\Big), \qquad x \ge t_0 .
+$$
+
+::: proof
+*If.* We have
+$$
+\frac{L(tx)}{L(t)} = \frac{c(tx)}{c(t)} \exp\Big(\int_t^{tx} \frac{\varepsilon(u)}{u}\,du\Big) .
+$$
+The first factor tends to 1. The integral is at most $|\log x|$ times the supremum of $|\varepsilon|$ beyond $\min(t, tx)$, which tends to 0.
+
+*Only if.* Set $h(y) = \log L(e^y)$, so that $h(y + s) - h(y) \to 0$ uniformly for $s \in [0, 1]$ (Theorem 3.3); in particular $h$ is locally bounded for large $y$. Decompose
+$$
+h(y) = \underbrace{\int_0^1 \big(h(y) - h(y + s)\big)\,ds}_{=:\,\delta(y)\ \to\ 0} + \underbrace{\int_y^{y+1} h(s)\,ds}_{=:\,g(y)} .
+$$
+A change of variables gives the exact identity $g(y) = g(y_0) + \int_{y_0}^{y} e(s)\,ds$, with $e(s) = h(s + 1) - h(s) \to 0$.
+
+Return to $x = e^y$ and substitute $s = \log u$:
+$$
+L(x) = \underbrace{e^{\delta(\log x) + g(y_0)}}_{c(x)} \exp\Big(\int_{e^{y_0}}^{x} \frac{e(\log u)}{u}\,du\Big),
+$$
+which is the representation with $\varepsilon(u) = e(\log u)$ and $t_0 = e^{y_0}$. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Corollary 3.11 — Potter bounds]{.tag} Let $L$ be slowly varying and $\delta > 0$. There is $t_0$ such that, for all $t \ge t_0$ and $tx \ge t_0$,
+$$
+(1 - \delta) \min(x^{\delta}, x^{-\delta}) \ \le\ \frac{L(tx)}{L(t)} \ \le\ (1 + \delta) \max(x^{\delta}, x^{-\delta}) .
+$$
+In particular $x^{-\delta}L(x) \to 0$ and $x^{\delta}L(x) \to \infty$: a slowly varying function is negligible against any power.
+:::
+
+The proof takes $t_0$ so large that $c(tx)/c(t) \in [1 - \delta, 1 + \delta]$ and $|\varepsilon| \le \delta$ beyond $t_0$; the integral is then at most $\delta |\log x|$. Potter bounds supply the integrable dominating functions of the next proof and of [ch. 4](#ch4).
+
+:::: prop
+[Proposition 3.12 — Karamata's theorem for tail integrals]{.tag} If $f \in RV_\rho$ with $\rho < -1$ and $f$ is locally bounded on $[t_0, \infty)$, then
+$$
+\int_t^\infty f(u)\,du \ \sim\ \frac{t f(t)}{-\rho - 1} \qquad (t \to \infty) .
+$$
+
+::: proof
+Substitute $u = tx$: the integral equals $t f(t) \int_1^\infty \frac{f(tx)}{f(t)}\,dx$. The integrand tends to $x^\rho$.
+
+ For $\delta > 0$ with $\rho + \delta < -1$, Corollary 3.11 bounds it by $(1 + \delta)x^{\rho + \delta}$, which is integrable on $[1, \infty)$. Dominated convergence gives the limit $\int_1^\infty x^\rho dx = 1/(-\rho - 1)$. [∎]{.qed}
+:::
+::::
+
+Applied to $f(u) = (1 - F(u))/u \in RV_{-\alpha - 1}$, it makes Example 3.8 rigorous at the population level:
+$$
+\mathbb{E}\big[\log(X/t) \,\big|\, X > t\big] = \frac{1}{1 - F(t)} \int_t^\infty \frac{1 - F(u)}{u}\,du \longrightarrow \frac{1}{\alpha} .
+$$
+
+### 3.4 Regular variation and domains of attraction
+
+::: thm
+[Theorem 3.13 — Gnedenko (1943), Fréchet domain]{.tag} Let $\gamma > 0$ and $\alpha = 1/\gamma$. Then $F \in D(G_\gamma)$ if and only if $x_F = \infty$ and $1 - F \in RV_{-\alpha}$.
+
+One may then take $a_n = U(n)$ and $b_n = 0$:
+$$
+P\Big(\frac{M_n}{U(n)} \le x\Big) \longrightarrow \Phi_\alpha(x) = \exp(-x^{-\alpha}), \qquad x > 0 .
+$$
+:::
+
+The direct implication is Proposition 3.5 with $t = n$, followed by Proposition 0.4. For the converse, one interpolates between the integers $n$, using that $a_{n+1}/a_n \to 1$ (de Haan and Ferreira, 2007, ch. 1). The Fréchet law is the GEV law up to location and scale: $\Phi_\alpha(x) = G_\gamma((x - 1)/\gamma)$.
+
+::: thm
+[Theorem 3.14 — All domains of attraction]{.tag} $F \in D(G_\gamma)$ if and only if there is a positive function $a$ such that, for every $x > 0$,
+$$
+\frac{U(tx) - U(t)}{a(t)} \longrightarrow \frac{x^\gamma - 1}{\gamma} \qquad (t \to \infty),
+$$
+read as $\log x$ when $\gamma = 0$. For $\gamma > 0$ this is equivalent to $U \in RV_\gamma$.
+:::
+
+This characterisation through the tail quantile function covers the three types at once (de Haan and Ferreira, 2007, ch. 1). It is the starting point of the estimators of [ch. 4](#ch4), which all estimate $U$ at levels $t$ beyond $n$.
+
+::: recap
+**Key takeaways — chapter 3**
+
+-   $f \in RV_\rho$ when $f(tx)/f(t) \to x^\rho$; slowly varying functions are negligible against any power (Potter bounds).
+-   Karamata: $L(x) = c(x)\exp\int_{t_0}^x \varepsilon(u)\,du/u$ with $c \to c_\infty$ and $\varepsilon \to 0$.
+-   A regularly varying tail has three equivalent faces: $1 - F \in RV_{-\alpha}$, a tail measure $\nu_\alpha$, and Pareto limits of rescaled exceedances.
+-   The tail empirical measure built on the $k$ largest observations is consistent, with error of order $1/\sqrt{k}$.
+-   The Fréchet domain is exactly the set of regularly varying tails, with $a_n = U(n)$.
+:::
+
+## 4. The Hill estimator and extreme quantiles {#ch4}
+
+Chapter 3 suggested an estimator of the extreme value index built on the $k$ largest observations. This chapter proves that it works, explains how to choose $k$, and uses it to estimate quantiles far beyond the sample.
+
+### 4.1 The Hill estimator
+
+Write $X_{(1)} \ge X_{(2)} \ge \dots \ge X_{(n)}$ for the order statistics in decreasing order.
+
+::: def
+[Definition 4.1 — Hill estimator (Hill, 1975)]{.tag} For $1 \le k < n$ and positive observations,
+$$
+H_{k,n} = \frac1k \sum_{i=1}^{k} \log X_{(i)} - \log X_{(k+1)} .
+$$
+It estimates $\gamma = 1/\alpha$ when $1 - F \in RV_{-\alpha}$.
+:::
+
+:::: prop
+[Proposition 4.2 — Exact Pareto case]{.tag} If $1 - F(x) = x^{-\alpha}$ for $x \ge 1$, then $k \alpha H_{k,n}$ follows the Gamma law with shape $k$ and rate 1. Hence
+$$
+\mathbb{E} H_{k,n} = \frac1\alpha, \qquad \mathrm{Var}\, H_{k,n} = \frac{1}{k \alpha^2}, \qquad \sqrt{k}\,(\alpha H_{k,n} - 1) \xrightarrow{d} \mathcal N(0, 1) .
+$$
+
+::: proof
+The variables $E_i = \alpha \log X_i$ are independent standard exponentials, and $k\alpha H_{k,n} = \sum_{i \le k} (E_{(i)} - E_{(k+1)})$.
+
+Given $E_{(k+1)} = s$, the $k$ largest values are distributed as $k$ independent copies of $E$ conditioned on $E > s$.
+
+By the memoryless property, each is $s$ plus a standard exponential. The sum of the $k$ excesses is therefore Gamma with shape $k$, whatever $s$. The central limit theorem gives the last claim. [∎]{.qed}
+:::
+::::
+
+### 4.2 Weak consistency
+
+:::: thm
+[Theorem 4.3 — Weak consistency (Mason, 1982)]{.tag} Let $F$ be continuous with $1 - F \in RV_{-\alpha}$, and let $k \to \infty$ with $k/n \to 0$. Then
+$$
+H_{k,n} \xrightarrow{\ P\ } \gamma = \frac1\alpha .
+$$
+
+::: proof
+Let $b = U(n/k)$, let $\nu_n$ be the tail empirical measure of Definition 3.6, and $Z = X_{(k+1)}/b$.
+
+*Step 1: $Z \to 1$ in probability.* Fix $0 < \varepsilon < 1$. If $Z > 1 + \varepsilon$, at least $k + 1$ observations exceed $b(1 + \varepsilon)$, so $\nu_n((1 + \varepsilon, \infty]) > 1$. This event has vanishing probability, because Proposition 3.7 gives
+$$
+\nu_n((1 + \varepsilon, \infty]) \to (1 + \varepsilon)^{-\alpha} < 1 .
+$$
+Symmetrically, $Z < 1 - \varepsilon$ forces $\nu_n((1 - \varepsilon, \infty]) \le 1$, while its limit exceeds 1.
+
+*Step 2: an integral formula.* The $k$ largest observations are exactly those above $X_{(k+1)} = bZ$. As in Example 3.8,
+$$
+H_{k,n} = \frac1k \sum_{i=1}^n \log\Big(\frac{X_i}{bZ}\Big)_+ = \int_Z^\infty \nu_n((y, \infty])\,\frac{dy}{y} .
+$$
+
+*Step 3: three pieces.* Fix $M > 1$ and split the integral at 1 and $M$.
+
+-   The first piece satisfies
+$$
+\Big|\int_Z^1 \nu_n((y, \infty])\,\frac{dy}{y}\Big| \le \nu_n\big((\min(Z,1), \infty]\big)\,|\log Z| .
+$$
+With probability tending to one, $Z > 1/2$, the first factor is at most $\nu_n((1/2, \infty])$, which is bounded in probability, and $\log Z \to 0$.
+-   On $[1, M]$, $\mathbb{E}|\nu_n((y, \infty]) - y^{-\alpha}| \to 0$ by the bias–variance bound of Proposition 3.7, and these expectations are at most 2. By dominated convergence, $\int_1^M \nu_n\,dy/y \to (1 - M^{-\alpha})/\alpha$ in $L^1$.
+-   The tail piece has expectation
+$$
+\mathbb{E}\int_M^\infty \nu_n((y, \infty])\,\frac{dy}{y} = \frac{n}{k}\big(1 - F(b)\big) \int_M^\infty \frac{1 - F(by)}{1 - F(b)}\,\frac{dy}{y} \longrightarrow \frac{M^{-\alpha}}{\alpha},
+$$
+by Potter bounds and dominated convergence, as in Proposition 3.12.
+
+Given $0 < \eta < 1$, choose $M$ with $M^{-\alpha}/\alpha < \eta^2$. Markov's inequality on the tail piece then gives
+$$
+\limsup_{n \to \infty} P\big(|H_{k,n} - 1/\alpha| > 4\eta\big) \le \eta ,
+$$
+and $\eta$ is arbitrary. [∎]{.qed}
+:::
+::::
+
+The proof uses only the consistency of the tail empirical measure and the integrability supplied by Karamata's theory. The same route proves the consistency of many tail estimators (Resnick, 2007, ch. 4).
+
+### 4.3 Bias, variance and the choice of $k$
+
+Consistency says nothing about the error at a given $k$. Two errors compete.
+
+-   *Variance*: about $\gamma^2/k$, as in the exact Pareto case; it decreases with $k$.
+-   *Bias*: the $k$ largest observations follow the Pareto approximation only if $U(n/k)$ is far enough in the tail; the bias grows with $k$.
+
+The bias is described by a second-order condition: a function $A(t) \to 0$, with $|A|$ regularly varying of index $\rho \le 0$, such that
+$$
+\frac{1}{A(t)}\Big(\frac{U(tx)}{U(t)} - x^\gamma\Big) \longrightarrow x^\gamma\, \frac{x^\rho - 1}{\rho} .
+$$
+
+::: thm
+[Theorem 4.4 — Asymptotic normality]{.tag} Under the second-order condition with $\gamma > 0$ and $\rho < 0$, if $k \to \infty$, $k/n \to 0$ and $\sqrt{k}\,A(n/k) \to \lambda \in \mathbb{R}$, then
+$$
+\sqrt{k}\,\big(H_{k,n} - \gamma\big) \xrightarrow{d} \mathcal N\Big(\frac{\lambda}{1 - \rho},\ \gamma^2\Big) .
+$$
+:::
+
+The proof is in de Haan and Ferreira (2007, ch. 3). If $|A(t)|$ behaves like $t^\rho$, minimising the asymptotic mean squared error $\gamma^2/k + A(n/k)^2/(1 - \rho)^2$ gives
+$$
+k_{\mathrm{opt}} \asymp n^{2|\rho|/(1 + 2|\rho|)} .
+$$
+Since $\rho$ is unknown, $k$ is chosen in practice from a *Hill plot*: $H_{k,n}$ against $k$, looking for a stable region between the noisy small-$k$ end and the biased large-$k$ end.
+
+### 4.4 Extreme quantile estimation
+
+The target is $x_p = U(1/p)$ for a probability $p$ so small that $np$ is below 1: the quantile lies beyond the largest observation.
+
+::: def
+[Definition 4.5 — Weissman estimator (Weissman, 1978)]{.tag} With $d_n = k/(np)$,
+$$
+\hat x_p = X_{(k+1)}\, d_n^{\,H_{k,n}} .
+$$
+It rests on $U \in RV_\gamma$: $U(1/p) / U(n/k) \approx d_n^{\gamma}$, while $X_{(k+1)} \approx U(n/k)$.
+:::
+
+:::: prop
+[Proposition 4.6 — Where the error comes from]{.tag} Exactly,
+$$
+\log \frac{\hat x_p}{x_p} = \log\frac{X_{(k+1)}}{U(n/k)} + \big(H_{k,n} - \gamma\big) \log d_n - \log \frac{U(1/p)}{U(n/k)\, d_n^{\gamma}} .
+$$
+
+::: proof
+Add and subtract $\log U(n/k) + \gamma \log d_n$ in the identity
+$$
+\log \hat x_p - \log x_p = \log X_{(k+1)} + H_{k,n}\log d_n - \log U(1/p) .
+$$
+[∎]{.qed}
+:::
+::::
+
+The first term is of order $1/\sqrt{k}$ and the last one is a deterministic bias. The middle term dominates: it has standard deviation about $\gamma \log(d_n)/\sqrt{k}$, and it multiplies the bias of the Hill estimator by $\log d_n$. Consistency of $\hat x_p / x_p$ therefore requires $\log(d_n)/\sqrt{k} \to 0$ in addition to a vanishing bias (de Haan and Ferreira, 2007, ch. 4).
+
+::: ex
+[Example 4.7 — Hill and Weissman in practice]{.tag} Take $n = 10^4$ Student observations with 3 degrees of freedom ($\gamma = 1/3$) and $p = 10^{-5}$, so $x_p = 47.9$, beyond any realistic sample maximum.
+
+With $k = 200$, $d_n = 2000$ and $\log d_n = 7.6$.
+
+-   Over 300 data sets, the Hill estimator has mean 0.370 and standard deviation 0.025, against $\gamma/\sqrt{k} = 0.024$: the variance is as predicted, and the bias is 0.037.
+-   The ratio $\hat x_p / x_p$ has quartiles 1.05, 1.22 and 1.40. The standard deviation of its logarithm, 0.19, matches $\gamma \log(d_n)/\sqrt{k} = 0.18$.
+-   The median overestimation comes from the Hill bias amplified by $\log d_n$, partly offset by the other two terms.
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(5)
+nu, n, p = 3, 10_000, 1e-5               # Student-t(3): gamma = 1/3
+truth = stats.t.isf(p, nu)
+
+def hill(x_desc, k):
+    """Hill estimator from a sample sorted in decreasing order."""
+    return np.mean(np.log(x_desc[:k])) - np.log(x_desc[k])
+
+x = np.sort(rng.standard_t(nu, size=n))[::-1]
+print("Hill plot of one data set:",
+      ", ".join(f"k={k}: {hill(x, k):.3f}" for k in [50, 100, 200, 500, 1000, 2000]))
+
+# 300 data sets, k = 200: Hill and the Weissman estimator of x_p
+k, g, ratio = 200, [], []
+for _ in range(300):
+    xs = np.sort(rng.standard_t(nu, size=n))[::-1]
+    g.append(hill(xs, k))
+    ratio.append(xs[k] * (k / (n * p)) ** g[-1] / truth)
+g, ratio = np.array(g), np.array(ratio)
+print(f"Hill, k = {k}: mean {g.mean():.3f}, sd {g.std():.3f} (gamma/sqrt(k) = {1/3/np.sqrt(k):.3f})")
+print(f"Weissman x_p / truth ({truth:.1f}): quartiles "
+      + ", ".join(f"{q:.2f}" for q in np.quantile(ratio, [0.25, 0.5, 0.75]))
+      + f"; sd of log-ratio {np.log(ratio).std():.3f}")
+# Hill plot of one data set: k=50: 0.423, k=100: 0.391, k=200: 0.408, k=500: 0.416, k=1000: 0.475, k=2000: 0.606
+# Hill, k = 200: mean 0.370, sd 0.025 (gamma/sqrt(k) = 0.024)
+# Weissman x_p / truth (47.9): quartiles 1.05, 1.22, 1.40; sd of log-ratio 0.193
+```
+
+The Hill estimator requires $\gamma > 0$. For an index of any sign, the moment estimator of Dekkers, Einmahl and de Haan (1989) combines the first two moments of the log-excesses,
+$$
+M_j = \frac1k \sum_{i \le k} \big(\log X_{(i)} - \log X_{(k+1)}\big)^j, \quad j = 1, 2, \qquad \hat\gamma_M = M_1 + 1 - \frac12\Big(1 - \frac{M_1^2}{M_2}\Big)^{-1} .
+$$
+It is consistent over the whole range $\gamma \in \mathbb{R}$ for positive data, and it is compared with Hill and with the GPD likelihood in the first solo project.
+
+::: recap
+**Key takeaways — chapter 4**
+
+-   The Hill estimator averages the log-excesses of the $k$ largest observations over the $(k+1)$-th; for exact Pareto data, $k\alpha H_{k,n}$ is Gamma$(k, 1)$.
+-   It is weakly consistent as soon as $1 - F \in RV_{-\alpha}$, $k \to \infty$ and $k/n \to 0$ (Theorem 4.3).
+-   Its error is a variance $\gamma^2/k$ plus a second-order bias that grows with $k$; $k$ is chosen on a Hill plot.
+-   The Weissman estimator $X_{(k+1)}(k/(np))^{H_{k,n}}$ extrapolates quantiles beyond the data; its relative error is about $\gamma\log(k/(np))/\sqrt{k}$ plus an amplified bias.
+:::
+
+## 5. Multivariate extremes {#ch5}
+
+Floods hit several rivers at once, and a portfolio loses on several assets at once. For a random vector, chapters 1–4 handle each marginal tail; what is new is the dependence between large values. This chapter separates margins from dependence and describes every possible limit.
+
+Vector inequalities and operations are componentwise: $x \le y$ means $x_j \le y_j$ for every $j$, and $M_n$ is the vector of coordinatewise maxima.
+
+### 5.1 Componentwise maxima and reduction to the standard case
+
+::: def
+[Definition 5.1 — Multivariate domain of attraction]{.tag} $F$ on $\mathbb{R}^d$ is in the domain of attraction of $G$, with non-degenerate margins, if there are $a_n \in (0, \infty)^d$ and $b_n \in \mathbb{R}^d$ such that, at continuity points,
+$$
+F^n(a_n x + b_n) \longrightarrow G(x) .
+$$
+Each margin $G_j$ is then a GEV law (Theorem 1.5), and $G$ is max-stable by the argument of Step 1 of that proof.
+:::
+
+Increasing transformations commute with maxima. This makes it possible to put all margins on a common scale and study the dependence alone.
+
+::: prop
+[Proposition 5.2 — Reduction to the standard case]{.tag} Let $F$ have continuous margins $F_j$, and set $V^j = 1/(1 - F_j(X^j))$, so that each $V^j$ is standard Pareto (Proposition 0.2). Then $F \in D(G)$ if and only if
+
+1.  each $F_j \in D(G_j)$, and
+2.  $P\big(\max_{i \le n} V_i / n \le x\big) \to G_*(x)$, where $G_*$ has standard Fréchet margins $e^{-1/x_j}$.
+
+In that case
+$$
+G(x) = G_*\Big(\frac{-1}{\log G_1(x_1)}, \dots, \frac{-1}{\log G_d(x_d)}\Big) .
+$$
+:::
+
+*Proof sketch.* The event $\{M_n \le a_n x + b_n\}$ is the event that every $\max_i V_i^j$ stays below $1/(1 - F_j(a_{nj}x_j + b_{nj}))$. By Proposition 1.6 these thresholds behave like $-n/\log G_j(x_j)$. The full proof is in Resnick (2008, ch. 5). $G_*$ carries all the dependence; it is called *simple* max-stable.
+
+### 5.2 Max-infinitely divisible distributions
+
+::: def
+[Definition 5.3 — Max-id distributions]{.tag} A distribution function $G$ on $\mathbb{R}^d$ is max-infinitely divisible (max-id) if $G^t$ is a distribution function for every $t > 0$.
+:::
+
+In dimension one every distribution function is max-id. In dimension $d \ge 2$ this fails in general, because $G^t$ may violate the rectangle inequality. Max-stable laws are max-id, since $G^{1/n}$ is $G$ up to an affine change of variables.
+
+::: thm
+[Theorem 5.4 — Characterisation of max-id laws (Balkema and Resnick, 1977)]{.tag} Let $\ell \in [-\infty, \infty)^d$ be the lower endpoint of $G$ and $E_\ell = [\ell, \infty] \setminus \{\ell\}$. Then $G$ is max-id if and only if there is a Radon measure $\mu$ on $E_\ell$, the *exponent measure*, such that
+$$
+G(x) = \exp\big(-\mu(E_\ell \setminus [\ell, x])\big), \qquad x \ge \ell,\ x \ne \ell .
+$$
+:::
+
+*Proof sketch.* Let $N$ be a Poisson random measure with mean measure $\mu$ and $Y$ the componentwise maximum of its points. Then $\{Y \le x\}$ is the event that $N$ has no point outside $[\ell, x]$, so
+$$
+P(Y \le x) = \exp\big(-\mu(E_\ell \setminus [\ell, x])\big) .
+$$
+Replacing $\mu$ by $t\mu$ gives $G^t$, again a distribution function.
+
+Conversely, $n(G^{1/n} - 1) \to \log G$. The measures $n P_n$, with $P_n$ the law of distribution function $G^{1/n}$, converge vaguely to a measure $\mu$ with the required values (Resnick, 2008, ch. 5).
+
+### 5.3 Simple max-stable distributions and the angular measure
+
+::: prop
+[Proposition 5.5 — Simple max-stable laws]{.tag} A distribution function $G_*$ with standard Fréchet margins is max-stable if and only if $G_*(x) = \exp(-\mu([0, x]^c))$ for an exponent measure $\mu$ on $E = [0, \infty]^d \setminus \{0\}$ that is homogeneous of order $-1$ and normalised:
+$$
+\mu(tA) = t^{-1}\mu(A) \quad (t > 0), \qquad \mu(\{y : y_j > 1\}) = 1 \quad (j = 1, \dots, d) .
+$$
+:::
+
+*Proof.* Max-stability with Fréchet margins reads $G_*^t(tx) = G_*(x)$, that is $t\,\mu(t[0, x]^c) = \mu([0, x]^c)$. Complements of rectangles determine $\mu$, which gives homogeneity. The margin $\exp(-\mu(\{y_j > x_j\})) = e^{-1/x_j}$ gives the normalisation, and the converse is the same computation read backwards.
+
+:::: thm
+[Theorem 5.6 — Angular representation (de Haan and Resnick, 1977)]{.tag} Fix a norm and let $S = \{\theta \in [0, \infty)^d : \|\theta\| = 1\}$. A homogeneous $\mu$ factorises in polar coordinates $r = \|x\|$, $\theta = x/\|x\|$: for a finite measure $\Phi$ on $S$, the *angular measure*,
+$$
+\mu\big(\{x : \|x\| > r,\ x/\|x\| \in B\}\big) = r^{-1}\,\Phi(B) .
+$$
+The margins impose $\int_S \theta_j\,\Phi(d\theta) = 1$ for each $j$, and
+$$
+G_*(x) = \exp\Big(-\int_S \max_{j} \frac{\theta_j}{x_j}\,\Phi(d\theta)\Big) .
+$$
+
+::: proof
+Set $\Phi(B) = \mu(\{\|x\| > 1, x/\|x\| \in B\})$.
+
+The set $\{\|x\| > r, x/\|x\| \in B\}$ is $r$ times the set at radius 1, so homogeneity gives the factor $r^{-1}$. Thus $\mu$ is the product of $r^{-2}dr$ and $\Phi$.
+
+A point $r\theta$ lies outside $[0, x]$ when $r\theta_j > x_j$ for some $j$, that is when $r > \min_j x_j/\theta_j$. Since $\int_{r_0}^\infty r^{-2}dr = 1/r_0$,
+$$
+\mu([0, x]^c) = \int_S \Big(\min_j \frac{x_j}{\theta_j}\Big)^{-1} \Phi(d\theta) = \int_S \max_j \frac{\theta_j}{x_j}\,\Phi(d\theta) .
+$$
+Taking $x_j = 1$ and the other coordinates infinite gives the margin constraint. [∎]{.qed}
+:::
+::::
+
+With the $L^1$ norm, the constraints add up to $\Phi(S) = d$. Any finite measure on $S$ that satisfies them is an angular measure: the class of limits is infinite-dimensional, which is why non-parametric and learning methods are natural here.
+
+::: def
+[Definition 5.7 — Stable tail dependence function]{.tag} The stable tail dependence function (STDF) is
+$$
+\ell(x) = \mu\big([0, (1/x_1, \dots, 1/x_d)]^c\big) = \int_S \max_j\, \theta_j x_j\, \Phi(d\theta), \qquad x \in [0, \infty)^d .
+$$
+For data with continuous margins in a domain of attraction,
+$$
+\ell(x) = \lim_{t \to \infty} t\, P\Big(\exists j : 1 - F_j(X^j) \le \frac{x_j}{t}\Big) .
+$$
+:::
+
+::: prop
+[Proposition 5.8 — Properties of the STDF]{.tag} $\ell$ is convex and homogeneous of order 1, and
+$$
+\max_j x_j \ \le\ \ell(x)\ \le\ \sum_j x_j .
+$$
+The upper bound holds everywhere if and only if $\Phi$ sits on the axes (asymptotic independence); the lower bound holds everywhere if and only if $\Phi$ is a point mass at the centre of $S$ (complete dependence).
+:::
+
+*Proof.* Convexity and homogeneity hold for each $x \mapsto \max_j \theta_j x_j$ and survive integration. Bounding $\max_j \theta_j x_j$ above by $\sum_j \theta_j x_j$ and below by $\theta_i x_i$, then using the margin constraint, gives the two bounds. The *extremal coefficient* $\ell(1, \dots, 1) \in [1, d]$ counts the "effective number of independent variables" among the extremes.
+
+::: ex
+[Example 5.9 — Two models]{.tag}
+
+-   *Logistic model* (Gumbel, 1960): $\ell(x) = \big(\sum_j x_j^{1/\beta}\big)^{\beta}$ with $0 < \beta \le 1$. Independence is $\beta = 1$, complete dependence the limit $\beta \to 0$, and the extremal coefficient is $d^\beta$.
+-   *Beta angular model* in dimension 2 with the $L^1$ norm: $\Phi$ is twice the law of $(W, 1 - W)$, with $W \sim \mathrm{Beta}(a, a)$. For $a = 2$,
+$$
+\ell(1, 1) = 2\,\mathbb{E}\max(W, 1 - W) = 1.375 .
+$$
+:::
+
+The exponent measure also gives an exact simulation method. By the mapping theorem, the points $(d/\Gamma_i)\Theta_i$ form a Poisson random measure with mean measure $\mu$, when the $\Gamma_i$ are the arrival times of a unit-rate Poisson process and the $\Theta_i$ are independent with law $\Phi/d$.
+
+::: thm
+[Algorithm 5.10 — Exact simulation of a simple max-stable vector ($L^1$ norm)]{.tag}
+
+1.  Set $Z = 0$ and $\Gamma = 0$.
+2.  Repeat: draw $E \sim \mathrm{Exp}(1)$ and $\Theta \sim \Phi/d$; set $\Gamma \leftarrow \Gamma + E$ and $Z \leftarrow \max(Z, (d/\Gamma)\Theta)$.
+3.  Stop as soon as $d/\Gamma \le \min_j Z_j$, and return $Z$.
+
+Since every coordinate of $\Theta$ is at most 1 and $\Gamma$ increases, no later point can raise any coordinate: the stopping rule is exact. By Theorem 5.4, $P(Z \le x) = \exp(-\mu([0, x]^c))$.
+:::
+
+For the Beta model, 200 000 simulated vectors give $P(Z^1 \le 1) = 0.3681$, against $e^{-1} = 0.3679$, and $P(Z \le (1, 1)) = 0.2541$, against $e^{-1.375} = 0.2528$.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(6)
+
+def simulate_max_stable(n, d, sample_angle):
+    """Exact simulation of Z = max_i (d / Gamma_i) Theta_i (L1-norm angles, Phi(S) = d)."""
+    z = np.zeros((n, d))
+    gam = np.zeros(n)
+    active = np.ones(n, dtype=bool)
+    while active.any():
+        idx = np.flatnonzero(active)
+        gam[idx] += rng.exponential(size=idx.size)          # next Poisson arrival
+        r = d / gam[idx]
+        z[idx] = np.maximum(z[idx], r[:, None] * sample_angle(idx.size))
+        # angles have coordinates <= 1: no later point can raise any coordinate
+        active[idx] = r > z[idx].min(axis=1)
+    return z
+
+def beta_angle(m, a=2.0):
+    w = rng.beta(a, a, size=m)
+    return np.column_stack([w, 1 - w])
+
+z = simulate_max_stable(200_000, 2, beta_angle)
+print(f"P(Z1 <= 1) = {np.mean(z[:, 0] <= 1):.4f}   (standard Frechet: {np.exp(-1):.4f})")
+print(f"P(Z1 <= 1, Z2 <= 1) = {np.mean((z <= 1).all(axis=1)):.4f}   "
+      f"(exp(-l(1,1)) = {np.exp(-1.375):.4f})")
+# P(Z1 <= 1) = 0.3681   (standard Frechet: 0.3679)
+# P(Z1 <= 1, Z2 <= 1) = 0.2541   (exp(-l(1,1)) = 0.2528)
+```
+
+### 5.4 Multivariate regular variation and peaks over thresholds
+
+::: def
+[Definition 5.11 — Multivariate regular variation]{.tag} A vector $V$ with standard Pareto margins is regularly varying with exponent measure $\mu$ if $t\,P(V/t \in \cdot\,) \to \mu$ vaguely on $E$. In polar form, for $r \ge 1$ and $\Phi(\partial B) = 0$,
+$$
+P\Big(\|V\| > tr,\ \frac{V}{\|V\|} \in B \ \Big|\ \|V\| > t\Big) \longrightarrow r^{-1}\, \frac{\Phi(B)}{\Phi(S)} .
+$$
+:::
+
+This is the limit $\mu$ of the course objective. Given a large norm, the rescaled radius is asymptotically standard Pareto, and the angle is asymptotically independent of it, with law $\Phi/\Phi(S)$. Under the conditions of Proposition 5.2, the standardised vector $V$ is regularly varying with the exponent measure of $G_*$ (Resnick, 2008, ch. 5).
+
+The multivariate peaks-over-threshold model keeps the observations that are large in at least one coordinate.
+
+Rootzén and Tajvidi (2006) define the multivariate generalised Pareto distributions as the limits of $(X - b(t))/a(t)$ given that $X$ exceeds $b(t)$ in some coordinate.
+
+On the standardised scale, this is the law of $V/t$ given $\|V\|_\infty > t$, that is $\mu$ restricted to $\{\|x\|_\infty > 1\}$ and normalised.
+
+:::: prop
+[Proposition 5.12 — Tail dependence coefficient]{.tag} In dimension 2, with continuous margins,
+$$
+\chi = \lim_{u \uparrow 1} P\big(F_2(X^2) > u \,\big|\, F_1(X^1) > u\big) = 2 - \ell(1, 1) .
+$$
+
+::: proof
+By inclusion–exclusion, $P(F_1 > u, F_2 > u) = 2(1 - u) - P(F_1 > u \text{ or } F_2 > u)$. The last probability is $(1 - u)\,\ell(1, 1)\,(1 + o(1))$ by Definition 5.7 with $t = 1/(1 - u)$. Divide by $P(F_1 > u) = 1 - u$. [∎]{.qed}
+:::
+::::
+
+When $\chi = 0$ the variables are *asymptotically independent*: $\Phi$ sits on the axes, joint extremes are negligible at the first order, and the exponent measure says nothing about them. The Gaussian law with correlation $\rho < 1$ is the main example (Exercise 10); finer tools are mentioned in [ch. 9](#ch9).
+
+### 5.5 Non-parametric estimation in moderate dimension
+
+The margins are unknown, so standardisation uses ranks. Let $R_i^j$ be the rank of $X_i^j$ among $X_1^j, \dots, X_n^j$ (rank 1 is the smallest).
+
+::: def
+[Definition 5.13 — Rank-based estimators]{.tag} With $k$ the number of extremes used,
+$$
+\hat V_i^j = \frac{n}{n + 1 - R_i^j}, \qquad
+\hat\ell_k(x) = \frac1k \sum_{i=1}^n \mathbb{1}\big\{\exists j : R_i^j > n - k x_j\big\},
+$$
+$$
+\hat\Phi_k(B) = \frac1k \sum_{i=1}^n \mathbb{1}\Big\{\|\hat V_i\| > \frac{n}{k},\ \frac{\hat V_i}{\|\hat V_i\|} \in B\Big\} .
+$$
+:::
+
+Each estimator replaces $t = n/k$ and the unknown $F_j$ by the empirical distribution functions in the limits of Definitions 5.7 and 5.11. In moderate dimension, the angular measure can then be smoothed.
+
+-   *Histogram*: count the angles $\hat\Theta_i$ of the extremes in the cells of a partition of $S$.
+-   *Kernel estimate* of the angular density, with reflection or Beta kernels at the boundary of the simplex.
+-   Both need many extremes per cell, which limits them to a handful of dimensions; [ch. 7](#ch7) takes over beyond that.
+
+::: ex
+[Example 5.14 — Estimating tail dependence from ranks]{.tag} Simulate $n = 50\,000$ vectors $V = R\,(2W, 2 - 2W)$, with $R$ standard Pareto and $W \sim \mathrm{Beta}(2, 2)$, then transform the margins arbitrarily: ranks do not see this. With $k = 500$:
+
+-   $\hat\ell_k(1, 1) = 1.386$ and $\hat\chi = 0.614$, against 1.375 and 0.625;
+-   about $\Phi(S)\,k = 1000$ extremes, whose angle histogram on five bins is close to the Beta$(2,2)$ probabilities;
+-   the reflected kernel estimate of the angular density at $1/2$ is 1.32 against 1.50, a smoothing bias at the mode.
+:::
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(7)
+n, k = 50_000, 500
+# V = R (2W, 2 - 2W): R standard Pareto, W ~ Beta(2, 2); l(1, 1) = 1.375
+r = 1 / rng.uniform(size=n)
+w = rng.beta(2, 2, size=n)
+v = r[:, None] * np.column_stack([2 * w, 2 - 2 * w])
+x = np.column_stack([np.log(v[:, 0]), np.sqrt(v[:, 1])])   # margins changed, ranks unchanged
+
+ranks = stats.rankdata(x, axis=0)                 # 1 = smallest
+v_hat = n / (n + 1 - ranks)                       # rank standardisation to Pareto margins
+
+l_hat = np.mean(np.any(ranks > n - k, axis=1)) * n / k
+print(f"l_hat(1, 1) = {l_hat:.3f}   (truth 1.375),  chi_hat = {2 - l_hat:.3f}  (truth 0.625)")
+
+ext = v_hat.sum(axis=1) > n / k                   # extremes in L1 norm
+theta = v_hat[ext, 0] / v_hat[ext].sum(axis=1)    # angles in [0, 1]
+edges = np.linspace(0, 1, 6)
+hist = np.histogram(theta, bins=edges)[0] / theta.size
+true = np.diff(stats.beta.cdf(edges, 2, 2))
+print(f"{theta.size} extremes; bin masses", np.round(hist, 3), "truth", np.round(true, 3))
+kde = stats.gaussian_kde(np.concatenate([theta, -theta, 2 - theta]))   # reflection at 0 and 1
+print(f"kernel density at 1/2: {3 * kde(0.5)[0]:.2f}  (Beta(2,2) density: 1.50)")
+# l_hat(1, 1) = 1.386   (truth 1.375),  chi_hat = 0.614  (truth 0.625)
+# 1000 extremes; bin masses [0.098 0.264 0.278 0.263 0.097] truth [0.104 0.248 0.296 0.248 0.104]
+# kernel density at 1/2: 1.32  (Beta(2,2) density: 1.50)
+```
+
+::: recap
+**Key takeaways — chapter 5**
+
+-   Ranks or the transform $1/(1 - F_j)$ separate margins from dependence; the dependence of extremes is a simple max-stable law (Proposition 5.2).
+-   Max-id laws are exactly those of the form $\exp(-\mu(\cdot))$ for an exponent measure; simple max-stable laws have a homogeneous one.
+-   The angular measure $\Phi$ on the unit sphere, with $\int \theta_j\,d\Phi = 1$, describes all possible dependence; the STDF $\ell(x) = \int \max_j \theta_j x_j\,d\Phi$ summarises it.
+-   Given a large norm, the radius is Pareto and the angle has law $\Phi/\Phi(S)$: this is the limit $\mu$ of the course objective.
+-   Rank-based estimators of $\ell$ and $\Phi$ use the $k$ most extreme observations; histograms and kernels work in a few dimensions only.
+:::
+
+## 6. Statistical learning guarantees for rare events {#ch6}
+
+Chapters 3–5 prove consistency as $k \to \infty$. Learning algorithms need more: bounds valid at finite $n$, uniformly over a class of sets. This chapter shows that the right bounds scale with $k$, the number of extreme observations, and not with $n$.
+
+### 6.1 Why standard bounds fail
+
+A tail quantity is a limit $\mu(A) = \lim_t t\,P(V \in tA)$, for a set $A$ bounded away from the origin. Its natural estimator, with $t = n/k$, is
+$$
+\mu_n(A) = \frac1k \sum_{i=1}^n \mathbb{1}\Big\{V_i \in \frac{n}{k}A\Big\} = \frac{n}{k}\,P_n\Big(\frac{n}{k}A\Big),
+$$
+and its error splits into a stochastic term and a bias:
+$$
+\mu_n(A) - \mu(A) = \frac{n}{k}\,(P_n - P)\Big(\frac{n}{k}A\Big) + \Big[\frac{n}{k}\,P\Big(V \in \frac{n}{k}A\Big) - \mu(A)\Big] .
+$$
+
+The sets $(n/k)A$ have probability of order $k/n$. Theorem 0.7 bounds the stochastic term by $(n/k)\,C\sqrt{V/n} = C\sqrt{nV}/k$, which does not even tend to zero unless $k \gg \sqrt{n}$. The cure is the one of Example 0.6: use the variance, which is at most the probability of the rare region.
+
+### 6.2 Vapnik-type inequalities for rare events
+
+:::: thm
+[Theorem 6.1 — Finite class of rare sets]{.tag} Let $B_1, \dots, B_N$ be sets with $P(B_j) \le p$. With probability at least $1 - \delta$,
+$$
+\max_{j \le N} |P_n(B_j) - P(B_j)| \le \sqrt{\frac{2p\log(2N/\delta)}{n}} + \frac{2\log(2N/\delta)}{3n} .
+$$
+
+::: proof
+Apply Bernstein's inequality (Theorem 0.5) to each $B_j$ at level $\delta/N$: the variance $P(B_j)(1 - P(B_j))$ is at most $p$, and the bound increases with the variance. A union bound over the $N$ sets concludes. [∎]{.qed}
+:::
+::::
+
+If $p \approx c\,k/n$, multiplying by $n/k$ gives an error of order $\sqrt{2c\log(2N/\delta)/k}$ on the tail scale. The next theorem removes the finiteness.
+
+:::: thm
+[Theorem 6.2 — VC class of rare sets, in expectation]{.tag} Let $\mathcal{A}$ have VC dimension $V$, let $\mathbb{A} = \bigcup_{A \in \mathcal{A}} A$ and $p = P(X \in \mathbb{A}) > 0$. With $C$ the constant of Theorem 0.7,
+$$
+\mathbb{E} \sup_{A \in \mathcal{A}} |P_n(A) - P(A)| \le \big(C\sqrt{V} + 1\big)\sqrt{\frac{p}{n}} .
+$$
+
+::: proof
+Let $N$ be the number of observations in $\mathbb{A}$; it is binomial with parameters $n$ and $p$.
+
+Given $N$, these observations are independent with law $P_{\mathbb{A}} = P(\cdot \mid \mathbb{A})$; let $P'_N$ be their empirical measure.
+
+Every $A \in \mathcal{A}$ is contained in $\mathbb{A}$, so $P_n(A) = (N/n)P'_N(A)$ and $P(A) = p\,P_{\mathbb{A}}(A)$. Hence
+$$
+\sup_{A} |P_n(A) - P(A)| \le \frac{N}{n}\, \sup_A |P'_N(A) - P_{\mathbb{A}}(A)| + \Big|\frac{N}{n} - p\Big| .
+$$
+
+-   Given $N \ge 1$, Theorem 0.7 bounds the conditional expectation of the first supremum by $C\sqrt{V/N}$. The first term thus has expectation at most $C\sqrt{V}\,\mathbb{E}\sqrt{N}/n \le C\sqrt{Vp/n}$, by Jensen's inequality.
+-   The second term has expectation at most $\sqrt{\mathrm{Var}(N)}/n \le \sqrt{p/n}$. [∎]{.qed}
+:::
+::::
+
+The argument is transparent: only the $N \approx np$ observations in the rare region matter, and the classical VC rate $1/\sqrt{N}$ applies to them.
+
+::: thm
+[Theorem 6.3 — VC class of rare sets, with high probability]{.tag} There is a universal constant $C'$ such that, for $0 < \delta < 1/e$, with probability at least $1 - \delta$,
+$$
+\sup_{A \in \mathcal{A}} |P_n(A) - P(A)| \le C'\Big(\sqrt{\frac{p\,V \log(1/\delta)}{n}} + \frac{\log(1/\delta)}{n}\Big) .
+$$
+:::
+
+*Proof sketch.* Talagrand's concentration inequality, in the form of Bousquet (2002), controls the supremum around its mean with a variance term $\sup_A \mathrm{Var}\,\mathbb{1}_A(X) \le p$. Combine it with Theorem 6.2 and the inequality $\sqrt{ab} \le (a + b)/2$. Goix, Sabourin and Clémençon (2015) prove a bound of this form; Lhaut, Sabourin and Segers (2022) derive related uniform concentration bounds for frequencies of rare events.
+
+:::: key
+[Key result — the rate of learning in the tail]{.tag} For sets of probability of order $k/n$, the stochastic error on the tail scale is
+$$
+\frac{n}{k}\,\sup_{A} |P_n(A) - P(A)| = O_P\Big(\sqrt{\frac{V \log(1/\delta)}{k}}\Big) .
+$$
+::::
+
+### 6.3 Application: tail dependence
+
+For the stable tail dependence function, the rare region is $\{\exists j : 1 - F_j(X^j) \le kT/n\}$, of probability at most $dTk/n$, and the sets involved form a VC class of dimension of order $d$. The ranks add marginal errors of the same nature, each controlled by the same argument.
+
+::: thm
+[Theorem 6.4 — Non-asymptotic bound for the empirical STDF (Goix, Sabourin and Clémençon, 2015)]{.tag} For $T > 0$ and $\delta \in (0, 1)$ satisfying mild conditions given in the paper, with probability at least $1 - \delta$,
+$$
+\sup_{x \in [0, T]^d} \big|\hat\ell_k(x) - \ell(x)\big| \le C d\,\sqrt{\frac{T}{k}\log\frac{d + 3}{\delta}} + \mathrm{bias}\Big(\frac{n}{k}, T, d\Big),
+$$
+where $C$ is universal and the bias is the supremum, over a box slightly larger than $[0, T]^d$, of the deterministic error of Definition 5.7 at $t = n/k$.
+:::
+
+For the angular measure, Clémençon, Jalalzai, Lhaut, Sabourin and Segers (2023) prove bounds of order $1/\sqrt{k}$, uniformly over VC classes of subsets of the sphere, for the rank-based estimator $\hat\Phi_k$. These results are the theoretical basis of the learning algorithms of [ch. 7](#ch7) and 8.
+
+As before, $k$ trades the stochastic error, decreasing like $k^{-1/2}$, against the bias, increasing with $k$.
+
+### 6.4 Numerical illustration
+
+::: ex
+[Example 6.5 — The $1/\sqrt{k}$ rate]{.tag} In the Beta model of Example 5.14 the bias vanishes for $n/k \ge 2$, so the error of $\hat\ell_k(1, 1)$ is purely stochastic. Over 200 data sets of size $n = 20\,000$, the root-mean-square error times $\sqrt{k}$ stays near 0.42 for $k$ from 25 to 1600.
+
+With known margins, the count of extremes would be binomial and the error $\sqrt{\ell(1,1)/k} \approx 1.17/\sqrt{k}$. Ranks do better here, because each margin has exactly $k$ exceedances of its rank threshold.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(8)
+n, reps = 20_000, 200
+ks = [25, 100, 400, 1600]
+err = {k: [] for k in ks}
+for _ in range(reps):
+    r = 1 / rng.uniform(size=n)
+    w = rng.beta(2, 2, size=n)
+    v = r[:, None] * np.column_stack([2 * w, 2 - 2 * w])    # l(1, 1) = 1.375, no bias for n/k >= 2
+    ranks = v.argsort(axis=0).argsort(axis=0) + 1
+    for k in ks:
+        l_hat = np.mean(np.any(ranks > n - k, axis=1)) * n / k
+        err[k].append(l_hat - 1.375)
+for k in ks:
+    rmse = np.sqrt(np.mean(np.square(err[k])))
+    print(f"k = {k:>4}: RMSE {rmse:.4f}   sqrt(k) * RMSE {np.sqrt(k) * rmse:.3f}")
+# k =   25: RMSE 0.0870   sqrt(k) * RMSE 0.435
+# k =  100: RMSE 0.0397   sqrt(k) * RMSE 0.397
+# k =  400: RMSE 0.0211   sqrt(k) * RMSE 0.422
+# k = 1600: RMSE 0.0104   sqrt(k) * RMSE 0.415
+```
+
+::: recap
+**Key takeaways — chapter 6**
+
+-   Tail estimators are rescaled empirical measures of rare sets; their error is a stochastic term plus a bias.
+-   Classical VC bounds are useless in the tail; bounds that use the variance, at most the probability $p$ of the rare region, give errors of order $\sqrt{p V/n}$.
+-   On the tail scale this is $\sqrt{V\log(1/\delta)/k}$: learning in the tail behaves like learning from the $k$ extremes alone.
+-   Non-asymptotic bounds of this type hold for the empirical STDF and the empirical angular measure.
+:::
+
+## 7. High-dimensional extremes: sparsity, PCA and anomaly detection {#ch7}
+
+In dimension $d$, the angular measure lives on a $(d-1)$-dimensional sphere, and histograms need exponentially many cells. In applications, however, only a few groups of variables tend to be large together. This chapter exploits that sparsity to find structure in the extremes and to detect anomalies among them.
+
+### 7.1 Notions of sparsity
+
+::: def
+[Definition 7.1 — Subcones and faces]{.tag} For a non-empty $\alpha \subseteq \{1, \dots, d\}$, let
+$$
+C_\alpha = \{x \in [0, \infty)^d : x_j > 0 \text{ for } j \in \alpha,\ x_j = 0 \text{ for } j \notin \alpha\}, \qquad \Omega_\alpha = C_\alpha \cap S .
+$$
+The $2^d - 1$ cones partition $[0, \infty)^d \setminus \{0\}$, so $\mu = \sum_\alpha \mu(\,\cdot \cap C_\alpha)$.
+:::
+
+A cone with $\mu(C_\alpha) > 0$ is a group $\alpha$ of variables that can be extreme together while the others stay of smaller order. The exponent measure is *sparse* when few cones carry mass: asymptotic independence puts mass on the $d$ axes only, complete dependence on the full cone only.
+
+Other notions of sparsity lead to other methods: sparse regular variation through Euclidean projections onto the simplex (Meyer and Wintenberger, 2021), conditional independence in graphical models for extremes (Engelke and Hitz, 2020), and concentration on low-dimensional subspaces ([ch. 7.3](#ch7)). Engelke and Ivanovs (2021) review them.
+
+### 7.2 The DAMEX algorithm
+
+Data never lie exactly on a face: all coordinates are positive. The faces are therefore thickened by a tolerance $\varepsilon$, measured relative to the extreme threshold.
+
+::: thm
+[Algorithm 7.2 — DAMEX (Goix, Sabourin and Clémençon, 2016)]{.tag}
+
+1.  Standardise by ranks: $\hat V_i$ as in Definition 5.13.
+2.  Keep the extremes: $\|\hat V_i\|_\infty > n/k$.
+3.  Give each extreme its face $\alpha_i = \{j : \hat V_i^j > \varepsilon\, n/k\}$.
+4.  Estimate the mass $\hat M(\alpha)$ of each face by the proportion of extremes with $\alpha_i = \alpha$.
+5.  Keep the faces whose mass exceeds a small threshold.
+:::
+
+The cost is dominated by the ranks, $O(dn\log n)$, and at most one face per extreme has positive empirical mass, however large $d$ is. Non-asymptotic guarantees combine the bounds of [ch. 6](#ch6) with the error due to the thickening $\varepsilon$.
+
+### 7.3 PCA and subspace clustering of extremes
+
+A second notion of sparsity is linear: the extreme angles may lie close to a low-dimensional subspace.
+
+::: prop
+[Proposition 7.3 — Support of the angles and second moments]{.tag} Let $\Theta$ be a random unit vector (Euclidean norm) with law $\Phi/\Phi(S)$, and $\Sigma = \mathbb{E}[\Theta\Theta^\top]$. Then the range of $\Sigma$ is the linear span of the support of $\Theta$.
+:::
+
+*Proof.* For a vector $u$, $u^\top\Sigma u = \mathbb{E}[(u^\top\Theta)^2]$ vanishes if and only if $u$ is orthogonal to $\Theta$ almost surely. So the kernel of $\Sigma$ is the orthogonal complement of the support, and the range is its span.
+
+The top eigenvectors of the empirical second-moment matrix $\hat\Sigma$ of the angles $\hat\Theta_i$ of the $k$ largest standardised observations therefore estimate the subspace that carries the extremes. Drees and Sabourin (2021) give risk bounds for this PCA of extremes; Cooley and Thibaud (2019) propose a related decomposition of a tail pairwise dependence matrix.
+
+After standardisation every coordinate is heavy-tailed, so a coordinate whose extremes are independent of the others puts mass on its own axis. The subspace must account for every coordinate.
+
+::: ex
+[Example 7.4 — PCA of extreme angles]{.tag} In dimension 10, the heavy-tailed part of the data lies in a plane spanned by two block vectors, and light-tailed noise is added to every coordinate. Among the 500 largest standardised observations, the second-moment matrix has eigenvalue shares 0.815, 0.184 and then 0.000; the estimated plane is within 0.2 degrees of the true one. The bulk of the data is full-rank: 21.5 % of its second moment lies outside its top two directions.
+:::
+
+```python
+import numpy as np
+from scipy import stats
+from scipy.linalg import subspace_angles
+
+rng = np.random.default_rng(10)
+n, d, k = 50_000, 10, 500
+u1 = np.r_[np.ones(5), np.zeros(5)] / np.sqrt(5)       # after standardisation every coordinate
+u2 = np.r_[np.zeros(5), np.ones(5)] / np.sqrt(5)       # must be heavy-tailed: the plane spans all
+phi = rng.uniform(0, np.pi / 2, size=n)
+theta = np.cos(phi)[:, None] * u1 + np.sin(phi)[:, None] * u2
+x = 3 * np.abs(rng.standard_normal((n, d))) + (1 / rng.uniform(size=n))[:, None] * theta
+
+v = n / (n + 1 - stats.rankdata(x, axis=0))
+norms = np.linalg.norm(v, axis=1)
+plane = np.column_stack([u1, u2])
+for name, sel in [("extremes", norms >= np.sort(norms)[-k]), ("bulk", norms <= np.median(norms))]:
+    th = v[sel] / norms[sel, None]
+    evals, evecs = np.linalg.eigh(th.T @ th / sel.sum())
+    share = evals[::-1] / evals.sum()
+    ang = np.degrees(subspace_angles(evecs[:, -2:], plane)).max()
+    print(f"{name:>8}: eigenvalue shares {np.round(share[:3], 3)}, "
+          f"mass beyond two {share[2:].sum():.3f}, top-2 plane vs truth {ang:.1f} degrees")
+# extremes: eigenvalue shares [0.815 0.184 0.   ], mass beyond two 0.001, top-2 plane vs truth 0.2 degrees
+#     bulk: eigenvalue shares [0.754 0.031 0.028], mass beyond two 0.215, top-2 plane vs truth 5.9 degrees
+```
+
+When the extremes concentrate on several faces or subspaces, one subspace is not enough: this is multiple subspace clustering. The angles of the extremes are first clustered, for example by spherical $k$-means (Janßen and Wan, 2020), and a PCA is then run within each cluster. The faces found by DAMEX give a natural initialisation.
+
+### 7.4 Anomaly detection in extreme regions
+
+General-purpose detectors, such as isolation forests or one-class support vector machines, estimate level sets of a density dominated by the bulk. In the tail they see few points and tend to flag every extreme. Extreme value theory separates the question in two: an extreme observation is normal if its direction is one that extremes commonly take, and anomalous otherwise.
+
+::: def
+[Definition 7.5 — DAMEX anomaly score]{.tag} For an extreme observation with standardised value $v$ and face $\alpha(v)$,
+$$
+s(v) = \frac{\hat M(\alpha(v))}{\|v\|_\infty} ,
+$$
+and small scores are the most abnormal: a large norm in a direction of small mass.
+:::
+
+Thomas, Clémençon, Gramfort and Sabourin (2017) replace the faces by minimum-volume sets on the sphere: an empirical-risk-minimisation estimate of the smallest set of angular mass at least $1 - a$, computed from the angles of the $k$ extremes; extreme observations whose angle falls outside it are flagged. The bounds of [ch. 6](#ch6) control the mass and volume of the learnt set. Chiapino, Clémençon, Feuillard and Sabourin (2020) go further and cluster and visualise the anomalies found in extreme regions.
+
+::: ex
+[Example 7.6 — DAMEX on a monitoring-like data set]{.tag} In dimension 6, extremes occur on the faces $\{1, 2\}$, $\{3, 4, 5\}$ and $\{6\}$ (indices from 0 to 5 in the code), over a light-tailed bulk. Twenty anomalies are large on the unusual pair $\{1, 6\}$. With $k = 500$ and $\varepsilon = 0.1$, the three true faces carry 88 % of the 1802 extremes; every other face has less than 2 %. The score of Definition 7.5 separates the anomalies from the normal extremes with an area under the ROC curve of 0.990.
+:::
+
+```python
+import numpy as np
+from collections import Counter
+from scipy import stats
+
+rng = np.random.default_rng(9)
+n, d, k, eps = 50_000, 6, 500, 0.1
+faces = [(0, 1), (2, 3, 4), (5,)]
+x = rng.exponential(size=(n, d))                       # light-tailed bulk
+lab = rng.choice(3, size=n, p=[0.4, 0.4, 0.2])
+r = 1 / rng.uniform(size=n)                            # heavy-tailed radius
+for f, face in enumerate(faces):
+    idx = np.flatnonzero(lab == f)
+    x[np.ix_(idx, face)] += r[idx, None] * rng.dirichlet(5 * np.ones(len(face)), size=idx.size)
+n_an = 20                                              # anomalies: large on the unseen face {0, 5}
+x[:n_an] = rng.exponential(size=(n_an, d))
+x[:n_an, [0, 5]] += 1e3 * rng.uniform(1, 3, size=(n_an, 1)) * np.array([0.5, 0.5])
+
+v = n / (n + 1 - stats.rankdata(x, axis=0))            # rank standardisation
+ext = v.max(axis=1) > n / k                            # extreme region in sup-norm
+alpha = [tuple(int(j) for j in np.flatnonzero(row > eps * n / k)) for row in v[ext]]
+mass = Counter(alpha)
+top = sorted(mass.items(), key=lambda t: -t[1])[:6]
+print("largest face masses (share of extremes):", ", ".join(f"{a}: {c / ext.sum():.3f}" for a, c in top))
+
+# DAMEX score: (mass of the point's face) / (sup-norm); small score = abnormal
+score = np.array([mass[a] / k for a in alpha]) / v[ext].max(axis=1)
+is_an = np.flatnonzero(ext) < n_an
+auc = stats.mannwhitneyu(score[~is_an], score[is_an]).statistic / (is_an.sum() * (~is_an).sum())
+print(f"{ext.sum()} extremes, {is_an.sum()} anomalies among them, AUC of the score = {auc:.3f}")
+# largest face masses (share of extremes): (2, 3, 4): 0.361, (0, 1): 0.291, (5,): 0.226, (0, 5): 0.017, ...
+# 1802 extremes, 20 anomalies among them, AUC of the score = 0.990
+```
+
+::: recap
+**Key takeaways — chapter 7**
+
+-   The $2^d - 1$ subcones split the exponent measure; sparsity means few groups of variables are extreme together.
+-   DAMEX finds the charged faces from rank-standardised extremes with a thickening $\varepsilon$, at cost $O(dn\log n)$.
+-   The second-moment matrix of the extreme angles has the span of their support as range: PCA of extremes recovers a low-dimensional tail subspace; clustering the angles first handles several subspaces.
+-   Anomalies in extreme regions are large observations in rare directions; face masses or minimum-volume sets on the sphere score them.
+:::
+
+## 8. Supervised learning with extreme values {#ch8}
+
+Supervised learning minimises an average risk, dominated by the bulk of the data. When the decisions that matter are taken in the extreme region, for the largest covariates or the largest responses, the bulk can mislead. This chapter adapts classification and dimension reduction to extremes.
+
+### 8.1 Classification in extreme regions
+
+Let $(X, Y) \in \mathbb{R}^d \times \{-1, +1\}$, with $X$ heavy-tailed, and write $\Theta = X/\|X\|$ for its angle.
+
+::: def
+[Definition 8.1 — Risk in the extreme region]{.tag} For a classifier $g$ and a threshold $t$,
+$$
+L_t(g) = P\big(g(X) \ne Y \,\big|\, \|X\| > t\big), \qquad L_\infty(g) = \limsup_{t \to \infty} L_t(g) .
+$$
+:::
+
+Jalalzai, Clémençon and Sabourin (2018) assume that, given each class, $X$ is regularly varying with the same index. The law of $(\|X\|/t, \Theta, Y)$ given $\|X\| > t$ then converges to a limit law $P_\infty$ under which the radius is Pareto and independent of $(\Theta, Y)$.
+
+:::: prop
+[Proposition 8.2 — Angular classifiers are enough]{.tag} Let $\eta_\infty(\theta) = P_\infty(Y = 1 \mid \Theta = \theta)$. Among angular classifiers $g(x) = h(x/\|x\|)$ whose decision boundary has $P_\infty$-probability zero, the asymptotic risk is minimised, when the set $\{\eta_\infty = 1/2\}$ is also $P_\infty$-null, by
+$$
+g^*_\infty(x) = \mathrm{sign}\big(\eta_\infty(x/\|x\|) - 1/2\big) .
+$$
+
+::: proof
+For such an $h$, $L_t(h(\Theta))$ converges to $P_\infty(h(\Theta) \ne Y)$ by weak convergence, since the discontinuities of the indicator have probability zero in the limit. The limit is the risk of $h$ for the pair $(\Theta, Y)$ under $P_\infty$. Its minimiser is the Bayes classifier of that pair. [∎]{.qed}
+:::
+::::
+
+Under their assumptions, Jalalzai, Clémençon and Sabourin (2018) show that an optimal classifier for $L_\infty$ can be taken angular. Learning therefore uses only the angles of the extremes: minimise the empirical risk over a VC class $\mathcal G$ of angular classifiers, using the $k$ observations with the largest norms.
+
+::: thm
+[Theorem 8.3 — Excess risk in the extreme region (Jalalzai, Clémençon and Sabourin, 2018)]{.tag} Let $\hat h_k$ minimise the empirical risk on the $k$ largest observations over $\mathcal G$, of VC dimension $V$.
+
+With probability at least $1 - \delta$, the asymptotic excess risk of $\hat h_k$ over the best element of $\mathcal G$ is bounded by a term of order $\sqrt{V\log(1/\delta)/k}$, plus a bias that vanishes as $n/k \to \infty$.
+:::
+
+The proof combines the rare-event inequalities of [ch. 6](#ch6) with the convergence of the conditional law: once again, the effective sample size is $k$.
+
+::: ex
+[Example 8.4 — A rule that flips in the tail]{.tag} In this synthetic model, the class decides the angle of $X$, but the rule is reversed beyond radius 5, where about 4 % of the data lie. Logistic regression fitted to all 20 000 training points learns the bulk rule and misclassifies 92.8 % of the test points in the extreme region. Empirical risk minimisation over angular threshold rules, on the 400 largest training points only, misclassifies 7.0 %.
+:::
+
+```python
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+
+rng = np.random.default_rng(11)
+
+def sample(n):
+    y = rng.choice([-1, 1], size=n)
+    r = 1 / rng.uniform(size=n) ** 0.5                 # Pareto radius, alpha = 2
+    up = (y == 1) == (r > 5)                           # the rule flips between bulk and tail
+    phi = np.where(up, rng.uniform(0.25, 0.5, n), rng.uniform(0.0, 0.25, n)) * np.pi
+    phi = np.clip(phi + 0.15 * rng.standard_normal(n), 0, np.pi / 2)
+    return r[:, None] * np.column_stack([np.cos(phi), np.sin(phi)]), y
+
+x, y = sample(20_000)
+x_te, y_te = sample(200_000)
+norm, norm_te = np.linalg.norm(x, axis=1), np.linalg.norm(x_te, axis=1)
+k = 400
+t = np.sort(norm)[-k]                                  # threshold: k-th largest training norm
+ext_te = norm_te >= t
+
+clf = LogisticRegression().fit(x, y)                   # fitted on all data
+err_all = np.mean(clf.predict(x_te[ext_te]) != y_te[ext_te])
+
+# ERM over angular threshold rules h(theta) = s * sign(phi - c) on the k largest points
+phi_tr = np.arctan2(x[norm >= t, 1], x[norm >= t, 0])
+grid = np.linspace(0, np.pi / 2, 181)
+risk = [(np.mean(s * np.sign(phi_tr - c) != y[norm >= t]), c, s) for c in grid for s in (-1, 1)]
+_, c, s = min(risk)
+phi_te = np.arctan2(x_te[ext_te, 1], x_te[ext_te, 0])
+err_ang = np.mean(s * np.sign(phi_te - c) != y_te[ext_te])
+print(f"error on the extreme region (||x|| >= {t:.1f}, {ext_te.sum()} test points):")
+print(f"  logistic regression on all data {err_all:.3f};  angular ERM on the k = {k} largest {err_ang:.3f}")
+# error on the extreme region (||x|| >= 7.1, 3985 test points):
+#   logistic regression on all data 0.928;  angular ERM on the k = 400 largest 0.070
+```
+
+The model is deliberately extreme, but the mechanism is general: a global fit weights the extreme region by its probability, here 2 %, and spends its capacity elsewhere.
+
+### 8.2 Dimension reduction with extreme targets
+
+Now let $Y \in \mathbb{R}$ be a heavy-tailed response and $X \in \mathbb{R}^p$ covariates. The goal is to find a few directions of $X$ that explain whether $Y$ is extreme.
+
+::: def
+[Definition 8.5 — Tail sufficient directions]{.tag} A $p \times q$ matrix $B$ is tail sufficient if, for every $t \ge t_0$, the event $\{Y > t\}$ is conditionally independent of $X$ given $B^\top X$.
+:::
+
+The classical sliced inverse regression of Li (1991) reverses the roles of $X$ and $Y$: it looks at the mean of $X$ given slices of $Y$. Its tail version looks only at the slice of the largest responses.
+
+:::: prop
+[Proposition 8.6 — Tail inverse regression]{.tag} Let $\Sigma = \mathrm{Cov}(X)$ be invertible, $Z = \Sigma^{-1/2}(X - \mathbb{E}X)$, and $B$ tail sufficient.
+
+Assume the linearity condition: $\mathbb{E}[X \mid B^\top X]$ is affine in $B^\top X$, as for Gaussian or elliptical $X$. Then, for $t \ge t_0$,
+$$
+\mathbb{E}[Z \mid Y > t] \in \mathrm{span}\big(\Sigma^{1/2} B\big) .
+$$
+
+::: proof
+Write $\bar X = X - \mathbb{E}X$. Under the linearity condition, $\mathbb{E}[\bar X \mid B^\top X] = P\bar X$ with $P = \Sigma B (B^\top\Sigma B)^{-1} B^\top$ (Li, 1991). By the tower property and the conditional independence,
+$$
+\mathbb{E}[\bar X \mid Y > t] = \mathbb{E}\big[\mathbb{E}[\bar X \mid B^\top X] \,\big|\, Y > t\big] = \mathbb{E}[P\bar X \mid Y > t] \in \mathrm{span}(\Sigma B) .
+$$
+Multiplying by $\Sigma^{-1/2}$ gives the claim. [∎]{.qed}
+:::
+::::
+
+The estimator whitens the covariates, averages them over the $k$ largest responses, and maps the result back with $\hat\Sigma^{-1/2}$. Several tail slices or second moments give more than one direction. This tail inverse regression is studied by Aghbalou, Portier, Sabourin and Zhou (2024), with consistency as $k \to \infty$ and $k/n \to 0$. A symmetric link makes the mean vanish (Exercise 13).
+
+::: ex
+[Example 8.7 — One direction out of ten]{.tag} With $X$ standard Gaussian in dimension 10 and $Y = (1 + e^{\beta^\top X})\,W$, where $W$ is Pareto with index 3, the event $\{Y > t\}$ depends on $X$ through $\beta^\top X$ only.
+
+Using the 200 largest of 20 000 responses, the estimated direction has cosine 0.996 with $\beta$.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(12)
+n, p, k = 20_000, 10, 200
+beta = np.r_[1.0, -1.0, 0.5, np.zeros(p - 3)]
+beta /= np.linalg.norm(beta)
+x = rng.standard_normal((n, p))
+w = 1 / rng.uniform(size=n) ** (1 / 3)                 # Pareto noise, tail index 3
+y = (1 + np.exp(x @ beta)) * w                         # P(Y > t | X) depends on beta'X only
+
+L = np.linalg.cholesky(np.cov(x.T))                    # Sigma_hat = L L'
+z = np.linalg.solve(L, (x - x.mean(axis=0)).T).T       # whitened covariates
+top = np.argsort(y)[-k:]                               # the k largest responses
+m_hat = z[top].mean(axis=0)                            # tail inverse regression mean E[Z | Y > t]
+b_hat = np.linalg.solve(L.T, m_hat)                    # back to the x scale: beta ~ L'^{-1} m
+b_hat /= np.linalg.norm(b_hat)
+print(f"|cos(b_hat, beta)| = {abs(b_hat @ beta):.3f}")
+print("b_hat =", np.round(b_hat, 2))
+# |cos(b_hat, beta)| = 0.996
+# b_hat = [ 0.7  -0.64  0.32 -0.04 -0.02  0.01 -0.01 -0.02  0.06  0.01]
+```
+
+The code whitens with a Cholesky factor $L$ instead of $\hat\Sigma^{1/2}$; the span is mapped back with $(L^\top)^{-1}$, which is equivalent.
+
+::: recap
+**Key takeaways — chapter 8**
+
+-   The risk that matters may be the conditional risk given a large norm; the bulk can impose the wrong rule there.
+-   Under regular variation, angular classifiers suffice asymptotically; empirical risk minimisation on the $k$ largest observations has excess risk of order $\sqrt{V/k}$.
+-   For extreme responses, the mean of the whitened covariates given $Y > t$ lies in the tail sufficient subspace under the linearity condition: tail inverse regression estimates it from the $k$ largest responses.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study, about four hours, and serves as the reading list of the seminar session. Each section names a direction, the work that opened it and a few questions that are still open. The official references of the course are marked in the [References](#refs).
+
+### 9.1 Graphical models for extremes
+
+The exponent measure of [ch. 5](#ch5) lives on a space that is not a product space, so the usual notion of conditional independence does not apply to it directly. Engelke and Hitz (2020) define conditional independence for multivariate Pareto distributions and show that, for the Hüsler–Reiss family (Hüsler and Reiss, 1989), the graph is encoded by zeros of a precision-type matrix built from the variogram. Hitz and Evans (2016) study a related one-component approach to regular variation and graphical modelling.
+
+For tree-structured dependence, Engelke and Volgushev (2022) learn the tree from data with minimum spanning trees built on empirical extremal dependence. Open questions include consistent structure learning beyond trees in growing dimension, and graphical models when some pairs of variables are asymptotically independent.
+
+### 9.2 Sparsity and dimension reduction
+
+The review of Engelke and Ivanovs (2021) organises the field around sparse structures: faces of the simplex (Goix, Sabourin and Clémençon, 2016), sparse regular variation (Meyer and Wintenberger, 2021), low-rank structures (Cooley and Thibaud, 2019; Drees and Sabourin, 2021), clustering (Janßen and Wan, 2020; Chiapino, Clémençon, Feuillard and Sabourin, 2020) and graphical models.
+
+Open questions:
+
+-   choosing the tolerance $\varepsilon$ and the number $k$ of extremes jointly, with guarantees, instead of by eye (Exercise 14);
+-   support recovery when the dimension grows with $n$, where the number of candidate faces is exponential;
+-   the relation between face sparsity, which is combinatorial, and subspace sparsity, which is linear.
+
+### 9.3 Non-asymptotic theory
+
+The bounds of [ch. 6](#ch6) come from Goix, Sabourin and Clémençon (2015), Lhaut, Sabourin and Segers (2022) and Clémençon, Jalalzai, Lhaut, Sabourin and Segers (2023). They are mostly upper bounds.
+
+In fixed dimension, Drees and Huang (1998) give best attainable rates for estimators of the stable tail dependence function. Matching lower bounds in high dimension, that is minimax rates for the estimation of the angular measure, are largely open, as is a data-driven choice of $k$ with non-asymptotic guarantees. Most results also assume independent observations; extremes of time series cluster in time, which changes the effective number of extremes.
+
+### 9.4 Regular variation in general spaces
+
+Hult and Lindskog (2006) define regular variation for measures on metric spaces, which covers random functions such as daily temperature curves or trajectories. Learning algorithms for such functional extremes (dimension reduction, anomaly detection, classification) need the concentration tools of [ch. 6](#ch6) in infinite dimension, where the choice of the norm itself becomes part of the model.
+
+### 9.5 Supervised and generative learning
+
+Classification in extreme regions (Jalalzai, Clémençon and Sabourin, 2018) and tail inverse regression (Aghbalou, Portier, Sabourin and Zhou, 2024) are first steps. Model selection is a further difficulty: cross-validation estimates a risk on the extreme region from very few points, and its guarantees must again scale with $k$.
+
+Generative models raise a structural question. If a generator $G$ is $L$-Lipschitz and its latent noise $Z$ is Gaussian, Gaussian concentration gives
+$$
+P\big(\|G(Z) - \mathbb{E}G(Z)\| > s\big) \le 2\,e^{-s^2/(2L^2)}
+$$
+up to dimension-dependent constants: such a model cannot produce heavy tails at all. How to build generators that reproduce a given index $\gamma$ and a given angular measure is an active question.
+
+### 9.6 Asymptotic independence and hidden regular variation
+
+When $\chi = 0$ (Proposition 5.12), the exponent measure is concentrated on the axes and says nothing about joint extremes, which still occur. Ledford and Tawn (1996) model the joint tail through a coefficient of tail dependence $\eta \in (0, 1]$:
+$$
+P\big(F_1(X^1) > 1 - s,\ F_2(X^2) > 1 - s\big) = s^{1/\eta} L(1/s), \qquad L \text{ slowly varying} .
+$$
+For the Gaussian law with correlation $\rho$, $\eta = (1 + \rho)/2$. Resnick (2002) develops hidden regular variation, a second exponent measure on a smaller cone. Statistical learning in this regime, with even fewer effective observations, is largely unexplored.
+
+### 9.7 Preparing the seminar talk
+
+Choose one paper of the official reference list, or one cited in this chapter, and prepare a 20-minute talk:
+
+1.  the question and why it matters in applications;
+2.  the assumptions, stated with the vocabulary of [ch. 3–6](#ch3);
+3.  the main result and the idea of its proof;
+4.  one experiment reproduced with your own code;
+5.  limitations and one open question.
+
+::: recap
+**Key takeaways — chapter 9**
+
+-   Graphical models, sparse structures and low-rank structures are three ways to make high-dimensional tails learnable; their joint theory is open.
+-   Non-asymptotic bounds exist as upper bounds; minimax rates, data-driven choices of $k$ and dependent data remain open.
+-   Functional extremes, model selection in the tail and heavy-tailed generative models are active questions.
+-   Under asymptotic independence, hidden regular variation describes joint extremes that the exponent measure misses.
+:::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended or research-flavoured. The session plan says after which session each one fits; as for the official homework, hand each one in within two weeks.
+
+1.  **★ Norming constants.** ([ch. 1](#ch1)) Find $a_n$, $b_n$ and the limit law of the maximum for the three laws below.
+
+    (a) The logistic law $F(x) = 1/(1 + e^{-x})$. (b) The Pareto law $1 - F(x) = x^{-\alpha}$, $x \ge 1$, with $b_n = 0$. (c) The law $F(x) = 1 - (1 - x)^2$ on $[0, 1]$.
+
+    *Solution.* Use Proposition 1.6.
+
+    (a) $1 - F(x) = e^{-x}/(1 + e^{-x}) \sim e^{-x}$. With $a_n = 1$ and $b_n = \log n$, $n(1 - F(x + \log n)) \to e^{-x}$: Gumbel.
+
+    (b) With $a_n = n^{1/\alpha}$, $n(1 - F(a_n x)) = x^{-\alpha}$ for $x \ge n^{-1/\alpha}$: the Fréchet law $\exp(-x^{-\alpha})$.
+
+    (c) With $b_n = 1 - n^{-1/2}$ and $a_n = n^{-1/2}/2$, $n(1 - F(a_n x + b_n)) = (1 - x/2)^2$, the GEV with $\gamma = -1/2$.
+
+2.  **★ Return levels and the sign of $\gamma$.** ([ch. 1](#ch1)) Annual maxima follow the GEV with $\mu = 30$, $\sigma = 5$, $\gamma = 0.1$. Compute the 100-year return level. Redo the computation with $\gamma = 0$ and comment.
+
+    *Solution.* With $y = -\log 0.99 = 0.01005$, the key formula of [ch. 1.4](#ch1) gives
+    $$
+    z_{100} = 30 + 5\,(y^{-0.1} - 1)/0.1 = 59.2 .
+    $$
+    With $\gamma = 0$, $z_{100} = \mu - \sigma\log y = 53.0$. A shape of 0.1, hard to distinguish from 0 with 50 maxima, moves the 100-year level by 6.2 units: the uncertainty on $\gamma$ dominates extrapolation.
+
+3.  **★ Threshold stability.** ([ch. 2](#ch2)) Let $Y$ follow the GPD with $\sigma = 2$ and $\gamma = 0.2$. Compute the mean excess over $v = 0, 5, 10$, and $P(Y > 10 \mid Y > 5)$.
+
+    *Solution.* By Proposition 2.3, $e(v) = (2 + 0.2v)/0.8$, that is 2.5, 3.75 and 5.0. Given $Y > 5$, the excess is GPD with scale $2 + 0.2 \times 5 = 3$, so
+    $$
+    P(Y > 10 \mid Y > 5) = (1 + 0.2 \times 5/3)^{-5} = 0.237 .
+    $$
+
+4.  **★ A POT quantile.** ([ch. 2](#ch2)) Out of $n = 10\,000$ observations, $k = 250$ exceed $u = 5$, and the GPD fit gives $\hat\sigma = 1.2$, $\hat\gamma = 0.25$.
+
+    Estimate the quantiles of exceedance probability $10^{-3}$ and $10^{-4}$.
+
+    *Solution.* The key formula of [ch. 2.4](#ch2) gives $x_p = 5 + 4.8\,[(250/(np))^{0.25} - 1]$, so
+    $$
+    x_{10^{-3}} = 10.93, \qquad x_{10^{-4}} = 19.29 .
+    $$
+    The second one has probability $1/n$: it sits at the level of the sample maximum, where the empirical quantile carries almost no information, and only the tail model can estimate it.
+
+5.  **★ Regularly varying or not.** ([ch. 3](#ch3)) Which of these functions are regularly varying, and with which index: $\log(1 + x)$, $\exp(\sqrt{\log x})$, $2 + \sin x$, $\exp(\sin \log x)$, $x^{-1}\log x$?
+
+    *Solution.* $\log(1 + x)$ and $\exp(\sqrt{\log x})$ are slowly varying (Example 3.2), and $x^{-1}\log x$ is in $RV_{-1}$.
+
+    $2 + \sin x$ is not. Neither is $\exp(\sin\log x)$: its ratio $\exp(\sin(\log t + \log x) - \sin\log t)$ keeps oscillating as $t \to \infty$, although the function is bounded away from 0 and $\infty$.
+
+6.  **★ Hill for Pareto data.** ([ch. 4](#ch4)) For exact Pareto data with $k = 100$, the Hill estimator equals 0.52. Give an exact 95 % confidence interval for $\gamma$ using Proposition 4.2, and compare with the normal approximation.
+
+    *Solution.* $k H/\gamma$ is Gamma with shape 100, whose 2.5 % and 97.5 % quantiles are 81.36 and 120.53. Hence
+    $$
+    \gamma \in [52/120.53,\ 52/81.36] = [0.431, 0.639] .
+    $$
+    The normal approximation $H(1 \pm 1.96/\sqrt{k})$ gives $[0.418, 0.622]$, slightly shifted because the Gamma law is skewed.
+
+7.  **★ The logistic model.** ([ch. 5](#ch5)) For the bivariate logistic STDF with $\beta = 1/2$, compute the extremal coefficient, $\chi$, and $P(Z \le (1, 1))$ for the simple max-stable vector $Z$; compare with independence. Check the bounds of Proposition 5.8.
+
+    *Solution.* $\ell(1, 1) = 2^{1/2} = 1.414$, so $\chi = 2 - 1.414 = 0.586$, and $P(Z \le (1,1)) = e^{-1.414} = 0.243$, against $e^{-2} = 0.135$ under independence. The bounds hold: $\max(x_1, x_2) \le (x_1^2 + x_2^2)^{1/2} \le x_1 + x_2$.
+
+8.  **★★ From POT to annual return levels.** ([ch. 2](#ch2)) A river exceeds $u = 20$ on average $\lambda = 5$ times a year, with GPD excesses of parameters $\sigma = 3$, $\gamma = 0.1$. Find the GEV law of the annual maximum and its 100-year return level, then check the result directly from the Poisson–GPD model.
+
+    *Solution.* By Proposition 2.4, $\tilde\sigma = 3 \times 5^{0.1} = 3.52$ and $\tilde\mu = 20 + 30(5^{0.1} - 1) = 25.24$. The key formula of [ch. 1.4](#ch1) then gives $z_{100} = 45.82$.
+
+    Directly: solve $\exp(-5(1 + 0.1x/3)^{-10}) = 0.99$, so $x = 30[(y/5)^{-0.1} - 1]$ with $y = -\log 0.99$, and $u + x = 45.82$ again.
+
+9.  **★★ Tail moments by Karamata.** ([ch. 3](#ch3)) Let $1 - F \in RV_{-\alpha}$ and $0 < \beta < \alpha$. Show that
+    $$
+    \mathbb{E}\big[X^\beta \mathbb{1}\{X > t\}\big] \sim \frac{\alpha}{\alpha - \beta}\, t^\beta\, (1 - F(t)),
+    $$
+    and that $\mathbb{E}X_+^\beta = \infty$ for $\beta > \alpha$.
+
+    *Solution.* Integrate by parts: the expectation equals
+    $$
+    t^\beta(1 - F(t)) + \int_t^\infty \beta u^{\beta - 1}(1 - F(u))\,du .
+    $$
+
+    The integrand is in $RV_{\beta - 1 - \alpha}$ with index below $-1$, so Proposition 3.12 makes the integral equivalent to $\beta t^\beta(1 - F(t))/(\alpha - \beta)$. Adding the two terms gives the factor $\alpha/(\alpha - \beta)$.
+
+    For $\beta > \alpha$, the Potter lower bound makes the integrand at least of order $u^{\beta - 1 - \alpha - \delta}$, whose exponent exceeds $-1$ for small $\delta$: the integral diverges.
+
+10. **★★ The Gaussian law is asymptotically independent.** ([ch. 5](#ch5)) Let $(X^1, X^2)$ be standard Gaussian with correlation $\rho \in (-1, 1)$. Show that $\chi = 0$.
+
+    *Solution.* Since both margins are $\Phi$, $\chi = \lim_u P(X^1 > u, X^2 > u)/\bar\Phi(u)$.
+
+    The joint event implies $X^1 + X^2 > 2u$, and $X^1 + X^2$ is centred Gaussian with variance $2 + 2\rho$. Hence the ratio is at most $\bar\Phi(cu)/\bar\Phi(u)$ with $c = \sqrt{2/(1 + \rho)} > 1$.
+
+    By the Mills ratio $\bar\Phi(u) \sim \varphi(u)/u$, this tends to 0 like $e^{-(c^2 - 1)u^2/2}$.
+
+11. **★★ Rare frequencies by simulation.** ([ch. 0](#ch0), 6; Python) For $n = 10^5$, $\delta = 0.05$ and $p \in \{10^{-2}, 10^{-3}, 10^{-4}\}$, compute the relative radii $\varepsilon/p$ of Hoeffding and Bernstein, and the empirical 95 % quantile of $|\hat p - p|/p$ over 20 000 simulated data sets. Plot them against $k = np$.
+
+    *Hints and expected result.* Adapt the code of Example 0.6. For $k = 1000, 100, 10$:
+
+    -   Hoeffding gives 0.43, 4.3 and 43, useless below $k \approx 1000$;
+    -   Bernstein gives 0.088, 0.30 and 1.1;
+    -   the simulation gives about 0.062, 0.20 and 0.60.
+
+    Bernstein tracks the $1/\sqrt{k}$ shape of the truth, up to a constant factor.
+
+12. **★★ Block maxima or POT?** ([ch. 1](#ch1), 2; Python) Simulate 100 data sets of 50 years of daily Student data with 4 degrees of freedom. For each, estimate the 100-year return level of the annual maximum by a GEV fit to annual maxima, and by a GPD fit above the 99 % sample quantile, converted with the daily probability $1 - 0.99^{1/365}$. Compare relative biases and root-mean-square errors.
+
+    *Hints and expected result.* Combine the code of Examples 1.8 and 2.5; the true value is 18.08.
+
+    -   Both methods have a median ratio between about 0.95 and 1; the exact value moves with the seed.
+    -   POT is more precise: relative RMSE about 0.20, against about 0.26 for block maxima, because it uses about 180 excesses instead of 50 maxima.
+
+13. **★★ When the tail mean is blind.** ([ch. 8](#ch8)) Let $X \sim \mathcal N(0, I_p)$ and $Y = (1 + (\beta^\top X)^2)\,W$ with $W$ Pareto, independent of $X$, and $\|\beta\| = 1$.
+
+    Show that $\mathbb{E}[X \mid Y > t] = 0$ for every $t$. Then show that $M(t) = \mathbb{E}[XX^\top \mid Y > t] - I$ has its range in the span of $\beta$.
+
+    *Solution.* $(X, Y)$ and $(-X, Y)$ have the same law, since $Y$ depends on $X$ through $(\beta^\top X)^2$; hence the conditional mean is 0, and Proposition 8.6 gives no information.
+
+    For Gaussian $X$, write $X = \beta(\beta^\top X) + (I - \beta\beta^\top)X$, two independent parts; hence
+    $$
+    \mathbb{E}[XX^\top \mid \beta^\top X] = I - \beta\beta^\top + \beta\beta^\top(\beta^\top X)^2 .
+    $$
+    Conditional independence and the tower property give
+    $$
+    M(t) = \beta\beta^\top\big(\mathbb{E}[(\beta^\top X)^2 \mid Y > t] - 1\big) ,
+    $$
+    of rank one along $\beta$: a tail version of second-moment inverse regression.
+
+14. **★★★ Tuning DAMEX.** ([ch. 7](#ch7); Python) In the setting of Example 7.6, without anomalies, record the share of extremes assigned to the three true faces for $k \in \{100, 500, 2500\}$ and $\varepsilon \in \{0.01, 0.05, 0.1, 0.3, 0.6\}$. Explain the pattern, then propose and test a data-driven choice of $(k, \varepsilon)$.
+
+    *Hints and expected result.* What matters is whether $\varepsilon n/k$ clears the level of the light-tailed bulk.
+
+    -   For $k = 100$, $\varepsilon = 0.1$ assigns essentially all extremes to the true faces.
+    -   For $k = 500$, $\varepsilon = 0.01$ sends every extreme to the full face, while $\varepsilon = 0.3$ reaches 96 %.
+    -   For $k = 2500$ no $\varepsilon$ exceeds 56 %.
+
+    Too large an $\varepsilon$ splits true faces into subsets. Candidate rules include stability of the selected faces under bootstrap resampling, or a penalised fit of the face masses.
+
+15. **★★★ Bias in extreme classification.** ([ch. 8](#ch8); Python) Modify Example 8.4: draw the angle $\varphi$ uniformly on $(0, \pi/2)$ and let $P(Y = 1 \mid X) = 1/(1 + e^{-(\varphi - c(r))/0.05})$, where $r = \|X\|$ and $c(r) = \pi/8 + \pi/(4r)$. The optimal angular threshold then converges slowly to $\pi/8$.
+
+    Evaluate angular empirical risk minimisation on the fixed region of the 0.5 % largest norms, as a function of $k$, and relate the result to the two terms of Theorem 8.3.
+
+    *Hints and expected result.* Small $k$ gives a noisy threshold; large $k$ brings in moderate radii, where the optimal threshold is different.
+
+    -   On that region the threshold varies little, and the Bayes error is $2 \times 0.05 \log 2/(\pi/2) \approx 0.044$.
+    -   With $n = 20\,000$ and 30 repetitions, the error is about 0.08 to 0.1 at $k = 20$, about 0.05 for $k$ between 100 and 500, and about 0.22 at $k = 10\,000$.
+    -   With $n = 80\,000$ the minimum moves to $k \approx 400$–800. The bias depends on $n/k$, as for the Hill estimator in [ch. 4.3](#ch4).
+
+## Projects and assessment {#projects}
+
+The official assessment, on master-mva.com, has two equal parts. Homework counts for 50 %: each course comes with a list of theoretical and practical exercises, partly coding and partly theory, to be handed in at most two weeks after release; a bonus rule lets students improve upon up to four past exercises after the Q&A course. A written exam counts for the other 50 %. The Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale”.
+
+The subjects below are proposals. The solo subjects are sized like an extended homework; the group subjects are paper studies that end with a talk at the seminar session, where students present research articles. The written exam is a self-assessment proposal in the format of the official exam.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Estimating the extreme value index across the three domains.** Which estimator of $\gamma$ should one trust, and when does the Hill estimator fail? A paper study of Dekkers, Einmahl and de Haan (1989), with Hill (1975).
+    -   *Implement:* the Hill estimator, the moment estimator and the GPD maximum-likelihood estimator, as functions of $k$.
+    -   *Data:* synthetic samples with known $\gamma$: Student laws ($\gamma > 0$), exponential and Gaussian ($\gamma = 0$), Beta laws with a finite endpoint ($\gamma < 0$).
+    -   *Deliverables:* code, 4–6 page report, 10-minute talk. *Chapters:* [ch. 2](#ch2), 3, 4.
+    -   *Success criterion:* root-mean-square error curves against $k$ over 200 repetitions; the Hill estimator fails for $\gamma \le 0$ while the moment estimator does not; the standard deviation $\gamma/\sqrt{k}$ of Hill is matched within 10 % on exact Pareto data.
+2.  **[Solo · ≈ 20 h] Sparse representation of multivariate extremes.** Can DAMEX recover the groups of variables that are extreme together, and does its score detect anomalies better than a general-purpose detector? A paper study of Goix, Sabourin and Clémençon (2016).
+    -   *Implement:* Algorithm 7.2 and the score of Definition 7.5; the isolation forest of scikit-learn as a baseline.
+    -   *Data:* synthetic data in dimension 10 to 50 with planted faces and planted anomalies, as in Example 7.6.
+    -   *Deliverables:* code, 4–6 page report, 10-minute talk. *Chapters:* [ch. 5](#ch5), 6, 7.
+    -   *Success criterion:* the true faces are recovered in at least 90 % of 50 repetitions for a stated $(n, k, \varepsilon)$; ROC curves on the extreme region against the baseline, reported honestly.
+3.  **[Solo · ≈ 20 h] Concentration of rare frequencies.** Do uniform deviations over a VC class of rare sets really scale like $\sqrt{p/n}$? A paper study of Goix, Sabourin and Clémençon (2015) and Lhaut, Sabourin and Segers (2022).
+    -   *Implement:* the exact supremum of $|P_n - P|$ over the class of complements of rectangles $[0, x]$ with $x$ beyond a high quantile, for uniform and dependent data.
+    -   *Prove:* Theorems 6.1 and 6.2 in full, in the report.
+    -   *Deliverables:* code, 4–6 page report, 10-minute talk. *Chapters:* [ch. 0](#ch0), 6.
+    -   *Success criterion:* log–log slopes of the mean supremum equal to $1/2$ in $p$ and $-1/2$ in $n$ within $\pm 0.1$, compared with the slope of the classical VC bound.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Binary classification in extreme regions.** Do classifiers trained on the angles of the largest observations beat global classifiers on the extreme region, as theory predicts? A paper study of Jalalzai, Clémençon and Sabourin (2018).
+    -   *Implement:* angular empirical risk minimisation with logistic regression and random forests on the angles of the $k$ largest points, against the same classifiers trained on all data.
+    -   *Data:* the synthetic models of the paper and of Example 8.4, then one public data set with heavy-tailed features, chosen by the group.
+    -   *Split:* member A writes the simulation and the standardisation; member B the classifiers and the evaluation on the extreme region; member C the theory (Theorem 8.3) and the bias study of Exercise 15.
+    -   *Deliverables:* code, 6–8 page report, 20-minute talk at the seminar. *Chapters:* [ch. 6](#ch6), 8.
+    -   *Success criterion:* the gap between angular and global classifiers on the extreme region, with error bars over 20 repetitions, and its dependence on $k$.
+2.  **[Group of 2–3 · ≈ 30 h each] Anomaly detection with minimum-volume sets on the sphere.** How do angular minimum-volume sets compare with face masses and with general detectors? A paper study of Thomas, Clémençon, Gramfort and Sabourin (2017).
+    -   *Implement:* empirical minimum-volume sets on the sphere over unions of cells of a partition, learnt from the angles of the extremes; the DAMEX score; an isolation forest.
+    -   *Data:* synthetic data in dimension 3 to 10 with planted anomalies in rare directions.
+    -   *Split:* member A writes the minimum-volume-set estimator; member B the DAMEX score and the baselines; member C the evaluation protocol and the guarantees on mass and volume ([ch. 6](#ch6)).
+    -   *Deliverables:* code, 6–8 page report, 20-minute talk at the seminar. *Chapters:* [ch. 5](#ch5), 6, 7.
+    -   *Success criterion:* the test mass of the learnt set within $\pm 0.02$ of its target; precision–recall curves on the extreme region for the three methods.
+3.  **[Group of 2–3 · ≈ 30 h each] PCA and clustering of extremes.** Can several low-dimensional tail subspaces be recovered from the extremes alone? A paper study of Drees and Sabourin (2021) and Janßen and Wan (2020).
+    -   *Implement:* PCA of the extreme angles with a choice of $k$; spherical $k$-means on the extreme angles followed by PCA within clusters.
+    -   *Data:* synthetic mixtures of two or three planes as in Example 7.4, then a public multivariate series chosen by the group (daily returns of several indices, or river flows).
+    -   *Split:* member A writes PCA and its risk as a function of $k$; member B the clustering; member C the real data and the visualisation.
+    -   *Deliverables:* code, 6–8 page report, 20-minute talk at the seminar. *Chapters:* [ch. 5](#ch5), 7.
+    -   *Success criterion:* planted subspaces recovered with principal angles below 5 degrees at $n = 50\,000$, $k = 500$; a stated criterion for the number of clusters.
+
+Every subject is graded with the rubric below.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, a basic calculator allowed; four independent questions.
+
+1.  **Question (5 points).** Define the maximum domain of attraction and max-stability. Show that the GEV law $G_\gamma$ is max-stable, state the Fisher–Tippett–Gnedenko theorem, and give norming constants and limits for the exponential and Pareto laws.
+
+    *Expected*: Definitions 1.2–1.3 and the identity
+    $$
+    \big(1 + \gamma(n^\gamma x + (n^\gamma - 1)/\gamma)\big)^{-1/\gamma} = n^{-1}(1 + \gamma x)^{-1/\gamma},
+    $$
+    multiplied by $n$ inside the exponential. Theorem 1.5 with its three types. Example 1.7: $(1, \log n)$ and Gumbel; $(\gamma n^\gamma, n^\gamma)$ or $(n^{1/\alpha}, 0)$ and Fréchet.
+2.  **Question (5 points).** Out of $n = 20\,000$ daily observations, $k = 400$ exceed $u = 10$, and the GPD fit gives $\hat\sigma = 2$, $\hat\gamma = 0.2$.
+
+    (a) Estimate $P(X > 20)$. (b) Estimate the level exceeded with probability $10^{-5}$. (c) Give the model's mean excess over 15, and say how a mean-excess plot would check the threshold.
+
+    *Expected*: (a) the tail model of [ch. 2.4](#ch2) gives
+    $$
+    \frac{k}{n}\Big(1 + \frac{0.2 \times 10}{2}\Big)^{-5} = \frac{0.02}{32} = 6.25 \times 10^{-4} .
+    $$
+    (b) $10 + 10\,(2000^{0.2} - 1) = 45.7$. (c) Proposition 2.3 with $v = 5$: $(2 + 0.2 \times 5)/0.8 = 3.75$; above a good threshold the empirical mean excess is roughly linear with slope $\gamma/(1 - \gamma) = 0.25$.
+3.  **Question (6 points).** (a) For exact Pareto data with index $\alpha$, prove that $k\alpha H_{k,n}$ follows the Gamma law with shape $k$.
+
+    (b) Deduce the mean and variance of $H_{k,n}$. (c) For a general regularly varying tail, explain in a few lines why $H_{k,n}$ is biased and how $k$ should be chosen.
+
+    *Expected*: (a) the exponential transform, the conditional law of the top $k$ given the $(k+1)$-th and the memoryless property (Proposition 4.2).
+
+    (b) $1/\alpha$ and $1/(k\alpha^2)$. (c) The second-order term (Theorem 4.4): variance $\gamma^2/k$ against a bias growing with $k$; a Hill plot or the rate $n^{2|\rho|/(1 + 2|\rho|)}$.
+4.  **Question (4 points).** In dimension 2, let the angular measure ($L^1$ norm) be twice the law of $(W, 1 - W)$ with $W$ uniform on $[0, 1]$.
+
+    Compute $\ell(1, 1)$ and $\chi$, and check the bounds of Proposition 5.8. Write the rank-based estimator $\hat\ell_k(1, 1)$ and give the order of its stochastic error.
+
+    *Expected*: $\ell(1, 1) = 2\,\mathbb{E}\max(W, 1 - W) = 2 \times 3/4 = 1.5$ and $\chi = 0.5$; $1 \le 1.5 \le 2$. Definition 5.13; error of order $1/\sqrt{k}$ by the Bernstein argument of [ch. 6](#ch6).
+
+Total: 5 + 5 + 6 + 4 = 20 points.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Understanding of the method or paper | 25 % | The question, the assumptions (regular variation, choice of $k$) and the main theorem are stated precisely, with the idea of the proof |
+| Correctness of the implementation | 25 % | The code runs from a fixed seed, is checked on a case with a known answer (exact Pareto, a known STDF), and matches the paper's setting |
+| Experimental design and analysis | 20 % | Results reported as functions of $k$ or of the threshold, with error bars over repetitions, and honest discussion of bias and failures |
+| Oral presentation | 20 % | Clear structure within the time limit, readable figures, a correct answer to “why does it work in the tail?” |
+| Questions and teamwork | 10 % | Precise answers to questions; for groups, a visible and balanced split of the work |
+
+## References {#refs}
+
+**Official references** (the list of the master-mva.com course page, in its order).
+
+-   J. Beirlant, Y. Goegebeur, J. Segers, J. L. Teugels, *Statistics of Extremes: Theory and Applications*, John Wiley & Sons, 2004.
+-   M. Chiapino, S. Clémençon, V. Feuillard, A. Sabourin, A multivariate extreme value theory approach to anomaly clustering and visualization, *Computational Statistics* 35(2):607–628, 2020 — ch. 7.
+-   L. de Haan, A. Ferreira, *Extreme Value Theory: An Introduction*, Springer, 2007 (year as given in the official list) — ch. 1–4.
+-   S. Engelke, A. S. Hitz, Graphical models for extremes, *Journal of the Royal Statistical Society: Series B (Statistical Methodology)* 82(4):871–932, 2020 — ch. 7, 9.
+-   S. Engelke, J. Ivanovs, Sparse structures for multivariate extremes, *Annual Review of Statistics and Its Application* 8:241–270, 2021 — ch. 7, 9.
+-   N. Goix, A. Sabourin, S. Clémençon, Learning the dependence structure of rare events: a non-asymptotic study, *Conference on Learning Theory (COLT)*, pp. 843–860, 2015 — ch. 6.
+-   N. Goix, A. Sabourin, S. Clémençon, Sparse representation of multivariate extremes with applications to anomaly ranking, *Artificial Intelligence and Statistics (AISTATS)*, pp. 75–83, 2016 — ch. 7.
+-   A. Hitz, R. Evans, One-component regular variation and graphical modeling of extremes, *Journal of Applied Probability* 53(3):733–746, 2016 — ch. 9.
+-   H. Hult, F. Lindskog, Regular variation for measures on metric spaces, *Publications de l'Institut Mathématique* 80(94):121–140, 2006 — ch. 3, 9.
+-   S. Lhaut, A. Sabourin, J. Segers, Uniform concentration bounds for frequencies of rare events, *Statistics & Probability Letters* 189:109610, 2022 — ch. 6.
+-   S. I. Resnick, *Extreme Values, Regular Variation, and Point Processes*, Springer, 2008 — ch. 1, 5.
+-   A. Thomas, S. Clémençon, A. Gramfort, A. Sabourin, Anomaly detection in extreme regions via empirical MV-sets on the sphere, *Proceedings of AISTATS*, PMLR 54:1011–1019, 2017 — ch. 7.
+
+**Textbooks**
+
+-   S. Coles, *An Introduction to Statistical Modeling of Extreme Values*, Springer, 2001 — ch. 1–2, applied.
+-   P. Embrechts, C. Klüppelberg, T. Mikosch, *Modelling Extremal Events for Insurance and Finance*, Springer, 1997 — ch. 1–4.
+-   S. I. Resnick, *Heavy-Tail Phenomena: Probabilistic and Statistical Modeling*, Springer, 2007 — ch. 3–5.
+-   N. H. Bingham, C. M. Goldie, J. L. Teugels, *Regular Variation*, Cambridge University Press, 1987 — ch. 3.
+-   M. R. Leadbetter, G. Lindgren, H. Rootzén, *Extremes and Related Properties of Random Sequences and Processes*, Springer, 1983 — ch. 0–1.
+-   S. Boucheron, G. Lugosi, P. Massart, *Concentration Inequalities: A Nonasymptotic Theory of Independence*, Oxford University Press, 2013 — ch. 0, 6.
+
+**Univariate extremes (ch. 1–4)**
+
+-   R. A. Fisher, L. H. C. Tippett, Limiting forms of the frequency distribution of the largest or smallest member of a sample, *Mathematical Proceedings of the Cambridge Philosophical Society* 24(2):180–190, 1928.
+-   B. Gnedenko, Sur la distribution limite du terme maximum d'une série aléatoire, *Annals of Mathematics* 44(3):423–453, 1943.
+-   R. L. Smith, Maximum likelihood estimation in a class of nonregular cases, *Biometrika* 72(1):67–90, 1985.
+-   A. A. Balkema, L. de Haan, Residual life time at great age, *Annals of Probability* 2(5):792–804, 1974.
+-   J. Pickands III, Statistical inference using extreme order statistics, *Annals of Statistics* 3(1):119–131, 1975.
+-   B. M. Hill, A simple general approach to inference about the tail of a distribution, *Annals of Statistics* 3(5):1163–1174, 1975.
+-   D. M. Mason, Laws of large numbers for sums of extreme values, *Annals of Probability* 10(3):754–764, 1982.
+-   I. Weissman, Estimation of parameters and large quantiles based on the k largest observations, *Journal of the American Statistical Association* 73(364):812–815, 1978.
+-   A. L. M. Dekkers, J. H. J. Einmahl, L. de Haan, A moment estimator for the index of an extreme-value distribution, *Annals of Statistics* 17(4):1833–1855, 1989.
+
+**Multivariate extremes (ch. 5)**
+
+-   L. de Haan, S. I. Resnick, Limit theory for multivariate sample extremes, *Zeitschrift für Wahrscheinlichkeitstheorie und verwandte Gebiete* 40:317–337, 1977.
+-   A. A. Balkema, S. I. Resnick, Max-infinite divisibility, *Journal of Applied Probability* 14(2):309–319, 1977.
+-   E. J. Gumbel, Distributions des valeurs extrêmes en plusieurs dimensions, *Publications de l'Institut de Statistique de l'Université de Paris* 9:171–173, 1960.
+-   J. Hüsler, R.-D. Reiss, Maxima of normal random vectors: between independence and complete dependence, *Statistics & Probability Letters* 7(4):283–286, 1989.
+-   H. Rootzén, N. Tajvidi, Multivariate generalized Pareto distributions, *Bernoulli* 12(5):917–930, 2006.
+-   H. Drees, X. Huang, Best attainable rates of convergence for estimators of the stable tail dependence function, *Journal of Multivariate Analysis* 64(1):25–47, 1998.
+-   A. W. Ledford, J. A. Tawn, Statistics for near independence in multivariate extreme values, *Biometrika* 83(1):169–187, 1996.
+-   S. Resnick, Hidden regular variation, second order regular variation and asymptotic independence, *Extremes* 5(4):303–336, 2002.
+
+**Learning theory and learning with extremes (ch. 6–9)**
+
+-   V. N. Vapnik, A. Ya. Chervonenkis, On the uniform convergence of relative frequencies of events to their probabilities, *Theory of Probability and Its Applications* 16(2):264–280, 1971.
+-   O. Bousquet, A Bennett concentration inequality and its application to suprema of empirical processes, *Comptes Rendus Mathématique* 334(6):495–500, 2002.
+-   S. Clémençon, H. Jalalzai, S. Lhaut, A. Sabourin, J. Segers, Concentration bounds for the empirical angular measure with statistical learning applications, *Bernoulli* 29(4), 2023.
+-   H. Jalalzai, S. Clémençon, A. Sabourin, On binary classification in extreme regions, *Advances in Neural Information Processing Systems 31 (NeurIPS)*, 2018.
+-   K.-C. Li, Sliced inverse regression for dimension reduction, *Journal of the American Statistical Association* 86(414):316–327, 1991.
+-   A. Aghbalou, F. Portier, A. Sabourin, C. Zhou, Tail inverse regression: dimension reduction for prediction of extremes, *Bernoulli* 30(1), 2024.
+-   N. Meyer, O. Wintenberger, Sparse regular variation, *Advances in Applied Probability* 53(4), 2021.
+-   D. Cooley, E. Thibaud, Decompositions of dependence for high-dimensional extremes, *Biometrika* 106(3), 2019.
+-   H. Drees, A. Sabourin, Principal component analysis for multivariate extremes, *Electronic Journal of Statistics* 15(1), 2021.
+-   A. Janßen, P. Wan, k-means clustering of extremes, *Electronic Journal of Statistics* 14(1), 2020.
+-   S. Engelke, S. Volgushev, Structure learning for extremal tree models, *Journal of the Royal Statistical Society: Series B (Statistical Methodology)* 84(5), 2022.

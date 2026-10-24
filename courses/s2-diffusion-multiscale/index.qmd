@@ -1,0 +1,2182 @@
+---
+title: "Diffusion and Multiscale Models in Artificial Intelligence"
+subtitle: "M2 MVA · Semester 2 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: densities, Gaussian smoothing and integration by parts](#ch0)
+-   [1. Transport of probabilities and generation by transport](#ch1)
+-   [2. Fokker–Planck and Langevin equations](#ch2)
+-   [3. Score diffusion: generation by progressive denoising](#ch3)
+-   [4. Learning the score with deep networks; generalisation](#ch4)
+-   [5. Interpreting the networks: denoising, sparsity and multiscale bases](#ch5)
+-   [6. Conditional generation](#ch6)
+-   [7. Stochastic interpolants and the prediction of chaotic systems](#ch7)
+-   [8. Research directions and open problems](#ch8)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Diffusion and Multiscale Models in Artificial Intelligence
+  Official title       Modèles de diffusion et multiéchelles en intelligence artificielle
+  Instructors          S. MALLAT (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 27 h (lectures 27 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Deep Learning, Image processing
+  Organisation         From 13 January to 10 March, 9:30–12:30, in the Amphithéâtre Navarre of the Collège de France: a lecture from 9:30 to 11:00, then a presentation by a researcher on a research field related to the course, from 11:15 to 12:30 (master-mva.com) · “8 sessions”, each a lecture followed by a researcher's presentation (Université Paris-Saclay, whose course detail is titled “Génération de données en IA par transport et débruitage”, i.e. data generation in AI by transport and denoising)
+  Language             French: “the course is in French” (master-mva.com); teaching language French, no distance learning (Université Paris-Saclay)
+  Assessment           A project on one of the challenges proposed on challenge.data.ens.fr; the exam is an oral at the end of March, with the submission of a report (master-mva.com, “Mode de validation”) · Université Paris-Saclay: “Evaluation Continue non Intégrale” (partial continuous assessment) and “the course is validated by a project on one of the proposed challenges” · no weights displayed
+  Prerequisites        Not displayed (neither on master-mva.com nor on the Université Paris-Saclay course detail)
+  -------------------- -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics, physics or computer science, at ease with Gaussian vectors and multivariable calculus, who wants to understand — and prove — why a network trained to remove noise can generate images, sounds and weather forecasts.
+
+**Empirical first**: plain Langevin sampling of the mixture $\frac12\mathcal{N}(-4, 1) + \frac12\mathcal{N}(4, 1)$, started in the right mode, crosses to the other mode about twice in 10 000 time units, so after 500 units only 10 % of the chains sit on the left instead of 50 % (ch. 2). Progressive denoising from white noise, driven by the exact score, reproduces the weight 0.321 of the left mode of another mixture up to 0.003 (ch. 3). Why does denoising succeed where direct sampling stalls, and why does a network trained on finitely many examples not simply return them (ch. 4)?
+
+Modern generative models sample a probability distribution known only through examples: images, sounds, physical fields. This course, taught by Stéphane Mallat (ENS Ulm / Collège de France, as listed on master-mva.com), builds them from one idea. A transport equation turns white noise into data by progressive denoising, and the score of the noisy distributions that drives it is estimated by a deep network.
+
+The multiscale thread — orthonormal bases, sparsity, wavelets and the factorisation of a probability across scales — explains what these networks compute and why they can learn in high dimension. The stochastic calculus is shared with [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html), the denoisers with [Image Denoising](../s1-image-denoising/index.html), and the image applications with [Generative Models for Images](../s2-generative-models-images/index.html) and [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html).
+
+### What you will be able to do
+
+-   Describe generative models as transport maps and flows, and compute the density of a pushed-forward law.
+-   Construct the monotone transport in one dimension and state Brenier's theorem.
+-   Derive the Fokker–Planck equation of a diffusion and the convergence of Langevin dynamics under a log-Sobolev inequality.
+-   Explain metastability and why Langevin sampling fails on multimodal distributions.
+-   Write the time-reversed diffusion, its probability-flow ODE, and prove the Tweedie–Miyasawa formula linking the score to the best denoiser.
+-   Bound the error of a diffusion sampler by the error of its score.
+-   Train a score network by denoising score matching, and explain why its exact empirical minimiser only memorises the training set.
+-   Interpret a denoiser through its Jacobian, as an adaptive shrinkage in an orthonormal basis, and relate it to wavelet thresholding.
+-   Explain why multiscale factorisations make sampling well conditioned.
+-   Sample conditional distributions: Bayes' rule on scores, classifier-free guidance, linear inverse problems.
+-   Build stochastic interpolants, and use them to issue and score probabilistic forecasts of a chaotic system.
+
+### Official objectives and syllabus (2026–2027)
+
+The master-mva.com page of the course announces its syllabus as “to come” and points to the website of Stéphane Mallat's chair *Sciences des données* at the Collège de France. The Université Paris-Saclay course detail, titled “Génération de données en IA par transport et débruitage”, states the objectives.
+
+The course studies the state of the art in the generation of images, sounds and scientific data by deep neural networks. Generation is obtained by sampling probability distributions through a transport equation. The course concentrates on the score diffusion equation, which transforms white noise by progressive denoising to generate data. This requires estimating the score of the probability density with a deep neural network. The course introduces the mathematical and algorithmic foundations and some applications.
+
+| Official topic (Université Paris-Saclay and master-mva.com, 2026–2027) | Course section |
+|---|---|
+| Objective: generation of images, sounds and scientific data by sampling probability distributions through a transport equation | ch. 1 (Definition 1.1, Theorem 1.7), ch. 3, ch. 7 |
+| Objective: the score diffusion equation turns white noise into data by progressive denoising; the score is estimated by a deep network | ch. 3 (Theorems 3.1–3.2), ch. 4 |
+| 1\. Transport of probabilities in deep learning; generation and sampling by transport | ch. 1: push-forward and change of variables (1.1), monotone transport (1.2), optimal transport and Brenier (1.3), normalising flows (1.4), continuity equation (1.5) |
+| 2\. Fokker–Planck equation for the evolution of the probability density of a dynamical system; Langevin equation for sampling probabilities | ch. 2: SDEs and Itô (2.1), Fokker–Planck (Theorem 2.3), Langevin and entropy decay (2.3), unadjusted Langevin (2.4), metastability (2.5) |
+| 3\. Data generation by score diffusion; applications to image and sound; link with denoising and the Tweedie–Miyasawa formula (spelled “Tweety-Myasawa” on the official page) | ch. 3: time reversal (Theorem 3.1), Tweedie–Miyasawa (Theorem 3.2), error bound (Theorem 3.4), images and sound (3.5) |
+| 4\. Learning the score with deep neural networks; generalisation of learning for data generation | ch. 4: score matching (Theorems 4.1–4.2), networks (4.3), memorisation (Proposition 4.3), generalisation (4.5) |
+| 5\. Interpretation of the networks; denoising and sparsity in orthogonal bases | ch. 5: Jacobians of denoisers (Propositions 5.1–5.2), thresholding (5.2), wavelets (5.3) |
+| Course title: multiscale models | ch. 5.3–5.4 (wavelet bases and Proposition 5.6, conditioning and Proposition 5.7, multiscale score diffusion); ch. 8.3 |
+| 6\. Data generation conditioned on complementary information | ch. 6: conditional scores (Proposition 6.1), guidance (6.2), inverse problems (Proposition 6.4), other conditioning (6.4) |
+| 7\. Stochastic interpolants for prediction; applications to the prediction of chaotic physical systems such as meteorology | ch. 7: interpolants (Theorem 7.2), chaos and scoring rules (7.2), forecasting (7.3), weather (7.4) |
+| Organisation: 8 sessions, each a lecture followed by a researcher's presentation on a related research field | [Session plan](#sessions); ch. 8 as background reading for the research presentations |
+| Validation: a project on a challenge of challenge.data.ens.fr; oral exam at the end of March with a report | [Projects and assessment](#projects) |
+
+Every official topic is taught on this page. Its extensions beyond the syllabus are the review chapter 0, the sampling error bound of Theorem 3.4, the conditioning analysis of Proposition 5.7, the Gaussian analysis of posterior sampling (Proposition 6.4), proper scoring rules (Proposition 7.5) and the research chapter 8.
+
+### Where this course fits in the programme
+
+Official prerequisites: not displayed. It is a **Modelling** course of semester 2, with 5 ECTS and 27 h of lectures, taught in French.
+
+-   **Preparation** — the refreshers [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, conditional expectation), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (spectral theorem, divergence theorem) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the code of every chapter).
+-   **Semester 1 courses that prepare it** — [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (Itô calculus, Langevin sampling), [Image Denoising](../s1-image-denoising/index.html) (MMSE denoisers, thresholding), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html), [Deep Learning](../s1-deep-learning/index.html), [Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html), [Computational Statistics](../s1-computational-statistics/index.html) (MCMC) and [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html).
+-   **Related courses of semester 2** — [Generative Models for Images](../s2-generative-models-images/index.html), [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Interactions: Complexity, Stochasticity, Extrema and Rare Events](../s2-interactions/index.html), [Learning Physical Phenomena](../s2-physics-learning-uq/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), and for sound [Audio Signal Analysis, Indexing and Transformations](../s2-audio-analysis-indexing/index.html) and [Audio Signal Processing: Time–Frequency Analysis](../s2-audio-time-frequency/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html): generative modelling of images, sound or physical fields is an active internship topic.
+
+### Course outline
+
+-   **Review: densities, Gaussian smoothing and integration by parts** — divergences, Gaussian convolution, the conditional expectation as best estimator, Stein's identity, orthonormal bases.
+-   **Transport of probabilities and generation by transport** — push-forwards, monotone and optimal transport, normalising flows, the continuity equation.
+-   **Fokker–Planck and Langevin equations** — SDEs, Itô's formula, the evolution of densities, Langevin sampling, its convergence and its failure on multimodal laws.
+-   **Score diffusion** — noising, time reversal, the probability-flow ODE, the Tweedie–Miyasawa formula, an error bound, images and sound.
+-   **Learning the score** — score matching and denoising score matching, networks, memorisation and generalisation.
+-   **Interpreting the networks** — Jacobians of denoisers, thresholding in orthonormal bases, wavelets, multiscale score diffusion.
+-   **Conditional generation** — Bayes' rule on scores, guidance, inverse problems.
+-   **Stochastic interpolants and chaotic systems** — interpolants, proper scoring rules, ensemble forecasts of Lorenz-63, weather.
+-   **Research directions and open problems** — theory of convergence, memorisation, multiscale physics, fast samplers (self-study).
+
+### Session plan {#sessions}
+
+**27 h in class = 9 sessions of 3 h.** The volume is the Université Paris-Saclay programme table (27 h of lectures). Its course detail announces 8 sessions, each a lecture followed by a researcher's presentation, and master-mva.com describes mornings from 9:30 to 12:30 between 13 January and 10 March. The split of the 27 h into nine sessions of 3 h, each read as a lecture followed by exercises and code, is a proposal; the subjects of the research presentations are not displayed.
+
+Level 1 = foundations (reviews, definitions, first examples), 2 = core results and algorithms, 3 = advanced material close to current research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review; ch. 1.1–1.2 Push-forward, change of variables, monotone transport | Ex. 1–2 |
+| 2 | 3 h | 1 | ch. 1.3–1.5 Optimal transport and Brenier, normalising flows, continuity equation | Ex. 3 |
+| 3 | 3 h | 2 | ch. 2.1–2.2 Brownian motion, Itô's formula, Fokker–Planck, Ornstein–Uhlenbeck | Ex. 4 |
+| 4 | 3 h | 2 | ch. 2.3–2.5 Langevin dynamics, entropy decay, unadjusted Langevin, metastability | Ex. 5, 9 |
+| 5 | 3 h | 2 | ch. 3 Score diffusion: time reversal, Tweedie–Miyasawa, error bound, images and sound | Ex. 6, 10 |
+| 6 | 3 h | 2 | ch. 4 Score matching, denoising score matching, networks, memorisation and generalisation | Ex. 7, 11, 16 |
+| 7 | 3 h | 3 | ch. 5 Jacobians of denoisers, thresholding, wavelets, multiscale score diffusion | Ex. 12, 13 |
+| 8 | 3 h | 3 | ch. 6 Conditional scores, classifier-free guidance, inverse problems | Ex. 8, 14 |
+| 9 | 3 h | 3 | ch. 7 Stochastic interpolants, proper scoring rules, forecasting chaotic systems | Ex. 15, 17 |
+
+**Self-study, outside the 27 h** (about 4 h in total): ch. 8 Research directions and open problems — convergence theory, memorisation and generalisation, multiscale physics, fast samplers, forecasting (≈ 4 h, with Ex. 18).
+
+The official validation is a data-challenge project with an oral exam at the end of March; on this plan the project can start after session 5, once the sampler and the denoising loss are known.
+
+### How to study this module
+
+-   Read the chapters in order: each uses only earlier ones, and chapters 2 and 3 are used everywhere afterwards.
+-   After each session, do the exercises of its row, then run the code of the chapter and change one parameter (step size, noise level, guidance weight) to see its effect.
+-   Keep two examples in mind throughout: a one-dimensional Gaussian mixture, where every score is explicit, and a Gaussian vector, where every formula is linear algebra.
+-   The Python blocks use NumPy, SciPy, scikit-learn (for `make_moons`) and PyTorch on CPU; every block runs in less than half a minute on a laptop. With PyTorch, `torch.set_num_threads(1)` is often the fastest setting for such small networks.
+-   The lectures are in French; the vocabulary *score*, *débruitage* (denoising), *échantillonnage* (sampling) and *ondelettes* (wavelets) covers most of the translation needs.
+
+## 0. Review: densities, Gaussian smoothing and integration by parts {#ch0}
+
+Everything in this course happens to probability densities on $\mathbb{R}^d$: they are pushed by maps, smoothed by Gaussian noise and differentiated. This chapter collects the M1 tools used later, with short proofs, so that the later chapters can use them without stopping.
+
+### 0.1 Comparing probability distributions
+
+::: def
+[Definition 0.1 — Divergences and distances]{.tag} For two probability densities $p$ and $q$ on $\mathbb{R}^d$, the *Kullback–Leibler divergence* and the *total variation distance* are
+
+$$
+\mathrm{KL}(p \,\|\, q) = \int p(x) \log \frac{p(x)}{q(x)}\, dx, \qquad \mathrm{TV}(p, q) = \frac12 \int |p(x) - q(x)|\, dx .
+$$
+
+For laws $\mu, \nu$ with finite second moments, the *Wasserstein-2 distance* is
+
+$$
+W_2(\mu, \nu)^2 = \inf_{(X, Y)} \ \mathbb{E}\|X - Y\|^2 ,
+$$
+
+the infimum running over all couplings: pairs of random vectors with $X \sim \mu$ and $Y \sim \nu$.
+:::
+
+:::: prop
+[Proposition 0.2 — Pinsker and data processing]{.tag} For all densities $p, q$, the divergence is non-negative and controls the total variation:
+
+$$
+\mathrm{TV}(p, q) \le \sqrt{\tfrac12\, \mathrm{KL}(p \,\|\, q)} .
+$$
+
+For any measurable map $F$, applying it to both laws can only decrease the divergence:
+
+$$
+\mathrm{KL}(F_\# p \,\|\, F_\# q) \le \mathrm{KL}(p \,\|\, q) .
+$$
+
+::: proof
+Non-negativity is Jensen's inequality for the convex function $-\log$. Pinsker's inequality and the data-processing inequality are proved in Cover and Thomas (2006, ch. 2 and 11). [∎]{.qed}
+:::
+::::
+
+The data-processing inequality is the step that turns a bound on whole trajectories into a bound on the generated images (Theorem 3.4).
+
+### 0.2 Gaussian smoothing
+
+Write $\varphi_\sigma$ for the density of $\mathcal{N}(0, \sigma^2 I)$:
+
+$$
+\varphi_\sigma(u) = (2\pi\sigma^2)^{-d/2}\, e^{-\|u\|^2 / (2\sigma^2)} .
+$$
+
+:::: prop
+[Proposition 0.3 — Adding Gaussian noise]{.tag} Let $X$ have law $p$ and $Z \sim \mathcal{N}(0, I)$ be independent of $X$. For $a, \sigma > 0$, the vector $Y = aX + \sigma Z$ has the density
+
+$$
+p_Y(y) = \int p(x)\, \varphi_\sigma(y - a x)\, dx ,
+$$
+
+which is infinitely differentiable and positive everywhere, even when $p$ is neither (an empirical measure, for instance). If $p = \mathcal{N}(m, C)$, then
+
+$$
+Y \sim \mathcal{N}(a m,\ a^2 C + \sigma^2 I).
+$$
+
+::: proof
+Condition on $X = x$: the law of $Y$ is then $\mathcal{N}(ax, \sigma^2 I)$, and integrating over $x$ gives the formula. Differentiation under the integral is allowed because every derivative of $\varphi_\sigma$ is bounded.
+
+In the Gaussian case, $Y$ is an affine image of the Gaussian vector $(X, Z)$, with the stated mean and covariance. [∎]{.qed}
+:::
+::::
+
+With $a = 1$ and $\sigma^2 = 2t$, the density of $X + \sqrt{2t}\, Z$ solves the heat equation $\partial_t p = \Delta p$. It is the simplest instance of the Fokker–Planck equation of ch. 2.
+
+### 0.3 The best estimator in mean square
+
+:::: thm
+[Theorem 0.4 — Conditional expectation and the Wiener estimator]{.tag} Among all measurable functions $f$ with $\mathbb{E}\|f(Y)\|^2 < \infty$, the conditional expectation minimises the mean square error:
+
+::: key
+[Key result — the minimum mean square error (MMSE) estimator]{.tag}
+
+$$
+\arg\min_f \ \mathbb{E}\|X - f(Y)\|^2 = \mathbb{E}[X \mid Y]
+$$
+:::
+
+If $X \sim \mathcal{N}(m, C)$ and $Y = X + \sigma Z$, the minimiser is linear and the posterior covariance does not depend on $Y$:
+
+$$
+\mathbb{E}[X \mid Y] = m + C (C + \sigma^2 I)^{-1} (Y - m), \qquad \mathrm{Cov}[X \mid Y] = \sigma^2 C (C + \sigma^2 I)^{-1} .
+$$
+
+::: proof
+Write $g(Y) = \mathbb{E}[X \mid Y]$. The error $X - g(Y)$ is orthogonal to every square-integrable function of $Y$, hence
+
+$$
+\mathbb{E}\|X - f(Y)\|^2 = \mathbb{E}\|X - g(Y)\|^2 + \mathbb{E}\|g(Y) - f(Y)\|^2 .
+$$
+
+In the Gaussian case, $X - m - K(Y - m)$ with $K = C(C + \sigma^2 I)^{-1}$ is uncorrelated with $Y$. Being jointly Gaussian with $Y$, it is independent of $Y$, which gives both formulas.
+
+The identity $K = I - \sigma^2 (C + \sigma^2 I)^{-1}$ simplifies the covariance $C - KC$ to the stated one. [∎]{.qed}
+:::
+::::
+
+### 0.4 Integration by parts and Stein's identity
+
+:::: prop
+[Proposition 0.5 — Integration by parts in $\mathbb{R}^d$; Stein's identity]{.tag} Let $f$ be a differentiable function and $v$ a differentiable vector field on $\mathbb{R}^d$ such that $f v$ vanishes at infinity fast enough to be integrable with its derivatives. Then
+
+$$
+\int f(x)\, \nabla \cdot v(x)\, dx = -\int v(x) \cdot \nabla f(x)\, dx .
+$$
+
+In particular, for $Z \sim \mathcal{N}(0, I)$ and a smooth $v$ of moderate growth,
+
+$$
+\mathbb{E}[Z \cdot v(Z)] = \mathbb{E}[\nabla \cdot v(Z)] .
+$$
+
+::: proof
+The divergence theorem on a ball of radius $R$ gives the identity up to a boundary term, which tends to zero as $R \to \infty$. For Stein's identity, take $f = \varphi_1$ and use $\nabla \varphi_1(z) = -z\, \varphi_1(z)$. [∎]{.qed}
+:::
+::::
+
+This one identity produces the Fokker–Planck equation (ch. 2) and the score-matching losses (ch. 4).
+
+### 0.5 Orthonormal bases
+
+If $(g_k)_{k \le d}$ is an orthonormal basis of $\mathbb{R}^d$, then every vector is the sum of its coefficients times the basis vectors, and norms are preserved (Parseval):
+
+$$
+x = \sum_{k=1}^d \langle x, g_k \rangle\, g_k, \qquad \|x\|^2 = \sum_{k=1}^d \langle x, g_k \rangle^2 .
+$$
+
+::: prop
+[Proposition 0.6 — White noise in an orthonormal basis]{.tag} If $Z \sim \mathcal{N}(0, \sigma^2 I)$, its coefficients $\langle Z, g_k \rangle$ in any orthonormal basis are independent $\mathcal{N}(0, \sigma^2)$ variables. Indeed, the coefficient vector is $G^\top Z$ with $G$ orthogonal, whose covariance is $\sigma^2 G^\top G = \sigma^2 I$.
+:::
+
+White noise therefore looks the same in every basis, while an image has a few large coefficients in a well-chosen basis. This asymmetry is the principle of denoising by thresholding (ch. 5).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   KL divergence controls total variation (Pinsker) and can only decrease under a common map (data processing).
+-   Adding Gaussian noise makes any law smooth and positive; Gaussian laws stay Gaussian.
+-   The best estimator in mean square is the conditional expectation; for Gaussian signals it is the linear Wiener estimator.
+-   Integration by parts moves derivatives from a density to a test function; Stein's identity is its Gaussian form.
+-   White noise has independent coefficients of equal variance in every orthonormal basis.
+::::
+
+## 1. Transport of probabilities and generation by transport {#ch1}
+
+A generative model must produce new samples of an unknown law $p$, known only through examples $x_1, \dots, x_n$. The transport approach draws white noise $Z$ and applies a map, $X = T(Z)$. This chapter defines such maps, constructs them in dimension one and in general, and then replaces a single map by a flow, the form used in all later chapters.
+
+### 1.1 Push-forward and change of variables
+
+::: def
+[Definition 1.1 — Push-forward]{.tag} Let $\gamma$ be a probability law on $\mathbb{R}^d$ and $T$ a measurable map from $\mathbb{R}^d$ to itself.
+
+The *push-forward* of $\gamma$ by $T$ is the law of the image $T(Z)$ of a random vector $Z$ of law $\gamma$:
+
+$$
+T_\# \gamma(A) = \gamma\big(T^{-1}(A)\big), \qquad \text{equivalently} \qquad \int f \, d(T_\# \gamma) = \mathbb{E}\, f(T(Z)) .
+$$
+
+The map $T$ *transports* $\gamma$ onto $p$ when $T_\# \gamma = p$. Throughout, $\gamma$ denotes the standard Gaussian law $\mathcal{N}(0, I)$, the white noise.
+:::
+
+:::: prop
+[Proposition 1.2 — Change of variables]{.tag} If $T$ is a $C^1$ diffeomorphism and $\gamma$ has density $\gamma(z)$, then $T_\# \gamma$ has the density
+
+$$
+p(x) = \gamma\big(T^{-1}(x)\big)\, \big|\det \nabla T^{-1}(x)\big| ,
+$$
+
+and along the map,
+
+$$
+\log p(T(z)) = \log \gamma(z) - \log \big|\det \nabla T(z)\big| .
+$$
+
+::: proof
+For a test function $f$, substitute $x = T(z)$ in $\mathbb{E} f(T(Z)) = \int f(T(z))\, \gamma(z)\, dz$. The Jacobian of the inverse substitution gives the first formula. The second follows from $\nabla T^{-1}(T(z)) = (\nabla T(z))^{-1}$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.3 — Affine maps, and three families of generators]{.tag} The map $T(z) = m + Az$ with $A$ invertible transports $\gamma$ onto $\mathcal{N}(m, AA^\top)$, and $\log|\det \nabla T| = \log|\det A|$ is constant.
+
+The decoder of a variational autoencoder, the generator of a GAN and a normalising flow are all parametrised maps $T_\theta$ trained so that $T_{\theta\#}\gamma$ is close to the data law. Only the flow, which is invertible, gives access to the density through Proposition 1.2.
+:::
+
+### 1.2 Monotone transport in dimension one
+
+:::: thm
+[Theorem 1.4 — The monotone rearrangement]{.tag} Let $\mu$ be a law on $\mathbb{R}$ with continuous distribution function $F_\mu$, and $\nu$ a law with quantile function $F_\nu^{-1}(u) = \inf\{x : F_\nu(x) \ge u\}$. The non-decreasing map
+
+$$
+T = F_\nu^{-1} \circ F_\mu
+$$
+
+transports $\mu$ onto $\nu$. If both laws have finite second moments, it is optimal among all couplings:
+
+$$
+\mathbb{E}\,|T(X) - X|^2 = W_2(\mu, \nu)^2, \qquad X \sim \mu .
+$$
+
+::: proof
+*Transport.* Because $F_\mu$ is continuous, $U = F_\mu(X)$ is uniform on $[0, 1]$. For a uniform $U$,
+
+$$
+\mathbb{P}\big(F_\nu^{-1}(U) \le x\big) = \mathbb{P}\big(U \le F_\nu(x)\big) = F_\nu(x),
+$$
+
+so $T(X) \sim \nu$.
+
+*Optimality.* For any coupling $(X, Y)$ with the given marginals,
+
+$$
+\mathbb{E}|X - Y|^2 = \mathbb{E}X^2 + \mathbb{E}Y^2 - 2\,\mathbb{E}[XY],
+$$
+
+so one must maximise $\mathbb{E}[XY]$. Hoeffding's formula writes, with $H$ the joint distribution function,
+
+$$
+\mathrm{Cov}(X, Y) = \iint \big(H(x, y) - F_\mu(x) F_\nu(y)\big)\, dx\, dy .
+$$
+
+Since $H(x, y) \le \min(F_\mu(x), F_\nu(y))$, the covariance is largest when equality holds everywhere. Equality holds for the pair $(X, T(X))$: both coordinates are non-decreasing functions of the same uniform variable $U$, so the events $\{X \le x\}$ and $\{T(X) \le y\}$ are nested. [∎]{.qed}
+:::
+::::
+
+The code transports $\mathcal{N}(0, 1)$ onto the two-component Gaussian mixture below, whose distribution function is inverted on a grid:
+
+$$
+\nu = 0.3\, \mathcal{N}(-2, 0.5^2) + 0.7\, \mathcal{N}(1.5, 0.8^2) .
+$$
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(0)
+w, m, s = np.array([0.3, 0.7]), np.array([-2.0, 1.5]), np.array([0.5, 0.8])
+F = lambda t: (w * stats.norm.cdf((np.asarray(t)[..., None] - m) / s)).sum(axis=-1)
+
+grid = np.linspace(-8, 8, 40001)
+T = lambda u: np.interp(stats.norm.cdf(u), F(grid), grid)   # T = F^{-1} o Phi
+
+z = rng.standard_normal(100_000)          # source sample, N(0, 1)
+x = T(z)                                  # pushed-forward sample
+print(f"KS distance to the target: {stats.kstest(x, F).statistic:.4f}")
+print(f"mean {x.mean():.3f} (exact {(w * m).sum():.3f})")
+print(f"cost E|T(Z) - Z|^2, monotone map : {np.mean((x - z) ** 2):.3f}")
+print(f"cost of a random coupling        : {np.mean((rng.permutation(x) - z) ** 2):.3f}")
+```
+
+The Kolmogorov–Smirnov distance is 0.0019 and the mean 0.449 against 0.450. The monotone map moves the mass at cost 0.951, the independent coupling at cost 4.324:
+
+$$
+W_2\big(\mathcal{N}(0,1),\ \nu\big)^2 \approx 0.95 .
+$$
+
+### 1.3 Optimal transport in higher dimension
+
+:::: thm
+[Theorem 1.5 — Brenier (1991)]{.tag} Let $\mu$ and $\nu$ be laws on $\mathbb{R}^d$ with finite second moments, the first one having a density. There is a convex function $\phi$ whose gradient transports $\mu$ onto $\nu$, and this map is the unique optimal coupling:
+
+$$
+W_2(\mu, \nu)^2 = \mathbb{E}\, \|\nabla \phi(X) - X\|^2, \qquad X \sim \mu .
+$$
+
+::: proof
+See Villani (2003, Theorem 2.12) or Santambrogio (2015, ch. 1). The key step is Kantorovich duality: an optimal coupling is supported by the subdifferential of a convex function, which is single-valued almost everywhere for $\mu$ because $\mu$ has a density. [∎]{.qed}
+:::
+::::
+
+In dimension one, gradients of convex functions are exactly the non-decreasing maps, and Theorem 1.4 is recovered. Between Gaussians the optimal map is affine, but in general it is the solution of a Monge–Ampère equation.
+
+Estimating it from samples suffers from the curse of dimensionality. The empirical measure of $n$ samples is at Wasserstein distance of order $n^{-1/d}$ from the true law in dimension $d \ge 3$ (Fournier and Guillin, 2015). Diffusion models avoid computing an optimal map: they build *some* transport, not the optimal one, from denoisers (ch. 3).
+
+### 1.4 Normalising flows
+
+A normalising flow composes simple invertible maps, $T = T_K \circ \dots \circ T_1$, whose Jacobian determinants are cheap. By Proposition 1.2, the log-density is a sum:
+
+$$
+\log p_\theta(x) = \log \gamma(z_0) - \sum_{k=1}^K \log \big|\det \nabla T_k(z_{k-1})\big|, \qquad z_k = T_k(z_{k-1}),\ z_K = x .
+$$
+
+In a *coupling layer* (Dinh, Sohl-Dickstein and Bengio, 2017), the vector is split as $z = (z_a, z_b)$, and $z_b$ is transformed by a scale and a shift computed from $z_a$:
+
+$$
+T(z_a, z_b) = \big(z_a,\ z_b \odot e^{\alpha(z_a)} + \beta(z_a)\big) .
+$$
+
+The Jacobian is triangular, and its log-determinant is the sum of the coordinates of $\alpha(z_a)$; $\alpha$ and $\beta$ are arbitrary networks.
+
+::: prop
+[Proposition 1.6 — Maximum likelihood is a KL projection]{.tag} For a model density $p_\theta$, the expected negative log-likelihood under the data law $p$ splits as
+
+$$
+\mathbb{E}_{p}\big[-\log p_\theta(X)\big] = \mathrm{KL}(p \,\|\, p_\theta) + H(p),
+$$
+
+where the entropy $H(p) = -\int p \log p$ does not depend on $\theta$. Maximising the likelihood therefore minimises $\mathrm{KL}(p \,\|\, p_\theta)$. The proof is one line: add and subtract $\int p \log p$.
+:::
+
+Flows are exact but constrained: every layer must be invertible with a tractable determinant, which limits their expressiveness on images. The next section removes this constraint by letting time be continuous.
+
+### 1.5 Flows of vector fields and the continuity equation
+
+Let $v(t, x)$ be a velocity field, regular enough for the ODE $\dot x = v(t, x)$ to have a unique solution. Its flow map $\Phi_t$ sends an initial point to its position at time $t$.
+
+:::: thm
+[Theorem 1.7 — The continuity equation]{.tag} If $X_0 \sim \rho_0$ and $X_t = \Phi_t(X_0)$, the densities $\rho_t = \Phi_{t\#} \rho_0$ solve
+
+::: key
+[Key result — transport of a density by a velocity field]{.tag}
+
+$$
+\partial_t \rho_t + \nabla \cdot (\rho_t\, v) = 0
+$$
+:::
+
+in the weak sense, and along each trajectory the log-density changes by minus the divergence:
+
+$$
+\frac{d}{dt} \log \rho_t(X_t) = -\nabla \cdot v(t, X_t) .
+$$
+
+::: proof
+For a smooth test function $f$ with compact support,
+
+$$
+\frac{d}{dt} \int f \rho_t = \frac{d}{dt} \mathbb{E} f(X_t) = \mathbb{E}\big[\nabla f(X_t) \cdot v(t, X_t)\big] = \int \rho_t\, v \cdot \nabla f = -\int f\, \nabla \cdot (\rho_t v),
+$$
+
+by Proposition 0.5. This is the weak form of the equation.
+
+For the second claim, expand the total derivative along the trajectory, then divide the continuity equation by $\rho_t$:
+
+$$
+\frac{d}{dt}\log\rho_t(X_t) = \partial_t \log \rho_t + v \cdot \nabla \log \rho_t, \qquad \partial_t \log\rho_t = -\nabla\cdot v - v \cdot \nabla \log \rho_t .
+$$
+
+The two terms in $v \cdot \nabla\log\rho_t$ cancel. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.8 — A linear flow]{.tag} With $v(t, x) = c\,x$ in dimension one, $X_t = e^{ct} X_0$. If $X_0 \sim \mathcal{N}(0, 1)$, then $\rho_t$ is the density of $\mathcal{N}(0, e^{2ct})$.
+
+One checks directly that $\partial_t \rho_t = -c\, \partial_x (x \rho_t)$. Along a trajectory, $\log\rho_t(X_t)$ decreases at rate $c$, the divergence of $v$.
+:::
+
+The converse direction drives the rest of the course. Choose first a path of densities $\rho_t$ joining white noise to the data, then find *a* velocity $v$ that solves the continuity equation for this path; integrating the ODE backwards then generates data. The velocity is never unique: adding $w / \rho_t$ with $\nabla \cdot w = 0$ changes nothing. Diffusion models (ch. 3) choose the path made by adding noise, and stochastic interpolants (ch. 7) choose more general paths.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   A generative model is a map $T$ with $T_\# \gamma \approx p$; the density of a push-forward follows from the change of variables formula.
+-   In dimension one, the non-decreasing map $F_\nu^{-1} \circ F_\mu$ transports $\mu$ onto $\nu$ at the optimal cost $W_2^2$.
+-   In dimension $d$, the optimal map is the gradient of a convex function (Brenier), but it is hard to estimate from samples.
+-   Normalising flows compose invertible layers with cheap determinants and are trained by maximum likelihood.
+-   A velocity field transports densities according to the continuity equation; any path of densities can be realised by some velocity.
+::::
+
+## 2. Fokker–Planck and Langevin equations {#ch2}
+
+Noise added continuously in time is described by a stochastic differential equation (SDE), and the density of its solution obeys a partial differential equation, the Fokker–Planck equation. The Langevin equation is the SDE whose density converges to a prescribed law $\pi$: the first sampling algorithm that needs only the score $\nabla \log \pi$.
+
+### 2.1 Brownian motion, SDEs and Itô's formula
+
+::: def
+[Definition 2.1 — Brownian motion and SDE]{.tag} A *Brownian motion* $(W_t)_{t \ge 0}$ in $\mathbb{R}^d$ starts at $0$, has continuous paths and independent increments, and $W_t - W_s \sim \mathcal{N}(0, (t - s) I)$ for $s < t$.
+
+Given a drift $b(t, x)$ and a scalar diffusion coefficient $g(t)$, the SDE
+
+$$
+dX_t = b(t, X_t)\, dt + g(t)\, dW_t
+$$
+
+is the limit, as $h \to 0$, of the Euler–Maruyama scheme
+
+$$
+X_{k+1} = X_k + h\, b(t_k, X_k) + g(t_k) \sqrt{h}\, \xi_k, \qquad \xi_k \sim \mathcal{N}(0, I) \text{ i.i.d.}
+$$
+
+When $b$ is Lipschitz in $x$, the SDE has a unique strong solution (Øksendal, 2003, Theorem 5.2.1).
+:::
+
+All diffusions of this course have a scalar coefficient $g(t)$, which keeps the formulas short.
+
+:::: thm
+[Theorem 2.2 — Itô's formula]{.tag} For $f \in C^2(\mathbb{R}^d)$ and $X$ solution of the SDE above,
+
+$$
+df(X_t) = \Big( b \cdot \nabla f + \frac{g^2}{2}\, \Delta f \Big)(t, X_t)\, dt + g(t)\, \nabla f(X_t) \cdot dW_t .
+$$
+
+Taking expectations, the stochastic integral vanishes:
+
+$$
+\frac{d}{dt} \mathbb{E} f(X_t) = \mathbb{E}\Big[ b \cdot \nabla f(X_t) + \frac{g^2}{2}\, \Delta f(X_t) \Big] .
+$$
+
+::: proof
+*Sketch.* Expand $f(X_{k+1}) - f(X_k)$ to second order along an Euler–Maruyama step. The increment $\Delta X = h\, b + g\sqrt h\, \xi$ has second moment matrix $g^2 h\, I + O(h^2)$.
+
+The second-order term $\frac12 \Delta X^\top \nabla^2 f\, \Delta X$ therefore contributes $\frac{g^2}{2} \Delta f\, h$ on average, and its fluctuations vanish in the limit. Third-order terms are $O(h^{3/2})$. A rigorous proof is in Øksendal (2003, Theorem 4.2.1). [∎]{.qed}
+:::
+::::
+
+### 2.2 The Fokker–Planck equation
+
+:::: thm
+[Theorem 2.3 — Fokker–Planck]{.tag} If $X_t$ has a smooth density $p_t$, then
+
+::: key
+[Key result — the Fokker–Planck equation]{.tag}
+
+$$
+\partial_t p_t = -\nabla \cdot (p_t\, b) + \frac{g^2}{2}\, \Delta p_t
+$$
+:::
+
+Equivalently, it is a continuity equation with the velocity $b - \frac{g^2}{2} \nabla \log p_t$:
+
+$$
+\partial_t p_t + \nabla \cdot \Big( p_t \big( b - \tfrac{g^2}{2} \nabla \log p_t \big) \Big) = 0 .
+$$
+
+::: proof
+Write the expectation in Theorem 2.2 as an integral against $p_t$, and move the derivatives from $f$ to $p_t$ with Proposition 0.5 (once for the drift, twice for the Laplacian):
+
+$$
+\int f\, \partial_t p_t = \int p_t \Big( b \cdot \nabla f + \frac{g^2}{2} \Delta f \Big) = \int f \Big( -\nabla \cdot (p_t b) + \frac{g^2}{2} \Delta p_t \Big).
+$$
+
+This holds for every test function $f$. The second form uses $\Delta p_t = \nabla \cdot (p_t \nabla \log p_t)$. [∎]{.qed}
+:::
+::::
+
+The second form is the bridge to ch. 1: the ODE $\dot x = b - \frac{g^2}{2} \nabla \log p_t(x)$ has the *same marginals* $p_t$ as the SDE, by Theorem 1.7. Its velocity requires the score $\nabla \log p_t$.
+
+:::: prop
+[Proposition 2.4 — The Ornstein–Uhlenbeck process]{.tag} The SDE $dX_t = -X_t\, dt + \sqrt 2\, dW_t$ has the explicit solution
+
+$$
+X_t = e^{-t} X_0 + \sqrt{2} \int_0^t e^{-(t - s)}\, dW_s \ \overset{\text{law}}{=}\ e^{-t} X_0 + \sqrt{1 - e^{-2t}}\; Z, \qquad Z \sim \mathcal{N}(0, I) \text{ independent of } X_0 .
+$$
+
+Its stationary law is $\gamma = \mathcal{N}(0, I)$, and a Gaussian start $X_0 \sim \mathcal{N}(m, s^2 I)$ gives
+
+$$
+X_t \sim \mathcal{N}\big(e^{-t} m,\ (s^2 e^{-2t} + 1 - e^{-2t})\, I\big) .
+$$
+
+::: proof
+Itô's formula applied to $e^t X_t$ gives $d(e^t X_t) = \sqrt 2\, e^t\, dW_t$. Integrate from $0$ to $t$. The stochastic integral of a deterministic function is Gaussian, with variance
+
+$$
+2 \int_0^t e^{-2(t - s)}\, ds = 1 - e^{-2t}
+$$
+
+per coordinate (Itô isometry). The Gaussian case then follows from Proposition 0.3. [∎]{.qed}
+:::
+::::
+
+The Ornstein–Uhlenbeck process forgets its initial condition exponentially fast. It is the forward noising process of ch. 3.
+
+### 2.3 Langevin dynamics
+
+::: def
+[Definition 2.5 — Langevin dynamics and relative Fisher information]{.tag} For a target density $\pi > 0$, the *Langevin diffusion* is
+
+$$
+dX_t = \nabla \log \pi(X_t)\, dt + \sqrt 2\, dW_t .
+$$
+
+The *relative Fisher information* of a density $q$ with respect to $\pi$ is
+
+$$
+I(q \,\|\, \pi) = \int q \, \Big\| \nabla \log \frac{q}{\pi} \Big\|^2 .
+$$
+:::
+
+The drift needs only the score: normalising constants of $\pi$ disappear in $\nabla \log \pi$.
+
+:::: thm
+[Theorem 2.6 — Stationarity and entropy decay]{.tag} The law $\pi$ is stationary for the Langevin diffusion, and the divergence to $\pi$ decreases at the rate of the Fisher information:
+
+$$
+\frac{d}{dt}\, \mathrm{KL}(p_t \,\|\, \pi) = -\, I(p_t \,\|\, \pi) \le 0 .
+$$
+
+Suppose moreover that $\pi$ satisfies a logarithmic Sobolev inequality with constant $\rho > 0$:
+
+$$
+\mathrm{KL}(q \,\|\, \pi) \le \frac{1}{2\rho}\, I(q \,\|\, \pi) \quad \text{for all densities } q .
+$$
+
+Then the convergence is exponential:
+
+$$
+\mathrm{KL}(p_t \,\|\, \pi) \le e^{-2\rho t}\, \mathrm{KL}(p_0 \,\|\, \pi) .
+$$
+
+::: proof
+With $b = \nabla \log \pi$ and $g = \sqrt 2$, Theorem 2.3 reads
+
+$$
+\partial_t p_t = \nabla \cdot \big( p_t\, \nabla \log (p_t / \pi) \big),
+$$
+
+which vanishes when $p_t = \pi$. Differentiating under the integral, and using $\int \partial_t p_t = 0$,
+
+$$
+\frac{d}{dt} \int p_t \log \frac{p_t}{\pi} = \int \partial_t p_t \, \log \frac{p_t}{\pi} = -\int p_t\, \Big\| \nabla \log \frac{p_t}{\pi} \Big\|^2,
+$$
+
+by Proposition 0.5. Under the log-Sobolev inequality the derivative is at most $-2\rho\, \mathrm{KL}$, and Grönwall's lemma concludes. [∎]{.qed}
+:::
+::::
+
+By the Bakry–Émery criterion, a law $\pi = e^{-U}$ with $\nabla^2 U \succeq \rho I$ satisfies the log-Sobolev inequality with constant $\rho$ (Bakry, Gentil and Ledoux, 2014, ch. 5). For $\pi = \mathcal{N}(0, \lambda I)$, $\rho = 1/\lambda$: the narrow directions converge fast and the wide ones slowly.
+
+### 2.4 Unadjusted Langevin and its bias
+
+The Euler–Maruyama discretisation of the Langevin diffusion is the *unadjusted Langevin algorithm* (ULA):
+
+$$
+x_{k+1} = x_k + h\, \nabla \log \pi(x_k) + \sqrt{2h}\, \xi_k .
+$$
+
+::: ex
+[Example 2.7 — ULA on a Gaussian]{.tag} For $\pi = \mathcal{N}(0, \lambda)$ in dimension one, the iteration is $x_{k+1} = (1 - h/\lambda)\, x_k + \sqrt{2h}\, \xi_k$. It is stable if and only if $|1 - h/\lambda| < 1$, that is $h < 2\lambda$.
+
+Its stationary variance $v$ solves $v = (1 - h/\lambda)^2 v + 2h$, hence
+
+$$
+v = \frac{\lambda}{1 - h/(2\lambda)} .
+$$
+
+With $\lambda = 1$ and $h = 0.5$, ULA samples $\mathcal{N}(0, 1.333)$ instead of $\mathcal{N}(0, 1)$: the bias is of order $h$, and the step must be smaller than the smallest variance.
+:::
+
+A Metropolis–Hastings correction removes the bias (MALA; Roberts and Tweedie, 1996). For strongly log-concave and smooth targets, non-asymptotic bounds show that ULA reaches accuracy $\varepsilon$ in a number of steps polynomial in $d$ and $1/\varepsilon$ (Dalalyan, 2017; Durmus and Moulines, 2017).
+
+### 2.5 Metastability: why Langevin fails on multimodal laws
+
+When $\pi = e^{-U}$ has two modes separated by a barrier of height $\Delta U$, a Langevin trajectory spends long times in one mode before crossing. The Eyring–Kramers law, made rigorous by Bovier, Eckhoff, Gayrard and Klein (2004), gives a mean crossing time of order $e^{\Delta U}$, up to a prefactor fixed by the curvatures of $U$. The log-Sobolev constant is then exponentially small.
+
+For the mixture $\frac12 \mathcal{N}(-a, 1) + \frac12 \mathcal{N}(a, 1)$, the barrier is $\Delta U = \log\big(p(a) / p(0)\big) \approx a^2/2 - \log 2$ for $a \ge 2$. The code runs 200 ULA chains of horizon 500 for three separations.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(1)
+
+def score(x, a):        # grad log of the mixture 0.5 N(-a, 1) + 0.5 N(a, 1)
+    return -x + a * np.tanh(a * x)
+
+h, n_steps, n_chains = 0.01, 50_000, 200          # time horizon n_steps * h = 500
+for a in [2.0, 3.0, 4.0]:
+    x = np.full(n_chains, a)                      # every chain starts in the right mode
+    side, switches = np.ones(n_chains), np.zeros(n_chains)
+    for _ in range(n_steps):                      # ULA: x <- x + h score + sqrt(2h) xi
+        x = x + h * score(x, a) + np.sqrt(2 * h) * rng.standard_normal(n_chains)
+        new = np.where(np.abs(x) > a / 2, np.sign(x), side)   # count a switch at +-a/2
+        switches += new != side
+        side = new
+    print(f"a = {a}: switches per unit time {switches.mean() / (n_steps * h):.4f}, "
+          f"share of chains in the left mode at the end {np.mean(x < 0):.2f}")
+
+lam, h = 1.0, 0.5                                  # bias of ULA on N(0, lam)
+x = np.zeros(100_000)
+for _ in range(200):
+    x = x - h * x / lam + np.sqrt(2 * h) * rng.standard_normal(x.size)
+print(f"ULA variance for h = {h}: {x.var():.3f} (formula {lam / (1 - h / (2 * lam)):.3f}, target {lam})")
+```
+
+The switching rates are 0.0703, 0.0075 and 0.0002 per unit time for $a = 2, 3, 4$. The barriers are 1.31, 3.81 and 7.31, so Kramers' law predicts ratios $e^{-2.5} = 0.082$ and $e^{-3.5} = 0.030$ between consecutive rates; the measured ratios are 0.107 and 0.029.
+
+For $a = 4$, only 10 % of the chains reach the left mode instead of 50 %. The last line checks Example 2.7: variance 1.334 for the predicted 1.333.
+
+Diffusion models escape this trap. They never run a Langevin chain on the data law itself: they follow the path of noisy laws $p_t$, which is nearly Gaussian, hence unimodal, at large $t$.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   An SDE $dX = b\, dt + g\, dW$ is the limit of Euler–Maruyama steps; Itô's formula adds the term $\frac{g^2}{2}\Delta f$.
+-   Densities of SDEs obey the Fokker–Planck equation, a continuity equation with velocity $b - \frac{g^2}{2} \nabla \log p_t$.
+-   The Ornstein–Uhlenbeck process maps any law to $\mathcal{N}(0, I)$ exponentially fast, with explicit Gaussian transitions.
+-   Langevin dynamics samples $\pi$ using only its score; KL decays at the rate of the Fisher information, exponentially under a log-Sobolev inequality.
+-   ULA is biased by $O(h)$ and needs $h$ below the smallest variance; on multimodal laws it is trapped for times of order $e^{\Delta U}$.
+::::
+
+## 3. Score diffusion: generation by progressive denoising {#ch3}
+
+Score diffusion turns the Ornstein–Uhlenbeck process around. Noise is added to the data until nothing but white noise remains; the time-reversed process then removes it step by step and generates data. The reversal requires the scores of the noisy laws, and these scores are denoisers.
+
+### 3.1 The forward noising process
+
+Let $X_0 \sim p_0 = p$ be the data law and run the Ornstein–Uhlenbeck process of Proposition 2.4 up to a time $T$. Its marginal at time $t$ is
+
+$$
+X_t = a_t X_0 + \sigma_t Z, \qquad a_t = e^{-t}, \quad \sigma_t^2 = 1 - e^{-2t} .
+$$
+
+We write $p_t$ for its density, smooth by Proposition 0.3. Since $\gamma = \mathcal{N}(0, I)$ satisfies a log-Sobolev inequality with $\rho = 1$, Theorem 2.6 gives
+
+$$
+\mathrm{KL}(p_T \,\|\, \gamma) \le e^{-2T}\, \mathrm{KL}(p_0 \,\|\, \gamma),
+$$
+
+so a moderate $T$ (5 to 10) makes $p_T$ indistinguishable from white noise.
+
+Other schedules are used in practice. The *variance-exploding* process $X_t = X_0 + \sigma(t) Z$ adds noise without shrinking (Song and Ermon, 2019; Karras et al., 2022). The discrete chain of DDPM (Ho, Jain and Abbeel, 2020), with small variances $\beta_k$,
+
+$$
+x_k = \sqrt{1 - \beta_k}\; x_{k-1} + \sqrt{\beta_k}\; \xi_k ,
+$$
+
+is an Ornstein–Uhlenbeck process with a time-dependent speed.
+
+### 3.2 Time reversal
+
+:::: thm
+[Theorem 3.1 — Reverse-time diffusion (Anderson, 1982)]{.tag} Let $X$ solve $dX_t = b(t, X_t)\, dt + g(t)\, dW_t$ on $[0, T]$ with smooth marginals $p_t$. The reversed process $Y_s = X_{T - s}$ is a diffusion:
+
+$$
+dY_s = \Big( -b(T - s, Y_s) + g(T - s)^2\, \nabla \log p_{T - s}(Y_s) \Big)\, ds + g(T - s)\, dB_s ,
+$$
+
+for a Brownian motion $B$. For the Ornstein–Uhlenbeck process, the reverse SDE and the probability-flow ODE with the same marginals are
+
+::: key
+[Key result — the reverse SDE and the probability-flow ODE]{.tag}
+
+$$
+dY_s = \big( Y_s + 2\, \nabla \log p_{T-s}(Y_s) \big)\, ds + \sqrt 2\, dB_s, \qquad \frac{dy}{ds} = y + \nabla \log p_{T-s}(y)
+$$
+:::
+
+::: proof
+*Marginals.* Set $q_s = p_{T - s}$. By Theorem 2.3, with $b$ and $g$ evaluated at $T - s$,
+
+$$
+\partial_s q_s = \nabla \cdot (q_s b) - \frac{g^2}{2} \Delta q_s .
+$$
+
+The Fokker–Planck equation of the proposed reverse SDE has drift $\tilde b = -b + g^2 \nabla \log q_s$. Using $\nabla \cdot (q_s \nabla \log q_s) = \Delta q_s$, its right-hand side is
+
+$$
+-\nabla \cdot (q_s \tilde b) + \frac{g^2}{2} \Delta q_s = \nabla \cdot (q_s b) - g^2 \Delta q_s + \frac{g^2}{2} \Delta q_s = \nabla \cdot (q_s b) - \frac{g^2}{2} \Delta q_s .
+$$
+
+So $q_s$ solves the Fokker–Planck equation of the reverse SDE, and the marginals agree. The identity of the laws of whole paths is due to Anderson (1982) and Haussmann and Pardoux (1986).
+
+*Probability flow.* By the second form of Theorem 2.3, the forward densities are transported by the velocity $-x - \nabla \log p_t(x)$. Running this ODE backwards in time gives the stated equation (Song et al., 2021). [∎]{.qed}
+:::
+::::
+
+The generative algorithm follows. Draw $Y_0 \sim \gamma$, which is close to $p_T$; integrate either equation from $s = 0$ to $s = T$; output $Y_T$, approximately distributed as $p_0$. The SDE injects fresh noise at every step, while the ODE is a deterministic transport map from noise to data, as in ch. 1.
+
+### 3.3 The score is a denoiser: the Tweedie–Miyasawa formula
+
+:::: thm
+[Theorem 3.2 — Tweedie–Miyasawa formula]{.tag} Let $Y = aX + \sigma Z$ with $Z \sim \mathcal{N}(0, I)$ independent of $X$, and let $p_Y$ be its density. Then the score of $p_Y$ is an affine function of the MMSE denoiser:
+
+$$
+\nabla \log p_Y(y) = \frac{a\, \mathbb{E}[X \mid Y = y] - y}{\sigma^2} .
+$$
+
+Equivalently, the best denoiser is read off the score:
+
+$$
+\mathbb{E}[X \mid Y = y] = \frac{y + \sigma^2\, \nabla \log p_Y(y)}{a} .
+$$
+
+::: proof
+Differentiate the formula of Proposition 0.3 under the integral, using the identity
+
+$$
+\sigma^2\, \nabla \varphi_\sigma(u) = -u\, \varphi_\sigma(u) .
+$$
+
+This gives
+
+$$
+\nabla p_Y(y) = \int p(x)\, \varphi_\sigma(y - ax)\, \frac{a x - y}{\sigma^2}\, dx .
+$$
+
+Divide by $p_Y(y)$. The ratio $p(x)\, \varphi_\sigma(y - ax) / p_Y(y)$ is the conditional density of $X$ given $Y = y$, so the right-hand side becomes $(a\,\mathbb{E}[X \mid Y = y] - y)/\sigma^2$. [∎]{.qed}
+:::
+::::
+
+Robbins (1956) attributes the formula to Tweedie, and Miyasawa (1961) published it in the Gaussian-noise form used here; Efron (2011) revived it in statistics. It turns the reverse SDE into a sequence of partial denoisings.
+
+With $D_t(y) = \mathbb{E}[X_0 \mid X_t = y]$, one reverse Euler step of size $h$ at time $t$ reads
+
+$$
+y \ \leftarrow\ y + h\, y + \frac{2h}{\sigma_t^2} \big( a_t D_t(y) - y \big) + \sqrt{2h}\, \xi .
+$$
+
+It moves the current point towards the rescaled denoised estimate $a_t D_t(y)$, then adds a little fresh noise. Generation is progressive denoising.
+
+::: ex
+[Example 3.3 — Gaussian data]{.tag} If $X_0 \sim \mathcal{N}(0, \lambda)$ in dimension one, then $p_t = \mathcal{N}(0, v_t)$ with $v_t = \lambda a_t^2 + \sigma_t^2$, and the score is $-y / v_t$. Theorem 3.2 gives
+
+$$
+\mathbb{E}[X_0 \mid X_t = y] = \frac{y - \sigma_t^2\, y / v_t}{a_t} = \frac{a_t \lambda}{a_t^2 \lambda + \sigma_t^2}\; y ,
+$$
+
+which is the Wiener estimator of Theorem 0.4 for the observation $X_t / a_t = X_0 + (\sigma_t / a_t) Z$.
+:::
+
+The code samples the mixture $\nu$ of ch. 1.2. Its noisy versions $p_t$ are explicit mixtures, so the exact score is available, and both reverse equations are integrated with 500 Euler steps. The last lines check Theorem 3.2 against a direct quadrature of the posterior mean.
+
+```python
+import numpy as np
+from scipy import stats
+from scipy.special import logsumexp
+
+rng = np.random.default_rng(2)
+w, m, s = np.array([0.3, 0.7]), np.array([-2.0, 1.5]), np.array([0.5, 0.8])
+
+def score(t, x):
+    """Exact score of p_t, the law of e^{-t} X_0 + sqrt(1 - e^{-2t}) Z, X_0 ~ mixture."""
+    mt, vt = np.exp(-t) * m, np.exp(-2 * t) * s**2 + 1 - np.exp(-2 * t)
+    logc = np.log(w) - 0.5 * (x[:, None] - mt) ** 2 / vt - 0.5 * np.log(vt)
+    r = np.exp(logc - logsumexp(logc, axis=1, keepdims=True))     # posterior weights
+    return (r * (mt - x[:, None]) / vt).sum(axis=1)
+
+T, n, N = 5.0, 500, 20_000
+ts = np.linspace(T, 1e-3, n + 1)                 # reverse time grid
+y_sde = rng.standard_normal(N)                   # start from N(0, 1), close to p_T
+y_ode = y_sde.copy()
+for k in range(n):
+    t, h = ts[k], ts[k] - ts[k + 1]
+    y_sde = y_sde + h * (y_sde + 2 * score(t, y_sde)) + np.sqrt(2 * h) * rng.standard_normal(N)
+    y_ode = y_ode + h * (y_ode + score(t, y_ode))
+
+F = lambda u: (w * stats.norm.cdf((np.asarray(u)[..., None] - m) / s)).sum(axis=-1)
+print(f"exact weight of the left mode: {F(0.0):.3f}")
+for name, y in [("reverse SDE", y_sde), ("probability-flow ODE", y_ode)]:
+    print(f"{name:21s}: weight of the left mode {np.mean(y < 0):.3f}, "
+          f"KS distance {stats.kstest(y, F).statistic:.4f}")
+
+# Tweedie: E[X_0 | X_t = x] = (x + sigma_t^2 score(t, x)) / e^{-t}, checked by quadrature
+t, x, g = 0.5, np.array([0.0, 1.0]), np.linspace(-8, 8, 16001)
+a, v = np.exp(-t), 1 - np.exp(-2 * t)
+post = (w * stats.norm.pdf((g[:, None] - m) / s) / s).sum(axis=1)[:, None] \
+       * np.exp(-0.5 * (x - a * g[:, None]) ** 2 / v)            # p_0(x_0) p(x | x_0)
+print("posterior mean by quadrature:", (g[:, None] * post).sum(0) / post.sum(0))
+print("Tweedie formula             :", (x + v * score(t, x)) / a)
+```
+
+The left-mode weight is 0.321 exactly, 0.323 with the SDE and 0.318 with the ODE, with Kolmogorov–Smirnov distances 0.0055 and 0.0080. Both posterior means agree to all printed digits:
+
+$$
+\mathbb{E}[X_0 \mid X_{0.5} = 0] = 0.483, \qquad \mathbb{E}[X_0 \mid X_{0.5} = 1] = 1.492 .
+$$
+
+### 3.4 How accurate is the generated law?
+
+In practice the score is replaced by an estimate $s_\theta(t, x)$, and the reverse SDE starts from $\gamma$ instead of $p_T$. Let $q_0$ be the law of the output.
+
+:::: thm
+[Theorem 3.4 — Score error controls the sampling error]{.tag} Under regularity conditions on $p$ and $s_\theta$, and for the continuous-time reverse SDE,
+
+$$
+\mathrm{KL}(p_0 \,\|\, q_0) \ \le\ e^{-2T}\, \mathrm{KL}(p_0 \,\|\, \gamma) + \int_0^T \mathbb{E}\, \big\| s_\theta(t, X_t) - \nabla \log p_t(X_t) \big\|^2\, dt .
+$$
+
+::: proof
+*Sketch.* Compare the laws of the whole reverse paths. By data processing (Proposition 0.2), the divergence between the final points is at most the divergence between the paths. By the chain rule for KL, the latter is the divergence between the initial points, $\mathrm{KL}(p_T \,\|\, \gamma)$, plus the divergence between the path laws given the same start.
+
+Both SDEs have diffusion $\sqrt 2$, and their drifts differ by $2(\nabla\log p_t - s_\theta)$. By Girsanov's theorem, the path divergence is one quarter of the expected time integral of the squared drift difference, which is the integral above. The first term is bounded in §3.1. The technical conditions, and the extra error of the time discretisation, are handled by Chen et al. (2023). [∎]{.qed}
+:::
+::::
+
+Two lessons follow. First, the quality of a diffusion model is governed by the mean square error of its score along the noising path — the very loss trained in ch. 4. Second, no log-Sobolev inequality for $p$ is needed: unlike Langevin sampling, multimodality costs nothing once the scores are known. Chen et al. (2023) show that, with an accurate score, the number of steps grows only polynomially with the dimension.
+
+### 3.5 Images and sound
+
+For images, $x$ is the vector of pixel values, and the denoiser $D_\theta(x, t)$ is a convolutional U-Net that receives the noise level (Ho, Jain and Abbeel, 2020; Dhariwal and Nichol, 2021). Karras et al. (2022) showed how preconditioning the network by the noise level, and choosing the time grid, reduce the number of network evaluations from about a thousand to a few tens.
+
+*Latent diffusion* runs the same process in the latent space of an autoencoder, which lowers the cost at high resolution (Rombach et al., 2022). The deterministic sampler DDIM (Song, Meng and Ermon, 2021) integrates the probability-flow ODE.
+
+For sound, the signal is a waveform of tens of thousands of samples per second. DiffWave (Kong et al., 2021) and WaveGrad (Chen et al., 2021) generate raw waveforms with dilated convolutional denoisers conditioned on a spectrogram. Other systems diffuse a time–frequency representation and invert it afterwards.
+
+In every case the algorithm is the one of §3.2: what changes is the denoiser architecture, the representation and the conditioning (ch. 6).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   The Ornstein–Uhlenbeck process carries any data law to white noise; its marginals are $a_t X_0 + \sigma_t Z$.
+-   The time-reversed process is a diffusion whose drift involves the score $\nabla \log p_t$; the probability-flow ODE has the same marginals.
+-   Tweedie–Miyasawa: the score of a noisy law is $(a\, \mathbb{E}[X \mid Y] - Y)/\sigma^2$, so reversing the diffusion is progressive denoising.
+-   The KL error of the generated law is bounded by the integrated mean square error of the score, without any log-Sobolev assumption.
+-   Images and sounds use the same sampler, with U-Net or dilated convolutional denoisers, in pixel, latent or waveform space.
+::::
+
+## 4. Learning the score with deep networks; generalisation {#ch4}
+
+The sampler of ch. 3 needs the scores $\nabla \log p_t$ of a law known only through examples. This chapter shows that they can be learned by regression — training a denoiser — and then faces the central puzzle: the exact minimiser of the training loss only reproduces the training set, yet trained networks generate new data.
+
+### 4.1 Score matching
+
+The obvious loss $\mathbb{E}_p \| s(X) - \nabla \log p(X) \|^2$ involves the unknown score. Integration by parts removes it.
+
+:::: thm
+[Theorem 4.1 — Score matching (Hyvärinen, 2005)]{.tag} For a smooth vector field $s$ such that $p\, s$ vanishes at infinity,
+
+$$
+\mathbb{E}_p \big\| s(X) - \nabla \log p(X) \big\|^2 = \mathbb{E}_p \Big[ \|s(X)\|^2 + 2\, \nabla \cdot s(X) \Big] + \mathbb{E}_p \|\nabla \log p(X)\|^2 .
+$$
+
+The last term does not depend on $s$, so $s$ can be fitted with the first expectation, estimated on samples.
+
+::: proof
+Expand the square. The cross term is
+
+$$
+\mathbb{E}_p[s \cdot \nabla \log p] = \int s \cdot \nabla p = -\int p\, \nabla \cdot s
+$$
+
+by Proposition 0.5. [∎]{.qed}
+:::
+::::
+
+The divergence $\nabla \cdot s$ costs $d$ backward passes in dimension $d$, which is prohibitive for images, and the score of the clean data law may not even exist on a low-dimensional data set. Adding noise solves both problems.
+
+### 4.2 Denoising score matching
+
+:::: thm
+[Theorem 4.2 — Denoising score matching (Vincent, 2011)]{.tag} Let $Y = aX + \sigma Z$ as in Theorem 3.2. For every vector field $s$ with $\mathbb{E}\|s(Y)\|^2 < \infty$,
+
+$$
+\mathbb{E} \big\| s(Y) - \nabla \log p_Y(Y) \big\|^2 = \mathbb{E} \Big\| s(Y) + \frac{Z}{\sigma} \Big\|^2 - C,
+$$
+
+where $C \ge 0$ does not depend on $s$. With the denoiser $D(y) = (y + \sigma^2 s(y))/a$, the right-hand loss equals $\frac{a^2}{\sigma^4}\, \mathbb{E}\|D(Y) - X\|^2$.
+
+::: proof
+Given $X = x$, the noisy vector has density $\varphi_\sigma(y - ax)$, whose score is $-(y - ax)/\sigma^2 = -Z/\sigma$. Expanding both squares, the terms in $\|s\|^2$ agree. The cross terms agree too:
+
+$$
+\mathbb{E}[s(Y) \cdot \nabla \log p_Y(Y)] = \int s \cdot \nabla p_Y = \iint p(x)\, s(y) \cdot \nabla_y \varphi_\sigma(y - ax)\, dx\, dy = \mathbb{E}\Big[ s(Y) \cdot \Big( -\frac{Z}{\sigma} \Big) \Big],
+$$
+
+where $\nabla p_Y$ was differentiated under the integral of Proposition 0.3. The remaining terms do not involve $s$. For the last claim,
+
+$$
+a D(Y) - aX = Y - aX + \sigma^2 s(Y) = \sigma^2 \big( s(Y) + Z/\sigma \big) .
+$$
+
+[∎]{.qed}
+:::
+::::
+
+Learning the score at noise level $t$ is therefore exactly training an MMSE denoiser, whose minimiser is $\mathbb{E}[X_0 \mid X_t]$ (Theorem 0.4), consistent with Tweedie–Miyasawa. All noise levels are trained jointly with one network. Writing the score as $-\varepsilon_\theta(x, t) / \sigma_t$, so that $\varepsilon_\theta$ predicts the noise $Z$ (Ho, Jain and Abbeel, 2020), the loss is
+
+::: key
+[Key result — the denoising loss of diffusion models]{.tag}
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{t,\, X_0,\, Z} \ \big\| \varepsilon_\theta(a_t X_0 + \sigma_t Z,\ t) - Z \big\|^2
+$$
+:::
+
+The law of $t$ weights the noise levels. By Theorem 3.4, it should not neglect the small noise levels, where the final details of the samples are decided (Karras et al., 2022).
+
+### 4.3 Networks for the score
+
+The network takes the noisy vector and the noise level as inputs. For images, it is a U-Net (Ronneberger, Fischer and Brox, 2015): a convolutional encoder that halves the resolution several times, a symmetric decoder, and skip connections between equal resolutions. It is translation-equivariant, local at fine scales and global at coarse ones — a multiscale architecture.
+
+The code trains a small multilayer perceptron on the `make_moons` data set of scikit-learn (4000 points in the plane), with times drawn log-uniformly in $[10^{-3}, 5]$ and the noise level given as $\log t$. It samples 2000 points with the reverse SDE of Theorem 3.1.
+
+```python
+import numpy as np, torch
+from sklearn.datasets import make_moons
+
+torch.manual_seed(0); torch.set_num_threads(1)     # tiny model: one thread is fastest
+data, _ = make_moons(n_samples=4000, noise=0.05, random_state=0)
+mu, sd = data.mean(0), data.std(0)
+X = torch.tensor((data - mu) / sd, dtype=torch.float32)
+
+net = torch.nn.Sequential(torch.nn.Linear(3, 128), torch.nn.SiLU(),
+                          torch.nn.Linear(128, 128), torch.nn.SiLU(),
+                          torch.nn.Linear(128, 128), torch.nn.SiLU(),
+                          torch.nn.Linear(128, 2))            # eps_theta(x, log t)
+opt = torch.optim.Adam(net.parameters(), lr=2e-3)
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, 3000)
+T, eps = 5.0, 1e-3
+for step in range(3000):                                     # denoising score matching
+    x0 = X[torch.randint(0, len(X), (512,))]
+    t = torch.exp(torch.empty(512, 1).uniform_(np.log(eps), np.log(T)))   # log-uniform times
+    z = torch.randn_like(x0)
+    xt = torch.exp(-t) * x0 + torch.sqrt(1 - torch.exp(-2 * t)) * z
+    loss = ((net(torch.cat([xt, torch.log(t)], 1)) - z) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step(); sched.step()
+
+@torch.no_grad()
+def sample(n, steps=500):                                    # reverse SDE, Euler-Maruyama
+    ts = eps + (T - eps) * torch.linspace(1, 0, steps + 1) ** 2   # finer steps near t = 0
+    y = torch.randn(n, 2)
+    for k in range(steps):
+        t, h = ts[k], ts[k] - ts[k + 1]
+        s = -net(torch.cat([y, torch.log(t).expand(n, 1)], 1)) / torch.sqrt(1 - torch.exp(-2 * t))
+        y = y + h * (y + 2 * s) + torch.sqrt(2 * h) * torch.randn_like(y)
+    return y
+
+clean, _ = make_moons(n_samples=20000, noise=0.0, random_state=1)
+ref = torch.tensor((clean - mu) / sd, dtype=torch.float32)
+dist = lambda A: torch.cdist(A, ref).min(1).values.median().item()
+print(f"median distance to the noiseless moons: generated {dist(sample(2000)):.3f}, "
+      f"training data {dist(X[:2000]):.3f}, Gaussian noise {dist(torch.randn(2000, 2)):.3f}")
+```
+
+The generated points lie at median distance 0.061 from the noiseless moons, against 0.050 for the data, which carry noise of their own, and 0.323 for white noise. Two choices matter here. Training times drawn uniformly in $[0, 5]$ leave too few small noise levels, and the same network then reaches only 0.215. A uniform time grid in the sampler makes the last steps too coarse and gives 0.113.
+
+### 4.4 Memorisation: what the exact minimiser does
+
+Training uses $N$ examples $x_1, \dots, x_N$, so the expectation over $X_0$ in the loss is an average over the *empirical* law $\hat p = \frac1N \sum_i \delta_{x_i}$.
+
+:::: prop
+[Proposition 4.3 — The empirical minimiser memorises]{.tag} Over all measurable functions, the empirical denoising loss at time $t$ is minimised by the score of the Gaussian mixture $\hat p_t$ with components $\mathcal{N}(a_t x_i, \sigma_t^2 I)$ and weights $1/N$. Its denoiser is a softmax average of the training points:
+
+$$
+\hat D_t(y) = \sum_{i=1}^N w_i(y)\, x_i, \qquad w_i(y) = \frac{\exp\!\big(-\|y - a_t x_i\|^2 / 2\sigma_t^2\big)}{\sum_j \exp\!\big(-\|y - a_t x_j\|^2 / 2\sigma_t^2\big)} .
+$$
+
+The reverse SDE driven by these scores and started from $\hat p_T$ outputs exactly $\hat p$: every sample is a training point.
+
+::: proof
+By Theorem 4.2 applied to $\hat p$, the loss is minimised by the denoiser $\mathbb{E}_{\hat p}[X_0 \mid X_t = y]$. Bayes' formula with the prior $\hat p$ and the likelihood $\varphi_{\sigma_t}(y - a_t x_i)$ gives the weights $w_i$.
+
+The scores are then those of $\hat p_t$ (Theorem 3.2). Theorem 3.1, applied to the forward process started from $\hat p$, shows that the reverse process ends with the law $\hat p$. [∎]{.qed}
+:::
+::::
+
+The code runs the reverse SDE with the exact empirical scores for $N = 10$ and $N = 100$ training points, then applies one last denoising step.
+
+```python
+import numpy as np
+from scipy.special import softmax
+from sklearn.datasets import make_moons
+
+rng = np.random.default_rng(6)
+for N in [10, 100]:
+    train, _ = make_moons(n_samples=N, noise=0.05, random_state=N)
+    fresh, _ = make_moons(n_samples=500, noise=0.05, random_state=N + 1)
+
+    def denoiser(t, x):                        # E[X_0 | X_t = x] under the empirical measure
+        a, v = np.exp(-t), 1 - np.exp(-2 * t)
+        r = softmax(-0.5 * ((x[:, None, :] - a * train) ** 2).sum(-1) / v, axis=1)
+        return r @ train
+
+    T, steps, eps = 5.0, 400, 1e-5
+    ts = eps + (T - eps) * np.linspace(1, 0, steps + 1) ** 2
+    y = rng.standard_normal((500, 2))
+    for k in range(steps):                     # reverse SDE with the exact empirical score
+        t, h = ts[k], ts[k] - ts[k + 1]
+        score = (np.exp(-t) * denoiser(t, y) - y) / (1 - np.exp(-2 * t))   # Tweedie
+        y = y + h * (y + 2 * score) + np.sqrt(2 * h) * rng.standard_normal(y.shape)
+    y = denoiser(eps, y)                       # final denoising step
+    nn = lambda A: np.median(np.sqrt(((A[:, None, :] - train) ** 2).sum(-1)).min(1))
+    print(f"N = {N:3d}: distance to the nearest training point, generated {nn(y):.1e}, "
+          f"fresh data {nn(fresh):.3f}")
+```
+
+For both sizes, the median distance from a generated point to the nearest training point is 0 to machine precision, while fresh data from the same law lie at 0.190 ($N = 10$) and 0.050 ($N = 100$). A perfect optimiser of the training loss is a copying machine.
+
+### 4.5 Generalisation
+
+A network generalises only because it does *not* reach the empirical minimiser: its architecture and its training impose an inductive bias. The question is whether that bias matches the data.
+
+Without structure, the answer is pessimistic. For densities with $\beta$ bounded derivatives in dimension $d$, the minimax rate of estimation from $n$ samples, in squared $L^2$ error, is $n^{-2\beta/(2\beta + d)}$ (Tsybakov, 2009).
+
+For a $64 \times 64$ image, $d = 4096$, and this rate is useless.
+
+Kadkhodaie, Guth, Simoncelli and Mallat (2024) measured the transition on face images. They trained the same denoiser architecture on non-overlapping training sets of increasing size $N$. For small $N$ the networks memorise: their samples are training images. For large $N$, two networks trained on *disjoint* sets generate nearly the same image from the same random seed. They have learned nearly the same score, independent of the particular examples: they generalise.
+
+The transition occurs at training-set sizes far below what the generic rate would require. The explanation proposed by the authors is the subject of ch. 5: the inductive bias of these networks is a shrinkage in bases adapted to the geometry of images.
+
+In practice, sample quality is measured by the Fréchet Inception Distance between features of real and generated images (Heusel et al., 2017). Memorisation is detected by searching the training set for near-duplicates of generated samples (Carlini et al., 2023; Somepalli et al., 2023).
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   Score matching replaces the unknown score by a divergence term, through integration by parts.
+-   Denoising score matching is a regression: learning the score at noise level $t$ is training the MMSE denoiser $\mathbb{E}[X_0 \mid X_t]$.
+-   One network, given the noise level, is trained on all levels with the loss $\mathbb{E}\|\varepsilon_\theta - Z\|^2$; small noise levels must be well represented.
+-   The exact minimiser of the empirical loss is the score of a Gaussian mixture centred on the training points, and it only reproduces them.
+-   Generalisation comes from the inductive bias of the network; it is observed with training sets far smaller than generic density estimation would need.
+::::
+
+## 5. Interpreting the networks: denoising, sparsity and multiscale bases {#ch5}
+
+A trained denoiser is a black box with millions of parameters. This chapter opens it with two exact tools — homogeneity and the Jacobian — and reads it as a shrinkage in an adaptive orthonormal basis. The classical theory of thresholding in wavelet bases then explains why such shrinkage works, and multiscale factorisations explain how to sample efficiently.
+
+### 5.1 The Jacobian of a denoiser
+
+A network is *bias-free* if all its affine layers are linear (no additive constants) and its non-linearities are ReLUs. Mohan, Kadkhodaie, Simoncelli and Fernandez-Granda (2020) showed that bias-free convolutional denoisers lose almost nothing in performance and generalise across noise levels.
+
+:::: prop
+[Proposition 5.1 — Bias-free networks are adaptive linear filters]{.tag} A bias-free ReLU network $D$ is positively homogeneous, $D(\lambda y) = \lambda D(y)$ for $\lambda > 0$. Hence, wherever it is differentiable,
+
+$$
+D(y) = \nabla D(y)\, y .
+$$
+
+::: proof
+Linear layers and the ReLU commute with multiplication by $\lambda > 0$, and so does their composition. Differentiating $D(\lambda y) = \lambda D(y)$ with respect to $\lambda$ at $\lambda = 1$ gives $\nabla D(y)\, y = D(y)$ (Euler's identity). [∎]{.qed}
+:::
+::::
+
+Locally, the denoiser is the linear filter $\nabla D(y)$ applied to $y$; the filter changes with the image. For the ideal denoiser, the Jacobian has a statistical meaning.
+
+:::: prop
+[Proposition 5.2 — Jacobian of the MMSE denoiser]{.tag} Let $Y = X + \sigma Z$ and $D(y) = \mathbb{E}[X \mid Y = y]$. Then
+
+$$
+\nabla D(y) = \frac{1}{\sigma^2}\, \mathrm{Cov}[X \mid Y = y],
+$$
+
+a symmetric positive semi-definite matrix. Moreover the mean square error is $\sigma^2$ times the expected trace of the Jacobian:
+
+$$
+\mathbb{E}\|X - D(Y)\|^2 = \sigma^2\, \mathbb{E}\big[\mathrm{tr}\, \nabla D(Y)\big] .
+$$
+
+::: proof
+Write $D = N / p_Y$ with $N(y) = \int x\, p(x)\, \varphi_\sigma(y - x)\, dx$. Differentiate under the integral; the gradient in $y$ of $\varphi_\sigma(y - x)$ is $\varphi_\sigma(y - x)\, (x - y)/\sigma^2$. This gives
+
+$$
+\nabla N(y) = \frac{p_Y(y)}{\sigma^2} \big( \mathbb{E}[XX^\top \mid y] - D(y)\, y^\top \big), \qquad \nabla p_Y(y) = \frac{p_Y(y)}{\sigma^2} \big( D(y) - y \big).
+$$
+
+The quotient rule then yields
+
+$$
+\nabla D = \frac{1}{\sigma^2} \Big( \mathbb{E}[XX^\top \mid y] - D\, y^\top - D\, (D - y)^\top \Big) = \frac{1}{\sigma^2} \Big( \mathbb{E}[XX^\top \mid y] - D D^\top \Big).
+$$
+
+For the error, the mean square error of the conditional mean is the expected trace of the posterior covariance, and the first formula concludes:
+
+$$
+\mathbb{E}\|X - D(Y)\|^2 = \mathbb{E}\, \mathrm{tr}\, \mathrm{Cov}[X \mid Y] .
+$$
+
+[∎]{.qed}
+:::
+::::
+
+Diagonalise the symmetric Jacobian, $\nabla D(y) = \sum_k \lambda_k(y)\, e_k(y) e_k(y)^\top$. For a bias-free denoiser, Proposition 5.1 then gives
+
+$$
+D(y) = \sum_k \lambda_k(y)\, \langle y, e_k(y) \rangle\, e_k(y) .
+$$
+
+The denoiser shrinks the coefficients of $y$ in an orthonormal basis $(e_k(y))$ adapted to $y$ itself. The trace $\sum_k \lambda_k(y)$ is an *effective dimension*: by Proposition 5.2, a small error requires that few directions survive.
+
+Kadkhodaie, Guth, Simoncelli and Mallat (2024) computed these eigenvectors for trained image denoisers. They are oscillating patterns that follow the contours and stay regular inside smooth regions, which the authors call *geometry-adaptive harmonic bases*. The eigenvalues decay fast, so the effective dimension is small. This is their explanation of generalisation in ch. 4.5: the networks are biased towards sparse shrinkage in such bases, which suits images.
+
+### 5.2 Thresholding in an orthonormal basis
+
+Before adaptive bases, consider a fixed orthonormal basis $(g_k)$. By Proposition 0.6, the observation $y = f + \sigma z$ has coefficients $y_k = f_k + \sigma z_k$ with independent $z_k \sim \mathcal{N}(0, 1)$.
+
+:::: prop
+[Proposition 5.3 — The projection oracle]{.tag} Among estimators that keep or discard each coefficient, $\hat f = \sum_{k \in S} y_k g_k$, the smallest risk is obtained by keeping exactly the coefficients above the noise level, $S = \{k : |f_k| > \sigma\}$, and equals
+
+$$
+R_{\mathrm{or}}(f) = \sum_k \min(f_k^2, \sigma^2) .
+$$
+
+::: proof
+Keeping coefficient $k$ costs the noise variance $\sigma^2$; discarding it costs the bias $f_k^2$. The risk is a sum over $k$ by Parseval, and each term is minimised separately. [∎]{.qed}
+:::
+::::
+
+The oracle risk is small when $f$ is *sparse*: few coefficients exceed $\sigma$. The oracle is not available, but a threshold nearly matches it.
+
+:::: thm
+[Theorem 5.4 — Donoho and Johnstone (1994)]{.tag} Soft thresholding, $\hat f_k = \mathrm{sign}(y_k)\, (|y_k| - \tau)_+$, with the universal threshold $\tau = \sigma \sqrt{2 \log d}$ satisfies
+
+$$
+\mathbb{E}\|\hat f - f\|^2 \le (2 \log d + 1) \Big( \sigma^2 + \sum_k \min(f_k^2, \sigma^2) \Big) .
+$$
+
+::: proof
+*Key step.* The maximum of $d$ independent $\mathcal{N}(0, \sigma^2)$ variables exceeds $\tau$ with probability at most $1/\sqrt{\pi \log d}$, so pure-noise coefficients are killed with high probability. A one-dimensional risk bound for soft thresholding, summed over $k$, gives the result; see Donoho and Johnstone (1994) or Mallat (2009, ch. 11). [∎]{.qed}
+:::
+::::
+
+A thresholding estimator is piecewise linear, and its Jacobian is the orthogonal projector $\sum_{k \in S(y)} g_k g_k^\top$ onto the kept coefficients. It fits the form of §5.1 with eigenvalues 0 or 1 and a *fixed* basis. A trained denoiser goes further and adapts the basis to the image.
+
+### 5.3 Wavelet bases and multiresolution
+
+::: def
+[Definition 5.5 — Discrete Haar basis]{.tag} Consider signals of length $d = 2^J$, and a scale $2^j$ with $1 \le j \le J$.
+
+The Haar detail vector at scale $2^j$ and position $n$ is supported by the $2^j$ samples starting at $n 2^j$. It equals $2^{-j/2}$ on the first half of them, $-2^{-j/2}$ on the second half, and zero elsewhere.
+
+These $d - 1$ vectors, with the constant vector $d^{-1/2}\mathbf{1}$, form an orthonormal basis. The fast transform computes, scale after scale, normalised sums and differences of neighbouring pairs in $O(d)$ operations.
+:::
+
+The coarse approximations at scales $2^j$ form a *multiresolution*: each one is the sum of the next coarser approximation and of the details at its scale.
+
+:::: prop
+[Proposition 5.6 — Piecewise-constant signals are sparse in the Haar basis]{.tag} If $f$ is constant except for $K$ jumps, it has at most $K J + 1$ nonzero Haar coefficients, where $J = \log_2 d$. Its oracle risk is therefore at most $\sigma^2 (K \log_2 d + 1)$, instead of $d \sigma^2$ for the noisy signal.
+
+::: proof
+At a given scale, the supports of the detail vectors are disjoint, so each jump lies inside at most one of them. A detail vector whose support contains no jump sees a constant signal, and its coefficient is zero because the vector has zero mean. Summing over the $J$ scales and adding the constant vector gives the count. Proposition 5.3 gives the risk. [∎]{.qed}
+:::
+::::
+
+The code denoises a piecewise-constant signal with 11 jumps, $d = 1024$ and $\sigma = 0.2$, by hard thresholding at the universal threshold. It compares the result with the best linear low-pass filter, whose cut-off is chosen by an oracle that knows $f$.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(3)
+d, sigma = 1024, 0.2
+u = np.arange(d) / d
+jumps = [0.1, 0.13, 0.15, 0.23, 0.25, 0.4, 0.44, 0.65, 0.76, 0.78, 0.81]
+heights = [4, -5, 3, -4, 5, -4.2, 2.1, 4.3, -3.1, 2.1, -4.2]
+f = sum(h * (u > j) for j, h in zip(jumps, heights)) / 4    # piecewise constant, 11 jumps
+y = f + sigma * rng.standard_normal(d)
+
+def haar(x):                                   # orthonormal Haar transform, all scales
+    c, out = x.copy(), []
+    while len(c) > 1:
+        out.append((c[0::2] - c[1::2]) / np.sqrt(2))   # details at this scale
+        c = (c[0::2] + c[1::2]) / np.sqrt(2)           # coarser approximation
+    return out + [c]
+
+def ihaar(coefs):
+    c = coefs[-1]
+    for det in reversed(coefs[:-1]):
+        x = np.empty(2 * len(c))
+        x[0::2], x[1::2] = (c + det) / np.sqrt(2), (c - det) / np.sqrt(2)
+        c = x
+    return c
+
+print("nonzero Haar coefficients of the clean signal:",
+      sum(int((np.abs(c) > 1e-12).sum()) for c in haar(f)))
+tau = sigma * np.sqrt(2 * np.log(d))           # universal threshold
+cy = haar(y)
+kept = [np.abs(c) > tau for c in cy[:-1]] + [np.ones(1, bool)]
+f_thr = ihaar([c * k for c, k in zip(cy, kept)])
+print(f"noisy MSE {np.mean((y - f) ** 2):.5f}, Haar hard thresholding MSE "
+      f"{np.mean((f_thr - f) ** 2):.5f} with {sum(int(k.sum()) for k in kept)} coefficients")
+
+Y = np.fft.rfft(y)                              # best linear low-pass, oracle cut-off
+err = [np.mean((np.fft.irfft(Y * (np.arange(Y.size) < K), d) - f) ** 2) for K in range(1, Y.size)]
+print(f"best Fourier low-pass MSE {min(err):.5f} with the {int(np.argmin(err)) + 1} lowest frequencies")
+```
+
+The clean signal has 68 nonzero Haar coefficients, below the bound $11 \times 10 + 1 = 111$. Thresholding keeps 45 coefficients, and its mean square error is about 0.6 times that of the best low-pass filter:
+
+$$
+\text{noisy } 0.0404, \qquad \text{Haar thresholding } 0.0069, \qquad \text{best low-pass } 0.0120 .
+$$
+
+A linear filter must choose one cut-off for the whole signal: it blurs the jumps or keeps noise in the flat parts. Thresholding adapts to the position of the jumps. In two dimensions, separable wavelets remain sparse for images with isolated singularities but not optimally so along regular contours; bases adapted to the geometry, such as curvelets or bandlets, do better (Mallat, 2009). The geometry-adaptive harmonic bases of §5.1 are the data-driven version of this idea.
+
+### 5.4 Multiscale score diffusion
+
+Natural images have a power spectrum decaying like $|\omega|^{-2}$ (Field, 1987; Ruderman and Bialek, 1994). For an $N \times N$ image, the covariance eigenvalues therefore range over a factor of order $N^2$. This ill-conditioning slows down the sampler.
+
+:::: prop
+[Proposition 5.7 — Conditioning dictates the number of steps]{.tag} Let $p = \mathcal{N}(0, \mathrm{diag}(\lambda_k))$ with $\lambda_{\min} \le \lambda_k \le 1$. A reverse Euler–Maruyama step of size $h$ at forward time $t$ multiplies the $k$-th coordinate by
+
+$$
+m_k(t) = 1 + h - \frac{2h}{v_k(t)}, \qquad v_k(t) = \lambda_k a_t^2 + \sigma_t^2 .
+$$
+
+Because $v_k(t) \to \lambda_k$ as $t \to 0$, the last steps are stable in every coordinate only if $h \le 2\lambda_{\min} / (2 - \lambda_{\min})$. A uniform grid on $[0, T]$ then needs at least
+
+$$
+n \ \ge\ \frac{T\,(2 - \lambda_{\min})}{2\, \lambda_{\min}} \ \approx\ \frac{T \kappa}{2}
+$$
+
+steps, where $\kappa = 1/\lambda_{\min}$ is the condition number of the covariance.
+
+::: proof
+The score of $p_t$ is $-y_k / v_k(t)$ in coordinate $k$, so the step $y \leftarrow y + h(y + 2\nabla \log p_t(y)) + \sqrt{2h}\,\xi$ multiplies $y_k$ by $m_k(t)$.
+
+Stability requires $m_k > -1$, that is $h (2/v_k - 1) < 2$; near $t = 0$ this reads $h < 2\lambda_k / (2 - \lambda_k)$. The smallest variance gives the binding constraint, and $n = T/h$. [∎]{.qed}
+:::
+::::
+
+The stability bound is only necessary: accuracy requires steps well below it. The code computes the exact output law of the sampler for a Gaussian with spectrum $\lambda_k = k^{-2}$, $k \le d$, and finds the number of uniform steps that brings the KL divergence per coordinate below $10^{-3}$. It compares with a white spectrum, and with the same spectrum after each octave $2^j \le k < 2^{j+1}$ is renormalised to unit maximal variance.
+
+```python
+import numpy as np
+
+def kl_per_dim(lam, n, T=8.0):
+    """Exact output law of n reverse Euler-Maruyama steps for N(0, diag(lam)), exact score."""
+    h, var = T / n, lam * np.exp(-2 * T) + 1 - np.exp(-2 * T)      # start exactly from p_T
+    for k in range(n):
+        t = T - k * h
+        v = lam * np.exp(-2 * t) + 1 - np.exp(-2 * t)               # variance of p_t
+        var = (1 + h - 2 * h / v) ** 2 * var + 2 * h                 # y <- y + h (y + 2 score) + noise
+    r = var / lam
+    return np.mean(0.5 * (r - 1 - np.log(r)))                       # KL per coordinate
+
+def steps_needed(lam, tol=1e-3):
+    n = 8
+    while kl_per_dim(lam, n) > tol:
+        n = int(1.2 * n) + 1
+    return n
+
+for d in [8, 16, 32]:
+    k = np.arange(1, d + 1)
+    lam = 1.0 / k**2                                  # spectrum 1/k^2: condition number d^2
+    octave = 4.0 ** np.floor(np.log2(k))              # renormalise each octave [2^j, 2^(j+1))
+    print(f"d = {d:2d}: steps for the 1/k^2 spectrum {steps_needed(lam):6d}, "
+          f"white {steps_needed(np.ones(d)):3d}, octave-renormalised {steps_needed(lam * octave):3d}")
+print("one coordinate of variance 1/4:", steps_needed(np.array([0.25])))
+```
+
+For $d = 8, 16, 32$, the $k^{-2}$ spectrum needs 4640, 16 635 and 71 537 steps, roughly a factor 4 each time $d$ doubles, as $\kappa = d^2$ predicts. The white spectrum needs 68 steps whatever $d$.
+
+After renormalisation, every eigenvalue lies in $[1/4, 1]$. The counts 207, 249 and 299 never exceed the 518 steps that a single coordinate of variance $1/4$ requires, the worst case of that interval.
+
+This is the principle of *wavelet score-based generative modelling* (Guth, Coste, De Bortoli and Mallat, 2022). An orthonormal wavelet transform splits the image $x$ into a coarse approximation $x_J$ and details $\bar x_j$ at each scale. Since the map from $x_{j-1}$ to $(x_j, \bar x_j)$ is orthogonal, the chain rule of probability gives an exact factorisation:
+
+::: key
+[Key result — multiscale factorisation of a probability density]{.tag}
+
+$$
+p(x) = p(x_J) \prod_{j=1}^{J} p\big(\bar x_j \mid x_j\big)
+$$
+:::
+
+Each conditional law $p(\bar x_j \mid x_j)$ is sampled by its own score diffusion, conditioned on the coarser image (ch. 6), on normalised wavelet coefficients. Within one scale, the spectrum varies by a bounded factor, as in the renormalised experiment above. Guth and coauthors prove, for Gaussian stationary fields, that the number of steps per scale is then bounded independently of the image size, and they observe the same gain on images and on fields of statistical physics.
+
+The factorisation across scales is also the structure of the renormalisation group of statistical physics. Marchand, Ozawa, Biroli and Mallat (2023) estimate the energies of these conditional laws with low-dimensional models, scale by scale, to estimate and sample fields of statistical physics.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   A bias-free denoiser satisfies $D(y) = \nabla D(y)\, y$: it is a linear filter that adapts to the input.
+-   The Jacobian of the MMSE denoiser is the posterior covariance divided by $\sigma^2$; its trace, the effective dimension, gives the error.
+-   Trained denoisers shrink coefficients in geometry-adaptive orthonormal bases; thresholding in a fixed basis is the classical special case.
+-   The projection oracle costs $\sum_k \min(f_k^2, \sigma^2)$, and thresholding at $\sigma\sqrt{2\log d}$ reaches it up to $2 \log d + 1$; sparse signals are denoised well.
+-   Wavelets make piecewise-regular signals sparse; the wavelet factorisation $p(x_J)\prod_j p(\bar x_j \mid x_j)$ makes each sampling problem well conditioned, so the number of steps per scale stays bounded.
+::::
+
+## 6. Conditional generation {#ch6}
+
+Most applications generate data *given* complementary information $y$: a class label, a text, a coarser image, or a measurement such as a blurred or incomplete image. This chapter shows that conditioning is Bayes' rule written on scores, and studies the two ways it is used in practice: guidance and posterior sampling for inverse problems.
+
+### 6.1 Conditional scores
+
+:::: prop
+[Proposition 6.1 — Bayes' rule on scores]{.tag} Let $(X_0, Y)$ be a pair of random variables and $X_t = a_t X_0 + \sigma_t Z$ the noised version of $X_0$, with $Z$ independent of $(X_0, Y)$. The conditional score splits into a prior score and a likelihood score:
+
+$$
+\nabla_x \log p_t(x \mid y) = \nabla_x \log p_t(x) + \nabla_x \log p_t(y \mid x) .
+$$
+
+Moreover, the denoising loss with the label as an extra input, $\mathbb{E}\| \varepsilon_\theta(X_t, t, Y) - Z \|^2$, is minimised by the conditional score $-\sigma_t \nabla_x \log p_t(x \mid y)$.
+
+::: proof
+Bayes' formula gives $p_t(x \mid y) = p_t(x)\, p_t(y \mid x) / p(y)$, and $p(y)$ does not depend on $x$. For the loss, apply Theorem 4.2 to the conditional law of $X_0$ given $Y = y$, for each $y$. [∎]{.qed}
+:::
+::::
+
+Two strategies follow. The first trains one network on pairs $(x, y)$, the second combines an unconditional score with a likelihood term. *Classifier guidance* (Dhariwal and Nichol, 2021) takes the likelihood from a classifier $p_\phi(y \mid x_t)$ trained on noisy inputs, and adds its gradient to the score.
+
+### 6.2 Classifier-free guidance
+
+::: def
+[Definition 6.2 — Classifier-free guidance (Ho and Salimans, 2021)]{.tag} One network $s_\theta(x, t, y)$ is trained with the label replaced by a null token a fraction of the time, so that it learns both the conditional score and the unconditional score $s_\theta(x, t, \varnothing)$. Sampling uses, for a guidance weight $w \ge 0$,
+
+$$
+s_w(x, t, y) = (1 + w)\, s_\theta(x, t, y) - w\, s_\theta(x, t, \varnothing) .
+$$
+:::
+
+:::: prop
+[Proposition 6.3 — What guidance targets]{.tag} With exact scores, the guided score is the conditional score plus $w$ times the likelihood score:
+
+$$
+s_w(x, t, y) = \nabla \log p_t(x \mid y) + w\, \nabla \log p_t(y \mid x) .
+$$
+
+At $t = 0$ this is the score of the *tilted* law $\pi_w(x) \propto p(x \mid y)\, p(y \mid x)^w$, which concentrates on inputs the classifier finds typical of $y$. For $t > 0$, however, $s_w$ is in general not the score of the noised tilted law.
+
+::: proof
+The first identity is Proposition 6.1 applied to $\nabla \log p_t(x \mid y) - \nabla \log p_t(x)$. At $t = 0$, the score of $\pi_w$ is $\nabla \log p(x \mid y) + w \nabla \log p(y \mid x)$ by definition.
+
+For $t > 0$, the score of the noised tilted law is $\mathbb{E}[\nabla \log \pi_w(X_0) \mid X_t = x] / a_t$, an average computed under $\pi_w$. The guided score instead contains $w \nabla \log p_t(y \mid x)$, the gradient of the logarithm of an average. Powers and averages do not commute, so the two differ in general; the code below shows a case. [∎]{.qed}
+:::
+::::
+
+The code uses two overlapping classes, $\mathcal{N}((\mp 1, 0), 0.8^2 I)$ with equal weights, for which every score is explicit. It samples class 1 with guidance weights 0, 1 and 4, and compares with the tilted law $\pi_w$ computed by quadrature on the first coordinate.
+
+```python
+import numpy as np
+from scipy.special import logsumexp
+
+rng = np.random.default_rng(4)
+means = np.array([[-1.0, 0.0], [1.0, 0.0]])      # class 0 and class 1, overlapping
+labels, wts, s2 = np.array([0, 1]), np.array([0.5, 0.5]), 0.64   # each class N(mean, 0.8^2 I)
+
+def score(t, x, comps):
+    """Exact score of p_t for the mixture restricted to `comps` (Ornstein-Uhlenbeck noising)."""
+    a, v = np.exp(-t), np.exp(-2 * t) * s2 + 1 - np.exp(-2 * t)
+    mu = a * means[comps]
+    logc = np.log(wts[comps]) - 0.5 * ((x[:, None, :] - mu) ** 2).sum(-1) / v
+    r = np.exp(logc - logsumexp(logc, axis=1, keepdims=True))
+    return (r[:, :, None] * (mu - x[:, None, :])).sum(1) / v
+
+def guided_sample(y, w, n=4000, T=6.0, steps=400):
+    ts = T * np.linspace(1, 0, steps + 1) ** 2 + 1e-3
+    x = rng.standard_normal((n, 2))
+    cond, uncond = np.flatnonzero(labels == y), np.arange(len(means))
+    for k in range(steps):
+        t, h = ts[k], ts[k] - ts[k + 1]
+        s = (1 + w) * score(t, x, cond) - w * score(t, x, uncond)   # classifier-free guidance
+        x = x + h * (x + 2 * s) + np.sqrt(2 * h) * rng.standard_normal(x.shape)
+    return x
+
+conf = lambda u: 1 / (1 + np.exp(-2 * u / s2))     # exact p(y = 1 | x), x_1 = u
+u = np.linspace(-6, 8, 20001)                      # quadrature for the tilted law at t = 0
+for w in [0.0, 1.0, 4.0]:
+    x = guided_sample(y=1, w=w)
+    tilt = np.exp(-0.5 * (u - 1) ** 2 / s2) * conf(u) ** w      # p(x | 1) p(1 | x)^w
+    tilt /= tilt.sum()
+    print(f"w = {w}: guided x_1 mean {x[:, 0].mean():.2f}, std {x[:, 0].std():.2f}, "
+          f"p(1|x) {conf(x[:, 0]).mean():.3f} | tilted law: mean {(u * tilt).sum():.2f}, "
+          f"p(1|x) {(conf(u) * tilt).sum():.3f}")
+```
+
+Without guidance the sampler reproduces the class law: mean 0.99 and standard deviation 0.81 for the first coordinate, average classifier confidence 0.843 against 0.847 exactly. With $w = 4$, the samples move away from the other class (mean 1.76), lose diversity (standard deviation 0.60) and become more typical (confidence 0.984).
+
+The tilted law $\pi_4$ has mean 1.37 and confidence 0.954 only: guidance overshoots the law it is usually said to sample. In image generation, moderate guidance trades diversity for fidelity to the prompt, which is why it is used with text conditioning.
+
+### 6.3 Inverse problems
+
+In an inverse problem, $y = A x_0 + \sigma_y n$ with a known linear operator $A$ (blur, mask, subsampling) and $n \sim \mathcal{N}(0, I)$. A diffusion model of the prior $p(x_0)$ can sample the posterior $p(x_0 \mid y)$ with the scores of Proposition 6.1. The prior score is the trained network; the difficulty is the likelihood of the *noisy* state,
+
+$$
+p_t(y \mid x_t) = \int p(y \mid x_0)\, p(x_0 \mid x_t)\, dx_0 ,
+$$
+
+which averages the likelihood over the unknown clean image.
+
+:::: prop
+[Proposition 6.4 — Gaussian prior: exact likelihood of the noisy state]{.tag} If $x_0 \sim \mathcal{N}(0, C)$, the posterior $p(x_0 \mid x_t)$ is Gaussian with mean $D_t(x_t)$, the Wiener estimator, and covariance
+
+$$
+\Sigma_t = \Big( C^{-1} + \frac{a_t^2}{\sigma_t^2} I \Big)^{-1} ,
+$$
+
+and the likelihood of the noisy state is exactly
+
+$$
+p_t(y \mid x_t) = \mathcal{N}\big(y;\ A D_t(x_t),\ \sigma_y^2 I + A \Sigma_t A^\top\big) .
+$$
+
+::: proof
+Theorem 0.4 applied to the observation $x_t / a_t = x_0 + (\sigma_t / a_t) Z$ gives the Gaussian posterior. The covariance $C - C(C + \frac{\sigma_t^2}{a_t^2} I)^{-1} C$ simplifies to the inverse above.
+
+Given $x_t$, $y = A x_0 + \sigma_y n$ is an affine function of the Gaussian vector $x_0$ plus independent noise, with mean $A D_t(x_t)$ and covariance $A \Sigma_t A^\top + \sigma_y^2 I$. [∎]{.qed}
+:::
+::::
+
+*Diffusion posterior sampling* (Chung et al., 2023) approximates $p(x_0 \mid x_t)$ by a point mass at the denoised estimate $D_t(x_t)$, which is available from Tweedie's formula. It thus uses $\mathcal{N}(y;\ A D_t(x_t),\ \sigma_y^2 I)$ and drops the term $A \Sigma_t A^\top$.
+
+Proposition 6.4 shows what this costs. At small $t$, $\Sigma_t \to 0$ and the approximation is exact. At large $t$, the dropped term is of the size of the prior covariance, so the likelihood is far too sharp and pulls the early iterations too hard towards the measurements (Exercise 14).
+
+Kadkhodaie and Simoncelli (2021) proposed another route for linear inverse problems. Their algorithm alternates denoising steps of the prior's denoiser with projections onto the measurement constraints, and uses no separate likelihood network.
+
+### 6.4 Other kinds of conditioning
+
+-   **Text.** Text-to-image models feed an embedding of the prompt to the denoiser through cross-attention layers, train with pairs of images and captions, and sample with classifier-free guidance (Rombach et al., 2022).
+-   **Coarse scales.** In the multiscale factorisation of ch. 5.4, each conditional law $p(\bar x_j \mid x_j)$ is a conditional generation problem whose information is the coarser image; super-resolution is the same problem.
+-   **Physical parameters and measurements.** For scientific data, $y$ can be a parameter of the physical model or sparse observations. Conditional generation then produces an ensemble of fields compatible with them, which is the basis of the forecasts of ch. 7.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   Conditioning adds a likelihood score to the prior score; a network given the label as input learns the conditional score directly.
+-   Classifier-free guidance extrapolates between conditional and unconditional scores; it targets the tilted law $p(x \mid y)\, p(y \mid x)^w$ only at $t = 0$, and in practice trades diversity for fidelity.
+-   For inverse problems, the likelihood of a noisy state averages over the clean image; for a Gaussian prior it is exact and explicit.
+-   Diffusion posterior sampling replaces that average by the denoised estimate: exact at small noise, overconfident at large noise.
+::::
+
+## 7. Stochastic interpolants and the prediction of chaotic systems {#ch7}
+
+Diffusion models transport white noise to data. Stochastic interpolants transport any law to any other, for instance the present state of a physical system to its future state. This chapter builds them from the continuity equation of ch. 1 and applies them to the probabilistic forecast of a chaotic system, the problem of weather prediction.
+
+### 7.1 Stochastic interpolants
+
+::: def
+[Definition 7.1 — Stochastic interpolant (Albergo, Boffi and Vanden-Eijnden, 2023)]{.tag} Let $(x_0, x_1)$ be drawn from a coupling of two laws $\rho_0$ and $\rho_1$, and $z \sim \mathcal{N}(0, I)$ be independent of them. For $t \in [0, 1]$, set
+
+$$
+x_t = \alpha(t)\, x_0 + \beta(t)\, x_1 + \gamma(t)\, z ,
+$$
+
+with smooth coefficients such that $\alpha(0) = \beta(1) = 1$, $\alpha(1) = \beta(0) = 0$ and $\gamma(0) = \gamma(1) = 0$. Write $\rho_t$ for the law of $x_t$, and its time derivative as
+
+$$
+\dot x_t = \dot\alpha(t)\, x_0 + \dot\beta(t)\, x_1 + \dot\gamma(t)\, z .
+$$
+:::
+
+The interpolant is a path of laws from $\rho_0$ to $\rho_1$, defined by sampling and not by an equation. The next theorem finds a velocity that realises it.
+
+:::: thm
+[Theorem 7.2 — The velocity of an interpolant]{.tag} Define $b(t, x) = \mathbb{E}[\dot x_t \mid x_t = x]$. Then $\rho_t$ solves the continuity equation
+
+$$
+\partial_t \rho_t + \nabla \cdot (\rho_t\, b) = 0 ,
+$$
+
+so the ODE $\dot X = b(t, X)$ started from $X_0 \sim \rho_0$ gives $X_1 \sim \rho_1$, provided it has unique solutions. Moreover $b$ is the minimiser of the regression loss
+
+$$
+\mathcal{L}(v) = \int_0^1 \mathbb{E}\, \big\| v(t, x_t) - \dot x_t \big\|^2\, dt .
+$$
+
+::: proof
+For a test function $f$, by the tower property of conditional expectation,
+
+$$
+\frac{d}{dt} \mathbb{E} f(x_t) = \mathbb{E}\big[\nabla f(x_t) \cdot \dot x_t\big] = \mathbb{E}\big[\nabla f(x_t) \cdot b(t, x_t)\big] = \int \rho_t\, b \cdot \nabla f ,
+$$
+
+which is the weak form of the continuity equation, as in Theorem 1.7. The ODE transports $\rho_0$ along a solution of the same equation, and uniqueness of that solution gives $\rho_t$ at every time. The regression statement is Theorem 0.4 applied for each $t$. [∎]{.qed}
+:::
+::::
+
+When $\gamma > 0$ on $(0, 1)$, the law $\rho_t$ is smooth, and the same argument as in Theorem 3.2 gives its score:
+
+$$
+\nabla \log \rho_t(x) = -\frac{\mathbb{E}[z \mid x_t = x]}{\gamma(t)} .
+$$
+
+:::: prop
+[Proposition 7.3 — A family of SDEs with the same marginals]{.tag} For every $\varepsilon(t) \ge 0$, the SDE
+
+$$
+dX_t = \big( b(t, X_t) + \varepsilon(t)\, \nabla \log \rho_t(X_t) \big)\, dt + \sqrt{2 \varepsilon(t)}\, dW_t
+$$
+
+started from $\rho_0$ has the marginals $\rho_t$.
+
+::: proof
+By Theorem 2.3, the right-hand side of its Fokker–Planck equation is
+
+$$
+-\nabla \cdot (\rho\, b) - \varepsilon\, \nabla \cdot (\rho \nabla \log \rho) + \varepsilon\, \Delta \rho = -\nabla \cdot (\rho\, b),
+$$
+
+because $\rho \nabla \log \rho = \nabla \rho$. This is the continuity equation of Theorem 7.2. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 7.4 — Two familiar special cases]{.tag} Take $x_0 \sim \mathcal{N}(0, I)$ independent of the data $x_1$, $\gamma = 0$, and $\alpha(t) = \cos(\pi t / 2)$, $\beta(t) = \sin(\pi t / 2)$.
+
+Since $\alpha^2 + \beta^2 = 1$, the law of $x_t$ is that of the Ornstein–Uhlenbeck marginal $a_\tau X_0 + \sigma_\tau Z$ for the time $\tau$ with $a_\tau = \beta(t)$. The ODE of Theorem 7.2 is then the probability-flow ODE of ch. 3, after a change of time.
+
+With $\alpha(t) = 1 - t$ and $\beta(t) = t$, the interpolant moves on straight lines: this is *flow matching* (Lipman et al., 2023) or *rectified flow* (Liu, Gong and Liu, 2023).
+:::
+
+Interpolants thus contain diffusion models, but they also allow a coupling between $x_0$ and $x_1$ given by the data. That is what forecasting needs.
+
+### 7.2 Chaos and probabilistic forecasts
+
+The Lorenz-63 system (Lorenz, 1963) is a three-variable model of convection:
+
+$$
+\dot x = 10\,(y - x), \qquad \dot y = x\,(28 - z) - y, \qquad \dot z = x y - \tfrac83\, z .
+$$
+
+Its trajectories converge to a strange attractor, on which nearby trajectories separate exponentially, at a rate given by the largest Lyapunov exponent, about $0.9$. An observation error of size $\delta$ therefore grows to the size of the attractor after a time of order $\log(1/\delta)/0.9$. Beyond that horizon, a single deterministic forecast is meaningless.
+
+The meaningful target is the conditional law of the future state given the observations, $p(x_{t + \tau} \mid y_t)$, represented by an ensemble of forecasts. A forecast trained with the mean square error converges to the conditional mean (Theorem 0.4), which blurs the possible futures together. Ensembles are compared with proper scoring rules.
+
+:::: prop
+[Proposition 7.5 — The CRPS is a proper scoring rule]{.tag} For a forecast distribution function $F$ on $\mathbb{R}$ and an outcome $x$, the continuous ranked probability score is
+
+$$
+\mathrm{CRPS}(F, x) = \int_{\mathbb{R}} \big( F(u) - \mathbf{1}[x \le u] \big)^2\, du = \mathbb{E}|X - x| - \tfrac12\, \mathbb{E}|X - X'| ,
+$$
+
+where $X, X'$ are independent draws from $F$. If the outcome is drawn from $G$, the expected score is minimised by $F = G$.
+
+::: proof
+For $x \sim G$ and each $u$,
+
+$$
+\mathbb{E}\big(F(u) - \mathbf{1}[x \le u]\big)^2 = (F(u) - G(u))^2 + G(u)(1 - G(u)) .
+$$
+
+Integrating in $u$, the first term vanishes only for $F = G$, and the second does not depend on $F$. The second expression of the CRPS is obtained by writing both terms as integrals of distribution functions (Gneiting and Raftery, 2007). [∎]{.qed}
+:::
+::::
+
+A forecaster cannot improve its expected CRPS by reporting anything but its true belief. For a deterministic forecast, the CRPS reduces to the absolute error, so ensembles and point forecasts are compared on the same scale.
+
+### 7.3 Forecasting with a conditional interpolant
+
+We observe the present state of Lorenz-63 with noise, $y = x + 2\, \eta$, $\eta \sim \mathcal{N}(0, I)$, and forecast the state $x_1$ at lead time $\tau = 0.5$. In normalised units, the interpolant starts from $x_0 = y + 0.5\, \xi$ and ends at $x_1$:
+
+$$
+x_s = (1 - s)\, x_0 + s\, x_1, \qquad \dot x_s = x_1 - x_0 .
+$$
+
+Given $y$, the start and the end are independent, so Theorem 7.2, applied conditionally on $y$, says that the ODE with velocity $b(s, x, y)$ transports $\mathcal{N}(y, 0.25 I)$ onto $p(x_1 \mid y)$. A network learns $b$ by regression, and each forecast is an ensemble of 50 ODE solutions.
+
+```python
+import numpy as np, torch
+
+rng = np.random.default_rng(5); torch.manual_seed(5); torch.set_num_threads(1)
+
+def lorenz_flow(x, tau, dt=0.01):                     # RK4 for Lorenz-63, vectorised
+    f = lambda x: np.stack([10 * (x[:, 1] - x[:, 0]), x[:, 0] * (28 - x[:, 2]) - x[:, 1],
+                            x[:, 0] * x[:, 1] - 8 / 3 * x[:, 2]], 1)
+    for _ in range(int(round(tau / dt))):
+        k1 = f(x); k2 = f(x + dt / 2 * k1); k3 = f(x + dt / 2 * k2); k4 = f(x + dt * k3)
+        x = x + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    return x
+
+x = lorenz_flow(rng.uniform([-20, -25, 5], [20, 25, 45], (12_000, 3)), 10.0)   # on the attractor
+tau, s_obs = 0.5, 2.0
+x1 = lorenz_flow(x, tau)                              # future state
+y = x + s_obs * rng.standard_normal(x.shape)          # noisy observation of the present
+m, sd = x.mean(0), x.std(0)
+Y, X1 = [torch.tensor((a - m) / sd, dtype=torch.float32) for a in (y, x1)]
+ntr = 10_000
+
+net = torch.nn.Sequential(torch.nn.Linear(7, 128), torch.nn.SiLU(), torch.nn.Linear(128, 128),
+                          torch.nn.SiLU(), torch.nn.Linear(128, 3))     # velocity b(s, x_s, y)
+opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+for step in range(3000):                              # regression of the interpolant velocity
+    i = torch.randint(0, ntr, (512,))
+    x0 = Y[i] + 0.5 * torch.randn(512, 3)             # base point: observation + noise
+    s = torch.rand(512, 1)
+    xs = (1 - s) * x0 + s * X1[i]                     # interpolant between x0 and the future
+    loss = ((net(torch.cat([s, xs, Y[i]], 1)) - (X1[i] - x0)) ** 2).mean()
+    opt.zero_grad(); loss.backward(); opt.step()
+
+@torch.no_grad()
+def forecast(yc, n_ens=50, steps=50):                 # Euler on dx/ds = b(s, x, y)
+    yy = yc.repeat_interleave(n_ens, 0)
+    z = yy + 0.5 * torch.randn_like(yy)
+    for k in range(steps):
+        s = torch.full((len(z), 1), k / steps)
+        z = z + net(torch.cat([s, z, yy], 1)) / steps
+    return z.view(len(yc), n_ens, 3)
+
+def crps(ens, obs):                                   # ensemble CRPS, averaged over coordinates
+    e1 = (ens - obs[:, None]).abs().mean(1)
+    e2 = (ens[:, :, None] - ens[:, None, :]).abs().mean((1, 2))
+    return (e1 - 0.5 * e2).mean().item()
+
+te = slice(ntr, ntr + 1000)
+ens = forecast(Y[te])
+clim = X1[torch.randint(0, ntr, (1000, 50))]          # climatology ensemble
+pers = Y[te][:, None]                                 # persistence: forecast = observation
+print(f"CRPS (normalised units): generative {crps(ens, X1[te]):.3f}, "
+      f"persistence {crps(pers, X1[te]):.3f}, climatology {crps(clim, X1[te]):.3f}")
+print(f"ensemble spread {ens.std(1).mean():.3f}, error of the ensemble mean "
+      f"{(ens.mean(1) - X1[te]).pow(2).mean().sqrt():.3f}")
+```
+
+On 1000 test cases, the generative ensemble has a CRPS of 0.302, against 0.560 for climatology (random states of the attractor) and 1.136 for persistence (the observation itself). Its spread, 0.553, is a little below the error of its mean, 0.672: the ensemble is slightly under-dispersed, a common defect that calibration diagnostics detect (Exercise 17).
+
+Chen et al. (2024) start the forecast from a point mass at the current state instead. An ODE would then give a single trajectory, so they generate with an SDE of the kind of Proposition 7.3, which they relate to a *Föllmer process*; its diffusion term creates the spread of the ensemble.
+
+### 7.4 Weather and climate
+
+Machine-learned weather models are trained on decades of reanalysis data. GraphCast (Lam et al., 2023), a graph neural network trained with a mean square error, forecasts the medium range more accurately than the leading physical model on most targets. Its forecasts become smooth at long lead times, as Theorem 0.4 predicts for a conditional mean.
+
+GenCast (Price et al., 2025) is a conditional diffusion model: each step samples the next state given the two previous ones. It produces 15-day global ensemble forecasts that are more skilful than the operational ensemble of the European Centre for Medium-Range Weather Forecasts on most of the evaluated targets, including extreme events.
+
+Stochastic interpolants and diffusion models thus bring the tools of this course — scores, denoisers, transport, scoring rules — to the oldest probabilistic forecasting problem in physics.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   A stochastic interpolant $\alpha x_0 + \beta x_1 + \gamma z$ joins two laws; its velocity $\mathbb{E}[\dot x_t \mid x_t]$ is learned by regression and transports one law to the other.
+-   A whole family of SDEs, with drift $b + \varepsilon \nabla \log \rho_t$, shares the same marginals; diffusion models and flow matching are special cases.
+-   Chaos makes single forecasts useless beyond a few Lyapunov times; the target is the conditional law of the future, represented by an ensemble.
+-   The CRPS is a proper scoring rule: it compares ensembles and point forecasts honestly.
+-   A conditional interpolant gives sharp, nearly calibrated ensembles on Lorenz-63; diffusion models such as GenCast now produce operational-quality weather ensembles.
+::::
+
+## 8. Research directions and open problems {#ch8}
+
+This chapter is for self-study and as background for the research presentations that follow each lecture. It surveys active questions in neutral terms; every work cited is listed in the references.
+
+### 8.1 Convergence theory of diffusion samplers
+
+Theorem 3.4 bounds the error by the score error in continuous time. Chen, Chewi, Li, Li, Salim and Zhang (2023) added the time discretisation and showed that, with an $L^2$-accurate score, the number of steps grows polynomially in the dimension, without log-concavity. Benton, De Bortoli, Doucet and Deligiannidis (2024) obtained bounds nearly linear in the dimension under minimal assumptions.
+
+These results take the score error as given. *Open problem*: bound the score error achievable by a network trained on $n$ samples of a structured law, such as images, in terms that do not degrade exponentially with the dimension.
+
+### 8.2 Memorisation, generalisation and creativity
+
+Proposition 4.3 shows that perfect training memorises. Carlini et al. (2023) and Somepalli et al. (2023) extracted near-copies of training images from large trained models, so memorisation is a practical issue for privacy and copyright.
+
+Kadkhodaie, Guth, Simoncelli and Mallat (2024) located the transition to generalisation and related it to geometry-adaptive harmonic bases (ch. 4.5, 5.1). Biroli, Bonnaire, De Bortoli and Mézard (2024) analysed diffusion in high dimension with statistical physics. They identify a time at which the trajectory commits to one class of the data ("speciation") and a later time at which it may collapse onto a training point.
+
+*Open problems*: characterise mathematically the inductive bias of convolutional U-Nets, and predict the training-set size at which a given architecture stops memorising a given data law.
+
+### 8.3 Multiscale models, sparsity and physics
+
+The factorisation of ch. 5.4 reduces generation to conditional laws of wavelet coefficients. Guth, Coste, De Bortoli and Mallat (2022) analysed its numerical complexity. Kadkhodaie, Guth, Mallat and Simoncelli (2023) learned these conditionals with denoisers whose receptive fields are local at each scale, a Markov model across scales that remains low-dimensional at every scale.
+
+Marchand, Ozawa, Biroli and Mallat (2023) connected the same factorisation to the renormalisation group and estimated interaction energies of physical fields scale by scale. Diffusion models are also used to emulate turbulent flows and other fields from numerical simulations; the samples must then reproduce physical statistics (spectra, extremes), not only look plausible.
+
+*Open problem*: which classes of laws admit conditional laws across scales that are both well conditioned and low-dimensional, so that the curse of dimensionality is avoided provably?
+
+### 8.4 Faster sampling
+
+A sampler with hundreds of network evaluations is slow. Deterministic solvers of the probability-flow ODE (Song, Meng and Ermon, 2021; Karras et al., 2022) reduce the count to tens. Progressive distillation (Salimans and Ho, 2022) trains a student network to do two teacher steps at once, repeatedly. Consistency models (Song, Dhariwal, Chen and Sutskever, 2023) learn to map any point of a trajectory directly to its end point.
+
+Straighter transport paths, as in rectified flow (Liu, Gong and Liu, 2023), make single-step integration more accurate. *Open problem*: understand the trade-off between the number of steps and sample diversity, and what one-step generators lose.
+
+### 8.5 Bridges, couplings and discrete data
+
+Diffusion Schrödinger bridges (De Bortoli, Thornton, Heng and Doucet, 2021) join two arbitrary laws by the entropy-regularised optimal transport path, computed by iterated score learning. Stochastic interpolants (ch. 7) give a regression-based alternative with a prescribed coupling.
+
+For discrete data such as text or graphs, the Gaussian noise is replaced by a Markov chain on a finite set (Austin et al., 2021). *Open problem*: a theory of the choice of the path — interpolant coefficients, coupling, noise — that minimises the statistical and numerical errors together.
+
+### 8.6 Forecasting physical systems
+
+GenCast (Price et al., 2025) showed that diffusion ensembles can compete with operational physical ensembles in weather forecasting. Chen et al. (2024) gave the interpolant formulation used in ch. 7.
+
+Open questions include the calibration of ensembles for rare and extreme events, the conservation of physical invariants, long autoregressive rollouts that remain stable, and the assimilation of sparse observations. The related MVA course [Interactions: Complexity, Stochasticity, Extrema and Rare Events](../s2-interactions/index.html) treats the probabilistic side of extremes.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   The sampling error of diffusion models is well understood given the score error; the statistical error of learned scores is not.
+-   Memorisation is real and measurable; generalisation depends on an inductive bias that is only partly understood.
+-   Multiscale factorisations link generative models, sparsity and the renormalisation group.
+-   Fast samplers, bridges, discrete diffusions and physical forecasting are active fronts.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended or close to research. Exercises 5, 16, 17 and 18 are computational.
+
+1.  **★ An affine push-forward.** Let $Z \sim \mathcal{N}(0, I_2)$ and $T(z) = (1 + 2z_1,\ -1 + z_1 + z_2)$. Give the law of $T(Z)$, the value of its density at $x = (1, -1)$, and $\log|\det \nabla T|$.
+
+    *Solution*: $T(z) = m + Az$ with $m = (1, -1)$ and $A = \begin{pmatrix} 2 & 0 \\ 1 & 1 \end{pmatrix}$, so $T(Z) \sim \mathcal{N}(m, AA^\top)$ with $AA^\top = \begin{pmatrix} 4 & 2 \\ 2 & 2 \end{pmatrix}$ (Example 1.3).
+
+    Since $\det A = 2$, Proposition 1.2 at $x = m$, that is $z = 0$, gives the density $\gamma(0)/2 = 1/(4\pi) \approx 0.0796$, and $\log|\det\nabla T| = \log 2$.
+
+2.  **★ Monotone transport between Gaussians.** Let $\mu = \mathcal{N}(0, 1)$ and $\nu = \mathcal{N}(m, s^2)$ with $s > 0$. Compute the map of Theorem 1.4 and $W_2(\mu, \nu)^2$, and evaluate for $m = 1$ and $s = 2$. Then give the monotone map from the standard Gaussian to the exponential law of mean 1.
+
+    *Solution*: $F_\nu^{-1}(u) = m + s\,\Phi^{-1}(u)$, so $T(x) = m + s x$. Then
+
+    $$
+    W_2^2 = \mathbb{E}\,(m + (s - 1) X)^2 = m^2 + (s - 1)^2 ,
+    $$
+
+    which equals 2 for $m = 1$, $s = 2$. For the exponential law, $F^{-1}(u) = -\log(1 - u)$, so $T(x) = -\log(1 - \Phi(x))$.
+
+3.  **★ A coupling layer.** In $\mathbb{R}^2$, let $T(z_a, z_b) = \big(z_a,\ z_b\, e^{z_a/2} + z_a^2\big)$. Give the inverse map, the log-determinant of the Jacobian, and the density of $T(Z)$ at $x = (0, 1)$ for $Z \sim \mathcal{N}(0, I_2)$.
+
+    *Solution*: the inverse keeps $x_a$ and returns $z_b = (x_b - x_a^2)\, e^{-x_a/2}$. The Jacobian is lower triangular with diagonal $(1, e^{z_a/2})$, so $\log|\det\nabla T(z)| = z_a/2$.
+
+    At $x = (0, 1)$, $z = (0, 1)$ and the log-determinant is 0, so the density is $\gamma(0, 1) = e^{-1/2}/(2\pi) \approx 0.0965$.
+
+4.  **★ Forgetting the initial condition.** The Ornstein–Uhlenbeck process of Proposition 2.4 starts from the deterministic point $X_0 = 3$ in dimension one. Give the law of $X_t$, the divergence $\mathrm{KL}(p_t \,\|\, \mathcal{N}(0, 1))$, and the time after which it is below 0.01.
+
+    *Solution*: $X_t \sim \mathcal{N}(3 e^{-t},\ 1 - e^{-2t})$. The divergence between Gaussians in dimension one is
+
+    $$
+    \mathrm{KL}\big(\mathcal{N}(\mu, v) \,\|\, \mathcal{N}(0, 1)\big) = \tfrac12 (v + \mu^2 - 1 - \log v),
+    $$
+
+    hence
+
+    $$
+    \mathrm{KL}(t) = \tfrac12 \big( 8 e^{-2t} - \log(1 - e^{-2t}) \big) ,
+    $$
+
+    which is 0.614 at $t = 1$ and 0.083 at $t = 2$, and falls below 0.01 for $t > 3.05$. For large $t$, $\mathrm{KL}(t) \approx 4.5\, e^{-2t}$. This is the rate of Theorem 2.6, although the initial divergence is infinite for a point mass.
+
+5.  **★ The bias of unadjusted Langevin (Python).** For $\pi = \mathcal{N}(0, 1)$, run ULA with 100 000 chains for $h \in \{0.1, 0.5, 1.5, 2.5\}$ and compare the empirical stationary variance with Example 2.7.
+
+    *Hints and expected result*: the formula $1/(1 - h/2)$ gives 1.053, 1.333 and 4.0 for the first three steps; the simulation matches to about 0.01 after a few hundred iterations.
+
+    For $h = 2.5$, the multiplier $1 - h = -1.5$ has modulus larger than 1 and the chains diverge. The step must stay below twice the smallest variance, the same constraint as in Proposition 5.7.
+
+6.  **★ Tweedie for a Gaussian prior.** Let $X \sim \mathcal{N}(2, 1)$ and $Y = X + 0.5\, Z$. Compute the score of $p_Y$, then $\mathbb{E}[X \mid Y = y]$ with Theorem 3.2, and compare with Theorem 0.4. Evaluate at $y = 3$.
+
+    *Solution*: $p_Y = \mathcal{N}(2, 1.25)$ and $\nabla \log p_Y(y) = -(y - 2)/1.25$. Theorem 3.2 with $a = 1$ and $\sigma^2 = 0.25$ gives
+
+    $$
+    \mathbb{E}[X \mid Y = y] = y - 0.2\,(y - 2) = 0.8\, y + 0.4 ,
+    $$
+
+    the Wiener estimator $2 + \frac{1}{1.25}(y - 2)$. At $y = 3$ the estimate is 2.8.
+
+7.  **★ The irreducible denoising loss.** Let $X_0 \sim \mathcal{N}(0, \lambda I_d)$ and $X_t = a X_0 + \sigma Z$. Find the function $\varepsilon$ minimising $\mathbb{E}\|\varepsilon(X_t) - Z\|^2$ and the minimal value. Specialise to the Ornstein–Uhlenbeck schedule with $\lambda = 1$.
+
+    *Solution*: the minimiser is $\mathbb{E}[Z \mid X_t]$ (Theorem 0.4). The pair $(Z, X_t)$ is Gaussian with $\mathrm{Cov}(Z, X_t) = \sigma I$ and $\mathrm{Var}(X_t) = (a^2\lambda + \sigma^2) I$, so
+
+    $$
+    \mathbb{E}[Z \mid X_t] = \frac{\sigma}{a^2 \lambda + \sigma^2}\, X_t .
+    $$
+
+    The minimal loss is the trace of the conditional covariance of $Z$:
+
+    $$
+    d \Big( 1 - \frac{\sigma^2}{a^2\lambda + \sigma^2} \Big) = \frac{d\, a^2 \lambda}{a^2 \lambda + \sigma^2} .
+    $$
+
+    With $\lambda = 1$ and $a_t^2 + \sigma_t^2 = 1$, it equals $d\, e^{-2t}$. The loss cannot go to zero at small $t$, which is why its printed value says little about the quality of a model.
+
+8.  **★ Bayes' rule on scores for two classes.** Let $p(x \mid y) = \mathcal{N}(\mu_y, s^2 I)$ for $y \in \{0, 1\}$ with equal prior weights. Compute $\nabla_x \log p(y = 1 \mid x)$ and check Proposition 6.1 at $t = 0$. Evaluate at the origin for $\mu_1 = -\mu_0 = (1, 0)$ and $s^2 = 0.64$.
+
+    *Solution*: $p(1 \mid x)$ is a logistic function of $(\mu_1 - \mu_0) \cdot x / s^2$, hence
+
+    $$
+    \nabla_x \log p(1 \mid x) = \big(1 - p(1 \mid x)\big)\, \frac{\mu_1 - \mu_0}{s^2} .
+    $$
+
+    On the other side, with the posterior weights $r_y = p(y \mid x)$, the difference of scores is the same vector:
+
+    $$
+    \nabla \log p(x \mid 1) - \nabla \log p(x) = \frac{\mu_1 - r_0 \mu_0 - r_1 \mu_1}{s^2} = r_0\, \frac{\mu_1 - \mu_0}{s^2} .
+    $$
+
+    At the origin, $p(1 \mid 0) = 0.5$, and the gradient is $(1.5625, 0)$.
+
+9.  **★★ Langevin dynamics of a Gaussian, exactly.** For $\pi = \mathcal{N}(0, \lambda)$ in dimension one and $p_0 = \mathcal{N}(m_0, v_0)$, show that $p_t = \mathcal{N}(m_t, v_t)$ with
+
+    $$
+    m_t = m_0\, e^{-t/\lambda}, \qquad v_t = \lambda + (v_0 - \lambda)\, e^{-2t/\lambda} .
+    $$
+
+    Compute $\mathrm{KL}(p_t \,\|\, \pi)$ and compare with Theorem 2.6.
+
+    *Solution*: the SDE $dX = -X/\lambda\, dt + \sqrt 2\, dW$ is linear, so $p_t$ stays Gaussian. Itô's formula for $X$ and $X^2$ gives $\dot m = -m/\lambda$ and $\dot v = -2v/\lambda + 2$.
+
+    With $r_t = v_t/\lambda$, the divergence is
+
+    $$
+    \mathrm{KL}(p_t \,\|\, \pi) = \tfrac12 \Big( r_t - 1 - \log r_t + \frac{m_t^2}{\lambda} \Big) .
+    $$
+
+    The mean term decays exactly like $e^{-2t/\lambda}$, the rate of Theorem 2.6 with $\rho = 1/\lambda$ (Bakry–Émery). The variance term, of order $(r_t - 1)^2$, decays like $e^{-4t/\lambda}$. The bound is therefore sharp, and attained by a shifted start.
+
+10. **★★ The reverse SDE for Gaussian data.** Let $X_0 \sim \mathcal{N}(0, \lambda)$ in dimension one, and $v_t = \lambda a_t^2 + \sigma_t^2$. Show that the reverse SDE of Theorem 3.1 with the exact score, started from $\mathcal{N}(0, v_T)$, has variance $v_{T - s}$ at time $s$.
+
+    Show that the probability-flow ODE maps $y_0$ to $\sqrt{\lambda / v_T}\; y_0$, and compare with Exercise 2.
+
+    *Solution*: the score is $-y/v_t$, and the variance $u(s)$ of the reverse SDE satisfies $\dot u = 2(1 - 2/v_{T-s})\, u + 2$.
+
+    Since $\frac{d}{dt} v_t = 2(1 - v_t)$, the function $u(s) = v_{T-s}$ has derivative $2 v_{T-s} - 2$, which is also the right-hand side at $u = v_{T-s}$. Uniqueness for this linear ODE concludes.
+
+    For the ODE $\dot y = y\,(1 - 1/v_{T-s})$, the solution is linear in $y_0$, and the same computation shows that $y^2$ scales like $v_{T-s}$. The map $y_0 \mapsto \sqrt{\lambda / v_T}\, y_0$ is the monotone, hence optimal, transport between the two Gaussians of Exercise 2.
+
+11. **★★ Score matching estimates a Gaussian.** Fit the model score $s(x) = -(x - \mu)/v$ of $\mathcal{N}(\mu, v)$ to data $x_1, \dots, x_n$ by minimising the empirical version of the objective of Theorem 4.1. Show that the minimisers are the empirical mean and variance.
+
+    *Solution*: $s(x)^2 + 2 s'(x) = (x - \mu)^2 / v^2 - 2/v$. Its empirical mean is minimised in $\mu$ by $\bar x$.
+
+    With $S = \frac1n \sum_i (x_i - \bar x)^2$, the objective becomes $S/v^2 - 2/v$, whose derivative $-2S/v^3 + 2/v^2$ vanishes at $v = S$. Score matching coincides here with maximum likelihood.
+
+12. **★★ The Jacobian of the MMSE denoiser.** (a) For $X \sim \mathcal{N}(0, C)$ and $Y = X + \sigma Z$, compute $\nabla D$ and show that its eigenvalues lie in $[0, 1)$.
+
+    (b) For $X = \pm 1$ with probability $\frac12$ each in dimension one, compute $D(y)$ and $D'(0)$. Can a denoiser *amplify* the noise locally?
+
+    *Solution*: (a) $D(y) = C (C + \sigma^2 I)^{-1} y$, whose eigenvalues are $\lambda_k / (\lambda_k + \sigma^2) \in [0, 1)$, as Proposition 5.2 predicts with $\mathrm{Cov}[X \mid Y] = \sigma^2 C (C + \sigma^2 I)^{-1}$.
+
+    (b) The posterior weights give $D(y) = \tanh(y / \sigma^2)$, so that
+
+    $$
+    D'(y) = \frac{1 - \tanh^2(y/\sigma^2)}{\sigma^2} = \frac{\mathrm{Var}[X \mid y]}{\sigma^2} .
+    $$
+
+    At the origin, $D'(0) = 1/\sigma^2$, larger than 1 when $\sigma < 1$: near the decision boundary between two modes, the denoiser amplifies small changes of $y$.
+
+13. **★★ Uniform and adaptive time grids.** (a) Using Proposition 5.7, give the minimal number of uniform steps on $[0, 8]$ when $\lambda_{\min} = 10^{-4}$, the order of magnitude for a $100 \times 100$ image with a $|\omega|^{-2}$ spectrum.
+
+    (b) Choose instead the step $h(t) = c\, v_{\min}(t)$ with $v_{\min}(t) = \lambda_{\min} a_t^2 + \sigma_t^2$. Show that about $(T + \frac12 \log \kappa)/c$ steps suffice.
+
+    *Solution*: (a) $n \ge 8\,(2 - 10^{-4}) / (2 \cdot 10^{-4}) = 79\,996$.
+
+    (b) The number of steps is about $\int_0^T dt / h(t)$. With $v_{\min}(t) = 1 - (1 - \lambda_{\min}) e^{-2t}$ and the substitution $u = e^{2t}$,
+
+    $$
+    \int_0^T \frac{dt}{v_{\min}(t)} = \frac12 \log \frac{e^{2T} - 1 + \lambda_{\min}}{\lambda_{\min}} \approx T + \frac12 \log \kappa .
+    $$
+
+    Non-uniform grids turn a cost linear in $\kappa$ into a logarithmic one for stability. Accuracy and the conditioning of the learning problem still favour the multiscale factorisation of ch. 5.4.
+
+14. **★★ Diffusion posterior sampling for a Gaussian prior.** In dimension one, let $x_0 \sim \mathcal{N}(0, 1)$, $y = x_0 + \sigma_y n$, and the Ornstein–Uhlenbeck noising. Compute $p_t(y \mid x_t)$ exactly and its DPS approximation, and the ratio of their gradients in $x_t$ at $t = 1$ for $\sigma_y = 0.1$.
+
+    *Solution*: since $a_t^2 + \sigma_t^2 = 1$, Proposition 6.4 gives $\Sigma_t = \sigma_t^2$ and $D_t(x_t) = a_t x_t$. Hence the exact likelihood is Gaussian with mean $a_t x_t$ and variance $\sigma_y^2 + \sigma_t^2$, while DPS uses the variance $\sigma_y^2$.
+
+    Both gradients are $a_t (y - a_t x_t)$ divided by the variance, so their ratio is $(\sigma_y^2 + \sigma_t^2)/\sigma_y^2$. At $t = 1$, $\sigma_t^2 = 1 - e^{-2} = 0.865$, and the DPS gradient is 87.5 times too strong.
+
+15. **★★ The velocity of a Gaussian interpolant.** In dimension one, let $x_0 \sim \mathcal{N}(0, 1)$ and $x_1 \sim \mathcal{N}(m, s^2)$ be independent, and $x_t = (1 - t) x_0 + t x_1$. Compute $b(t, x)$ of Theorem 7.2, check the continuity equation, and identify the map $x_0 \mapsto X_1$ of the ODE.
+
+    *Solution*: $x_t \sim \mathcal{N}(tm, V_t)$ with $V_t = (1 - t)^2 + t^2 s^2$, and $\dot x_t = x_1 - x_0$ has mean $m$ and covariance $t s^2 - (1 - t)$ with $x_t$. Gaussian conditioning gives
+
+    $$
+    b(t, x) = m + \frac{t s^2 - (1 - t)}{V_t}\, (x - tm) .
+    $$
+
+    Since $\dot V_t = 2\,(t s^2 - (1 - t))$, a linear velocity with slope $\dot V_t / (2V_t)$ keeps the law Gaussian with variance $V_t$ and mean $tm$, which solves the continuity equation. The ODE map is affine and increasing, so it is $x_0 \mapsto m + s x_0$, the optimal map of Exercise 2. In dimension $d \ge 2$ the interpolant map is not optimal in general.
+
+16. **★★★ Memorisation and generalisation on digits (Python).** Train a denoiser as in ch. 4.3 — a multilayer perceptron with two hidden layers of 256 units, whose inputs are the 64 pixels and $\log t$ — on the 8 × 8 digits of `sklearn.datasets.load_digits` rescaled to $[-1, 1]$. Use two *disjoint* training sets of size $N \in \{100, 700\}$, then sample 200 images from each network with the same random seed. Compare the median distance between the two networks' samples with the same seed, and between random pairs.
+
+    *Hints and expected result*: this reproduces, at toy scale, the test of Kadkhodaie et al. (2024). In a test run with 3000 training steps of batch 256 and 300 sampling steps, the same-seed distance was about 0.7 times the random-pair distance for $N = 100$, and 0.35 times for $N = 700$. The two networks converge to the same generator as $N$ grows.
+
+    For very small $N$ (10 images), the training is unstable at small noise levels; compare instead with the exact empirical denoiser of Proposition 4.3, which reproduces training images exactly.
+
+17. **★★★ Point forecasts, ensembles and calibration (Python).** Extend the Lorenz-63 code of ch. 7.3. (a) Train a deterministic network by mean square error to predict $x_1$ from $y$, and compare its CRPS (its mean absolute error) with that of the ensemble. (b) Compare the variance of its predictions with the variance of the true future states. (c) Draw a rank histogram of the truth within the ensemble, and repeat for lead times $\tau \in \{0.25, 0.5, 1\}$.
+
+    *Hints and expected result*: by Theorem 0.4, the deterministic network estimates the conditional mean. Its root mean square error should be close to that of the ensemble mean, but its CRPS should be larger than the ensemble's, by Proposition 7.5. Its predictions have a smaller variance than the true states: it blurs the possible futures, the more so as $\tau$ grows.
+
+    A calibrated ensemble gives a flat rank histogram. A U-shaped histogram signals under-dispersion, which the spread 0.553 against the error 0.672 already suggests at $\tau = 0.5$.
+
+18. **★★★ Conditioning across scales (Python).** Let $x \in \mathbb{R}^d$ be a stationary Gaussian vector with circulant covariance of spectrum $1/(|k|^2 + 1)$, $|k| \le d/2$. Compute the condition number of its covariance. Then apply one Haar step at each scale, and compute the condition number of the conditional covariance of the details given the approximation, $\mathrm{Cov}(\bar x_j \mid x_j)$, for $d = 32, \dots, 256$. Relate the result to Proposition 5.7 and the key result of ch. 5.4.
+
+    *Hints and expected result*: build the covariance as $F^* \mathrm{diag}(\text{spectrum})\, F$ with the unitary DFT matrix. The conditional covariance is the Schur complement $C_{dd} - C_{da} C_{aa}^{-1} C_{ad}$.
+
+    The condition number of the covariance grows like $d^2/4$ (257, 1025, 4097 and 16 385). The conditional covariances at every scale have condition numbers between 3.3 and 4.0, whatever $d$. Each conditional sampling problem is therefore well conditioned, and Proposition 5.7 gives a number of steps per scale independent of $d$, as in Guth et al. (2022).
+
+## Projects and assessment {#projects}
+
+The official validation (master-mva.com) is a project on one of the challenges proposed on challenge.data.ens.fr, followed by an oral exam at the end of March with the submission of a report; the Université Paris-Saclay course detail lists it as partial continuous assessment, and no weights are displayed. The first group subject below follows this format; the other subjects are paper studies and experiments sized for practice or for a research-oriented report, and the written exam is a proposal for self-assessment before the oral.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Langevin, annealed Langevin and diffusion on multimodal laws.** Compare the samplers of ch. 2 and ch. 3 on Gaussian mixtures in dimension 2 to 50, whose scores are exact.
+    -   Implement ULA, MALA, annealed Langevin over noise levels (Song and Ermon, 2019) and the reverse SDE and probability-flow ODE of Theorem 3.1.
+    -   Measure the error on the mode weights and the KL or Wasserstein error against the number of score evaluations; check the Kramers rate of ch. 2.5.
+    -   Success criterion: a figure of error against cost for each sampler, explained by Theorems 2.6 and 3.4.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 2 and 3.
+2.  **[Solo · ≈ 20 h] Opening a denoiser: Jacobians and wavelets.** Train a small bias-free convolutional denoiser on synthetic piecewise-regular 1D signals, at several noise levels.
+    -   Check $D(y) = \nabla D(y)\, y$ (Proposition 5.1), compute the eigenvectors and eigenvalues of the Jacobian, and compare the effective dimension with the error (Proposition 5.2).
+    -   Compare with Haar and Daubechies thresholding (Theorem 5.4), following Mohan et al. (2020).
+    -   Success criterion: the network at least matches wavelet thresholding, and its Jacobian eigenvectors are shown to adapt to the jumps.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapter 5.
+3.  **[Solo · ≈ 20 h] Paper study: memorisation and generalisation.** Reproduce at small scale the main experiment of Kadkhodaie, Guth, Simoncelli and Mallat (2024) on the scikit-learn digits, or on a public face data set downsampled to $32 \times 32$ if a free GPU is available.
+    -   Train denoisers on disjoint training sets of increasing size $N$; sample with a common seed; measure nearest-neighbour distances to the training sets and the distance between the two networks' samples.
+    -   Success criterion: a curve showing the transition from memorisation to generalisation, as in Exercise 16.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Chapters 3–5.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] A data challenge (official format).** Choose a challenge of the current year on challenge.data.ens.fr in which a generative, denoising or probabilistic-forecasting model is relevant, and follow its rules and metric.
+    -   Build a baseline, then a model from the course (conditional diffusion or interpolant, learned denoiser, ensemble forecast), and compare them with the challenge metric on a held-out split, and with the challenge's own baseline when its page gives one.
+    -   Split: data pipeline and baseline; generative model and training; evaluation, ablations and report.
+    -   Success criterion: an honest gain over the baseline on held-out data, explained by a result of the course.
+    -   Deliverables: code, the submission, a report and the oral at the end of March, as required by the official validation. Chapters 3, 4, 6 and 7.
+2.  **[Group of 2–3 · ≈ 30 h each] Paper study: wavelet score-based generative modelling.** Reproduce the complexity result of Guth, Coste, De Bortoli and Mallat (2022) on Gaussian stationary fields with a $|\omega|^{-2}$ spectrum, then on 2D images.
+    -   Implement standard score diffusion and the multiscale sampler of ch. 5.4, with exact scores for the Gaussian fields and learned scores for images (scikit-learn digits upsampled, or a public data set on a free GPU).
+    -   Split: Gaussian theory and exact computations (Exercise 18); learned conditional scores; evaluation of spectra and step counts.
+    -   Success criterion: the number of steps needed for a fixed spectral error grows with the image size for standard diffusion and stays bounded per scale for the multiscale sampler.
+    -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 3, 5 and 6.
+3.  **[Group of 2–3 · ≈ 30 h each] Paper study: forecasting with stochastic interpolants.** Reproduce the approach of Chen et al. (2024) on the Lorenz-96 system with 40 variables, simulated by the group.
+    -   Compare a conditional interpolant with an ODE sampler, the SDE started from the current state, a deterministic network trained by mean square error, and climatology.
+    -   Split: simulation and data; interpolant models; scores and calibration (CRPS, spread–skill, rank histograms).
+    -   Success criterion: CRPS curves against lead time where the generative ensemble beats both baselines, and a calibration diagnosis.
+    -   Deliverables: code, a 6–8 page report, a 20-minute talk. Chapters 2, 6 and 7.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no calculator needed; four exercises.
+
+1.  **Question (4 points).** State the Fokker–Planck equation of $dX = b(X)\, dt + \sqrt 2\, dW$, and deduce that the Langevin diffusion leaves $\pi$ invariant. Explain in two sentences why Langevin sampling is slow for a mixture of two well-separated Gaussians, and why the reverse diffusion is not.
+
+    *Expected*: Theorem 2.3 with $g = \sqrt 2$; with $b = \nabla \log \pi$ the right-hand side is $\nabla \cdot (p \nabla \log(p/\pi))$, which vanishes at $p = \pi$.
+
+    Metastability with crossing times of order $e^{\Delta U}$ (ch. 2.5); the reverse diffusion follows the noisy laws $p_t$, nearly Gaussian at large $t$, and Theorem 3.4 needs no log-Sobolev inequality.
+2.  **Question (6 points).** Let $X_0 \sim \mathcal{N}(0, 4)$ in dimension one, noised by the Ornstein–Uhlenbeck process. Give $p_t$, its score, the denoiser $\mathbb{E}[X_0 \mid X_t]$, and the probability-flow ODE. Compute the denoised value at $t = \frac12 \log 2$ for $X_t = 1$.
+
+    *Expected*: $p_t = \mathcal{N}(0, v_t)$ with $v_t = 4 e^{-2t} + 1 - e^{-2t} = 1 + 3e^{-2t}$; score $-y/v_t$; Tweedie gives $\mathbb{E}[X_0 \mid X_t = y] = 4 a_t\, y / v_t$; ODE $\dot y = y\,(1 - 1/v_{T-s})$.
+
+    At $t = \frac12 \log 2$: $a_t^2 = \frac12$ and $v_t = 2.5$, so the denoised value is $4 \times 0.707 / 2.5 \approx 1.13$.
+3.  **Question (5 points).** Prove the denoising score-matching identity of Theorem 4.2, and deduce that the empirical minimiser memorises the training set.
+
+    *Expected*: expansion of both squares, the cross term rewritten with $\nabla p_Y$ under the integral, the noise score $-Z/\sigma$; then Proposition 4.3: the empirical minimiser is the score of the Gaussian mixture centred on the training points, and Theorem 3.1 returns $\hat p$.
+4.  **Question (5 points).** Explain classifier-free guidance and what it targets at $t = 0$. For an inverse problem $y = x_0 + \sigma_y n$ with a Gaussian prior $\mathcal{N}(0, 1)$, give the exact likelihood $p_t(y \mid x_t)$ and say when diffusion posterior sampling is accurate.
+
+    *Expected*: Definition 6.2 and Proposition 6.3, the tilted law $p(x \mid y) p(y \mid x)^w$ and why guidance is a heuristic for $t > 0$.
+
+    Proposition 6.4 with $\Sigma_t = \sigma_t^2$, so that the likelihood is Gaussian with mean $a_t x_t$ and variance $\sigma_y^2 + \sigma_t^2$. DPS drops $\sigma_t^2$: accurate when $\sigma_t^2 \ll \sigma_y^2$, overconfident early in the sampling (Exercise 14).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness | 30 % | Code that runs and matches the mathematics; derivations without gaps; samplers checked on cases with exact scores |
+| Experimental protocol | 25 % | Held-out data, fixed seeds, several runs, baselines, metrics suited to distributions (KL, CRPS, nearest-neighbour tests) |
+| Analysis | 20 % | Every observed effect explained by a result of the course, and limits stated honestly |
+| Report | 15 % | 4–8 clear pages, figures with axes and captions, reproducible settings |
+| Oral and questions | 10 % | A clear talk; precise answers on the methods, as in the official oral exam |
+
+## References {#refs}
+
+**Official material of the course (master-mva.com and Université Paris-Saclay, 2026–2027)**
+
+-   Collège de France, chair *Sciences des données* of Stéphane Mallat: lectures and seminars, at the address given on the master-mva.com course page: `www.college-de-france.fr/fr/chaire/stephane-mallat-sciences-des-donnees-chaire-statutaire`.
+-   Challenge Data, [challenge.data.ens.fr](https://challenge.data.ens.fr) — the data challenges on which the validation project is done.
+
+**Textbooks**
+
+-   S. Mallat, *A Wavelet Tour of Signal Processing: The Sparse Way*, 3rd ed., Academic Press, 2009 — orthonormal and wavelet bases, thresholding estimators (ch. 5).
+-   B. Øksendal, *Stochastic Differential Equations: An Introduction with Applications*, 6th ed., Springer, 2003 — Brownian motion, Itô's formula, SDEs (ch. 2).
+-   G. A. Pavliotis, *Stochastic Processes and Applications: Diffusion Processes, the Fokker–Planck and Langevin Equations*, Springer, 2014 — ch. 2.
+-   D. Bakry, I. Gentil, M. Ledoux, *Analysis and Geometry of Markov Diffusion Operators*, Springer, 2014 — log-Sobolev inequalities, Bakry–Émery criterion (ch. 2).
+-   P. E. Kloeden, E. Platen, *Numerical Solution of Stochastic Differential Equations*, Springer, 1992 — Euler–Maruyama and higher-order schemes.
+-   C. Villani, *Topics in Optimal Transportation*, American Mathematical Society, 2003; F. Santambrogio, *Optimal Transport for Applied Mathematicians*, Birkhäuser, 2015 — ch. 1.
+-   T. M. Cover, J. A. Thomas, *Elements of Information Theory*, 2nd ed., Wiley, 2006 — divergences, data processing (ch. 0).
+-   A. B. Tsybakov, *Introduction to Nonparametric Estimation*, Springer, 2009 — minimax rates (ch. 4).
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016.
+
+**Transport, flows and sampling (ch. 1–2)**
+
+-   Y. Brenier, “Polar factorization and monotone rearrangement of vector-valued functions”, *Communications on Pure and Applied Mathematics* 44(4), 1991.
+-   N. Fournier, A. Guillin, “On the rate of convergence in Wasserstein distance of the empirical measure”, *Probability Theory and Related Fields* 162, 2015.
+-   D. J. Rezende, S. Mohamed, “Variational inference with normalizing flows”, ICML 2015; L. Dinh, J. Sohl-Dickstein, S. Bengio, “Density estimation using Real NVP”, ICLR 2017.
+-   R. T. Q. Chen, Y. Rubanova, J. Bettencourt, D. Duvenaud, “Neural ordinary differential equations”, NeurIPS 2018.
+-   R. Jordan, D. Kinderlehrer, F. Otto, “The variational formulation of the Fokker–Planck equation”, *SIAM Journal on Mathematical Analysis* 29(1), 1998.
+-   G. O. Roberts, R. L. Tweedie, “Exponential convergence of Langevin distributions and their discrete approximations”, *Bernoulli* 2(4), 1996.
+-   A. S. Dalalyan, “Theoretical guarantees for approximate sampling from smooth and log-concave densities”, *Journal of the Royal Statistical Society: Series B* 79(3), 2017.
+-   A. Durmus, É. Moulines, “Nonasymptotic convergence analysis for the unadjusted Langevin algorithm”, *Annals of Applied Probability* 27(3), 2017.
+-   A. Bovier, M. Eckhoff, V. Gayrard, M. Klein, “Metastability in reversible diffusion processes I: Sharp asymptotics for capacities and exit times”, *Journal of the European Mathematical Society* 6(4), 2004.
+
+**Score diffusion and denoising (ch. 3–4)**
+
+-   B. D. O. Anderson, “Reverse-time diffusion equation models”, *Stochastic Processes and their Applications* 12(3), 1982; U. G. Haussmann, É. Pardoux, “Time reversal of diffusions”, *Annals of Probability* 14(4), 1986.
+-   H. Robbins, “An empirical Bayes approach to statistics”, *Proceedings of the Third Berkeley Symposium on Mathematical Statistics and Probability*, 1956; K. Miyasawa, “An empirical Bayes estimator of the mean of a normal population”, *Bulletin of the International Statistical Institute* 38, 1961; B. Efron, “Tweedie's formula and selection bias”, *Journal of the American Statistical Association* 106, 2011.
+-   A. Hyvärinen, “Estimation of non-normalized statistical models by score matching”, *Journal of Machine Learning Research* 6, 2005.
+-   P. Vincent, “A connection between score matching and denoising autoencoders”, *Neural Computation* 23(7), 2011.
+-   J. Sohl-Dickstein, E. Weiss, N. Maheswaranathan, S. Ganguli, “Deep unsupervised learning using nonequilibrium thermodynamics”, ICML 2015.
+-   Y. Song, S. Ermon, “Generative modeling by estimating gradients of the data distribution”, NeurIPS 2019.
+-   J. Ho, A. Jain, P. Abbeel, “Denoising diffusion probabilistic models”, NeurIPS 2020.
+-   Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon, B. Poole, “Score-based generative modeling through stochastic differential equations”, ICLR 2021.
+-   Y. Song, C. Durkan, I. Murray, S. Ermon, “Maximum likelihood training of score-based diffusion models”, NeurIPS 2021.
+-   J. Song, C. Meng, S. Ermon, “Denoising diffusion implicit models”, ICLR 2021.
+-   T. Karras, M. Aittala, T. Aila, S. Laine, “Elucidating the design space of diffusion-based generative models”, NeurIPS 2022.
+-   S. Chen, S. Chewi, J. Li, Y. Li, A. Salim, A. R. Zhang, “Sampling is as easy as learning the score: theory for diffusion models with minimal data assumptions”, ICLR 2023.
+-   O. Ronneberger, P. Fischer, T. Brox, “U-Net: convolutional networks for biomedical image segmentation”, MICCAI 2015.
+-   P. Dhariwal, A. Nichol, “Diffusion models beat GANs on image synthesis”, NeurIPS 2021.
+-   R. Rombach, A. Blattmann, D. Lorenz, P. Esser, B. Ommer, “High-resolution image synthesis with latent diffusion models”, CVPR 2022.
+-   Z. Kong, W. Ping, J. Huang, K. Zhao, B. Catanzaro, “DiffWave: a versatile diffusion model for audio synthesis”, ICLR 2021; N. Chen, Y. Zhang, H. Zen, R. J. Weiss, M. Norouzi, W. Chan, “WaveGrad: estimating gradients for waveform generation”, ICLR 2021.
+-   M. Heusel, H. Ramsauer, T. Unterthiner, B. Nessler, S. Hochreiter, “GANs trained by a two time-scale update rule converge to a local Nash equilibrium”, NeurIPS 2017.
+-   N. Carlini, J. Hayes, M. Nasr, M. Jagielski, V. Sehwag, F. Tramèr, B. Balle, D. Ippolito, E. Wallace, “Extracting training data from diffusion models”, USENIX Security 2023; G. Somepalli, V. Singla, M. Goldblum, J. Geiping, T. Goldstein, “Diffusion art or digital forgery? Investigating data replication in diffusion models”, CVPR 2023.
+-   Z. Kadkhodaie, F. Guth, E. P. Simoncelli, S. Mallat, “Generalization in diffusion models arises from geometry-adaptive harmonic representations”, ICLR 2024.
+
+**Denoisers, sparsity and multiscale models (ch. 5)**
+
+-   D. L. Donoho, I. M. Johnstone, “Ideal spatial adaptation by wavelet shrinkage”, *Biometrika* 81(3), 1994.
+-   S. Mohan, Z. Kadkhodaie, E. P. Simoncelli, C. Fernandez-Granda, “Robust and interpretable blind image denoising via bias-free convolutional neural networks”, ICLR 2020.
+-   D. J. Field, “Relations between the statistics of natural images and the response properties of cortical cells”, *Journal of the Optical Society of America A* 4(12), 1987; D. L. Ruderman, W. Bialek, “Statistics of natural images: scaling in the woods”, *Physical Review Letters* 73, 1994.
+-   F. Guth, S. Coste, V. De Bortoli, S. Mallat, “Wavelet score-based generative modeling”, NeurIPS 2022.
+-   Z. Kadkhodaie, F. Guth, S. Mallat, E. P. Simoncelli, “Learning multi-scale local conditional probability models of images”, ICLR 2023.
+-   T. Marchand, M. Ozawa, G. Biroli, S. Mallat, “Multiscale data-driven energy estimation and generation”, *Physical Review X* 13, 2023.
+
+**Conditional generation (ch. 6)**
+
+-   J. Ho, T. Salimans, “Classifier-free diffusion guidance”, NeurIPS 2021 Workshop on Deep Generative Models and Downstream Applications.
+-   Z. Kadkhodaie, E. P. Simoncelli, “Stochastic solutions for linear inverse problems using the prior implicit in a denoiser”, NeurIPS 2021.
+-   H. Chung, J. Kim, M. T. McCann, M. L. Klasky, J. C. Ye, “Diffusion posterior sampling for general noisy inverse problems”, ICLR 2023.
+
+**Interpolants and forecasting (ch. 7)**
+
+-   M. S. Albergo, N. M. Boffi, E. Vanden-Eijnden, “Stochastic interpolants: a unifying framework for flows and diffusions”, arXiv:2303.08797, 2023; M. S. Albergo, E. Vanden-Eijnden, “Building normalizing flows with stochastic interpolants”, ICLR 2023.
+-   Y. Lipman, R. T. Q. Chen, H. Ben-Hamu, M. Nickel, M. Le, “Flow matching for generative modeling”, ICLR 2023; X. Liu, C. Gong, Q. Liu, “Flow straight and fast: learning to generate and transfer data with rectified flow”, ICLR 2023.
+-   Y. Chen, M. Goldstein, M. Hua, M. S. Albergo, N. M. Boffi, E. Vanden-Eijnden, “Probabilistic forecasting with stochastic interpolants and Föllmer processes”, ICML 2024.
+-   E. N. Lorenz, “Deterministic nonperiodic flow”, *Journal of the Atmospheric Sciences* 20(2), 1963.
+-   T. Gneiting, A. E. Raftery, “Strictly proper scoring rules, prediction, and estimation”, *Journal of the American Statistical Association* 102(477), 2007.
+-   R. Lam et al., “Learning skillful medium-range global weather forecasting”, *Science* 382, 2023.
+-   I. Price et al., “Probabilistic weather forecasting with machine learning”, *Nature* 637, 2025.
+
+**Research directions (ch. 8)**
+
+-   J. Benton, V. De Bortoli, A. Doucet, G. Deligiannidis, “Nearly $d$-linear convergence bounds for diffusion models via stochastic localization”, ICLR 2024.
+-   G. Biroli, T. Bonnaire, V. De Bortoli, M. Mézard, “Dynamical regimes of diffusion models”, *Nature Communications* 15, 2024.
+-   T. Salimans, J. Ho, “Progressive distillation for fast sampling of diffusion models”, ICLR 2022.
+-   Y. Song, P. Dhariwal, M. Chen, I. Sutskever, “Consistency models”, ICML 2023.
+-   V. De Bortoli, J. Thornton, J. Heng, A. Doucet, “Diffusion Schrödinger bridge with applications to score-based generative modeling”, NeurIPS 2021.
+-   J. Austin, D. D. Johnson, J. Ho, D. Tarlow, R. van den Berg, “Structured denoising diffusion models in discrete state-spaces”, NeurIPS 2021.

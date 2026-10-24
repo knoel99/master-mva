@@ -1,0 +1,2596 @@
+---
+title: "Topological Data Analysis for Imaging and Machine Learning"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: topology, linear algebra over F2 and union-find](#ch0)
+-   [1. Simplicial complexes and filtrations](#ch1)
+-   [2. Simplicial homology](#ch2)
+-   [3. Smooth and discrete Morse theory](#ch3)
+-   [4. Persistent homology and persistence diagrams](#ch4)
+-   [5. Reeb graphs, contour trees and Mapper](#ch5)
+-   [6. Morse–Smale complexes](#ch6)
+-   [7. Topological inference in high dimensions](#ch7)
+-   [8. Topological signatures and features for learning](#ch8)
+-   [9. Implementations in Python and C++](#ch9)
+-   [10. Complements for self-study](#ch10)
+-   [11. Research directions and open problems](#ch11)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Topological Data Analysis for Imaging and Machine Learning
+  Official title       Topological data analysis for imaging and machine learning.
+  Instructors          J. TIERNY, F.CHAZAL (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 24 h (lectures 12 h, labs 12 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Computer Vision
+  Language             not displayed on master-mva.com or on the Université Paris-Saclay course detail (the master-mva.com description is written in English)
+  Assessment           master-mva.com: “Short lesson exam and research seminar”, with no weights displayed. Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment).
+  Prerequisites        “Admission to MVA. Programming skills in Python and/or C++ are recommended.” (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who knows linear algebra and some Python, and who wants to measure the shape of data — its components, loops and cavities — in images, scalar fields and point clouds, robustly to noise.
+
+**Empirical first**: a 64 × 64 image of three Gaussian bumps plus Gaussian noise of standard deviation 0.05 has 721 local maxima. Persistence gives the two secondary bumps the values 0.734 and 0.64, and every noise peak at most 0.172 (Code 4.2). One threshold in that gap recovers the three objects, and the segmentation that follows finds the three regions of the clean image (Code 6.1). In the same way, 5 % of outliers cut the persistence of the loop of a sampled circle from 0.80 to 0.44, while the distance to a measure keeps 0.63 (Code 7.1).
+
+Topological data analysis (TDA) describes data by the features that survive continuous deformation: connected components, loops, cavities, and the way they appear and disappear across scales. The course builds these descriptors from scratch — simplicial complexes, homology, Morse theory, persistence — and uses them for scientific visualization in 2D and 3D and for machine learning in high dimension. It shares tools with [Geometric Data Analysis](../s1-geometric-data-analysis/index.html), [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html) and [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html), whose Wasserstein distances reappear between persistence diagrams.
+
+### What you will be able to do
+
+-   Build Čech, Vietoris–Rips, alpha and lower-star filtrations from point clouds, images and scalar fields, and bound how far the Rips and Čech complexes differ.
+-   Compute Betti numbers by Gaussian elimination over the two-element field, and explain when the choice of coefficients matters.
+-   Classify the critical points of a piecewise-linear scalar field and check the result against the Euler characteristic.
+-   Compute persistence diagrams with the reduction algorithm and with union-find, and compare them with the bottleneck and Wasserstein distances.
+-   State and use the stability theorem to separate topological signal from noise and to simplify a scalar field.
+-   Compute merge trees, contour trees and Mapper graphs, and relate them to the Reeb graph of a function.
+-   Segment an image with the cells of a Morse–Smale complex, simplified by persistence.
+-   Infer the homology of a sampled shape with guarantees, and make the inference robust to outliers with the distance to a measure.
+-   Cluster data with persistence-based clustering (ToMATo) and choose its parameter from a diagram.
+-   Turn persistence diagrams into stable features (landscapes, images, kernels) for classification, and differentiate a topological loss.
+-   Choose data structures and algorithms (simplex trees, clearing, cohomology) that make these computations fast, in Python or C++.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents topological data analysis [1–6] as a sound family of techniques for the interactive analysis and visualization of data in imaging and machine learning. As acquired or simulated data sets in 2D, 3D and nD grow in size and complexity, these approaches help users understand their data through its topological and geometric structure.
+
+In low dimensions, the description continues, TDA lets users extract, interact with, measure and classify geometric features defined by level sets or integral lines. Simplification based on persistent homology builds multi-scale topological representations that support robust analyses and comparisons despite noise. In higher dimensions, these techniques have been adapted into new clustering algorithms.
+
+The stated purpose is to introduce the main concepts of this recent field and to illustrate their use in imaging (scientific visualization) and machine learning, from a mathematical and a practical point of view, with the Gudhi [7] and TTK [8] libraries. Each item of the official page is matched below.
+
+| Official topic | Course section |
+|---|---|
+| Objective: help users understand complex 2D, 3D and nD data through its topological and geometric structure | the whole page; the first worked cases are Code 1.1 and Code 2.1 |
+| Objective: extract, interact with, measure and classify features defined by level sets or integral lines | [ch. 5](#ch5) (level sets, Reeb graphs, contour trees) and [ch. 6](#ch6) (integral lines, Morse–Smale cells, Code 6.1) |
+| Objective: simplification based on persistent homology; multi-scale representations; robust analyses and comparisons despite noise | [ch. 4](#ch4) (Theorem 4.10, Section 4.6, Code 4.3) and [ch. 6](#ch6) (Section 6.4) |
+| Objective: 2D and 3D imaging applications (scientific visualization) | Code 3.1, Code 4.2, Code 6.1; TTK in [ch. 9](#ch9) |
+| Objective: in higher dimensions, the basis of new clustering algorithms | [ch. 7](#ch7), Section 7.5 (ToMATo, Code 7.2) |
+| Objective: a mathematical and a practical point of view, with Gudhi [7] and TTK [8] | proofs in every chapter and in [ch. 10](#ch10); Section 9.3 |
+| Simplicial complexes | [ch. 1](#ch1) |
+| Simplicial homology | [ch. 2](#ch2) |
+| Persistent homology | [ch. 4](#ch4), Sections 4.1–4.3; proofs in Section 10.1 |
+| Smooth and Discrete Morse Theories | [ch. 3](#ch3) (smooth: 3.1; piecewise linear: 3.2; discrete: 3.3); collapses in Section 10.3 |
+| Persistence Diagrams | [ch. 4](#ch4), Sections 4.4–4.6; [ch. 7](#ch7), Section 7.3; [ch. 8](#ch8); isometry theorem in Section 10.2 |
+| Reeb graphs and mappers | [ch. 5](#ch5) |
+| Morse-Smale complexes | [ch. 6](#ch6) |
+| Topological inference in high dimensions | [ch. 7](#ch7); statistics of diagrams in Section 10.5 |
+| Topological signatures and topological features for classification and learning | [ch. 8](#ch8) |
+| Implementations in Python and C++ | Python code in every chapter; [ch. 9](#ch9) (data structures, fast reductions, Gudhi and TTK, Code 9.2 in C++) |
+| Organisation: 6 lectures of 2 hours | [Session plan](#sessions), sessions 1, 3, 5, 7, 9 and 11 |
+| Organisation: 6 practical sessions of 2 hours | [Session plan](#sessions), sessions 2, 4, 6, 8, 10 and 12 |
+| Organisation: 1 final research seminar (3 hours) | outside the 24 h of the programme table; prepared by [ch. 11](#ch11) and by the paper studies of [Projects and assessment](#projects) |
+| Numerus clausus: 40 students, no external auditors | an admission rule, not a topic |
+| Assessment: short lesson exam and research seminar | the fiche above; exam proposal and seminar subjects in [Projects and assessment](#projects) |
+| References [1]–[8] | [References](#refs), official list first |
+| “Plus de détails” and “Les intervenants” | navigation links of the official page, not topics; the instructors are listed in the fiche |
+
+Beyond the syllabus, this page adds a review chapter ([ch. 0](#ch0)), a chapter of complements with the longer proofs ([ch. 10](#ch10)), a research chapter ([ch. 11](#ch11)), graded exercises, project subjects and a written-exam proposal.
+
+### Where this course fits in the programme
+
+Official prerequisites: admission to the MVA; programming skills in Python and/or C++ are recommended (master-mva.com). The instructors listed on master-mva.com are Frédéric Chazal (INRIA) and Julien Tierny (CNRS). The course is taught in period 1, so only the refreshers come before it.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for ranks, kernels and quotients (ch. 0, 2, 4); [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for the sampling and bootstrap arguments of ch. 7; [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for the labs and the differentiable losses of ch. 8.
+-   **Related courses of semester 1** — [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (intrinsic dimension, neighbourhood graphs), [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html) (meshes and Laplacians), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) (Wasserstein distances), [Medical Image Analysis](../s1-medical-image-analysis/index.html), [Computational Statistics](../s1-computational-statistics/index.html) (bootstrap) and [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) (the classifiers of ch. 8).
+-   **Courses of semester 2 that use its tools** — [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html) (kernels on diagrams), [Geometry and Shape Spaces](../s2-shape-spaces/index.html), [Deformable Models and Geodesic Methods](../s2-deformable-models-geodesics/index.html) (watersheds), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html) (topological losses for segmentation) and [Algorithms and Learning for Protein Science](../s2-protein-science/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html); ch. 11 lists directions that a first research project can start from.
+
+### Course outline
+
+-   **Review: topology, linear algebra over F2 and union-find** — homotopy equivalence, the Hausdorff distance, ranks over the two-element field, disjoint-set forests.
+-   **Simplicial complexes and filtrations** — abstract complexes, nerves, Čech, Rips and alpha complexes, triangulated images, filtrations.
+-   **Simplicial homology** — chains, boundaries, Betti numbers by rank, the Euler–Poincaré formula, the role of coefficients.
+-   **Smooth and discrete Morse theory** — critical points and cell attachments, piecewise-linear critical points, Banchoff's formula, Forman's discrete gradients.
+-   **Persistent homology and persistence diagrams** — persistence modules, the elder rule, the reduction algorithm, bottleneck distance, stability, simplification of images.
+-   **Reeb graphs, contour trees and Mapper** — level-set topology, merge trees by union-find, Mapper as a discrete Reeb graph.
+-   **Morse–Smale complexes** — integral lines, ascending and descending manifolds, quadrangle cells, watershed segmentation and its simplification.
+-   **Topological inference in high dimensions** — reach and sampling theorems, Rips inference and stability, distance to a measure, ToMATo.
+-   **Topological signatures and features for learning** — landscapes, persistence images, kernels, learned layers and differentiable persistence.
+-   **Implementations in Python and C++** — simplex trees, clearing and cohomology, the Gudhi and TTK libraries, a union-find in C++.
+-   **Complements for self-study** — the pairing lemma, interleavings and the isometry theorem, collapses, the nerve theorem, statistics of diagrams.
+-   **Research directions and open problems** — multiparameter persistence, statistics and learning, large-scale topological visualization.
+
+### Session plan {#sessions}
+
+**24 h in class = 12 sessions of 2 h.**
+
+The volume is the official one of the Université Paris-Saclay programme table (12 h of lectures and 12 h of labs). master-mva.com organises the course in six lectures of two hours, six practical sessions of two hours and a final research seminar of three hours, which the programme table does not count. The plan alternates one lecture and one lab; the content of each session is a proposal. The review chapter is not an official lecture: it is read before session 1.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced material close to research; the level never decreases from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 2 h | 1 | Lecture 1 — ch. 1 Simplicial complexes, nerves, Čech, Rips and alpha complexes, triangulated grids, filtrations (1.1–1.5) | Ex. 1, 2 |
+| 2 | 2 h | 1 | Lab 1 — ch. 1 Čech versus Rips (Code 1.1); ch. 2 Simplicial homology: chains, boundaries, Betti numbers by rank, Euler–Poincaré, coefficients (2.1–2.5, Code 2.1) | Ex. 9, 10 |
+| 3 | 2 h | 2 | Lecture 2 — ch. 3 Smooth Morse theory, piecewise-linear critical points and Banchoff's formula, discrete Morse theory (3.1–3.3) | Ex. 3 |
+| 4 | 2 h | 2 | Lab 2 — ch. 3 critical points of noisy scalar fields on a torus (Code 3.1), discrete gradients by hand (Example 3.11) | Ex. 11 |
+| 5 | 2 h | 2 | Lecture 3 — ch. 4 Persistence modules, the elder rule, the reduction algorithm, diagrams and distances, stability (4.1–4.5) | Ex. 4, 5 |
+| 6 | 2 h | 2 | Lab 3 — ch. 4 persistence of a Rips filtration and of images, stability in practice, simplification (4.6, Codes 4.1–4.3) | Ex. 6 |
+| 7 | 2 h | 2 | Lecture 4 — ch. 5 Reeb graphs, merge and contour trees, Mapper (5.1–5.3); ch. 6 Morse–Smale complexes (6.1–6.3) | Ex. 13 (a) |
+| 8 | 2 h | 2 | Lab 4 — ch. 5 Mapper of a circle and a figure eight (Code 5.1); ch. 6 watershed segmentation and persistence-driven simplification (6.4, Code 6.1) | Ex. 13 (b) |
+| 9 | 2 h | 3 | Lecture 5 — ch. 7 Offsets and reach, the sampling theorem, Rips inference and stability, distance to a measure, ToMATo (7.1–7.5) | Ex. 7, 12, 14 |
+| 10 | 2 h | 3 | Lab 5 — ch. 7 outliers and the distance to a measure (Code 7.1), persistence-based clustering (Code 7.2) | Ex. 15 (a) |
+| 11 | 2 h | 3 | Lecture 6 — ch. 8 The space of diagrams, landscapes, persistence images, kernels, learned layers and differentiable persistence (8.1–8.5) | Ex. 8 |
+| 12 | 2 h | 3 | Lab 6 — ch. 8 classification with landscapes and a differentiable topological loss (Codes 8.1–8.2) | Ex. 15 (b), 16; Codes 9.1–9.2 (fast reductions, union-find in C++) |
+
+**Self-study, outside the 24 h** (about 8.5 h in total): ch. 0 Review, to read before session 1 (≈ 1.5 h) · ch. 9 Implementations in Python and C++, read along the labs, whose two codes are run in Lab 6 (≈ 2 h) · ch. 10 Complements — the pairing lemma, interleavings and the isometry theorem, collapses, the nerve theorem and the statistics of diagrams, each read after the session that states the result (≈ 3 h) · ch. 11 Research directions and open problems, which prepares the final research seminar announced on master-mva.com (≈ 2 h).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before session 1. The Hausdorff distance (Proposition 0.3) and union-find (Algorithm 0.6) return in ch. 4, 5, 6 and 7.
+-   Follow one thread through the page: the union-find sweep with the elder rule computes connected components (ch. 0), 0-dimensional persistence (ch. 4), merge trees (ch. 5), watershed regions (ch. 6) and ToMATo clusters (ch. 7).
+-   After each lab, change one parameter of the code — the noise level, the radius, the threshold, the number of neighbours — and predict the new diagram before running it.
+-   Do the exercises listed in the session plan before the next session; read [ch. 10](#ch10) after the session that states each result. The ★★★ exercises and the paper studies of [Projects and assessment](#projects) prepare the research seminar.
+-   Python environment: NumPy, SciPy, scikit-learn and PyTorch on CPU; every block runs in a few seconds. The official labs use Gudhi and TTK; the code here rewrites the needed algorithms in plain Python, so that each step is visible and nothing else must be installed.
+
+## 0. Review: topology, linear algebra over F2 and union-find {#ch0}
+
+Topological data analysis counts features that survive continuous deformation, and it computes them with linear algebra and graph algorithms. This chapter recalls the three M1 tools the course uses everywhere: equivalences of spaces, linear algebra over the two-element field, and the union-find data structure.
+
+### 0.1 Spaces up to deformation
+
+::: def
+[Definition 0.1 — Homeomorphism, homotopy, deformation retract]{.tag} Let $X, Y$ be topological spaces.
+
+-   A **homeomorphism** is a continuous bijection $h : X \to Y$ with a continuous inverse.
+-   Two continuous maps $f, g : X \to Y$ are **homotopic** if there is a continuous $H : X \times [0, 1] \to Y$ with $H(\cdot, 0) = f$ and $H(\cdot, 1) = g$.
+-   $X$ and $Y$ are **homotopy equivalent**, written $X \simeq Y$, if there are maps $f : X \to Y$ and $g : Y \to X$ with
+    $$
+    g \circ f \text{ homotopic to } \mathrm{id}_X \quad \text{and} \quad f \circ g \text{ homotopic to } \mathrm{id}_Y .
+    $$
+-   $A \subseteq X$ is a **deformation retract** of $X$ if there is a homotopy from $\mathrm{id}_X$ to a map with values in $A$ that fixes $A$ at all times. Then $A \simeq X$.
+:::
+
+An annulus deformation retracts onto its middle circle, and a disk onto its centre. A union of small balls around points sampled on a circle is never homeomorphic to the circle, but it can be homotopy equivalent to it. Homotopy equivalence is therefore the right notion for sampled data, and every invariant of this course is a homotopy invariant.
+
+### 0.2 Distances between sets
+
+::: def
+[Definition 0.2 — Offsets, Hausdorff and Gromov–Hausdorff distances]{.tag} For a compact set $K \subset \mathbb{R}^d$, the **distance function** is $d_K(x) = \min_{y \in K} \|x - y\|$ and the **offset** of radius $r$ is
+$$
+K^r = d_K^{-1}([0, r]) = \bigcup_{y \in K} \bar B(y, r).
+$$
+The **Hausdorff distance** between compact sets $A$ and $B$ is
+$$
+d_H(A, B) = \inf \{ \varepsilon \geq 0 : A \subseteq B^\varepsilon \text{ and } B \subseteq A^\varepsilon \}.
+$$
+For two compact metric spaces, the **Gromov–Hausdorff distance** $d_{GH}$ is the infimum of $d_H$ over all isometric embeddings of both spaces into a common metric space.
+:::
+
+:::: prop
+[Proposition 0.3 — Distance functions and the Hausdorff distance]{.tag} For compact sets $A, B \subset \mathbb{R}^d$,
+$$
+\| d_A - d_B \|_\infty = d_H(A, B).
+$$
+
+::: proof
+Let $\varepsilon = d_H(A, B)$ and $x \in \mathbb{R}^d$. Take $b \in B$ with $\|x - b\| = d_B(x)$, then $a \in A$ with $\|a - b\| \leq \varepsilon$.
+
+Then $d_A(x) \leq \|x - a\| \leq d_B(x) + \varepsilon$. Exchanging $A$ and $B$ gives $|d_A(x) - d_B(x)| \leq \varepsilon$.
+
+For the converse, let $a \in A$ maximize $d_B$ on $A$. Then $d_A(a) = 0$, so the sup-distance is at least $\max_A d_B$.
+
+Exchanging the roles of the two sets, and noting that the larger of the two maxima is $d_H(A, B)$, concludes. [∎]{.qed}
+:::
+::::
+
+Every stability result of ch. 4 and ch. 7 starts from this identity: two samples that are close in Hausdorff distance have close distance functions, hence close offsets.
+
+### 0.3 Linear algebra over the two-element field
+
+::: def
+[Definition 0.4 — Vector spaces over F2 and quotients]{.tag} The field $\mathbb{F}_2 = \{0, 1\}$ has $1 + 1 = 0$. A vector of $\mathbb{F}_2^n$ is a subset of $\{1, \dots, n\}$, and addition is the symmetric difference.
+
+For a subspace $W \subseteq V$, the **quotient** $V / W$ identifies $v$ and $v'$ when $v - v' \in W$. Its dimension is
+$$
+\dim V / W = \dim V - \dim W .
+$$
+For a linear map $A : \mathbb{F}_2^n \to \mathbb{F}_2^m$, the rank–nullity theorem holds as over $\mathbb{R}$: $\dim \ker A + \operatorname{rank} A = n$, and Gaussian elimination computes the rank.
+:::
+
+::: ex
+[Example 0.5 — A rank that depends on the field]{.tag} Consider
+$$
+A = \begin{pmatrix} 1 & 0 & 1 \\ 1 & 1 & 0 \\ 0 & 1 & 1 \end{pmatrix}.
+$$
+Over $\mathbb{R}$, $\det A = 2$ and the rank is 3. Over $\mathbb{F}_2$, the sum of the three columns is zero, and the rank is 2.
+
+Its columns are the three edges of a triangle, written as sets of vertices: ch. 2 reads the relation above as “the boundary of a triangle is a loop”.
+:::
+
+### 0.4 Union-find
+
+:::: thm
+[Algorithm 0.6 — Union-find (disjoint-set forest)]{.tag} Each element stores a parent pointer; a root is its own parent and represents its set.
+
+1.  **find**$(a)$ follows the pointers from $a$ to its root, and makes the visited nodes point closer to the root (path compression);
+2.  **union**$(a, b)$ makes the root of one set point to the root of the other.
+
+With union by rank and path compression, $m$ operations on $n$ elements cost
+$$
+O\big(m\, \alpha(n)\big),
+$$
+where $\alpha$ is the inverse Ackermann function, below 5 for any practical $n$ (Tarjan, 1975).
+::::
+
+:::: prop
+[Proposition 0.7 — Union-find computes connected components]{.tag} Process the edges of a graph one by one, calling union on their endpoints. After each step, two vertices have the same root if and only if a path of processed edges joins them.
+
+::: proof
+By induction on the number of processed edges. Initially every vertex is alone. Processing the edge $uv$ merges the sets of $u$ and $v$.
+
+Afterwards, $x$ and $y$ are joined by processed edges if and only if they were already joined, or one is joined to $u$ and the other to $v$. That is exactly the effect of the union on the sets. [∎]{.qed}
+:::
+::::
+
+In this course, union-find runs on vertices sorted by a function value. The order in which components merge then carries the information: it gives 0-dimensional persistence (ch. 4), merge trees (ch. 5), watershed regions (ch. 6) and clusters (ch. 7).
+
+::: recap
+Key takeaways — chapter 0
+
+-   Topological invariants are invariant under homotopy equivalence, which is the right notion for thickened samples.
+-   The sup-distance between distance functions equals the Hausdorff distance between the sets (Proposition 0.3).
+-   Over $\mathbb{F}_2$, vectors are sets and addition is the symmetric difference; ranks may differ from ranks over $\mathbb{R}$.
+-   Union-find maintains connected components in almost constant time per operation.
+:::
+
+## 1. Simplicial complexes and filtrations {#ch1}
+
+A computer cannot store a circle, but it can store points, edges and triangles. This chapter defines these combinatorial models, builds them from point clouds and images, and nests them along a scale.
+
+### 1.1 Simplicial complexes
+
+::: def
+[Definition 1.1 — Simplicial complexes]{.tag} A **geometric $k$-simplex** is the convex hull of $k + 1$ affinely independent points of $\mathbb{R}^d$; the convex hulls of subsets of these points are its **faces**.
+
+An **abstract simplicial complex** on a finite vertex set $V$ is a family $K$ of non-empty subsets of $V$ that contains every non-empty subset of each of its elements. An element of $K$ with $k + 1$ vertices is a **$k$-simplex**.
+
+A **geometric realization** $|K|$ places the vertices in some $\mathbb{R}^N$ so that each $\sigma$ spans a geometric simplex and two simplices meet in a common face or not at all. A complex of dimension $k$ always has one in $\mathbb{R}^{2k+1}$.
+:::
+
+::: def
+[Definition 1.2 — Euler characteristic, star and link]{.tag} If $K$ has $n_k$ simplices of dimension $k$, its **Euler characteristic** is
+$$
+\chi(K) = \sum_{k \geq 0} (-1)^k\, n_k .
+$$
+For a vertex $v$, the **star** $\mathrm{St}(v)$ is the set of simplices that contain $v$. The **link** is
+$$
+\mathrm{Lk}(v) = \{ \tau \in K : v \notin \tau,\ \tau \cup \{v\} \in K \}.
+$$
+:::
+
+::: ex
+[Example 1.3 — Three small complexes]{.tag}
+
+-   The boundary of a tetrahedron has 4 vertices, 6 edges and 4 triangles: $\chi = 4 - 6 + 4 = 2$, the Euler characteristic of the sphere.
+-   On a $3 \times 3$ grid with opposite sides identified, cut each square along one diagonal. This gives a torus with 9 vertices, 27 edges and 18 triangles, and $\chi = 0$.
+-   In a triangulated surface, the link of an interior vertex is a cycle of edges, and the link of a boundary vertex is a path.
+:::
+
+### 1.2 Nerves
+
+::: def
+[Definition 1.4 — Nerve of a cover]{.tag} Let $\mathcal{U} = (U_i)_{i \in I}$ be a finite family of sets. Its **nerve** $N(\mathcal{U})$ is the abstract simplicial complex on $I$ whose simplices are the non-empty $J \subseteq I$ with
+$$
+\bigcap_{j \in J} U_j \neq \emptyset .
+$$
+:::
+
+:::: thm
+[Theorem 1.5 — Nerve theorem]{.tag} Let $\mathcal{U}$ be a finite family of closed convex sets of $\mathbb{R}^d$. Then
+$$
+|N(\mathcal{U})| \simeq \bigcup_{i \in I} U_i .
+$$
+The same holds for a finite closed cover of a triangulable space in which every non-empty intersection is contractible (a *good cover*).
+
+::: proof
+*Sketch.* Map the barycentric subdivision of the nerve linearly to points chosen in the intersections; convexity keeps the image in the union. Section 10.4 builds the homotopy inverse; Hatcher (2002, Section 4.G) gives the full proof. [∎]{.qed}
+:::
+::::
+
+### 1.3 Čech and Vietoris–Rips complexes
+
+::: def
+[Definition 1.6 — Čech and Rips complexes]{.tag} Let $X$ be a finite subset of $\mathbb{R}^d$ and $r \geq 0$.
+
+-   The **Čech complex** $\check C(X, r)$ is the nerve of the closed balls $\bar B(x, r)$, $x \in X$.
+-   The **Vietoris–Rips complex** $R(X, r)$ contains every non-empty $\sigma \subseteq X$ of diameter at most $2r$.
+
+The Rips complex makes sense in any metric space. It is a *flag complex*: a set of vertices is a simplex as soon as all its edges are.
+:::
+
+By the nerve theorem, since balls are convex,
+$$
+\check C(X, r) \simeq X^r .
+$$
+The Čech complex models the offset faithfully, but testing whether $k + 1$ balls intersect needs a smallest enclosing ball; the Rips complex only needs pairwise distances.
+
+:::: thm
+[Theorem 1.7 — Rips and Čech complexes are interleaved]{.tag} For a finite $X \subset \mathbb{R}^d$ and every $r \geq 0$,
+$$
+\check C(X, r) \subseteq R(X, r) \subseteq \check C\Big(X, \sqrt{\tfrac{2d}{d+1}}\; r\Big) \subseteq \check C(X, \sqrt{2}\, r).
+$$
+In any metric space, $R(X, r) \subseteq \check C(X, 2r)$, with balls of the ambient space.
+
+::: proof
+If the balls of radius $r$ around the vertices of $\sigma$ share a point $z$, then any two vertices are at distance at most $2r$ through $z$. Hence $\sigma \in R(X, r)$.
+
+Conversely, let $\sigma$ have diameter $\delta \leq 2r$. Jung's theorem (1901) says that a set of diameter $\delta$ in $\mathbb{R}^d$ lies in a ball of radius
+$$
+\delta \sqrt{\frac{d}{2(d+1)}} \;\leq\; r \sqrt{\frac{2d}{d+1}} .
+$$
+The centre of that ball lies in all the balls of this radius around the vertices of $\sigma$.
+
+In a general metric space, any vertex of $\sigma$ lies in all the balls of radius $2r$ around the vertices. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key result — Rips is sandwiched between two Čech complexes]{.tag}
+$$
+\check C(X, r) \subseteq R(X, r) \subseteq \check C(X, \sqrt{2}\, r)
+$$
+:::
+
+The constant of Jung's theorem is reached: for the vertices of an equilateral triangle of side 1, the Rips triangle appears at $r = 1/2$ and the Čech triangle at the circumradius $1/\sqrt 3$, a ratio of $1.155$ (Exercise 2).
+
+::: ex
+[Code 1.1 — Čech and Rips triangles of a sampled circle]{.tag} Thirty points are sampled near the unit circle. For several radii, the code counts the edges and the triangles of both complexes, and checks the inclusion of Theorem 1.7 in the plane.
+
+```python
+import numpy as np
+from itertools import combinations
+
+rng = np.random.default_rng(0)
+theta = rng.uniform(0, 2 * np.pi, 30)                     # 30 points near the unit circle
+P = np.c_[np.cos(theta), np.sin(theta)] + 0.05 * rng.normal(size=(30, 2))
+D = np.linalg.norm(P[:, None] - P[None], axis=2)
+
+def meb_radius(a, b, c):
+    """Radius of the smallest disk containing three points of the plane."""
+    ab, bc, ca = np.linalg.norm(a - b), np.linalg.norm(b - c), np.linalg.norm(c - a)
+    s = sorted([ab, bc, ca])
+    if s[2] ** 2 >= s[0] ** 2 + s[1] ** 2:                 # right or obtuse: half the longest side
+        return s[2] / 2
+    u, v = b - a, c - a
+    area = abs(u[0] * v[1] - u[1] * v[0]) / 2
+    return ab * bc * ca / (4 * area)                       # acute: circumradius
+
+triples = list(combinations(range(30), 3))
+meb = np.array([meb_radius(*P[list(t)]) for t in triples])
+diam = np.array([max(D[i, j], D[i, k], D[j, k]) for i, j, k in triples])
+jung = np.sqrt(4 / 3)                                      # sqrt(2d/(d+1)) for d = 2
+for r in [0.3, 0.6, 0.8, 0.9, 1.0]:
+    edges = int((D[np.triu_indices(30, 1)] <= 2 * r).sum())
+    cech, rips = int((meb <= r).sum()), int((diam <= 2 * r).sum())
+    ok = np.all(meb[diam <= 2 * r] <= jung * r + 1e-12)   # Rips(r) inside Cech(1.155 r)
+    print(f"r = {r:.1f}: edges {edges:3d}, Cech triangles {cech:4d}, "
+          f"Rips triangles {rips:4d}, Rips(r) in Cech({jung:.3f} r): {ok}")
+```
+
+Up to $r = 0.8$ both complexes have the same triangles (1171 at $r = 0.8$). At $r = 0.9$ the Rips complex has 1848 triangles and the Čech complex 1800; at $r = 1$, 3743 against 3617. The inclusion check prints `True` every time.
+:::
+
+The 48 extra triangles at $r = 0.9$ are acute triangles spanning the circle. An inscribed equilateral triangle has side $\sqrt 3$: the Rips complex fills it from $r = 0.866$, the Čech complex only from its circumradius $r = 1$. The Rips complex closes the hole earlier, which ch. 4 measures as the death of a loop.
+
+### 1.4 Alpha complexes and triangulated images
+
+::: def
+[Definition 1.8 — Delaunay and alpha complexes]{.tag} The **Voronoi cell** of $x \in X$ is the set of points of $\mathbb{R}^d$ at least as close to $x$ as to any other point of $X$. The **Delaunay complex** is the nerve of the Voronoi cells.
+
+The **alpha complex** $A(X, r)$ is the nerve of the sets $\bar B(x, r) \cap V_x$, where $V_x$ is the Voronoi cell of $x$.
+:::
+
+These sets are convex with union $X^r$, so $A(X, r) \simeq X^r$ by the nerve theorem. In general position, the alpha complex is a subcomplex of the Delaunay triangulation: $O(n)$ simplices in the plane, against up to $2^n$ for the Čech complex.
+
+::: def
+[Definition 1.9 — Triangulated grids]{.tag} An image or a 2D scalar field is sampled on a grid of $n \times m$ pixels. The **Freudenthal triangulation** has the pixels as vertices, the horizontal, vertical and one family of diagonal edges, and two triangles per square.
+
+With periodic boundary conditions and $n, m \geq 3$, it triangulates the torus with $nm$ vertices, $3nm$ edges and $2nm$ triangles, so $\chi = 0$. Each vertex then has degree 6, and its link is a hexagon.
+:::
+
+In 3D, each cube is cut into six tetrahedra; cubical complexes, which keep squares and cubes, are the other common choice.
+
+### 1.5 Filtrations
+
+::: def
+[Definition 1.10 — Filtrations and filtration functions]{.tag} A **filtration** of a finite complex $K$ is a family of subcomplexes $(K_r)_{r \in \mathbb{R}}$ with $K_r \subseteq K_s$ whenever $r \leq s$.
+
+It is given by a **filtration function** $f : K \to \mathbb{R}$ that is monotone, that is $f(\tau) \leq f(\sigma)$ whenever $\tau \subseteq \sigma$, through
+$$
+K_r = \{ \sigma \in K : f(\sigma) \leq r \}.
+$$
+:::
+
+The Čech, Rips and alpha complexes form filtrations as $r$ grows; for the Rips complex, $f(\sigma)$ is half the diameter of $\sigma$. For scalar fields, the central example is the following.
+
+:::: prop
+[Proposition 1.11 — Lower-star filtrations]{.tag} Let $f$ be defined on the vertices of $K$, and set
+$$
+f(\sigma) = \max_{v \in \sigma} f(v).
+$$
+This function is monotone, and $K_r$ is the subcomplex spanned by the vertices with $f(v) \leq r$. If $f$ is extended linearly on each simplex, the sublevel set of the extension at level $r$ deformation retracts onto $|K_r|$.
+
+::: proof
+A face has fewer vertices to maximize over, and a simplex enters $K_r$ when all its vertices do. For the retraction, push each point of a simplex away from the face spanned by its high vertices, along a straight line, onto the face of its low vertices; $f$ decreases along the way (Edelsbrunner and Harer, 2010, Chapter VI). [∎]{.qed}
+:::
+::::
+
+Superlevel sets use the **upper-star** filtration, with $\min$ instead of $\max$ and the order reversed.
+
+::: recap
+Key takeaways — chapter 1
+
+-   A simplicial complex is a finite family of vertex sets closed under subsets; its Euler characteristic is the alternating count of simplices.
+-   By the nerve theorem, the Čech complex of a point cloud is homotopy equivalent to the union of balls.
+-   The Rips complex only uses pairwise distances, and it is sandwiched between two Čech complexes (Theorem 1.7).
+-   Alpha complexes are smaller; images become triangulated grids; scalar fields give lower-star filtrations.
+:::
+
+## 2. Simplicial homology {#ch2}
+
+Homology counts the holes of a complex in each dimension — components, loops, cavities — by linear algebra on its simplices. This chapter defines it over $\mathbb{F}_2$ and computes it by Gaussian elimination.
+
+### 2.1 Chains, cycles and boundaries
+
+::: def
+[Definition 2.1 — Chains and the boundary map]{.tag} The space of **$k$-chains** $C_k(K)$ is the $\mathbb{F}_2$-vector space with one basis vector per $k$-simplex: a chain is a set of $k$-simplices, and the sum is the symmetric difference.
+
+The **boundary** of a $k$-simplex is the sum of its $(k-1)$-faces,
+$$
+\partial_k [v_0, \dots, v_k] = \sum_{i=0}^{k} [v_0, \dots, \widehat{v_i}, \dots, v_k],
+$$
+where the hat removes a vertex. It extends linearly to $\partial_k : C_k \to C_{k-1}$, with $\partial_0 = 0$.
+:::
+
+For a triangle, $\partial [a, b, c] = ab + bc + ca$, and the boundary of this loop is $(a + b) + (b + c) + (c + a) = 0$. This is general.
+
+:::: thm
+[Lemma 2.2 — The boundary of a boundary is zero]{.tag}
+$$
+\partial_{k-1} \circ \partial_k = 0 .
+$$
+
+::: proof
+Let $\sigma$ be a $k$-simplex. Each $(k-2)$-face of $\sigma$ is obtained by removing two of its vertices, in two possible orders. It therefore appears twice in $\partial \partial \sigma$, and twice is zero in $\mathbb{F}_2$. Linearity concludes. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 2.3 — Homology and Betti numbers]{.tag} The **cycles** are $Z_k = \ker \partial_k$ and the **boundaries** are $B_k = \operatorname{im} \partial_{k+1}$. By Lemma 2.2, $B_k \subseteq Z_k$. The **$k$-th homology group** and the **Betti number** are
+$$
+H_k(K) = Z_k / B_k, \qquad \beta_k = \dim H_k(K).
+$$
+:::
+
+A $k$-cycle that is not a boundary encloses a $k$-dimensional hole; two cycles are *homologous* when their difference bounds.
+
+:::: prop
+[Proposition 2.4 — Betti numbers by ranks]{.tag} With $n_k$ the number of $k$-simplices,
+
+::: key
+[Key result — Betti numbers from two ranks]{.tag}
+$$
+\beta_k = n_k - \operatorname{rank} \partial_k - \operatorname{rank} \partial_{k+1}
+$$
+:::
+
+::: proof
+By Definition 0.4, $\beta_k = \dim Z_k - \dim B_k$. By rank–nullity, $\dim Z_k = n_k - \operatorname{rank} \partial_k$, and $\dim B_k = \operatorname{rank} \partial_{k+1}$ by definition. [∎]{.qed}
+:::
+::::
+
+### 2.2 First computations
+
+::: ex
+[Example 2.5 — Circle, disk and sphere]{.tag}
+
+-   *Hollow triangle* (3 vertices, 3 edges). The matrix of $\partial_1$ is the matrix of Example 0.5, of rank 2 over $\mathbb{F}_2$. Hence $\beta_0 = 3 - 0 - 2 = 1$ and $\beta_1 = 3 - 2 - 0 = 1$: one component, one loop.
+-   *Filled triangle*. Add the 2-simplex: $\operatorname{rank} \partial_2 = 1$, so $\beta_1 = 0$ and $\beta_2 = 1 - 1 = 0$. The loop now bounds.
+-   *Boundary of a tetrahedron* (4, 6, 4 simplices). The ranks are $\operatorname{rank} \partial_1 = 3$ and $\operatorname{rank} \partial_2 = 3$, so the Betti numbers are $(1, 0, 1)$: one cavity, as for a sphere.
+:::
+
+:::: prop
+[Proposition 2.6 — $\beta_0$ counts connected components]{.tag} $\beta_0$ is the number of connected components of the graph formed by the vertices and edges of $K$.
+
+::: proof
+In $H_0 = C_0 / B_0$, two vertices $u, v$ are equal when $u + v$ is a boundary. If a path $u = w_0, \dots, w_\ell = v$ exists, $u + v$ is the boundary of the sum of its edges, by telescoping.
+
+Conversely, a sum of edges has an even number of endpoints in each component. So $u + v$ is a boundary only if $u$ and $v$ lie in the same component. One vertex per component therefore gives a basis of $H_0$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 2.7 — Euler–Poincaré formula]{.tag}
+$$
+\chi(K) = \sum_k (-1)^k\, n_k = \sum_k (-1)^k\, \beta_k .
+$$
+
+::: proof
+Sum Proposition 2.4 with signs. Each $\operatorname{rank} \partial_k$ appears twice, once in $\beta_k$ and once in $\beta_{k-1}$, with opposite signs; the sum telescopes. [∎]{.qed}
+:::
+::::
+
+The torus of Example 1.3 has $\chi = 0$, and Code 2.1 finds $\beta = (1, 2, 1)$: two independent loops and one cavity.
+
+### 2.3 Maps and invariance
+
+::: def
+[Definition 2.8 — Simplicial maps and contiguity]{.tag} A **simplicial map** $\varphi : K \to L$ sends vertices to vertices and simplices to simplices; it induces linear maps $C_k(K) \to C_k(L)$ that commute with $\partial$, hence maps $\varphi_* : H_k(K) \to H_k(L)$.
+
+Two simplicial maps $\varphi, \psi : K \to L$ are **contiguous** if, for every simplex $\sigma$ of $K$, the vertex set $\varphi(\sigma) \cup \psi(\sigma)$ is a simplex of $L$.
+:::
+
+A simplex is sent to zero in $C_k(L)$ when its image has fewer vertices. Commutation with $\partial$ makes $\varphi_*$ well defined: cycles go to cycles and boundaries to boundaries.
+
+::: thm
+[Theorem 2.9 — Invariance]{.tag}
+
+1.  If $|K| \simeq |L|$, then $H_k(K) \cong H_k(L)$ for every $k$: homology is a homotopy invariant of the realization.
+2.  Contiguous simplicial maps induce the same map on homology.
+
+The first statement is proved through singular homology (Hatcher, 2002, Corollary 2.11 and Theorem 2.27; Munkres, 1984, Chapter 2). The second follows from a chain homotopy built on the simplices $\varphi(\sigma) \cup \psi(\sigma)$ (Munkres, 1984, Chapter 1).
+:::
+
+With the nerve theorem, the homology of the Čech complex is the homology of the union of balls. Contiguity is the tool of the stability proof for Rips filtrations in ch. 7.
+
+### 2.4 Other coefficients
+
+Over $\mathbb{Q}$ or $\mathbb{Z}$, simplices are ordered, and faces receive signs:
+$$
+\partial [v_0, \dots, v_k] = \sum_{i=0}^{k} (-1)^i\, [v_0, \dots, \widehat{v_i}, \dots, v_k].
+$$
+Lemma 2.2 still holds, because the two copies of each $(k-2)$-face now carry opposite signs (Exercise 9).
+
+The Betti numbers can depend on the field. On the projective plane, a loop that goes around twice bounds, but the loop itself does not: over $\mathbb{Z}$, $H_1$ is $\mathbb{Z}/2$. Over $\mathbb{F}_2$ this torsion is visible as $\beta_1 = 1$, and over $\mathbb{Q}$ it disappears.
+
+Over $\mathbb{F}_2$ no orientation is needed and each column of a boundary matrix is a set of indices. TDA software therefore works over $\mathbb{F}_2$ or a small prime field.
+
+::: ex
+[Code 2.1 — Betti numbers of a torus and a projective plane]{.tag} The code builds all faces of a list of triangles, assembles the boundary matrices, and computes the Betti numbers with Proposition 2.4: over $\mathbb{F}_2$ by Gaussian elimination, over $\mathbb{Q}$ with signed matrices.
+
+```python
+import numpy as np
+from itertools import combinations
+
+def closure(top):
+    """All faces of a list of top simplices, sorted by dimension."""
+    faces = {tuple(sorted(f)) for s in top for k in range(1, len(s) + 1)
+             for f in combinations(s, k)}
+    return [sorted(f for f in faces if len(f) == k + 1) for k in range(len(top[0]))]
+
+def boundary(S, k, signed):
+    """Matrix of the boundary map C_k -> C_{k-1} (rows: (k-1)-faces)."""
+    index = {f: i for i, f in enumerate(S[k - 1])}
+    B = np.zeros((len(S[k - 1]), len(S[k])), dtype=np.int64)
+    for j, s in enumerate(S[k]):
+        for i in range(len(s)):
+            B[index[s[:i] + s[i + 1:]], j] = (-1) ** i if signed else 1
+    return B
+
+def rank_f2(B):
+    """Rank over Z/2 by Gaussian elimination."""
+    A, r = B.copy() % 2, 0
+    for c in range(A.shape[1]):
+        piv = np.nonzero(A[r:, c])[0]
+        if len(piv) == 0:
+            continue
+        A[[r, r + piv[0]]] = A[[r + piv[0], r]]
+        rows = np.nonzero(A[:, c])[0]
+        A[rows[rows != r]] ^= A[r]
+        r += 1
+        if r == A.shape[0]:
+            break
+    return r
+
+def betti(top, field):
+    S = closure(top)
+    rk = [0] + [rank_f2(boundary(S, k, False)) if field == "F2"
+                else np.linalg.matrix_rank(boundary(S, k, True).astype(float))
+                for k in range(1, len(S))] + [0]
+    return [int(len(S[k]) - rk[k] - rk[k + 1]) for k in range(len(S))]
+
+n = 3                                    # 3 x 3 periodic grid: a 9-vertex torus
+v = lambda i, j: (i % n) * n + (j % n)
+torus = [t for i in range(n) for j in range(n) for t in
+         [(v(i, j), v(i + 1, j), v(i + 1, j + 1)), (v(i, j), v(i, j + 1), v(i + 1, j + 1))]]
+rp2 = [(0, 1, 3), (0, 1, 5), (0, 2, 4), (0, 2, 5), (0, 3, 4),
+       (1, 2, 3), (1, 2, 4), (1, 4, 5), (2, 3, 5), (3, 4, 5)]   # 6-vertex projective plane
+for name, top in [("torus", torus), ("projective plane", rp2)]:
+    S = closure(top)
+    chi = sum((-1) ** k * len(S[k]) for k in range(3))
+    print(f"{name:16s} f-vector {[len(s) for s in S]}, chi = {chi}, "
+          f"Betti over F2 {betti(top, 'F2')}, over Q {betti(top, 'Q')}")
+```
+
+The torus has f-vector $(9, 27, 18)$, $\chi = 0$ and Betti numbers $(1, 2, 1)$ over both fields.
+
+The projective plane has f-vector $(6, 15, 10)$ and $\chi = 1$. Its Betti numbers are $(1, 1, 1)$ over $\mathbb{F}_2$ and $(1, 0, 0)$ over $\mathbb{Q}$: in both cases the alternating sum is the Euler characteristic, as Theorem 2.7 requires.
+:::
+
+Gaussian elimination on $n$ simplices costs $O(n^3)$ operations in the worst case. Ch. 4 reorganises this elimination so that one pass over a filtration gives the homology of every subcomplex at once.
+
+::: recap
+Key takeaways — chapter 2
+
+-   Chains are sets of simplices; the boundary map satisfies $\partial \circ \partial = 0$.
+-   $H_k = Z_k / B_k$, and $\beta_k$ follows from the ranks of two boundary matrices (Proposition 2.4).
+-   $\beta_0$ counts components, $\beta_1$ independent loops, $\beta_2$ cavities; their alternating sum is $\chi$.
+-   Homology is a homotopy invariant, and contiguous maps induce the same map on it.
+-   Over $\mathbb{F}_2$ no orientation is needed; coefficients matter only in the presence of torsion.
+:::
+
+## 3. Smooth and discrete Morse theory {#ch3}
+
+A scalar field changes the topology of its sublevel sets only at critical points. Morse theory makes this precise; its piecewise-linear and discrete versions turn it into algorithms.
+
+### 3.1 Smooth Morse theory
+
+::: def
+[Definition 3.1 — Morse functions and index]{.tag} Let $M$ be a closed smooth manifold of dimension $d$ and $f : M \to \mathbb{R}$ smooth. A point $p$ is **critical** if $df(p) = 0$, and **non-degenerate** if moreover the Hessian there is invertible.
+
+The **index** $\lambda(p)$ is the number of negative eigenvalues of the Hessian. $f$ is a **Morse function** if all its critical points are non-degenerate and have distinct values.
+:::
+
+Minima have index 0 and maxima index $d$; on a surface, saddles have index 1. Morse functions are dense among smooth functions, so a generic field is Morse.
+
+:::: thm
+[Theorem 3.2 — Morse lemma and cell attachment]{.tag} Write $M_a = f^{-1}(-\infty, a]$.
+
+1.  Near a non-degenerate critical point $p$ of index $\lambda$, there are coordinates in which
+    $$
+    f = f(p) - x_1^2 - \dots - x_\lambda^2 + x_{\lambda+1}^2 + \dots + x_d^2 .
+    $$
+2.  If $f^{-1}([a, b])$ contains no critical point, $M_a$ is a deformation retract of $M_b$.
+3.  If $p$ is the only critical point with value in $[c - \varepsilon, c + \varepsilon]$, then $M_{c+\varepsilon}$ is homotopy equivalent to $M_{c-\varepsilon}$ with one cell of dimension $\lambda(p)$ attached.
+
+::: proof
+*Sketch* (Milnor, 1963, Lemma 2.2 and Theorems 3.1 and 3.2). For (2), the flow of $-\nabla f / \|\nabla f\|^2$ decreases $f$ at unit speed and pushes $M_b$ onto $M_a$. For (3), in the coordinates of (1), the sublevel set gains a thickened $\lambda$-disk along the negative directions, glued along its boundary sphere. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.3 — The height function on a torus]{.tag} Stand a torus vertically and let $f$ be the height. It has four critical points: a minimum, two saddles, a maximum.
+
+The sublevel sets are successively a disk (after the minimum), a cylinder (after the first saddle attaches a 1-cell), a torus minus a disk (after the second saddle) and the torus (after the maximum attaches a 2-cell).
+:::
+
+:::: thm
+[Theorem 3.4 — Morse inequalities]{.tag} Let $m_\lambda$ be the number of critical points of index $\lambda$ of a Morse function on $M$. Then $m_\lambda \geq \beta_\lambda(M)$ for every $\lambda$, and
+$$
+\sum_\lambda (-1)^\lambda\, m_\lambda = \chi(M).
+$$
+
+::: proof
+*Euler formula.* By Theorem 3.2, $M$ is homotopy equivalent to a CW complex with $m_\lambda$ cells of dimension $\lambda$. The Euler characteristic of a CW complex is the alternating count of its cells, and Theorem 2.7 extends to cell complexes.
+
+*Inequalities.* Attaching a $\lambda$-cell changes one Betti number by one: it raises $\beta_\lambda$ or lowers $\beta_{\lambda-1}$. To reach $\beta_\lambda(M)$, at least $\beta_\lambda(M)$ cells of dimension $\lambda$ are needed. [∎]{.qed}
+:::
+::::
+
+For the torus, $1 - 2 + 1 = 0 = \chi$, and $m = (1, 2, 1)$ equals the Betti numbers: the height function is *perfect*.
+
+### 3.2 Piecewise-linear Morse theory
+
+Data come as values on the vertices of a triangulation, extended linearly. Ties are broken by the vertex index (simulation of simplicity, Edelsbrunner and Mücke, 1990), so all values are distinct.
+
+::: def
+[Definition 3.5 — Lower link and PL critical points]{.tag} The **lower link** of a vertex $v$ is the subcomplex of its link spanned by the vertices of lower value:
+$$
+\mathrm{Lk}^-(v) = \{ \tau \in \mathrm{Lk}(v) : f(u) < f(v) \text{ for all } u \in \tau \}.
+$$
+The **upper link** is defined with $f(u) > f(v)$. On a triangulated surface, where the link is a cycle, $v$ is:
+
+-   a **minimum** if $\mathrm{Lk}^-(v)$ is empty, a **maximum** if $\mathrm{Lk}^-(v)$ is the whole link;
+-   **regular** if $\mathrm{Lk}^-(v)$ is one arc;
+-   a **saddle of multiplicity** $k - 1$ if $\mathrm{Lk}^-(v)$ has $k \geq 2$ arcs (a monkey saddle for $k = 3$).
+:::
+
+This classification follows Banchoff (1967): entering $v$ adds a cone over $\mathrm{Lk}^-(v)$, which merges $k$ fronts when the lower link has $k$ arcs.
+
+:::: thm
+[Theorem 3.6 — Banchoff's index formula]{.tag} For a function with distinct values on the vertices of any finite simplicial complex $K$,
+$$
+\sum_{v} \Big( 1 - \chi\big(\mathrm{Lk}^-(v)\big) \Big) = \chi(K).
+$$
+
+::: proof
+Each simplex $\sigma$ has a unique highest vertex $v$. Removing $v$ leaves either nothing, when $\sigma = \{v\}$, or a simplex $\tau$ all of whose vertices are lower than $v$.
+
+Such a $\tau$ lies in $\mathrm{Lk}^-(v)$. Conversely, every simplex of the lower link, joined with $v$, is a simplex of $K$ with highest vertex $v$.
+
+Group the terms of $\chi(K)$ by highest vertex. The contribution of $v$ is $1$ for the vertex itself, plus $(-1)^{\dim \tau + 1}$ for each $\tau$ in the lower link:
+$$
+\chi(K) = \sum_v \Big( 1 - \sum_{\tau \in \mathrm{Lk}^-(v)} (-1)^{\dim \tau} \Big) = \sum_v \big( 1 - \chi(\mathrm{Lk}^-(v)) \big).
+$$
+[∎]{.qed}
+:::
+::::
+
+On a surface, the term $1 - \chi(\mathrm{Lk}^-(v))$ of a vertex is:
+
+-   1 for a minimum (empty lower link) and for a maximum (a cycle, of Euler characteristic 0);
+-   0 for a regular vertex (an arc, of Euler characteristic 1);
+-   $1 - k$ for a saddle with $k$ lower arcs.
+
+Hence:
+
+::: prop
+[Corollary 3.7 — Critical points on a surface]{.tag} Counting each saddle with its multiplicity,
+$$
+\#\text{minima} - \#\text{saddles} + \#\text{maxima} = \chi(K).
+$$
+:::
+
+::: ex
+[Code 3.1 — Critical points of a noisy field on a torus]{.tag} The field $\cos 2\pi x + \cos 2\pi y$ is sampled on a $64 \times 64$ periodic grid with the Freudenthal triangulation of Definition 1.9, with and without Gaussian noise. The code walks around the hexagonal link of each vertex, counts the lower arcs, and checks Corollary 3.7 with $\chi = 0$.
+
+```python
+import numpy as np
+
+def critical_points(f):
+    """PL critical vertices of f on the Freudenthal triangulation of a periodic grid.
+    Ties are broken by the vertex index (simulation of simplicity)."""
+    n, m = f.shape
+    key = f.ravel().argsort().argsort().reshape(n, m)       # rank of each vertex = total order
+    ring = [(1, 0), (1, 1), (0, 1), (-1, 0), (-1, -1), (0, -1)]  # cyclic link of a vertex
+    low = np.stack([np.roll(key, (-di, -dj), axis=(0, 1)) < key for di, dj in ring])
+    arcs = (low & ~np.roll(low, 1, axis=0)).sum(axis=0)     # number of lower arcs in the hexagon
+    n_low = low.sum(axis=0)
+    minima, maxima = n_low == 0, n_low == 6
+    saddle_mult = np.where(~minima & ~maxima, arcs - 1, 0)  # a k-fold saddle has k lower arcs
+    return minima.sum(), saddle_mult.sum(), maxima.sum()
+
+n = 64
+x, y = np.meshgrid(np.arange(n) / n, np.arange(n) / n, indexing="ij")
+rng = np.random.default_rng(0)
+for noise in [0.0, 0.05, 0.2]:
+    f = np.cos(2 * np.pi * x) + np.cos(2 * np.pi * y) + noise * rng.normal(size=(n, n))
+    m0, m1, m2 = critical_points(f)
+    print(f"noise {noise:.2f}: minima {m0:4d}, saddles {m1:4d}, maxima {m2:4d}, "
+          f"m0 - m1 + m2 = {m0 - m1 + m2}")
+```
+
+Without noise, the code finds 1 minimum, 2 saddles and 1 maximum. With noise 0.05 it finds 164, 320 and 156; with noise 0.2, 508, 1005 and 497. The alternating sum is 0 every time.
+:::
+
+Noise multiplies the critical points by hundreds, while their alternating sum cannot move. Deciding which of them matter is the job of persistence (ch. 4).
+
+### 3.3 Discrete Morse theory
+
+Forman's theory replaces the gradient by a matching between simplices, which suits exact combinatorial algorithms.
+
+::: def
+[Definition 3.8 — Discrete Morse functions]{.tag} A function $F$ on the simplices of $K$ is a **discrete Morse function** if, for every $p$-simplex $\sigma$:
+
+-   at most one coface $\tau$ of dimension $p + 1$ has $F(\tau) \leq F(\sigma)$;
+-   at most one face $\nu$ of dimension $p - 1$ has $F(\nu) \geq F(\sigma)$.
+
+A simplex is **critical** when both numbers are zero.
+:::
+
+::: def
+[Definition 3.9 — Discrete gradient vector fields]{.tag} The **gradient** of $F$ is the set $V$ of pairs $(\sigma < \tau)$, of dimensions $p$ and $p + 1$, with $F(\tau) \leq F(\sigma)$. Each simplex belongs to at most one pair, and the unpaired simplices are the critical ones.
+
+A **$V$-path** alternates $\sigma_0 < \tau_0 > \sigma_1 < \tau_1 > \dots$, with $(\sigma_i, \tau_i) \in V$ and $\sigma_{i+1} \neq \sigma_i$ a face of $\tau_i$. A matching is the gradient of some discrete Morse function if and only if it has no closed $V$-path (Forman, 1998).
+:::
+
+::: thm
+[Theorem 3.10 — Forman's theorem]{.tag} If $F$ is a discrete Morse function on $K$, then $|K|$ is homotopy equivalent to a CW complex with exactly one cell of dimension $p$ for each critical $p$-simplex.
+
+In particular, if $m_p$ counts the critical $p$-simplices, then $m_p \geq \beta_p(K)$ and $\sum_p (-1)^p m_p = \chi(K)$. The proof replaces each gradient pair by an elementary collapse, which does not change the homotopy type (Section 10.3).
+:::
+
+::: ex
+[Example 3.11 — Gradients on a triangle and on its boundary]{.tag}
+
+-   *Filled triangle* $abc$. The pairs $(b, ab)$, $(c, ac)$ and $(bc, abc)$ leave only $a$ critical: the triangle is contractible.
+-   *Hollow triangle*. Pair $b$ with $ab$ and $c$ with $bc$. The vertex $a$ and the edge $ca$ remain critical: one 0-cell and one 1-cell, a circle.
+-   On the hollow triangle, the pairs $(a, ab)$, $(b, bc)$ and $(c, ca)$ form a closed $V$-path: they are not a gradient.
+:::
+
+:::: prop
+[Proposition 3.12 — Steepest-descent pairing]{.tag} Let $f$ have distinct values on the vertices. Pair each vertex that is not a local minimum with the edge to its lowest neighbour. This is a discrete gradient, whose critical vertices are the local minima.
+
+::: proof
+An edge $vu$ with $f(u) < f(v)$ can only be paired with $v$, so each edge is used at most once. Along a $V$-path $v_0, v_0 v_1, v_1, \dots$, each step goes to a lower vertex, so the values strictly decrease and no path closes. [∎]{.qed}
+:::
+::::
+
+Robins, Wood and Sheppard (2011) extend this pairing to all dimensions, with critical simplices matching the topology changes of the lower-star filtration; their $V$-paths replace integral lines in ch. 6.
+
+::: recap
+Key takeaways — chapter 3
+
+-   Sublevel sets of a Morse function change only at critical points, by attaching a cell of dimension equal to the index.
+-   The Morse inequalities bound the number of critical points below by the Betti numbers; their alternating sum is $\chi$.
+-   On triangulated data, the lower link classifies vertices; Banchoff's formula is an exact count by highest vertex.
+-   Discrete gradients are acyclic matchings of simplices; critical simplices give a cell complex of the same homotopy type.
+:::
+
+## 4. Persistent homology and persistence diagrams {#ch4}
+
+Data come with a scale or a threshold that nobody knows how to choose. Persistence follows every hole across all scales at once, records when it appears and disappears, and summarizes the result stably.
+
+### 4.1 Persistence modules and barcodes
+
+Let $\emptyset = K_0 \subset K_1 \subset \dots \subset K_m = K$ be a filtration in which $K_i$ adds one simplex $\sigma_i$ to $K_{i-1}$ (ties broken arbitrarily).
+
+::: def
+[Definition 4.1 — Persistence modules and persistent Betti numbers]{.tag} The **persistence module** of degree $k$ is the sequence
+$$
+H_k(K_0) \to H_k(K_1) \to \dots \to H_k(K_m),
+$$
+with the maps $\iota_i^j : H_k(K_i) \to H_k(K_j)$ induced by inclusion for $i \leq j$. The **persistent Betti numbers** are
+$$
+\beta_k^{i,j} = \operatorname{rank} \iota_i^j .
+$$
+A class $\gamma \in H_k(K_i)$ is **born** at $i$ if it is not in the image of $\iota_{i-1}^{i}$.
+
+It **dies** at $j > i$ if its image in $H_k(K_{j-1})$ is not in the image of $H_k(K_{i-1})$, while its image in $H_k(K_j)$ is: at $j$ it merges with an older class.
+:::
+
+$\beta_k^{i,j}$ counts the $k$-dimensional holes of $K_i$ that are still holes in $K_j$.
+
+::: thm
+[Theorem 4.2 — Structure theorem]{.tag} A persistence module of finite-dimensional spaces decomposes, uniquely up to order, into a direct sum of **interval modules**: each interval $[b, d)$ contributes a copy of $\mathbb{F}_2$ at the indices $b \leq i < d$, connected by identity maps, and $0$ elsewhere.
+
+The multiset of intervals is the **barcode**. It satisfies, for $i \leq j$,
+$$
+\beta_k^{i,j} = \#\{ [b, d) \text{ in the barcode} : b \leq i \text{ and } j < d \}.
+$$
+For finite filtrations this is due to Zomorodian and Carlsson (2005), through graded modules over $\mathbb{F}_2[t]$; Crawley-Boevey (2015) extends it to modules indexed by $\mathbb{R}$ with finite-dimensional spaces.
+:::
+
+An interval $[b, d)$ of indices becomes the interval $[f(\sigma_b), f(\sigma_d))$ of scales; intervals of length zero are discarded.
+
+### 4.2 The elder rule
+
+:::: prop
+[Proposition 4.3 — 0-dimensional persistence by union-find]{.tag} Sweep the filtration with union-find (Algorithm 0.6). A vertex starts a new component. When an edge joins two components, the **younger** one — whose oldest vertex entered later — dies, and its bar $[b, d)$ goes from the entry of that oldest vertex to the entry of the edge. The oldest component never dies.
+
+The resulting barcode is the barcode of $H_0$.
+
+::: proof
+By Proposition 2.6, $\beta_0^{i,j}$ is the number of components of $K_j$ that contain a vertex of $K_i$. Each component $C$ of $K_j$ carries exactly one bar alive at $j$, the bar of its oldest vertex.
+
+$C$ meets $K_i$ if and only if its oldest vertex entered at or before $i$, that is, if and only if this bar starts at or before $i$. So the elder-rule bars satisfy the formula of Theorem 4.2 for all $i \leq j$. The persistent Betti numbers determine the barcode by inclusion–exclusion, which concludes. [∎]{.qed}
+:::
+::::
+
+For the Rips filtration, the finite $H_0$ bars die at half the edge lengths of a minimum spanning tree: the sweep is Kruskal's algorithm (Exercise 14).
+
+### 4.3 The reduction algorithm
+
+Order the simplices as in the filtration, and let $\partial$ be the $m \times m$ boundary matrix over $\mathbb{F}_2$: column $j$ holds the faces of $\sigma_j$. For a non-zero column, $\mathrm{low}(j)$ is the index of its lowest 1.
+
+:::: thm
+[Algorithm 4.4 — Standard reduction]{.tag}
+
+1.  For $j = 1, \dots, m$: while some $j' < j$ has $\mathrm{low}(j') = \mathrm{low}(j)$, add column $j'$ to column $j$.
+2.  The result is $R = \partial V$ with $V$ upper triangular and invertible; the non-zero columns of $R$ have distinct lows.
+
+The cost is $O(m^3)$ in the worst case.
+::::
+
+::: thm
+[Theorem 4.5 — Persistence pairs]{.tag} After the reduction:
+
+-   each non-zero column $j$ with $\mathrm{low}(j) = i$ gives a bar $[f(\sigma_i), f(\sigma_j))$ in degree $\dim \sigma_i$: $\sigma_i$ creates a class that $\sigma_j$ kills;
+-   each $i$ with $R_i = 0$ that is the low of no column gives an infinite bar $[f(\sigma_i), \infty)$.
+
+The pairs do not depend on the order of the column additions (*pairing lemma*, Cohen-Steiner, Edelsbrunner and Morozov, 2006). Section 10.1 proves it with ranks of lower-left submatrices.
+:::
+
+A simplex with $R_i = 0$ is **positive**: it creates a class. A simplex with $R_j \neq 0$ is **negative**: it kills the youngest class contained in the cycle $R_j$.
+
+::: ex
+[Code 4.1 — Persistence of the Rips filtration of a noisy circle]{.tag} The code sorts the simplices of dimension at most 2 of the Rips filtration of the points of Code 1.1, then runs Algorithm 4.4 with columns stored as sets.
+
+```python
+import numpy as np
+from itertools import combinations
+
+def rips_filtration(P, rmax):
+    """Simplices of dimension <= 2 of the Rips filtration, value r = diameter / 2."""
+    D = np.linalg.norm(P[:, None] - P[None], axis=2) / 2
+    n = len(P)
+    S = [((i,), 0.0) for i in range(n)]
+    S += [((i, j), D[i, j]) for i, j in combinations(range(n), 2) if D[i, j] <= rmax]
+    S += [((i, j, k), max(D[i, j], D[i, k], D[j, k])) for i, j, k in combinations(range(n), 3)
+          if max(D[i, j], D[i, k], D[j, k]) <= rmax]
+    return sorted(S, key=lambda s: (s[1], len(s[0])))       # faces before cofaces
+
+def persistence(S):
+    """Standard column reduction over Z/2; returns (dim, birth, death) triples."""
+    index = {s: i for i, (s, _) in enumerate(S)}
+    low_of, cols, pairs, paired = {}, [], [], set()
+    for j, (s, val) in enumerate(S):
+        col = {index[s[:i] + s[i + 1:]] for i in range(len(s))} if len(s) > 1 else set()
+        while col and max(col) in low_of:                  # add the column with the same pivot
+            col ^= cols[low_of[max(col)]]
+        cols.append(col)
+        if col:
+            i = max(col)
+            low_of[i] = j
+            paired |= {i, j}
+            if val > S[i][1]:                              # skip zero-length intervals
+                pairs.append((len(S[i][0]) - 1, S[i][1], val))
+    pairs += [(len(s) - 1, val, np.inf) for j, (s, val) in enumerate(S)
+              if j not in paired and len(s) < 3]           # essential classes (dim < top)
+    return pairs
+
+rng = np.random.default_rng(0)
+theta = rng.uniform(0, 2 * np.pi, 30)
+P = np.c_[np.cos(theta), np.sin(theta)] + 0.05 * rng.normal(size=(30, 2))
+S = rips_filtration(P, rmax=1.2)
+dgm = persistence(S)
+h1 = sorted([(b, d) for k, b, d in dgm if k == 1], key=lambda p: p[0] - p[1])
+print(f"{len(S)} simplices; H0: {sum(k == 0 for k, _, _ in dgm)} intervals, "
+      f"H1: {len(h1)} intervals")
+for b, d in h1[:3]:
+    print(f"H1 interval [{b:.3f}, {d:.3f}), persistence {d - b:.3f}")
+```
+
+The filtration has 4525 simplices. The code finds 30 intervals in $H_0$ (29 finite, one infinite) and a single $H_1$ interval of positive length, $[0.317, 0.829)$, of persistence 0.512.
+:::
+
+The loop is born when the largest gap between consecutive points closes, and dies near $\sqrt 3 / 2 = 0.866$, when the Rips complex fills an inscribed triangle (Code 1.1).
+
+### 4.4 Persistence diagrams and their distances
+
+::: def
+[Definition 4.6 — Persistence diagram]{.tag} The **persistence diagram** $\mathrm{Dgm}_k(f)$ is the multiset of points $(b, d)$, one per bar of degree $k$, with $d = +\infty$ for infinite bars.
+
+It also contains every point of the diagonal $\Delta = \{(t, t)\}$, with infinite multiplicity. The **persistence** of $(b, d)$ is $d - b$.
+:::
+
+Points far from the diagonal are long-lived features; the diagonal lets diagrams of different sizes be matched.
+
+::: def
+[Definition 4.7 — Bottleneck and Wasserstein distances]{.tag} A **matching** between two diagrams $D$ and $D'$ is a bijection $\gamma : D \to D'$, where points may be matched to the diagonal. The **bottleneck distance** and the **$q$-Wasserstein distance** are
+$$
+d_B(D, D') = \inf_\gamma \sup_{p \in D} \| p - \gamma(p) \|_\infty, \qquad W_q(D, D') = \inf_\gamma \Big( \sum_{p \in D} \| p - \gamma(p) \|_\infty^q \Big)^{1/q}.
+$$
+Matching $(b, d)$ to its closest diagonal point costs $(d - b)/2$.
+:::
+
+::: ex
+[Example 4.8 — Distances by hand]{.tag} Take $D = \{(0, 4), (1, 2)\}$ and $D' = \{(0, 3.5)\}$.
+
+-   Match $(0, 4)$ with $(0, 3.5)$, at cost $0.5$, and send $(1, 2)$ to the diagonal, at cost $0.5$.
+-   Matching $(1, 2)$ with $(0, 3.5)$ instead would cost $1.5$.
+
+Hence
+$$
+d_B(D, D') = 0.5, \qquad W_1(D, D') = 1 .
+$$
+:::
+
+::: prop
+[Proposition 4.9 — Computing the bottleneck distance]{.tag} For finite diagrams with $n$ and $n'$ points, add a diagonal copy of each point of the other diagram, and let any two diagonal copies be matched at cost 0. Then $d_B$ is the smallest threshold $t$ among the pairwise costs for which the bipartite graph of the pairs of cost at most $t$ has a perfect matching.
+
+A binary search over the $O((n + n')^2)$ costs and the Hopcroft–Karp algorithm give $d_B$ in polynomial time; $W_q$ is an assignment problem on the same graph.
+:::
+
+### 4.5 Stability
+
+:::: thm
+[Theorem 4.10 — Stability of persistence diagrams]{.tag} Let $f, g$ be two monotone filtration functions on the same finite complex $K$, for instance the lower-star filtrations of two images on the same grid. For every degree $k$:
+
+::: key
+[Key result — stability]{.tag}
+$$
+d_B\big( \mathrm{Dgm}_k(f), \mathrm{Dgm}_k(g) \big) \;\leq\; \| f - g \|_\infty
+$$
+:::
+
+::: proof
+*Sketch* (the vineyard argument of Cohen-Steiner, Edelsbrunner and Morozov, 2006). Let $f_t = (1 - t) f + t g$ for $t \in [0, 1]$; each $f_t$ is monotone.
+
+The pairs of Theorem 4.5 depend only on the order of the simplices. Between two times at which this order changes, the paired simplices $(\sigma, \tau)$ are fixed, and the point $(f_t(\sigma), f_t(\tau))$ moves at speed at most $\| g - f \|_\infty$ in the sup norm.
+
+At a time when two simplices swap, they have equal values, and the diagram is continuous across the swap: only points with coinciding coordinates exchange their pairs. Following each point along $[0, 1]$ defines a matching that moves no point by more than $\| f - g \|_\infty$. [∎]{.qed}
+:::
+::::
+
+Cohen-Steiner, Edelsbrunner and Harer (2007) proved it for tame functions on triangulable spaces; Section 10.2 gives the algebraic version.
+
+### 4.6 Images, noise and simplification
+
+For an image, bright blobs are maxima, tracked by superlevel sets. In degree 0, each local maximum dies at the saddle level where it joins a higher peak: its persistence is its **prominence**.
+
+::: ex
+[Code 4.2 — Superlevel-set persistence of a noisy image]{.tag} Three Gaussian bumps of heights 1, 0.8 and 0.6 (width 6 pixels) on a $64 \times 64$ grid, plus noise of standard deviation 0.05. Proposition 4.3 runs on the 4-neighbour graph, in decreasing order.
+
+```python
+import numpy as np
+
+def superlevel_h0(f):
+    """0-dim persistence of the superlevel sets of an image (4-neighbour grid),
+    by union-find and the elder rule. Returns (birth, death) pairs, birth >= death."""
+    n, m = f.shape
+    flat = f.ravel()
+    parent = -np.ones(n * m, dtype=int)                # -1 = pixel not yet in the filtration
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    pairs = []
+    for v in np.argsort(-flat, kind="stable"):         # decreasing values
+        parent[v] = v
+        i, j = divmod(v, m)
+        for a, b in [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]:
+            if 0 <= a < n and 0 <= b < m and parent[a * m + b] >= 0:
+                ru, rv = find(a * m + b), find(v)
+                if ru != rv:                           # elder rule: the lower peak dies
+                    young, old = (ru, rv) if flat[ru] < flat[rv] else (rv, ru)
+                    if flat[young] > flat[v]:          # skip zero-length pairs
+                        pairs.append((flat[young], flat[v]))
+                    parent[young] = old
+    pairs.append((flat.max(), -np.inf))                # the essential class
+    return np.array(pairs)
+
+n = 64
+x, y = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+bump = lambda cx, cy, h: h * np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * 6.0 ** 2))
+clean = bump(16, 16, 1.0) + bump(44, 20, 0.8) + bump(30, 48, 0.6)
+img = clean + 0.05 * np.random.default_rng(0).normal(size=(n, n))
+dgm = superlevel_h0(img)
+pers = np.sort(dgm[:, 0] - dgm[:, 1])[::-1]
+print(f"{len(dgm)} local maxima; five largest persistences: {np.round(pers[:5], 3)}")
+print(f"points with persistence > 0.25: {(pers > 0.25).sum()}")
+```
+
+The image has 721 local maxima. The five largest persistences are $\infty$ (the highest bump), 0.734, 0.64, 0.172 and 0.152: exactly three points exceed 0.25.
+:::
+
+The gap between 0.64 and 0.172 separates objects from noise: by Theorem 4.10, noise of sup-norm $\delta$ only creates points of persistence at most $2\delta$.
+
+::: ex
+[Code 4.3 — Stability in practice]{.tag} A noisy signal is perturbed by uniform noise of amplitude $\delta$; the code compares both $H_0$ diagrams with Proposition 4.9.
+
+```python
+import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import maximum_bipartite_matching
+
+def sublevel_h0(f):
+    """Finite 0-dim intervals (birth, death) of the sublevel sets of a 1D signal."""
+    parent, pairs = -np.ones(len(f), dtype=int), []
+    def find(a):
+        while parent[a] != a:
+            a = parent[a]
+        return a
+    for v in np.argsort(f, kind="stable"):
+        parent[v] = v
+        for u in (v - 1, v + 1):
+            if 0 <= u < len(f) and parent[u] >= 0:
+                ru, rv = find(u), find(v)
+                if ru != rv:
+                    young, old = (ru, rv) if f[ru] > f[rv] else (rv, ru)
+                    if f[young] < f[v]:
+                        pairs.append((f[young], f[v]))
+                    parent[young] = old
+    return np.array(pairs).reshape(-1, 2)
+
+def bottleneck(A, B):
+    """Bottleneck distance between finite diagrams, by thresholded bipartite matching.
+    Rows: points of A, then diagonal copies of B; columns: points of B, then copies of A."""
+    a, b = len(A), len(B)
+    C = np.full((a + b, b + a), np.inf)
+    C[:a, :b] = np.abs(A[:, None, :] - B[None, :, :]).max(axis=2)
+    C[np.arange(a), b + np.arange(a)] = (A[:, 1] - A[:, 0]) / 2   # A_i to the diagonal
+    C[a + np.arange(b), np.arange(b)] = (B[:, 1] - B[:, 0]) / 2   # diagonal to B_j
+    C[a:, b:] = 0.0                                                # diagonal to diagonal
+    values = np.unique(C[np.isfinite(C)])
+    lo, hi = 0, len(values) - 1
+    while lo < hi:                                     # smallest threshold with a perfect matching
+        mid = (lo + hi) // 2
+        match = maximum_bipartite_matching(csr_matrix(C <= values[mid]), perm_type="column")
+        lo, hi = (mid + 1, hi) if (match < 0).any() else (lo, mid)
+    return values[lo]
+
+rng = np.random.default_rng(1)
+t = np.linspace(0, 1, 400)
+f = np.sin(6 * np.pi * t) + 0.1 * rng.normal(size=t.size)
+for delta in [0.01, 0.05, 0.2]:
+    g = f + rng.uniform(-delta, delta, size=t.size)
+    Df, Dg = sublevel_h0(f), sublevel_h0(g)
+    big = [(D[:, 1] - D[:, 0] > 1.5).sum() for D in (Df, Dg)]
+    print(f"|f - g|_inf = {np.abs(f - g).max():.4f}: bottleneck = {bottleneck(Df, Dg):.4f}; "
+          f"{len(Df)} and {len(Dg)} points, persistence > 1.5: {big[0]} and {big[1]}")
+```
+
+For perturbations of sup-norm 0.0100, 0.0500 and 0.2000, the bottleneck distances are 0.0100, 0.0490 and 0.1825. The diagrams have 130 to 138 points, but always exactly two finite points of persistence above 1.5.
+:::
+
+Removing a point of persistence $p$ needs a perturbation of sup-norm at least $p/2$, its distance to the diagonal. On surfaces this bound is reached.
+
+::: thm
+[Theorem 4.11 — Persistence simplification]{.tag} Let $f$ be a function on a triangulated surface and $\delta > 0$. Some $g$ with $\| f - g \|_\infty \leq \delta$ has exactly as many critical points as $f$ has critical points of persistence greater than $2\delta$, counting the essential ones.
+
+By Theorem 4.10, no function within $\delta$ of $f$ has fewer: this lower bound is tight.
+
+See Edelsbrunner, Morozov and Pascucci (2006) and Bauer, Lange and Wardetzky (2012); Tierny and Pascucci (2012) give the general algorithm used in TTK.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   A persistence module decomposes into intervals: the barcode, or the diagram.
+-   In degree 0, union-find with the elder rule computes it; the reduction algorithm does in every degree.
+-   Diagrams are compared by matching, with the bottleneck and Wasserstein distances.
+-   Stability: $d_B \leq \| f - g \|_\infty$; noise of amplitude $\delta$ only adds points of persistence at most $2\delta$, which simplification removes.
+:::
+
+## 5. Reeb graphs, contour trees and Mapper {#ch5}
+
+The level sets of a scalar field split and merge as the level varies. The Reeb graph records this history; Mapper computes a discrete version of it for point clouds.
+
+### 5.1 Reeb graphs
+
+::: def
+[Definition 5.1 — Reeb graph]{.tag} Let $f : X \to \mathbb{R}$ be continuous. Write $x \sim y$ when $f(x) = f(y)$ and $x, y$ lie in the same connected component of the level set $f^{-1}(f(x))$. The **Reeb graph** is the quotient
+$$
+R(f) = X / \sim ,
+$$
+and $f$ induces a function $\bar f$ on it. Each point of $R(f)$ is one connected component of one level set.
+:::
+
+::: thm
+[Theorem 5.2 — Reeb graphs of Morse functions]{.tag} Let $f$ be a Morse function on a compact connected manifold $X$.
+
+1.  $R(f)$ is a finite graph. Its nodes are the images of the critical points at which the number of components of the level set changes; minima and maxima are nodes of degree 1.
+2.  The quotient map induces a surjection on first homology, so $\beta_1(R(f)) \leq \beta_1(X)$.
+3.  If $X$ is a closed orientable surface of genus $g$, then $R(f)$ has exactly $g$ independent loops.
+
+See Cole-McLaughlin, Edelsbrunner, Harer, Natarajan and Pascucci (2004) for the third statement, and Dey and Wang (2022, Chapter 7) for the first two.
+:::
+
+For the height function of the torus (Example 3.3), the Reeb graph is a minimum, a saddle where the circle splits into two, two parallel arcs, a saddle where they merge, and a maximum: one loop, as $g = 1$.
+
+### 5.2 Merge trees and contour trees
+
+On a simply connected domain, such as a rectangular image, $\beta_1 = 0$, so the Reeb graph is a tree by Theorem 5.2: the **contour tree**.
+
+::: def
+[Definition 5.3 — Merge trees]{.tag} The **join tree** of $f$ tracks the components of the superlevel sets $f^{-1}([t, \infty))$ as $t$ decreases: its leaves are the maxima, and its interior nodes are the saddles at which two components join. The **split tree** does the same for sublevel sets and minima.
+:::
+
+Both are computed by the union-find sweep of Proposition 4.3, recording a node at every merge. A persistence pair is then a leaf together with the node where its branch meets an older branch: the diagram in degree 0 is the **branch decomposition** of the merge tree (Pascucci, Cole-McLaughlin and Scorzelli, 2004).
+
+::: ex
+[Example 5.4 — A split tree by hand]{.tag} Let a path $v_1, \dots, v_7$ carry the values $2, 6, 1, 4, 3, 5, 0$. Sweep upwards:
+
+1.  $v_7$ (0), $v_3$ (1), $v_1$ (2) and $v_5$ (3) are minima: four leaves;
+2.  at $v_4$ (4), the components of $v_3$ and $v_5$ meet; the younger one, born at 3, dies: pair $(3, 4)$;
+3.  at $v_6$ (5), the components of $v_3$ and $v_7$ meet; the one born at 1 dies: pair $(1, 5)$;
+4.  at $v_2$ (6), the component of $v_1$ meets the rest: pair $(2, 6)$.
+
+The split tree has four leaves and three merge nodes, and
+$$
+\mathrm{Dgm}_0 = \{ (3, 4),\ (1, 5),\ (2, 6),\ (0, \infty) \}.
+$$
+:::
+
+::: thm
+[Algorithm 5.5 — Contour tree from the join and split trees]{.tag} Carr, Snoeyink and Axen (2003) compute the contour tree of a PL function on a simply connected domain in any dimension. They build both merge trees, then repeatedly move to the contour tree a leaf of one tree that satisfies a local degree condition in the other, and delete it from both. The cost is $O(n \log n + N \alpha(N))$ for $n$ vertices and $N$ simplices.
+:::
+
+In scientific visualization, an arc of the contour tree is a family of contours without topological change: selecting it segments a feature. Cutting the branch decomposition at a persistence threshold simplifies the tree.
+
+### 5.3 Mapper
+
+::: def
+[Definition 5.6 — Mapper]{.tag} Let $X$ be a point cloud, $\varphi : X \to \mathbb{R}$ a **filter** (a coordinate, a density, an eccentricity), and $\mathcal{I}$ a cover of $\varphi(X)$ by overlapping intervals. For each interval $I$, cluster the preimage $\varphi^{-1}(I)$.
+
+The **Mapper graph** (Singh, Mémoli and Carlsson, 2007) is the nerve of the family of all these clusters: one node per cluster, one edge between two clusters that share a point.
+:::
+
+When the clusters are connected components and the intervals shrink, Mapper converges to the Reeb graph (Munch and Wang, 2016). Carrière and Oudot (2018) describe which features a given cover keeps, and Carrière, Michel and Oudot (2018) choose the cover from data.
+
+::: ex
+[Code 5.1 — Mapper of a circle and of a figure eight]{.tag} Six hundred noisy points are sampled on a circle and on the figure eight $t \mapsto (\sin t, \sin t \cos t)$. The filter is the first coordinate, covered by 8 intervals with 30 % overlap; each preimage is clustered by single linkage at scale 0.25.
+
+```python
+import numpy as np
+from scipy.cluster.hierarchy import fcluster, linkage
+
+def mapper(X, filt, n_int=8, overlap=0.3, eps=0.25):
+    """Mapper graph: cover the range of the filter by overlapping intervals,
+    cluster each preimage by single linkage at scale eps, link clusters that share points."""
+    lo, hi = filt.min(), filt.max()
+    length = (hi - lo) / (n_int - (n_int - 1) * overlap)
+    nodes = []
+    for k in range(n_int):
+        a = lo + k * length * (1 - overlap)
+        idx = np.nonzero((filt >= a) & (filt <= a + length))[0]
+        if len(idx) == 1:
+            nodes.append(set(idx))
+        elif len(idx) > 1:
+            labels = fcluster(linkage(X[idx], "single"), eps, criterion="distance")
+            nodes += [set(idx[labels == c]) for c in np.unique(labels)]
+    edges = {(i, j) for i in range(len(nodes)) for j in range(i + 1, len(nodes))
+             if nodes[i] & nodes[j]}
+    return nodes, edges
+
+def components(n, edges):
+    parent = list(range(n))
+    def find(a):
+        while parent[a] != a:
+            a = parent[a]
+        return a
+    for i, j in edges:
+        parent[find(i)] = find(j)
+    return len({find(i) for i in range(n)})
+
+rng = np.random.default_rng(0)
+t = rng.uniform(0, 2 * np.pi, 600)
+data = {"circle": np.c_[np.cos(t), np.sin(t)],
+        "figure eight": np.c_[np.sin(t), np.sin(t) * np.cos(t)]}
+for name, X in data.items():
+    X = X + 0.03 * rng.normal(size=X.shape)
+    nodes, edges = mapper(X, filt=X[:, 0])
+    c = components(len(nodes), edges)
+    print(f"{name:12s}: {len(nodes)} nodes, {len(edges)} edges, {c} component(s), "
+          f"independent loops = {len(edges) - len(nodes) + c}")
+```
+
+The circle gives 14 nodes, 14 edges and one loop; the figure eight gives 12 nodes, 13 edges and two loops. The number of loops of a graph is $E - V + C$ (Exercise 10).
+:::
+
+Too few intervals merge branches and too little overlap disconnects the graph (Exercise 13). Nicolau, Levine and Carlsson (2011) used Mapper on breast-cancer expression profiles to find a subgroup with excellent survival.
+
+::: recap
+Key takeaways — chapter 5
+
+-   The Reeb graph contracts each component of each level set to a point; for Morse functions it is a finite graph with at most $\beta_1(X)$ loops.
+-   On simply connected domains it is a tree, the contour tree, built from the join and split trees.
+-   Merge trees come from the union-find sweep; their branch decomposition is the 0-dimensional diagram.
+-   Mapper is the nerve of clusters of preimages of a filter; it approximates the Reeb graph and depends on the cover.
+:::
+
+## 6. Morse–Smale complexes {#ch6}
+
+Following the gradient from every point partitions the domain into cells, each flowing from one minimum to one maximum. These cells segment images along ridges and valleys, and persistence decides which to merge.
+
+### 6.1 Integral lines and cells
+
+::: def
+[Definition 6.1 — Integral lines, ascending and descending manifolds]{.tag} Let $f$ be a Morse function on a closed Riemannian manifold $M$. An **integral line** is a maximal curve $\gamma$ with
+$$
+\gamma'(t) = \nabla f(\gamma(t)).
+$$
+Through each regular point passes exactly one integral line; it starts and ends at critical points.
+
+For a critical point $p$, the **descending manifold** $D(p)$ consists of $p$ and the points whose integral line ends at $p$.
+
+The **ascending manifold** $A(p)$ consists of $p$ and the points whose integral line starts at $p$.
+:::
+
+By the stable manifold theorem, if $p$ has index $\lambda$, then $D(p)$ is an open cell of dimension $\lambda$ and $A(p)$ an open cell of dimension $d - \lambda$.
+
+The descending manifolds partition $M$, and so do the ascending ones.
+
+::: def
+[Definition 6.2 — Morse–Smale functions and complexes]{.tag} $f$ is **Morse–Smale** if every ascending manifold meets every descending manifold transversally. The **Morse–Smale complex** has as cells the connected components of the sets
+$$
+D(p) \cap A(q), \quad p, q \text{ critical}.
+$$
+:::
+
+:::: prop
+[Proposition 6.3 — The Morse–Smale complex of a surface]{.tag} On a closed surface, let $f$ be Morse–Smale with $m_0$ minima, $m_1$ saddles and $m_2$ maxima.
+
+-   Each saddle has four **separatrices**: two integral lines descending to minima and two ascending to maxima.
+-   Each 2-cell is a quadrangle with corners minimum, saddle, maximum, saddle (Edelsbrunner, Harer and Zomorodian, 2003).
+-   There are $4 m_1$ arcs and $2 m_1$ quadrangles.
+
+::: proof
+The two first statements follow from the local model of a saddle and from the transversality of the flow (EHZ 2003).
+
+For the counts, each arc is a separatrix and has exactly one saddle end, which gives $4 m_1$ arcs. Each quadrangle has two saddle corners, and each saddle is a corner of the four sectors between its separatrices. Hence $2 \times \#\text{quadrangles} = 4 m_1$.
+
+Euler's formula on this cell decomposition then reads
+$$
+(m_0 + m_1 + m_2) - 4 m_1 + 2 m_1 = m_0 - m_1 + m_2 = \chi(M),
+$$
+which is Theorem 3.4 again. [∎]{.qed}
+:::
+::::
+
+For $\cos 2\pi x + \cos 2\pi y$ on the torus, $m = (1, 2, 1)$: the complex has 4 nodes, 8 arcs and 4 quadrangles.
+
+### 6.2 Watersheds
+
+The ascending manifolds $A(m)$ of the minima are the **catchment basins** of $f$: the points whose steepest descent ends at $m$. Their boundaries form the **watershed** used in image segmentation (Vincent and Soille, 1991). Symmetrically, the descending manifolds $D(M)$ of the maxima of an image are the regions that climb to each bright peak.
+
+On a grid, steepest ascent replaces the gradient: each pixel points to its highest neighbour, and the regions are the trees of these pointers. Each local maximum then has a region, and noise makes hundreds of them.
+
+### 6.3 Discrete Morse–Smale complexes
+
+Integrating integral lines numerically is fragile at saddles. The discrete gradients of Section 3.3 replace them: $V$-paths from critical edges to critical vertices are the descending separatrices, and dual paths to critical triangles the ascending ones. Gyulassy, Bremer, Hamann and Pascucci (2008) and Shivashankar and Natarajan (2012) compute such complexes in 3D and in parallel; TTK implements them.
+
+### 6.4 Persistence-driven simplification
+
+A saddle and an adjacent extremum connected by a single separatrix can be **cancelled**: the two critical points disappear, and the cells on both sides merge. Cancelling pairs in increasing order of persistence gives a hierarchy of Morse–Smale complexes (Edelsbrunner, Harer and Zomorodian, 2003).
+
+In terms of regions, cancelling a maximum with the saddle where it meets an older peak merges its region into the older one. This is exactly the elder rule of Proposition 4.3, applied with a threshold $\tau$.
+
+::: ex
+[Code 6.1 — Segmentation by simplified descending manifolds]{.tag} On the noisy image of Code 4.2, steepest ascent assigns each pixel to a maximum. Whenever two regions meet at a pixel $v$ and the lower peak exceeds $f(v)$ by less than $\tau$, the lower region merges into the higher one. The result is compared with the regions of the clean image.
+
+```python
+import numpy as np
+from sklearn.metrics import adjusted_rand_score
+
+def segment(f, tau):
+    """Descending manifolds of the maxima of f on the 4-neighbour grid, by steepest
+    ascent, with the regions of maxima of persistence < tau merged (elder rule)."""
+    n, m = f.shape
+    flat = f.ravel()
+    parent = -np.ones(n * m, dtype=int)
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    for v in np.argsort(-flat, kind="stable"):          # decreasing values
+        i, j = divmod(v, m)
+        nb = [a * m + b for a, b in [(i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)]
+              if 0 <= a < n and 0 <= b < m and parent[a * m + b] >= 0]
+        if not nb:
+            parent[v] = v                               # a new maximum
+            continue
+        parent[v] = find(max(nb, key=lambda u: flat[u]))  # steepest ascent
+        for u in nb:
+            ru, rv = find(u), find(v)
+            if ru != rv and flat[v] > min(flat[ru], flat[rv]) - tau:   # low persistence
+                young, old = (ru, rv) if flat[ru] < flat[rv] else (rv, ru)
+                parent[young] = old
+    return np.array([find(v) for v in range(n * m)]).reshape(n, m)
+
+n = 64
+x, y = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+bump = lambda cx, cy, h: h * np.exp(-((x - cx) ** 2 + (y - cy) ** 2) / (2 * 6.0 ** 2))
+clean = bump(16, 16, 1.0) + bump(44, 20, 0.8) + bump(30, 48, 0.6)
+img = clean + 0.05 * np.random.default_rng(0).normal(size=(n, n))
+truth = segment(clean, 0.0)
+for tau in [0.0, 0.1, 0.25]:
+    lab = segment(img, tau)
+    ari = adjusted_rand_score(truth.ravel(), lab.ravel())
+    print(f"tau = {tau:.2f}: {len(np.unique(lab)):3d} regions, "
+          f"adjusted Rand index with the clean segmentation {ari:.3f}")
+print("clean image:", len(np.unique(truth)), "regions")
+```
+
+The clean image has 3 regions. On the noisy image, $\tau = 0$ gives 721 regions (adjusted Rand index 0.008), $\tau = 0.1$ gives 66 (0.337), and $\tau = 0.25$, chosen in the gap of Code 4.2, gives 3 regions (0.844).
+:::
+
+The remaining disagreement lies in the flat background, where noise moves the boundaries.
+
+::: recap
+Key takeaways — chapter 6
+
+-   Integral lines of the gradient partition the domain into ascending and descending manifolds; their intersections form the Morse–Smale complex.
+-   On a surface, every cell is a quadrangle, and there are $4 m_1$ arcs and $2 m_1$ cells.
+-   Catchment basins are the ascending manifolds of minima; regions of bright features are the descending manifolds of maxima.
+-   Discrete gradients compute these complexes exactly; cancelling pairs by persistence simplifies them, which removes the over-segmentation due to noise.
+:::
+
+## 7. Topological inference in high dimensions {#ch7}
+
+A point cloud in $\mathbb{R}^{100}$ cannot be looked at, but its homology can be estimated. This chapter gives conditions under which the homology of a sampled shape is recovered, bounds the effect of noise and outliers, and turns persistence into a clustering algorithm.
+
+### 7.1 Offsets, reach and sampling
+
+::: def
+[Definition 7.1 — Medial axis and reach]{.tag} The **medial axis** of a compact set $K \subset \mathbb{R}^d$ is the set of points with at least two nearest points in $K$. The **reach** $\tau(K)$ is the distance from $K$ to its medial axis (Federer, 1959).
+:::
+
+A circle of radius $R$ has reach $R$: its medial axis is the centre. The boundary of a square has reach 0, since its medial axis, the diagonals, reaches the corners. Closed smooth submanifolds have positive reach.
+
+::: thm
+[Theorem 7.2 — Sampling theorem (Niyogi, Smale and Weinberger, 2008)]{.tag} Let $M \subset \mathbb{R}^d$ be a compact submanifold of reach $\tau$, and $X \subset M$ a finite set with $M \subseteq X^{\varepsilon / 2}$. If
+$$
+\varepsilon < \sqrt{3/5}\; \tau ,
+$$
+then $X^\varepsilon$ deformation retracts onto $M$. Consequently, $\check C(X, \varepsilon)$ has the homology of $M$.
+:::
+
+The retraction is the straight segment from each point to its projection onto $M$; the nerve theorem transfers the result to the Čech complex. Chazal, Cohen-Steiner and Lieutier (2009) extend it to sets of zero reach.
+
+### 7.2 Inference with Rips complexes
+
+The Rips complex is not homotopy equivalent to the union of balls, but two Rips complexes at different scales are enough.
+
+:::: thm
+[Lemma 7.3 — Sandwich lemma]{.tag} Let $A \to B \to C \to D \to E$ be linear maps. If the composites $A \to C$ and $C \to E$ are isomorphisms, then
+$$
+\operatorname{rank}(B \to D) = \dim C .
+$$
+
+::: proof
+-   $A \to C$ is onto and factors through $B$, so $B \to C$ is onto;
+-   $C \to E$ is one-to-one and factors through $D$, so $C \to D$ is one-to-one;
+-   hence the image of $B \to D$ is the image of $C$ under $C \to D$, of dimension $\dim C$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 7.4 — Homology inference from two Rips complexes]{.tag} Let $X \subset \mathbb{R}^d$ be finite. Suppose that the inclusions $X^r \subseteq X^{\sqrt 2 r} \subseteq X^{2r}$ induce isomorphisms in homology. Then the rank of $H_k(R(X, r)) \to H_k(R(X, \sqrt 2 r))$ equals $\beta_k(X^{\sqrt 2 r})$.
+
+In barcode terms: it is the number of Rips intervals of degree $k$ that contain $[r, \sqrt 2 r]$.
+
+::: proof
+Theorem 1.7 gives the chain of inclusions
+$$
+\check C(X, r) \subseteq R(X, r) \subseteq \check C(X, \sqrt 2 r) \subseteq R(X, \sqrt 2 r) \subseteq \check C(X, 2r).
+$$
+By the nerve theorem, the Čech complexes have the homology of the offsets, and the maps between them are induced by the inclusions of offsets. Lemma 7.3 concludes. [∎]{.qed}
+:::
+::::
+
+The hypothesis holds when $X$ is close in Hausdorff distance to a compact set whose offsets have constant homology over a range of scales — for instance a submanifold sampled as in Theorem 7.2 (Chazal and Oudot, 2008).
+
+### 7.3 Stability of Rips persistence
+
+::: thm
+[Theorem 7.5 — Stability of Rips diagrams]{.tag} For finite metric spaces $X$ and $Y$, with the Rips filtration indexed by $r = \text{diameter} / 2$, and every degree $k$,
+$$
+d_B\big( \mathrm{Dgm}_k R(X), \mathrm{Dgm}_k R(Y) \big) \;\leq\; d_{GH}(X, Y) .
+$$
+For two subsets of the same metric space, the right-hand side may be replaced by $d_H(X, Y)$.
+:::
+
+This is due to Chazal, Cohen-Steiner, Guibas, Mémoli and Oudot (2009) and Chazal, de Silva and Oudot (2014); Section 10.2 gives the proof. Two $\varepsilon$-dense samples of the same shape thus have diagrams within $\varepsilon$ of each other. But a single outlier can change $d_H$, hence the diagram, by an arbitrary amount.
+
+### 7.4 Distance to a measure
+
+::: def
+[Definition 7.6 — Distance to a measure (DTM)]{.tag} Let $\mu$ be a probability measure on $\mathbb{R}^d$ and $m \in (0, 1]$ a mass parameter. With $\delta_{\mu, u}(x) = \inf \{ r : \mu(\bar B(x, r)) > u \}$, the **distance to the measure** is
+$$
+d_{\mu, m}(x)^2 = \frac{1}{m} \int_0^m \delta_{\mu, u}(x)^2 \, du .
+$$
+For the empirical measure of $n$ points and $m = k / n$, it is the root mean square of the distances from $x$ to its $k$ nearest sample points.
+:::
+
+::: thm
+[Theorem 7.7 — Properties of the DTM (Chazal, Cohen-Steiner and Mérigot, 2011)]{.tag} The function $d_{\mu, m}$ is 1-Lipschitz, and $x \mapsto \|x\|^2 - d_{\mu, m}(x)^2$ is convex, like for a distance function. Moreover,
+$$
+\| d_{\mu, m} - d_{\nu, m} \|_\infty \;\leq\; \frac{1}{\sqrt m}\, W_2(\mu, \nu).
+$$
+:::
+
+Moving one of $n$ sample points by a distance $L$ changes $W_2$ by at most $L / \sqrt n$, hence the empirical DTM by at most $L / \sqrt k$, everywhere (Exercise 7). The sampling theorems of Section 7.1 extend to its sublevel sets.
+
+::: ex
+[Code 7.1 — Outliers, distance function and DTM]{.tag} Five hundred points are sampled near the unit circle, then 25 uniform outliers (5 %) are added in $[-1.5, 1.5]^2$. The distance function and the DTM with $k = 50$ are evaluated on a $61 \times 61$ grid, and the $H_1$ diagram of their sublevel sets is computed with the lower-star filtration of Proposition 1.11 and Algorithm 4.4.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+
+def lower_star_h1(F):
+    """Finite H1 intervals of the sublevel sets of F on the Freudenthal triangulation
+    of a grid (lower-star filtration: a simplex enters with its highest vertex)."""
+    n, m = F.shape
+    v = lambda i, j: i * m + j
+    S = [((v(i, j),), F[i, j]) for i in range(n) for j in range(m)]
+    for i in range(n):
+        for j in range(m):
+            for a, b in [(i + 1, j), (i, j + 1), (i + 1, j + 1)]:
+                if a < n and b < m:
+                    S.append(((v(i, j), v(a, b)), max(F[i, j], F[a, b])))
+            if i + 1 < n and j + 1 < m:
+                for c in [(i + 1, j), (i, j + 1)]:
+                    tri = (v(i, j), v(*c), v(i + 1, j + 1))
+                    S.append((tuple(sorted(tri)), max(F[i, j], F[c], F[i + 1, j + 1])))
+    S.sort(key=lambda s: (s[1], len(s[0])))
+    index = {s: k for k, (s, _) in enumerate(S)}
+    low_of, cols, out = {}, [], []
+    for k, (s, val) in enumerate(S):
+        col = {index[s[:i] + s[i + 1:]] for i in range(len(s))} if len(s) > 1 else set()
+        while col and max(col) in low_of:
+            col ^= cols[low_of[max(col)]]
+        cols.append(col)
+        if col:
+            low_of[max(col)] = k
+            if len(s) == 3 and val > S[max(col)][1]:
+                out.append((S[max(col)][1], val))
+    return sorted(out, key=lambda p: p[0] - p[1])
+
+rng = np.random.default_rng(0)
+theta = rng.uniform(0, 2 * np.pi, 500)
+X = np.c_[np.cos(theta), np.sin(theta)] + 0.05 * rng.normal(size=(500, 2))
+Y = np.r_[X, rng.uniform(-1.5, 1.5, size=(25, 2))]          # add 5 % of uniform outliers
+g = np.linspace(-1.5, 1.5, 61)
+Z = np.stack(np.meshgrid(g, g, indexing="ij"), axis=-1).reshape(-1, 2)
+dist, _ = cKDTree(Y).query(Z, k=50)                        # 50 nearest points: mass m = 50 / 525
+functions = {"distance, clean": cKDTree(X).query(Z)[0],
+             "distance, outliers": dist[:, 0],
+             "DTM, outliers": np.sqrt((dist ** 2).mean(axis=1))}
+for name, f in functions.items():
+    bars = lower_star_h1(f.reshape(61, 61))
+    pers = [d - b for b, d in bars]
+    print(f"{name:18s}: longest H1 interval [{bars[0][0]:.3f}, {bars[0][1]:.3f}), "
+          f"persistence {pers[0]:.3f}; intervals longer than 0.05: {sum(p > 0.05 for p in pers)}")
+```
+
+Without outliers, the distance function has one long interval, $[0.055, 0.857)$, of persistence 0.802. With the outliers, its longest interval shrinks to $[0.055, 0.490)$, persistence 0.435, and a second interval longer than 0.05 appears. The DTM keeps a single long interval, $[0.256, 0.885)$, of persistence 0.629.
+:::
+
+Outliers inside the circle fill its hole early in the offsets of the distance function. For the DTM they carry too little mass: the hole dies at 0.885, close to the clean 0.857.
+
+### 7.5 Persistence-based clustering (ToMATo)
+
+An estimated density has many spurious local maxima, like the image of Code 4.2. ToMATo (Chazal, Guibas, Oudot and Skraba, 2013) keeps the prominent ones.
+
+:::: thm
+[Algorithm 7.9 — ToMATo]{.tag} Input: a neighbourhood graph on the points, a density estimate $\hat f$ at each point, a threshold $\tau$.
+
+1.  Process the points by decreasing $\hat f$; attach each point to the cluster of its densest processed neighbour, or start a new cluster if it has none (graph-based hill climbing).
+2.  When a point $v$ touches two clusters, the one with the lower peak $r$ merges into the other if $\hat f(r) - \hat f(v) < \tau$ (elder rule).
+
+The output has one cluster per connected component of the graph, plus one per peak of prominence at least $\tau$. The prominences of all peaks form the 0-dimensional diagram of the superlevel sets of $\hat f$, and $\tau$ is chosen in its largest gap.
+::::
+
+Under regularity assumptions, the diagram of $\hat f$ is close to that of the true density, and the prominent peaks and their clusters are recovered (Chazal, Guibas, Oudot and Skraba, 2013).
+
+::: ex
+[Code 7.2 — ToMATo on two moons]{.tag} The code runs ToMATo once with $\tau = \infty$ to record the merge history and the prominence of every peak, then resolves the clusters for the $\tau$ in the largest gap of the prominences. The data come from `make_moons` (scikit-learn); density and graph use $k$ nearest neighbours.
+
+```python
+import numpy as np
+from scipy.spatial import cKDTree
+from sklearn.cluster import KMeans
+from sklearn.datasets import make_moons
+from sklearn.metrics import adjusted_rand_score
+
+def tomato(X, k):
+    """ToMATo with tau = infinity: hill climbing on the k-NN graph of a k-NN density estimate.
+    Returns the peak of each point, the merge history and the prominence of each merged peak."""
+    dist, nbrs = cKDTree(X).query(X, k=k + 1)
+    dens = 1.0 / dist[:, -1] ** X.shape[1]                     # k-NN density, up to a constant
+    rank = np.empty(len(X), dtype=int)
+    rank[np.argsort(-dens, kind="stable")] = np.arange(len(X))
+    parent, peak, merged_into, prominence = -np.ones(len(X), dtype=int), {}, {}, {}
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    for v in np.argsort(rank):                                 # decreasing density
+        up = [u for u in nbrs[v, 1:] if rank[u] < rank[v]]
+        parent[v] = v if not up else find(min(up, key=lambda u: rank[u]))
+        peak[v] = parent[v]                                    # the hill v climbs to
+        for u in up:
+            ru, rv = find(u), find(v)
+            if ru != rv:                                       # elder rule
+                young, old = (ru, rv) if rank[ru] > rank[rv] else (rv, ru)
+                merged_into[young], prominence[young] = old, dens[young] - dens[v]
+                parent[young] = old
+    return peak, merged_into, prominence
+
+def labels_at(peak, merged_into, prominence, tau):
+    """Merge every peak of prominence < tau into its elder; one label per point."""
+    def resolve(p):
+        while p in merged_into and prominence[p] < tau:
+            p = merged_into[p]
+        return p
+    return np.array([resolve(peak[v]) for v in range(len(peak))])
+
+X, y = make_moons(n_samples=600, noise=0.06, random_state=0)
+km = KMeans(n_clusters=2, n_init=10, random_state=0).fit_predict(X)
+print(f"k-means with 2 clusters: ARI = {adjusted_rand_score(y, km):.3f}")
+for k in [15, 30]:
+    peak, merged_into, prominence = tomato(X, k)
+    top = np.sort(list(prominence.values()))[::-1]
+    gap = np.argmax(top[:-1] - top[1:])                        # largest gap of the diagram
+    labels = labels_at(peak, merged_into, prominence, tau=(top[gap] + top[gap + 1]) / 2)
+    print(f"ToMATo, k = {k}: prominences / largest {np.round(top[:3] / top[0], 3)}, "
+          f"{len(np.unique(labels))} clusters, ARI = {adjusted_rand_score(y, labels):.3f}")
+```
+
+$k$-means reaches an adjusted Rand index of 0.255: the moons are not convex. With $k = 15$, the prominences are in the ratios 1, 0.706, 0.418, and ToMATo returns 3 clusters (ARI 0.750). With $k = 30$ the ratios are 1, 0.574, 0.437; ToMATo returns 2 clusters, with ARI 0.987.
+:::
+
+The density estimate must be smooth enough; at $k = 15$ no gap stands out, and the diagram shows it.
+
+::: recap
+Key takeaways — chapter 7
+
+-   A dense enough sample of a set of positive reach has offsets, hence Čech complexes, with the homology of the set (Theorem 7.2).
+-   Two Rips complexes at scales $r$ and $\sqrt 2 r$ give the homology through the rank of the map between them.
+-   Rips diagrams are stable: $d_B \leq d_{GH}$, and $d_B \leq d_H$ for subsets of one space.
+-   The distance to a measure is stable in Wasserstein distance, which makes inference robust to outliers.
+-   ToMATo clusters by the prominent peaks of a density, read in its persistence diagram.
+:::
+
+## 8. Topological signatures and features for learning {#ch8}
+
+A persistence diagram is a multiset, not a vector: it cannot be averaged or fed to a linear model as it stands. This chapter maps diagrams to vectors and kernels without losing stability, and differentiates through them.
+
+### 8.1 The space of diagrams
+
+Diagrams with $d_B$ or $W_q$ form a metric space. Fréchet means exist (Mileyko, Mukherjee and Harer, 2011) but need not be unique, and the space does not embed bi-Lipschitz into a Hilbert space (Carrière and Bauer, 2019). Learning therefore goes through stable **vectorizations** or **kernels**.
+
+### 8.2 Betti curves and landscapes
+
+::: def
+[Definition 8.1 — Betti curves and persistence landscapes]{.tag} The **Betti curve** of a diagram $D$ is $t \mapsto \#\{(b, d) \in D : b \leq t < d\}$. For a point $p = (b, d)$, the **tent** function is
+$$
+\Lambda_p(t) = \max\big(0, \min(t - b,\ d - t)\big).
+$$
+The **$k$-th landscape** $\lambda_k(t)$ is the $k$-th largest value among the $\Lambda_p(t)$, $p \in D$, or 0 if there are fewer than $k$ points (Bubenik, 2015).
+:::
+
+The Betti curve counts every short bar and is not stable. Landscapes are.
+
+:::: thm
+[Theorem 8.2 — Stability of landscapes]{.tag} For finite diagrams $D, D'$ and every $k \geq 1$,
+
+::: key
+[Key result — landscapes are 1-Lipschitz]{.tag}
+$$
+\| \lambda_k(D) - \lambda_k(D') \|_\infty \;\leq\; d_B(D, D')
+$$
+:::
+
+::: proof
+Let $\gamma$ be a matching that attains $d_B = \varepsilon$; a point matched to the diagonal is matched to its projection, whose tent is zero.
+
+The functions $(b, d) \mapsto t - b$ and $(b, d) \mapsto d - t$ are 1-Lipschitz for the sup norm, and so are minima and maxima of such functions. Hence, for every $p$ and $t$,
+$$
+|\Lambda_p(t) - \Lambda_{\gamma(p)}(t)| \leq \varepsilon .
+$$
+
+At fixed $t$, the two families of values $\Lambda_p(t)$ and $\Lambda_{\gamma(p)}(t)$ thus differ by at most $\varepsilon$ entry by entry. The $k$-th largest entry of a vector is 1-Lipschitz for the sup norm, which concludes. [∎]{.qed}
+:::
+::::
+
+Landscapes can be averaged; mean landscapes satisfy a law of large numbers and a central limit theorem (Bubenik, 2015).
+
+### 8.3 Persistence images
+
+::: def
+[Definition 8.3 — Persistence images]{.tag} Map each point $(b, d)$ to $(b, d - b)$, birth and persistence. Place on it a Gaussian of width $\sigma$, weighted by a function $w$ that vanishes at zero persistence, for instance $w(b, \ell) = \min(1, \ell / \ell_{\max})$. The **persistence image** is the integral of the sum of these weighted Gaussians over each pixel of a fixed grid (Adams and coauthors, 2017).
+:::
+
+The weight makes the image continuous in the diagram, and persistence images are stable for the 1-Wasserstein distance (Adams and coauthors, 2017).
+
+### 8.4 Kernels on diagrams
+
+::: def
+[Definition 8.4 — Two kernels on diagrams]{.tag}
+
+-   The **persistence scale-space kernel** (Reininghaus, Huber, Bauer and Kwitt, 2015) is the $L^2$ inner product of heat diffusions started from the points of each diagram, with a negative copy reflected across the diagonal:
+    $$
+    k_\sigma(D, E) = \frac{1}{8\pi\sigma} \sum_{p \in D,\, q \in E} \Big( e^{-\|p - q\|^2 / 8\sigma} - e^{-\|p - \bar q\|^2 / 8\sigma} \Big),
+    $$
+    where $\bar q$ is the reflection of $q$.
+-   The **sliced Wasserstein distance** $SW(D, E)$ (Carrière, Cuturi and Oudot, 2017) averages over directions $\theta$ the 1D transport cost between the projections of $D \cup \pi_\Delta(E)$ and $E \cup \pi_\Delta(D)$ on the line of direction $\theta$, where $\pi_\Delta$ projects onto the diagonal.
+:::
+
+The first kernel is an inner product, hence positive definite. For the second, transport on a line is an $L^1$ distance between cumulative distribution functions, which is conditionally negative definite; by Schoenberg's theorem
+$$
+k(D, E) = \exp\big( -SW(D, E) / 2\sigma^2 \big)
+$$
+is positive definite, ready for a support vector machine.
+
+::: ex
+[Code 8.1 — Telling a circle from an open arc]{.tag} Each sample has 30 noisy points, either on a full circle or on an arc missing a quarter, with a random radius between 0.8 and 1.2. The features are the first two $H_1$ landscapes of the Rips filtration (computed as in Code 4.1) on 60 values of $r$. They are compared with a histogram of the pairwise distances, in a logistic regression with 5-fold cross-validation.
+
+```python
+import numpy as np
+from itertools import combinations
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+
+def h1_diagram(P, rmax=1.2):
+    """Finite H1 intervals of the Rips filtration (r = diameter / 2), as in Code 4.1."""
+    D = np.linalg.norm(P[:, None] - P[None], axis=2) / 2
+    n = len(P)
+    S = [((i,), 0.0) for i in range(n)]
+    S += [((i, j), D[i, j]) for i, j in combinations(range(n), 2) if D[i, j] <= rmax]
+    S += [((i, j, k), max(D[i, j], D[i, k], D[j, k])) for i, j, k in combinations(range(n), 3)
+          if max(D[i, j], D[i, k], D[j, k]) <= rmax]
+    S.sort(key=lambda s: (s[1], len(s[0])))
+    index = {s: i for i, (s, _) in enumerate(S)}
+    low_of, cols, out = {}, [], []
+    for j, (s, val) in enumerate(S):
+        col = {index[s[:i] + s[i + 1:]] for i in range(len(s))} if len(s) > 1 else set()
+        while col and max(col) in low_of:
+            col ^= cols[low_of[max(col)]]
+        cols.append(col)
+        if col:
+            low_of[max(col)] = j
+            if len(s) == 3 and val > S[max(col)][1]:
+                out.append((S[max(col)][1], val))
+    return np.array(out).reshape(-1, 2)
+
+def landscape(dgm, grid, K=2):
+    """First K persistence landscapes on a grid: k-th largest tent max(0, min(t - b, d - t))."""
+    tents = np.maximum(0, np.minimum(grid[None] - dgm[:, :1], dgm[:, 1:] - grid[None]))
+    tents = np.vstack([np.sort(tents, axis=0)[::-1], np.zeros((K, len(grid)))])
+    return tents[:K].ravel()
+
+rng = np.random.default_rng(0)
+def sample(label):
+    """30 noisy points on a circle (label 0) or on an arc missing a quarter (label 1)."""
+    span = 2 * np.pi if label == 0 else 1.5 * np.pi
+    t = rng.uniform(0, span, 30)
+    R = rng.uniform(0.8, 1.2)
+    return R * np.c_[np.cos(t), np.sin(t)] + 0.05 * rng.normal(size=(30, 2))
+
+labels = np.repeat([0, 1], 40)
+clouds = [sample(c) for c in labels]
+grid = np.linspace(0, 1.2, 60)
+topo = np.array([landscape(h1_diagram(P), grid) for P in clouds])
+hist = np.array([np.histogram(np.linalg.norm(P[:, None] - P[None], axis=2)[np.triu_indices(30, 1)],
+                              bins=30, range=(0, 2.6), density=True)[0] for P in clouds])
+for name, F in [("H1 landscapes", topo), ("distance histogram", hist)]:
+    acc = cross_val_score(LogisticRegression(C=10, max_iter=5000), F, labels, cv=5)
+    print(f"{name:18s}: 5-fold accuracy {acc.mean():.3f} +/- {acc.std():.3f}")
+```
+
+The landscapes reach an accuracy of 0.938 ± 0.068, against 0.725 ± 0.031 for the distance histogram.
+:::
+
+The histogram sees the missing quarter only through a few long distances, blurred by the random radius; the landscape sees whether a long $H_1$ bar exists.
+
+### 8.5 Learned layers and differentiable persistence
+
+**PersLay** (Carrière, Chazal, Ike, Lacombe, Royer and Umeda, 2020) is a neural layer of the form
+$$
+D \mapsto \operatorname{op}_{p \in D}\; w(p)\, \varphi(p),
+$$
+where $\operatorname{op}$ is a sum, a maximum or a $k$-th largest value, and $w$ and $\varphi$ are learned; landscapes and persistence images are special cases.
+
+Persistence can also sit *inside* a model, when a filtration depends on parameters $\theta$ such as pixel values or point positions.
+
+:::: prop
+[Proposition 8.5 — Diagrams are differentiable almost everywhere]{.tag} Let $\theta \mapsto f_\theta$ be continuously differentiable, and suppose that the values $f_{\theta_0}(\sigma)$ are distinct.
+
+Then the pairing is constant near $\theta_0$, each point of the diagram is a differentiable function of $\theta$, and for a loss $L$ of the diagram,
+$$
+\nabla_\theta L = \sum_{(\sigma, \tau)} \Big( \frac{\partial L}{\partial b}\, \nabla_\theta f_\theta(\sigma) + \frac{\partial L}{\partial d}\, \nabla_\theta f_\theta(\tau) \Big).
+$$
+
+::: proof
+Strict inequalities between finitely many continuous functions persist in a neighbourhood, so the order of the simplices is locally constant. The pairs of Theorem 4.5 depend only on that order. Each coordinate of each point is then one of the $C^1$ functions $f_\theta(\sigma)$, and the chain rule gives the formula. [∎]{.qed}
+:::
+::::
+
+Stochastic subgradient descent converges for such losses (Carrière, Chazal, Glisse, Ike, Kannan and Umeda, 2021). They enforce connectivity in segmentation (Hu, Li, Samaras and Chen, 2019) and regularize models (Brüel-Gabrielsson, Nelson, Dwaraknath and Skraba, 2020).
+
+::: ex
+[Code 8.2 — Topological simplification by gradient descent]{.tag} A noisy sine $f_0$ on 300 samples has many local minima. The loss sums the squared persistences of all finite $H_0$ pairs except the two largest, plus a fidelity term. The pairing is recomputed by union-find at every step, and PyTorch differentiates through the paired values (Proposition 8.5).
+
+```python
+import numpy as np
+import torch
+
+torch.set_num_threads(1)
+
+def h0_pairs(f):
+    """Index pairs (birth vertex, death vertex) of the finite 0-dim sublevel intervals."""
+    parent, pairs = -np.ones(len(f), dtype=int), []
+    def find(a):
+        while parent[a] != a:
+            a = parent[a]
+        return a
+    for v in np.argsort(f, kind="stable"):
+        parent[v] = v
+        for u in (v - 1, v + 1):
+            if 0 <= u < len(f) and parent[u] >= 0:
+                ru, rv = find(u), find(v)
+                if ru != rv:
+                    young, old = (ru, rv) if f[ru] > f[rv] else (rv, ru)
+                    if f[young] < f[v]:
+                        pairs.append((young, v))
+                    parent[young] = old
+    return np.array(pairs, dtype=int).reshape(-1, 2)
+
+rng = np.random.default_rng(0)
+t = np.linspace(0, 1, 300)
+f0 = torch.tensor(np.sin(6 * np.pi * t) + 0.15 * rng.normal(size=t.size))
+x = f0.clone().requires_grad_(True)
+opt = torch.optim.Adam([x], lr=0.01)
+keep = 2                                          # keep the two most persistent finite pairs
+print("local minima before:", len(h0_pairs(f0.numpy())) + 1)
+for step in range(300):
+    pairs = h0_pairs(x.detach().numpy())          # the pairing is piecewise constant in x
+    pers = x[pairs[:, 1]] - x[pairs[:, 0]]        # death - birth, differentiable in x
+    small = torch.sort(pers, descending=True).values[keep:]
+    loss = (small ** 2).sum() + 0.1 * ((x - f0) ** 2).mean()
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+pairs = h0_pairs(x.detach().numpy())
+pers = np.sort(x.detach().numpy()[pairs[:, 1]] - x.detach().numpy()[pairs[:, 0]])[::-1]
+print(f"after 300 steps: largest persistences {', '.join(f'{p:.3f}' for p in pers[:4])}, "
+      f"pairs above 0.05: {(pers > 0.05).sum()}, |x - f0|_inf = {(x - f0).abs().max():.3f}")
+```
+
+The noisy signal has 94 local minima. After 300 steps, the largest finite persistences are 2.657, 2.384, 0.016 and 0.002: two finite pairs remain above 0.05. The signal moved by at most 0.615.
+:::
+
+::: recap
+Key takeaways — chapter 8
+
+-   Diagrams form a metric space without a linear structure; learning uses stable vectorizations or kernels.
+-   Landscapes are 1-Lipschitz for the bottleneck distance and can be averaged; persistence images are stable for $W_1$.
+-   The persistence scale-space and sliced Wasserstein kernels are positive definite.
+-   Diagrams are differentiable wherever filtration values are distinct, so topological losses can be trained.
+:::
+
+## 9. Implementations in Python and C++ {#ch9}
+
+The algorithms of this course are simple, but naive implementations do not scale: a Rips complex has a cubic number of triangles, and the reduction is cubic in the number of simplices. This chapter, for self-study alongside the labs, presents the data structures and the algebraic shortcuts used by the Gudhi and TTK libraries, and runs two of them.
+
+### 9.1 Data structures
+
+::: def
+[Definition 9.1 — Simplex tree]{.tag} Order the vertices. A **simplex tree** stores each simplex as the path of its sorted vertices in a trie: the children of a node are the larger vertices that extend it into a simplex. Each node holds the filtration value of its simplex (Boissonnat and Maria, 2014).
+:::
+
+A simplex of dimension $k$ is found in $O(k)$ steps along its path, and its faces are reached by removing one vertex. A Rips complex is built by computing the neighbourhood graph and then *expanding* it: the cofaces of a node are the common neighbours of its vertices.
+
+:::: prop
+[Proposition 9.2 — The size of Rips complexes]{.tag} For $n$ points and a radius larger than half the diameter, the Rips complex up to dimension 2 has
+$$
+n + \binom{n}{2} + \binom{n}{3} \sim \frac{n^3}{6}
+$$
+simplices. For $n = 30$ that is 4525 simplices; for $n = 10^4$, about $1.7 \times 10^{11}$.
+
+::: proof
+Every pair and every triple of points has diameter at most twice the radius. [∎]{.qed}
+:::
+::::
+
+Three remedies keep the size manageable: stop the filtration at a radius $r_{\max}$; use the alpha complex, of size $O(n)$ in the plane and $O(n^2)$ in the worst case in 3D; or simplify the complex while preserving its persistence, for instance by edge collapses (Boissonnat and Pritam, 2020).
+
+### 9.2 Faster reductions
+
+:::: thm
+[Lemma 9.3 — Clearing]{.tag} If $i = \mathrm{low}(j)$ for a reduced column $j$, then column $i$ reduces to zero, so it can be zeroed without any work.
+
+::: proof
+$R_j = \partial V_j$ is a cycle whose last simplex is $\sigma_i$. So $\sigma_i$ closes a cycle when it enters: it is positive, and adding it does not raise the rank of the boundary matrix. Its reduced column is therefore zero. [∎]{.qed}
+:::
+::::
+
+Processing the dimensions from the top down lets every pivot found in dimension $k + 1$ clear a column of dimension $k$: this is the *twist* algorithm (Chen and Kerber, 2011).
+
+::: thm
+[Theorem 9.4 — Persistent cohomology has the same barcode]{.tag} Over a field, the barcode of the persistent cohomology of a filtration equals the barcode of its persistent homology (de Silva, Morozov and Vejdemo-Johansson, 2011). The pairs can therefore be computed by reducing the *coboundary* matrix, the anti-transpose of $\partial$.
+:::
+
+For a Rips filtration, cohomology runs the clearing in the favourable direction: dimension 0 first, then dimension 1, so that the many triangles that create no class are never touched. Ripser (Bauer, 2021) combines cohomology, clearing, an implicit coboundary matrix computed on the fly, and *apparent pairs* detected without reduction.
+
+::: ex
+[Code 9.1 — Homology, twist and cohomology on the same filtration]{.tag} The code builds the full 2-skeleton of the Rips filtration of the 30 points of Code 1.1 and computes the persistence pairs three times: the standard reduction (Algorithm 4.4), the twist algorithm, and the reduction of the coboundary matrix with clearing. It checks that the pairs coincide and counts the column additions.
+
+```python
+import time
+import numpy as np
+from itertools import combinations
+
+rng = np.random.default_rng(0)
+theta = rng.uniform(0, 2 * np.pi, 30)
+P = np.c_[np.cos(theta), np.sin(theta)] + 0.05 * rng.normal(size=(30, 2))
+D = np.linalg.norm(P[:, None] - P[None], axis=2) / 2
+S = [((i,), 0.0) for i in range(30)]
+S += [((i, j), D[i, j]) for i, j in combinations(range(30), 2)]
+S += [((i, j, k), max(D[i, j], D[i, k], D[j, k])) for i, j, k in combinations(range(30), 3)]
+S.sort(key=lambda s: (s[1], len(s[0])))                 # the full 2-skeleton, 4525 simplices
+index = {s: i for i, (s, _) in enumerate(S)}
+bd = [{index[s[:i] + s[i + 1:]] for i in range(len(s))} if len(s) > 1 else set() for s, _ in S]
+cobd = [set() for _ in S]
+for j, faces in enumerate(bd):
+    for i in faces:
+        cobd[i].add(j)
+by_dim = [[j for j, (s, _) in enumerate(S) if len(s) == d + 1] for d in range(3)]
+
+def homology(order, clearing):
+    """Reduce boundary columns (pivot = largest row) in the given order."""
+    low_of, cols, adds, t0 = {}, {}, 0, time.perf_counter()
+    for j in order:
+        if clearing and j in low_of:
+            continue                                     # positive simplex: column is zero
+        col = set(bd[j])
+        while col and max(col) in low_of:
+            col ^= cols[low_of[max(col)]]
+            adds += 1
+        cols[j] = col
+        if col:
+            low_of[max(col)] = j
+    return {(i, j) for i, j in low_of.items()}, adds, time.perf_counter() - t0
+
+def cohomology():
+    """Reduce coboundary columns (pivot = smallest row), dimension 0 then 1, with clearing."""
+    piv_of, cols, adds, t0 = {}, {}, 0, time.perf_counter()
+    for d in (0, 1):
+        for j in reversed(by_dim[d]):
+            if j in piv_of:
+                continue                                 # cleared: j already died
+            col = set(cobd[j])
+            while col and min(col) in piv_of:
+                col ^= cols[piv_of[min(col)]]
+                adds += 1
+            cols[j] = col
+            if col:
+                piv_of[min(col)] = j
+    return {(j, k) for k, j in piv_of.items()}, adds, time.perf_counter() - t0
+
+ref, _, _ = homology(range(len(S)), False)
+runs = [("homology, standard", homology(range(len(S)), False)),
+        ("homology, twist", homology(by_dim[2] + by_dim[1], True)),
+        ("cohomology, clearing", cohomology())]
+for name, (pairs, adds, sec) in runs:
+    print(f"{name:21s}: same pairs {pairs == ref}, {adds:5d} column additions, {sec:.3f} s")
+```
+
+All three computations return the same 435 pairs. The standard reduction performs 39,132 column additions, the twist algorithm 37,291, and the cohomology with clearing only 41, in a few milliseconds.
+:::
+
+The twist saves little here because the expensive columns are the 4060 triangles, which nothing clears in homology. In cohomology, the triangles are never reduced at all: only the 406 edges that create loops are processed, and most of their columns are reduced already.
+
+### 9.3 Libraries: Gudhi and TTK
+
+**Gudhi** [7] is a C++ library with a Python interface, developed at Inria. It covers the high-dimensional side of the course: simplex trees, Rips, Čech, alpha, witness and cubical complexes, persistence computation, bottleneck and Wasserstein distances, the representations of ch. 8 in a scikit-learn style, ToMATo and cover complexes such as Mapper.
+
+**TTK** [8] (Tierny, Favelier, Levine, Gueunet and Michaux, 2018) is a C++ library for scalar data on 2D and 3D meshes and grids, integrated with ParaView and VTK, with Python bindings. It covers the low-dimensional side: critical points, persistence diagrams and curves, topological simplification, merge and contour trees, Reeb graphs and Morse–Smale complexes, with parallel implementations.
+
+| Topic of this page | Gudhi (Python module or class) | TTK (kind of module) |
+|---|---|---|
+| Simplicial complexes, filtrations (ch. 1) | `SimplexTree`, `RipsComplex`, `AlphaComplex`, `CubicalComplex` | triangulations of meshes and grids |
+| Persistence diagrams, distances (ch. 4) | `SimplexTree.persistence`, `bottleneck_distance` | persistence diagram, diagram distances |
+| Critical points, simplification (ch. 3, 4) | — | scalar field critical points, topological simplification |
+| Merge and contour trees, Reeb graphs (ch. 5) | `gudhi.cover_complex` (Mapper) | merge and contour trees, Reeb graphs |
+| Morse–Smale complexes (ch. 6) | — | Morse–Smale complex |
+| Clustering, signatures (ch. 7, 8) | `gudhi.clustering.tomato.Tomato`, `gudhi.representations` | distance matrices and clustering of diagrams |
+
+The labs of the official course use these libraries; the code of this page rewrites the needed algorithms in a few dozen lines each, which makes every step visible and runs without installation.
+
+### 9.4 A union-find in C++
+
+The sweep of Proposition 4.3 is the inner loop of merge trees, watersheds and ToMATo. In C++ it runs on millions of vertices per second.
+
+::: ex
+[Code 9.2 — Sublevel-set persistence of a signal in C++]{.tag} Compile with `g++ -std=c++17 -O2 persistence.cpp`. The signal is deterministic, so the output is reproducible.
+
+```cpp
+// 0-dimensional sublevel-set persistence of a sampled signal: union-find + elder rule.
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <numeric>
+#include <vector>
+
+struct UnionFind {
+  std::vector<int> parent;
+  explicit UnionFind(int n) : parent(n, -1) {}
+  int find(int a) {                       // path halving
+    while (parent[a] != a) a = parent[a] = parent[parent[a]];
+    return a;
+  }
+};
+
+int main() {
+  const int n = 400;
+  const double pi = std::acos(-1.0);
+  std::vector<double> f(n);
+  for (int i = 0; i < n; ++i) {           // a deterministic "noisy" signal
+    double t = i / (n - 1.0);
+    f[i] = std::sin(6 * pi * t) + 0.1 * std::sin(173 * t) + 0.05 * std::sin(517 * t);
+  }
+  std::vector<int> order(n);
+  std::iota(order.begin(), order.end(), 0);
+  std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return f[a] < f[b]; });
+
+  UnionFind uf(n);
+  std::vector<std::pair<double, double>> pairs;   // (birth, death)
+  for (int v : order) {
+    uf.parent[v] = v;
+    for (int u : {v - 1, v + 1}) {
+      if (u < 0 || u >= n || uf.parent[u] < 0) continue;
+      int ru = uf.find(u), rv = uf.find(v);
+      if (ru == rv) continue;
+      int young = f[ru] > f[rv] ? ru : rv, old = young == ru ? rv : ru;
+      if (f[young] < f[v]) pairs.emplace_back(f[young], f[v]);
+      uf.parent[young] = old;               // elder rule
+    }
+  }
+  std::sort(pairs.begin(), pairs.end(), [](auto& a, auto& b) {
+    return a.second - a.first > b.second - b.first;
+  });
+  std::printf("%zu finite pairs; the three most persistent:\n", pairs.size());
+  for (int k = 0; k < 3; ++k)
+    std::printf("  [%.3f, %.3f)  persistence %.3f\n", pairs[k].first, pairs[k].second,
+                pairs[k].second - pairs[k].first);
+}
+```
+
+The program finds 61 finite pairs. The three most persistent are $[-1.095, 1.097)$, $[-1.093, 1.078)$ and $[0.000, 1.102)$, of persistence 2.193, 2.171 and 1.102: the two deep minima of the sine, and the minimum at the left end of the signal.
+:::
+
+::: recap
+Key takeaways — chapter 9
+
+-   Simplex trees store filtered complexes compactly; Rips complexes grow like $n^3/6$ in dimension 2, which calls for a radius cut, alpha complexes or collapses.
+-   Clearing skips the columns of positive simplices; cohomology has the same barcode and lets clearing remove almost all the work on Rips filtrations.
+-   Gudhi covers the high-dimensional side (complexes, persistence, signatures, clustering); TTK the low-dimensional side (scalar fields, trees, Morse–Smale complexes).
+-   The union-find sweep is the common core of many algorithms, and is short in any language.
+:::
+
+## 10. Complements for self-study {#ch10}
+
+This chapter collects the proofs that the sessions only sketch: the pairing lemma behind the reduction algorithm, the algebraic stability that covers both images and point clouds, collapses for discrete Morse theory, the nerve theorem, and the statistics of persistence diagrams. Read each section after the session that states the result.
+
+### 10.1 The pairing lemma
+
+Let $\partial$ be the $m \times m$ boundary matrix of a filtration (Section 4.3).
+
+For indices $i, j$, let $r_\partial(i, j)$ be the rank of its lower-left corner: the submatrix made of the rows $i$ to $m$ and the columns 1 to $j$.
+
+:::: thm
+[Lemma 10.1 — Corner ranks are invariant]{.tag} Adding a column $j'$ to a column $j > j'$ does not change any $r(i, j'')$.
+
+::: proof
+If $j'' < j$, the corner does not contain column $j$ and is unchanged. If $j'' \geq j$, it contains both columns $j'$ and $j$, and adding one column of a matrix to another preserves its rank. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Lemma 10.2 — Corner ranks of a reduced matrix]{.tag} If the non-zero columns of $R$ have distinct lows, then
+$$
+r_R(i, j) = \#\{ j' \leq j : R_{j'} \neq 0,\ \mathrm{low}(j') \geq i \}.
+$$
+
+::: proof
+In the corner, the columns with $\mathrm{low}(j') < i$ vanish. The others keep their lowest 1, at distinct rows; sorted by these rows, they form a triangular family, hence are independent. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 10.3 — Pairing lemma]{.tag} For any reduction $R$ of $\partial$ by Algorithm 4.4, $\mathrm{low}(j) = i$ if and only if
+$$
+r_\partial(i, j) - r_\partial(i + 1, j) - r_\partial(i, j - 1) + r_\partial(i + 1, j - 1) = 1 .
+$$
+In particular, the persistence pairs do not depend on the reduction.
+
+::: proof
+By Lemma 10.1, $r_R = r_\partial$. By Lemma 10.2, $r_R(i, j) - r_R(i + 1, j)$ counts the columns $j' \leq j$ with $\mathrm{low}(j') = i$.
+
+Taking the difference between $j$ and $j - 1$ leaves 1 exactly when $\mathrm{low}(j) = i$. [∎]{.qed}
+:::
+::::
+
+To read the barcode from the pairs (Theorem 4.5), recall that $V$ is upper triangular.
+
+-   If $R_i = 0$, the column $V_i$ is a cycle whose last simplex is $\sigma_i$: a class is born at $i$.
+-   If moreover $i = \mathrm{low}(j)$, the boundary $R_j$ also ends with $\sigma_i$, so $V_i - R_j$ is a cycle of $K_{i-1}$.
+-   In $K_j$, the new class therefore equals an older one: it dies at $j$.
+
+Counting these classes gives the persistent Betti numbers of Theorem 4.2 (Edelsbrunner and Harer, 2010, Chapter VII).
+
+### 10.2 Interleavings and the isometry theorem
+
+::: def
+[Definition 10.4 — Persistence modules over the reals and interleavings]{.tag} A **persistence module** $V$ is a family of vector spaces $(V_t)_{t \in \mathbb{R}}$ with linear maps $v_s^t : V_s \to V_t$ for $s \leq t$, such that $v_t^t = \mathrm{id}$ and $v_s^t \circ v_r^s = v_r^t$.
+
+Two modules $V$ and $W$ are **$\varepsilon$-interleaved** if there are maps $\varphi_t : V_t \to W_{t + \varepsilon}$ and $\psi_t : W_t \to V_{t + \varepsilon}$, commuting with the maps of the modules, such that
+$$
+\psi_{t + \varepsilon} \circ \varphi_t = v_t^{t + 2\varepsilon}, \qquad \varphi_{t + \varepsilon} \circ \psi_t = w_t^{t + 2\varepsilon}.
+$$
+The **interleaving distance** $d_I(V, W)$ is the infimum of such $\varepsilon$.
+:::
+
+::: thm
+[Theorem 10.5 — Isometry theorem]{.tag} For modules whose maps $v_s^t$, $s < t$, have finite rank,
+$$
+d_B\big( \mathrm{Dgm}\, V, \mathrm{Dgm}\, W \big) = d_I(V, W).
+$$
+The inequality $\leq$, *algebraic stability*, is due to Chazal, Cohen-Steiner, Glisse, Guibas and Oudot (2009); the equality to Lesnick (2015). Bauer and Lesnick (2015) give a direct proof: a morphism whose kernel and cokernel die within $2\varepsilon$ induces a matching of the barcodes that moves each endpoint by at most $\varepsilon$.
+:::
+
+:::: prop
+[Corollary 10.6 — Stability for functions]{.tag} If $\| f - g \|_\infty \leq \varepsilon$ for two monotone functions on a complex, their sublevel-set modules are $\varepsilon$-interleaved, so their diagrams are within $\varepsilon$ in bottleneck distance. This is Theorem 4.10.
+
+::: proof
+$f(\sigma) \leq t$ implies $g(\sigma) \leq t + \varepsilon$, so $K^f_t \subseteq K^g_{t + \varepsilon}$, and symmetrically. The inclusions induce the maps $\varphi_t$ and $\psi_t$, and every square commutes because all maps are induced by inclusions. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 10.7 — Proof of Theorem 7.5]{.tag} Let $X, Y$ be finite subsets of a metric space with $d_H(X, Y) = \varepsilon$. Then the persistence modules of their Rips filtrations, indexed by $r = \text{diameter}/2$, are $\varepsilon$-interleaved.
+
+::: proof
+Choose $\varphi : X \to Y$ with $d(x, \varphi(x)) \leq \varepsilon$, and $\psi : Y \to X$ likewise.
+
+1.  If $\sigma \in R(X, r)$, the diameter of $\varphi(\sigma)$ is at most $2r + 2\varepsilon$. So $\varphi$ maps $R(X, r)$ simplicially into $R(Y, r + \varepsilon)$, compatibly with the inclusions.
+2.  For $x, x' \in \sigma$, the triangle inequality gives
+    $$
+    d(x, \psi\varphi(x')) \leq 2r + 2\varepsilon, \qquad d(\psi\varphi(x), \psi\varphi(x')) \leq 2r + 4\varepsilon .
+    $$
+    So $\sigma \cup \psi\varphi(\sigma)$ is a simplex of $R(X, r + 2\varepsilon)$.
+3.  Hence $\psi \circ \varphi$ is contiguous to the inclusion, and by Theorem 2.9 they induce the same map on homology; the same holds for $\varphi \circ \psi$.
+
+For the Gromov–Hausdorff version, replace the nearest points by a correspondence of distortion $2 d_{GH}$ (Chazal, de Silva and Oudot, 2014). [∎]{.qed}
+:::
+::::
+
+### 10.3 Collapses and discrete Morse theory
+
+::: def
+[Definition 10.8 — Free faces and collapses]{.tag} A face $\sigma$ of a simplex $\tau$, of dimension one less, is **free** if $\tau$ is the only simplex of $K$ that strictly contains it. Removing the pair $(\sigma, \tau)$ is an **elementary collapse**.
+:::
+
+:::: prop
+[Proposition 10.9 — Collapses preserve the homotopy type]{.tag} If $K'$ is obtained from $K$ by an elementary collapse, then $|K'|$ is a deformation retract of $|K|$.
+
+::: proof
+Project $\tau$ from a point just outside it, beyond the barycentre of $\sigma$, onto the union of its other facets. The projection fixes these facets, so it extends by the identity to the rest of $K$, and the straight-line homotopy to it stays in $\tau$. [∎]{.qed}
+:::
+::::
+
+To prove Theorem 3.10, order the simplices so that faces come before cofaces and each gradient pair $(\sigma, \tau)$ is consecutive; such an order exists exactly when there is no closed $V$-path. Build $K$ in this order.
+
+-   A pair $(\sigma, \tau)$ enters while the other cofaces of $\sigma$ are still absent, so $\sigma$ is a free face of $\tau$: the step is an inverse elementary collapse and keeps the homotopy type.
+-   A critical simplex of dimension $p$ enters along its whole boundary: the step attaches a $p$-cell.
+
+Hence $K$ is homotopy equivalent to a CW complex with one $p$-cell per critical $p$-simplex (Forman, 1998).
+
+### 10.4 The nerve theorem for convex sets
+
+Let $\mathcal{U} = (U_i)$ be a finite family of closed convex sets with union $U$, and $N$ its nerve.
+
+-   *From the nerve to the union.* For each simplex $J$ of $N$, choose a point $p_J$ in the intersection of the sets $U_j$, $j \in J$.
+
+    A simplex of the barycentric subdivision is a chain $J_0 \subset \dots \subset J_k$. Map its vertices to the points $p_{J_i}$ and extend linearly. These points all lie in the convex set $U_j$ for any $j \in J_0$, so the image lies in the union: this defines $g$.
+-   *From the union to the nerve.* Slightly thicken the sets into open sets with the same nerve, take a partition of unity $(\phi_i)$ subordinate to them, and set $h(x) = \sum_i \phi_i(x)\, e_i$, where $e_i$ is the vertex $i$. The indices with $\phi_i(x) > 0$ form a simplex, so $h(x) \in |N|$.
+-   *Homotopies.* $x$ and $g(h(x))$ both lie in a common convex set $U_j$, so the straight segment between them stays in $U$, which gives $g \circ h \simeq \mathrm{id}_U$.
+
+    A similar argument inside the simplices of $N$ gives $h \circ g \simeq \mathrm{id}$.
+
+Details are in Hatcher (2002, Section 4.G) and in the survey of Björner (1995).
+
+### 10.5 Statistics of persistence diagrams
+
+Let $X_n$ be $n$ i.i.d. points from a measure $\mu$ supported on a compact set $M$. Assume that, for some constants $a, b > 0$ and all $x \in M$,
+$$
+\mu(\bar B(x, r)) \geq \min(1, a r^b).
+$$
+
+:::: prop
+[Proposition 10.10 — Convergence of Rips diagrams]{.tag} Under this assumption, for a constant $C$ depending on $a$ and $b$,
+$$
+\mathbb{E}\, d_B\big( \mathrm{Dgm}\, R(X_n), \mathrm{Dgm}\, R(M) \big) \;\leq\; C \Big( \frac{\log n}{n} \Big)^{1/b},
+$$
+and this rate is minimax optimal (Chazal, Glisse, Labruère and Michel, 2015).
+
+::: proof
+*Idea.* By Theorem 7.5 it suffices to bound $d_H(X_n, M)$. Cover $M$ by $N \leq C' \varepsilon^{-b}$ balls of radius $\varepsilon / 2$ centred on $M$. If each contains a sample point, then $d_H(X_n, M) \leq \varepsilon$. A given ball is empty with probability at most
+$$
+\big( 1 - a (\varepsilon / 2)^b \big)^n \leq \exp\big( -n a (\varepsilon / 2)^b \big),
+$$
+and a union bound over the $N$ balls, followed by an integration of the tail, gives the rate. [∎]{.qed}
+:::
+::::
+
+Fasy, Lecci, Rinaldo, Wasserman, Balakrishnan and Singh (2014) turn the same bound into **confidence sets**: a bootstrap estimate $\hat c$ of the quantile of $d_H(X_n, M)$ defines a band of width $2 \hat c$ along the diagonal, and the points outside the band are significant features. Chazal, Fasy, Lecci, Rinaldo and Wasserman (2015) build bootstrap confidence bands for mean landscapes (ch. 8).
+
+::: recap
+Key takeaways — chapter 10
+
+-   Corner ranks of the boundary matrix determine the persistence pairs, whatever the reduction.
+-   Interleavings turn inclusions or nearest-point maps into bottleneck bounds through the isometry theorem; both stability theorems of the page follow.
+-   Gradient pairs are inverse elementary collapses, and critical simplices are cell attachments.
+-   The nerve theorem for convex sets follows from explicit maps and straight-line homotopies.
+-   Rips diagrams of samples converge at the rate of the Hausdorff distance, and bootstrap bands separate significant features.
+:::
+
+## 11. Research directions and open problems {#ch11}
+
+Topological data analysis is an active field, and the research seminar of the course is an entry point to it. This chapter, for self-study, points to directions that a project or an internship can start from, with references that the [References](#refs) list in full.
+
+### Multiparameter persistence
+
+Data often come with two parameters at once — a scale and a density, or a scale and a time. Carlsson and Zomorodian (2009) showed that modules indexed by a grid of dimension two or more admit no complete discrete invariant like the barcode. Lesnick (2015) extended the interleaving distance to them, and Lesnick and Wright developed the RIVET software to explore two-parameter modules interactively. Carrière and Blumberg (2020) proposed multiparameter persistence images for learning.
+
+*Open problems*: invariants that are stable, computable at scale and informative enough for statistics and learning; algorithms for minimal presentations in more than two parameters.
+
+### Statistics and learning with topology
+
+The statistical theory of diagrams — convergence rates, bootstrap confidence sets, central limit theorems for landscapes (Section 10.5, ch. 8) — is surveyed by Chazal and Michel (2021). Learned filtrations go one step further: Hofer, Graf, Rieck, Niethammer and Kwitt (2020) learn the filtration of a graph end to end, and Horn, De Brouwer, Moor, Moreau, Rieck and Borgwardt (2022) add persistence to graph neural networks. Topological losses and regularizers (ch. 8) are now used in segmentation and representation learning (Moor, Horn, Rieck and Borgwardt, 2020).
+
+*Open problems*: generalization guarantees for models with topological layers; the optimization landscape of topological losses, which are non-smooth and non-convex; filtrations that remain informative in very high dimension.
+
+### Topology for scientific visualization at scale
+
+Simulations produce ensembles of large fields, and comparing their topological summaries requires geometry on the space of summaries. Vidal, Budin and Tierny (2020) compute Wasserstein barycenters of persistence diagrams progressively; Pont, Vidal, Delon and Tierny (2022) define Wasserstein distances, geodesics and barycenters of merge trees. Soler, Plainchault, Conche and Tierny (2018) compress fields lossily while controlling the change of their diagram.
+
+*Open problems*: in-situ topological analysis during simulations, distributed computation of merge trees and Morse–Smale complexes on supercomputers, and summaries of uncertain or time-varying fields.
+
+### Shapes and transforms
+
+The persistent homology transform of Turner, Mukherjee and Boyer (2014) records the diagrams of the height functions of a shape in all directions; for triangulated surfaces in $\mathbb{R}^3$, this collection of diagrams determines the shape. Related Euler characteristic transforms are used in biology and medical imaging.
+
+*Open problems*: the number of directions needed in practice, and statistical models on these transforms.
+
+### Applications in the sciences
+
+Persistent homology describes the medium-range order of amorphous solids (Hiraoka and coauthors, 2016), the filaments of the cosmic web (Sousbie, 2011), and the topology of anatomical structures in segmentation (Hu, Li, Samaras and Chen, 2019). In each case, a stable summary of multi-scale structure answers a question that pointwise statistics miss.
+
+*Open problems*: the interpretation of diagram points in terms of the underlying physics or biology, and the design of filtrations adapted to each domain.
+
+::: recap
+Key takeaways — chapter 11
+
+-   Multiparameter persistence has no barcode; stable and computable invariants are an open problem.
+-   Statistics, learned filtrations and topological losses connect persistence with modern learning.
+-   Large-scale visualization needs distances, barycenters and compression for diagrams and merge trees.
+-   Transforms of shapes and scientific applications ask for interpretable, domain-specific filtrations.
+:::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. The session plan says which ones to do after each session; exercises 6, 13 and 15 are computational.
+
+1.  **★ Counting simplices.** (a) Compute the f-vector, the Euler characteristic and the Betti numbers of the boundary of an octahedron. (b) The five triangles $\{i, i+1, i+2\}$, indices modulo 5, form a complex on 5 vertices. Compute its f-vector and its Euler characteristic, find its boundary edges, and compute its Betti numbers over $\mathbb{F}_2$.
+
+    *Solution*: (a) $(6, 12, 8)$, $\chi = 2$, Betti numbers $(1, 0, 1)$: it is a sphere.
+
+    (b) The f-vector is $(5, 10, 5)$ and $\chi = 0$. Each edge $\{i, i+1\}$ lies in two triangles and each edge $\{i, i+2\}$ in one, so the boundary is the single 5-cycle $0, 2, 4, 1, 3$: this is a Möbius band, since an annulus has two boundary circles.
+
+    No non-empty set of triangles has zero boundary, so $\beta_2 = 0$; the complex is connected, so $\beta_0 = 1$. Theorem 2.7 then gives $\beta_1 = 1$.
+
+2.  **★ Čech or Rips?** (a) For the vertices of an equilateral triangle of side 1, give the $H_1$ intervals of the Čech and Rips filtrations. (b) Same question for the vertices of the unit square.
+
+    *Solution*: (a) All edges enter at $r = 1/2$ in both filtrations. The Rips triangle enters at once: no interval. The Čech triangle waits for the circumradius $1/\sqrt 3 = 0.577$, giving the interval $[0.5, 0.577)$. The ratio $1.155 = \sqrt{4/3}$ is the constant of Theorem 1.7 in the plane, which is therefore optimal.
+
+    (b) The sides enter at $0.5$ and the diagonals at $\sqrt 2 / 2 = 0.707$. In the Rips filtration, the diagonals fill everything at once; in the Čech filtration, the four disks meet at the centre at $0.707$, and the right triangles enter at half their hypotenuse, also $0.707$. Both give the interval $[0.5, 0.707)$.
+
+3.  **★ Classifying a vertex.** A vertex of a triangulated surface has a hexagonal link whose values, in cyclic order, are 3, 7, 4, 8, 2, 9. Classify the vertex and compute its term $1 - \chi(\mathrm{Lk}^-)$ in Theorem 3.6 when its own value is 1, 2.5, 5, 7.5 and 10.
+
+    *Solution*: at 1, the lower link is empty: a minimum, term $+1$. At 2.5, the lower link is the single vertex of value 2: regular, term 0. At 5, the lower vertices $3, 4, 2$ alternate with $7, 8, 9$: three arcs, a monkey saddle of multiplicity 2, term $-2$.
+
+    At 7.5, the lower vertices $3, 7, 4$ form one arc and $2$ another: a simple saddle, term $-1$. At 10, the lower link is the whole hexagon: a maximum, term $+1$.
+
+4.  **★ A sublevel-set diagram by hand.** The path $v_1, \dots, v_7$ carries the values $f = (3, 1, 4, 2, 6, 0, 5)$. (a) Compute $\mathrm{Dgm}_0(f)$ with the elder rule. (b) Do the same for $g$, equal to $f$ except $g(v_4) = 3.5$, and check Theorem 4.10.
+
+    *Solution*: (a) The minima are $v_6$ (0), $v_2$ (1) and $v_4$ (2). At $v_3$ (4), the component born at 2 dies; at $v_5$ (6), the component born at 1 dies. Hence
+    $$
+    \mathrm{Dgm}_0(f) = \{ (2, 4),\ (1, 6),\ (0, \infty) \}.
+    $$
+    (b) $\mathrm{Dgm}_0(g) = \{ (3.5, 4), (1, 6), (0, \infty) \}$. Matching $(2, 4)$ with $(3.5, 4)$ costs 1.5, while sending both to the diagonal costs $\max(1, 0.25) = 1$. So $d_B = 1 \leq \| f - g \|_\infty = 1.5$.
+
+5.  **★ Bottleneck and Wasserstein by hand.** Compute $d_B$ and $W_1$ between $D = \{(0, 2), (1, 5)\}$ and $D' = \{(0.5, 2), (1, 4)\}$.
+
+    *Solution*: matching $(0, 2)$ with $(0.5, 2)$ costs 0.5, and $(1, 5)$ with $(1, 4)$ costs 1. Sending $(0, 2)$ and $(0.5, 2)$ to the diagonal would cost 1 and 0.75, and crossing the pairs costs at least 2.5. Hence
+    $$
+    d_B(D, D') = 1, \qquad W_1(D, D') = 1.5 .
+    $$
+
+6.  **★ Computational: noise and prominence.** Rerun Code 4.2 with noise levels $\sigma = 0.02, 0.05, 0.1, 0.2$ (same seed). Record the number of local maxima and the three largest finite persistences, and compare the largest noise persistence with the bound of Theorem 4.10.
+
+    *Hints and expected result*: the numbers of maxima are 521, 721, 800 and 819. The three largest finite persistences are $(0.705, 0.583, 0.065)$, $(0.734, 0.640, 0.172)$, $(0.810, 0.747, 0.352)$ and $(1.029, 0.974, 0.712)$.
+
+    The noise has sup-norm $3.90\,\sigma$ for this seed, so Theorem 4.10, applied to the clean and noisy images, bounds the noise persistence by $7.8\,\sigma$: 0.156, 0.39, 0.78 and 1.56, all respected. At $\sigma = 0.2$ the third bump is barely separated from the noise (ratio 1.37, against 3.7 at $\sigma = 0.05$).
+
+7.  **★ Distance to a measure by hand.** On the line, take $X = \{-1, 0, 1, 10\}$ and $k = 2$. (a) Compute $d_X$ and the empirical DTM at the points 0, 5 and 10. (b) Move the outlier from 10 to 20, and compare the changes of $d_X$ and of the DTM at 20 with the bound $L / \sqrt k$ of Section 7.4.
+
+    *Solution*: (a) $d_X(0) = 0$, $d_X(5) = 4$, $d_X(10) = 0$. The DTM is $\sqrt{(0 + 1)/2} = 0.707$ at 0, $\sqrt{(16 + 25)/2} = 4.528$ at 5, and $\sqrt{(0 + 81)/2} = 6.364$ at 10: the isolated point is far for the DTM.
+
+    (b) At $x = 20$, $d_X$ drops from 10 to 0. The DTM goes from $\sqrt{(100 + 361)/2} = 15.18$ to $\sqrt{361/2} = 13.43$, a change of 1.75, below $L / \sqrt k = 10 / \sqrt 2 = 7.07$.
+
+8.  **★ Landscapes by hand.** For $D = \{(0, 4), (1, 3)\}$ and $D' = \{(0, 4)\}$, compute $\lambda_1$ and $\lambda_2$ of both diagrams and check Theorem 8.2.
+
+    *Solution*: the tent of $(1, 3)$ lies below the tent of $(0, 4)$, so $\lambda_1 = \Lambda_{(0, 4)}$ for both diagrams, with peak 2 at $t = 2$.
+
+    Then $\lambda_2(D) = \Lambda_{(1, 3)}$, with peak 1, and $\lambda_2(D') = 0$. So $\| \lambda_2(D) - \lambda_2(D') \|_\infty = 1 = d_B(D, D')$: the bound of Theorem 8.2 is attained.
+
+9.  **★★ Signs.** Prove that $\partial \circ \partial = 0$ for the signed boundary of Section 2.4.
+
+    *Solution*: let $i < j$, and follow the face obtained by removing $v_i$ and $v_j$.
+
+    -   Removing $v_j$ first, with sign $(-1)^j$, and then $v_i$, still in position $i$, gives the sign $(-1)^{i + j}$.
+    -   Removing $v_i$ first, with sign $(-1)^i$, moves $v_j$ to position $j - 1$; removing it then gives $(-1)^{i + j - 1}$ in total.
+
+    The two terms have opposite signs and cancel.
+
+10. **★★ Loops of a graph.** Prove that a graph with $V$ vertices, $E$ edges and $C$ connected components has $\beta_1 = E - V + C$ over any field, and use it to check the loop counts of Code 5.1.
+
+    *Solution*: a graph has no 2-simplices, so Theorem 2.7 gives $V - E = \beta_0 - \beta_1$, and $\beta_0 = C$ by Proposition 2.6. Hence $\beta_1 = E - V + C$. The circle gives $14 - 14 + 1 = 1$ and the figure eight $13 - 12 + 1 = 2$.
+
+11. **★★ The double torus.** A closed orientable surface of genus 2 stands vertically, and $f$ is its height: one minimum, four saddles, one maximum. (a) Check Theorem 3.4. (b) Count the nodes, arcs and loops of the Reeb graph. (c) Count the arcs and cells of the Morse–Smale complex and check Euler's formula.
+
+    *Solution*: (a) $1 - 4 + 1 = -2 = 2 - 2g$. (b) Six nodes: the extrema have degree 1 and each saddle degree 3, since a level circle splits or two merge. The degrees sum to $2 + 12 = 14$, so there are 7 arcs and $7 - 6 + 1 = 2$ loops, as Theorem 5.2 predicts.
+
+    (c) By Proposition 6.3, $4 \times 4 = 16$ arcs and 8 quadrangles, and $6 - 16 + 8 = -2$.
+
+12. **★★ Rips stability on the line.** Let $X = \{0, 1, 3\}$ and $Y = \{0, 1.2, 3\}$. Compute the Rips diagrams in degrees 0 and 1 (with $r$ = diameter / 2), their bottleneck distance, and $d_H(X, Y)$.
+
+    *Solution*: the edges of $X$ have lengths 1, 2 and 3, so $\mathrm{Dgm}_0 R(X) = \{(0, 0.5), (0, 1), (0, \infty)\}$. For $Y$, the lengths 1.2, 1.8 and 3 give $\{(0, 0.6), (0, 0.9), (0, \infty)\}$. In degree 1 both diagrams are empty: the triangle enters with its longest edge.
+
+    Hence $d_B = 0.1 \leq d_H(X, Y) = 0.2$, as Theorem 7.5 requires.
+
+13. **★★ Computational: Mapper and its parameters.** On the figure eight of Code 5.1, (a) vary the number of intervals in $\{4, 8, 16\}$ and the overlap in $\{0.1, 0.3, 0.5\}$; (b) with 8 intervals and overlap 0.3, vary the clustering scale in $\{0.05, 0.1, 0.25, 0.5\}$. Count nodes, components and loops.
+
+    *Hints and expected result*: (a) With 4 intervals, the graph is a path of 4 nodes, with no loop: each interval is too wide to separate the branches. With 8 intervals, 2 loops for every overlap. With 16 intervals, overlap 0.1 gives 26 nodes, 24 edges, 2 components and no loop; overlaps 0.3 and 0.5 give 2 loops.
+
+    (b) Scale 0.05 shatters the preimages into 41 nodes in 20 components; scales 0.1, 0.25 and 0.5 give 12, 12 and 10 nodes, one component and 2 loops.
+
+14. **★★ $H_0$ of Rips filtrations and spanning trees.** Prove that the finite intervals of $\mathrm{Dgm}_0 R(X)$ are $[0, \ell_e / 2)$, where $\ell_e$ runs over the edge lengths of a minimum spanning tree of $X$.
+
+    *Solution*: all vertices enter at $r = 0$, and the edges enter in increasing order of length. The sweep of Proposition 4.3 is then Kruskal's algorithm: an edge kills a bar exactly when it joins two components, that is, when Kruskal keeps it in the tree. It dies at half its length. The merge tree of this sweep is the single-linkage dendrogram.
+
+15. **★★★ Computational: the torus.** Sample 400 points $\big((2 + \cos u) \cos v, (2 + \cos u) \sin v, \sin u\big)$ with $u, v$ uniform on $[0, 2\pi)$ (seed 0). Build the Rips complex up to $r = 1$ in dimension 2, from the triangles of common neighbours, and compute $\mathrm{Dgm}_1$ with the cohomology and clearing of Code 9.1. Explain the result.
+
+    *Hints and expected result*: the complex has 407,279 simplices, and the computation takes a few seconds in plain Python. Two intervals stand out, $[0.270, 0.887)$ and $[0.272, 0.874)$, of persistence 0.617 and 0.602; the next one has persistence 0.370.
+
+    Both generators die near $\sqrt 3 / 2 = 0.866$, because the tube and the inner hole of this torus both have radius 1 (Code 1.1).
+
+16. **★★★ Open-ended: a topological loss for thin structures.** Generate synthetic images of a thin curve (a random smooth curve drawn with a width of 2 pixels) with noise and blur. Predict a probability map with a small convolutional network, trained (a) with a pixelwise cross-entropy, (b) with an added term that penalizes the persistence of every component but the largest one in $\mathrm{Dgm}_0$ of the superlevel sets of the prediction (Proposition 8.5). Compare the Dice score and the error on the number of components.
+
+    *Hints and expected result*: with cross-entropy alone, thin parts break, and the predicted mask has several components on many images. The topological term should bring the error on $\beta_0$ close to zero on most images, at a small cost in Dice, as reported by Hu, Li, Samaras and Chen (2019) on real data. Compute the pairs with the union-find of Code 8.2 extended to the 4-neighbour grid.
+
+## Projects and assessment {#projects}
+
+master-mva.com announces a short lesson exam and a research seminar, with no weights displayed; the Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (partial continuous assessment). The subjects below are proposals for the research seminar: each ends with a talk on a research paper and its reimplementation. The written exam is a proposal in the spirit of the short lesson exam, not an official subject.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: the stability of persistence diagrams.** Reproduce the stability theorem of Cohen-Steiner, Edelsbrunner and Harer (2007) through the vineyards of Cohen-Steiner, Edelsbrunner and Morozov (2006).
+    -   *Work*: lower-star persistence of $32 \times 32$ images with Algorithm 4.4; follow the linear homotopy $f_t$ at 200 values of $t$ and draw the vineyard; test the bound of Theorem 4.10 on 100 random pairs of images.
+    -   *Success criterion*: the bound is never violated, the vineyard figure shows the transpositions, and the report completes the proof sketch of Theorem 4.10 at the swaps.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 4 and 10.
+
+2.  **[Solo · ≈ 20 h] Paper study: persistence-based clustering.** Reproduce the main claims of Chazal, Guibas, Oudot and Skraba (2013) on synthetic data.
+    -   *Work*: extend Code 7.2 to a $\delta$-neighbourhood graph and a DTM-based density; data from the scikit-learn generators (moons, anisotropic blobs, varied densities); baselines $k$-means, DBSCAN and mean shift.
+    -   *Success criterion*: an adjusted Rand index above 0.95 on the two moons with $\tau$ read in the largest gap of the diagram, and a table of the sensitivity to $k$ and to the noise level.
+    -   *Deliverables*: code, report, talk. Chapters 4 and 7.
+
+3.  **[Solo · ≈ 20 h] Paper study: persistence images.** Reproduce the classification experiment of Adams and coauthors (2017) on the linked twist map, a synthetic dynamical system on the unit square.
+    -   *Work*: orbits of $x_{n+1} = x_n + r y_n (1 - y_n)$ and $y_{n+1} = y_n + r x_{n+1} (1 - x_{n+1})$ modulo 1, for five values of $r$; $H_0$ and $H_1$ Rips diagrams of subsampled orbits; persistence images, landscapes and the sliced Wasserstein kernel.
+    -   *Success criterion*: a table of 5-fold accuracies of the three representations, with the effect of the resolution and of the weight function of the images.
+    -   *Deliverables*: code, report, talk. Chapters 7 and 8.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] A small topological toolkit for 3D scalar fields.** Build, in the spirit of TTK, a pipeline from a 3D grid to a segmentation.
+    -   *Data*: synthetic fields on grids from $32^3$ to $128^3$: sums of Gaussians with noise, and the Marschner–Lobb test signal (Marschner and Lobb, 1994).
+    -   *Split*: one member computes the critical points of the 3D Freudenthal triangulation and checks Theorem 3.6; one computes the lower-star persistence and the simplification; one computes merge trees and the segmentation by simplified descending manifolds (Code 6.1 in 3D).
+    -   *Success criterion*: the number of Gaussians is recovered at every noise level below a threshold to be measured; the adjusted Rand index against the ground truth; running times that scale nearly linearly with the grid size.
+    -   *Deliverables*: code, a 6–8 page report, a 15-minute talk. Chapters 3 to 6 and 9.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Paper study: optimizing persistent homology based functions.** Reproduce the applications of Carrière, Chazal, Glisse, Ike, Kannan and Umeda (2021) with the differentiable persistence of Proposition 8.5.
+    -   *Split*: one member optimizes point clouds to create or remove loops; one denoises 2D images topologically (Code 8.2 on grids); one adds a topological regularizer to a small classifier on the scikit-learn digits.
+    -   *Success criterion*: the target diagrams are reached on the synthetic tasks, and the effect of the regularizer on test accuracy is measured over 5 seeds.
+    -   *Deliverables*: code, report, talk. Chapters 4, 8 and 9.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Mapper with statistical guarantees.** Reproduce the parameter selection and the bootstrap of Carrière, Michel and Oudot (2018).
+    -   *Data*: synthetic shapes with known Reeb graphs (circle, figure eight, a Y with flares), and the scikit-learn digits with a PCA, an eccentricity and a density filter.
+    -   *Split*: one member implements Mapper with automatic resolution and gain; one the bootstrap stability of its features; one the comparison with the Reeb graphs and the interpretation on the digits.
+    -   *Success criterion*: the correct numbers of loops and branches in at least 90 % of the bootstrap samples of the synthetic shapes.
+    -   *Deliverables*: code, report, talk. Chapters 5 and 7.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 1 hour, no documents, no electronic devices, four exercises.
+
+1.  **Question (4 points).** Define the persistence diagram of a filtration and the bottleneck distance. State the stability theorem, and explain why it justifies thresholding persistence to separate features from noise in an image.
+
+    *Expected*: Definitions 4.6 and 4.7, Theorem 4.10. Noise of sup-norm $\delta$ moves each point of the clean diagram by at most $\delta$, and every extra point lies within $\delta$ of the diagonal, so it has persistence at most $2\delta$; a threshold in a gap of the diagram above $2\delta$ keeps exactly the features.
+
+2.  **Question (6 points).** (a) Compute the Betti numbers of the boundary of a tetrahedron from the ranks of its boundary matrices. (b) Compute $\mathrm{Dgm}_0$ of the sublevel sets of the values $(4, 1, 3, 0, 5, 2, 6)$ on a path. (c) Compute its bottleneck distance to $\{(1, 3.5), (0, \infty)\}$.
+
+    *Expected*: (a) $n = (4, 6, 4)$, $\operatorname{rank} \partial_1 = 3$, $\operatorname{rank} \partial_2 = 3$, so $\beta = (1, 0, 1)$. (b) $\{(1, 3), (2, 5), (0, \infty)\}$, by the elder rule at the values 3 and 5.
+
+    (c) Matching $(1, 3)$ with $(1, 3.5)$ and sending $(2, 5)$ to the diagonal costs $\max(0.5, 1.5)$; the other matchings also cost at least 1.5. So $d_B = 1.5$.
+
+3.  **Question (5 points).** Prove Banchoff's formula (Theorem 3.6), and deduce that on a triangulated surface the numbers of minima, saddles counted with multiplicity and maxima satisfy $m_0 - m_1 + m_2 = \chi$.
+
+    *Expected*: the grouping of simplices by highest vertex, with the bijection between the simplices of highest vertex $v$ and $\{v\} \cup \mathrm{Lk}^-(v)$; then the Euler characteristics of the lower links of Corollary 3.7.
+
+4.  **Question (5 points).** Prove that $\check C(X, r) \subseteq R(X, r) \subseteq \check C(X, 2r)$ in any metric space. State and prove the sandwich lemma, and deduce how to read the homology of an offset from two Rips complexes.
+
+    *Expected*: the proof of Theorem 1.7 (a common point gives pairwise distances at most $2r$; any vertex is a common point at radius $2r$), Lemma 7.3 and Proposition 7.4, with the condition that the inclusions of offsets induce isomorphisms.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Understanding of the paper | 25 % | The question, the main theorem and its hypotheses are stated precisely, in the student's own notation |
+| Mathematical correctness | 15 % | Proofs or proof sketches are complete at the key step; claims are checked on cases with known answers |
+| Implementation | 20 % | The algorithm runs, is tested against a brute-force or library result, and scales as announced |
+| Experiments | 20 % | Clear protocol, baselines from the course, the success criterion reached or the gap explained |
+| Analysis | 10 % | Influence of the parameters (scale, threshold, number of neighbours), failure cases, one variant |
+| Talk and report | 10 % | A seminar talk and a report that a classmate can follow, with readable diagrams and figures |
+
+## References {#refs}
+
+**Official references (master-mva.com)**
+
+-   [1] H. Edelsbrunner and J. Harer, *Computational Topology: An Introduction*, American Mathematical Society, 2010.
+-   [2] J. Milnor, *Morse Theory*, Annals of Mathematics Studies 51, Princeton University Press, 1963.
+-   [3] A. T. Fomenko and T. L. Kunii, *Topological Modeling for Visualization*, Springer, 1997.
+-   [4] V. Pascucci, X. Tricoche, H. Hagen and J. Tierny (eds.), *Topological Methods in Data Analysis and Visualization: Theory, Algorithms, and Applications*, Springer, 2010.
+-   [5] S. Y. Oudot, *Persistence Theory: From Quiver Representations to Data Analysis*, Mathematical Surveys and Monographs 209, American Mathematical Society, 2015.
+-   [6] F. Chazal, “High-dimensional topological data analysis”, in J. E. Goodman, J. O'Rourke and C. D. Tóth (eds.), *Handbook of Discrete and Computational Geometry*, 3rd edition (listed as “to appear” on master-mva.com; published by CRC Press, 2017).
+-   [7] Gudhi — Geometry Understanding in Higher Dimensions, open-source C++ and Python library, [gudhi.inria.fr](https://gudhi.inria.fr); see C. Maria, J.-D. Boissonnat, M. Glisse and M. Yvinec, “The Gudhi library: simplicial complexes and persistent homology”, *International Congress on Mathematical Software (ICMS)*, Lecture Notes in Computer Science 8592, Springer, 2014.
+-   [8] TTK — The Topology ToolKit, [topology-tool-kit.github.io](https://topology-tool-kit.github.io); see J. Tierny, G. Favelier, J. A. Levine, C. Gueunet and M. Michaux, “The Topology ToolKit”, *IEEE Transactions on Visualization and Computer Graphics* 24(1), 2018.
+
+**Textbooks and surveys**
+
+-   A. Hatcher, *Algebraic Topology*, Cambridge University Press, 2002.
+-   J. R. Munkres, *Elements of Algebraic Topology*, Addison-Wesley, 1984.
+-   A. Zomorodian, *Topology for Computing*, Cambridge University Press, 2005.
+-   J.-D. Boissonnat, F. Chazal and M. Yvinec, *Geometric and Topological Inference*, Cambridge University Press, 2018.
+-   T. K. Dey and Y. Wang, *Computational Topology for Data Analysis*, Cambridge University Press, 2022.
+-   F. Chazal, V. de Silva, M. Glisse and S. Oudot, *The Structure and Stability of Persistence Modules*, SpringerBriefs in Mathematics, Springer, 2016.
+-   F. Chazal and B. Michel, “An introduction to topological data analysis: fundamental and practical aspects for data scientists”, *Frontiers in Artificial Intelligence* 4, 2021.
+-   G. Carlsson, “Topology and data”, *Bulletin of the American Mathematical Society* 46(2), 2009.
+-   R. Ghrist, “Barcodes: the persistent topology of data”, *Bulletin of the American Mathematical Society* 45(1), 2008.
+-   A. Björner, “Topological methods”, in R. Graham, M. Grötschel and L. Lovász (eds.), *Handbook of Combinatorics*, vol. 2, Elsevier, 1995.
+
+**Complexes, homology and Morse theory (ch. 0–3)**
+
+-   R. E. Tarjan, “Efficiency of a good but not linear set union algorithm”, *Journal of the ACM* 22(2), 1975.
+-   K. Borsuk, “On the imbedding of systems of compacta in simplicial complexes”, *Fundamenta Mathematicae* 35, 1948.
+-   H. W. E. Jung, “Über die kleinste Kugel, die eine räumliche Figur einschließt”, *Journal für die reine und angewandte Mathematik* 123, 1901.
+-   H. Edelsbrunner and E. P. Mücke, “Three-dimensional alpha shapes”, *ACM Transactions on Graphics* 13(1), 1994.
+-   H. Edelsbrunner and E. P. Mücke, “Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms”, *ACM Transactions on Graphics* 9(1), 1990.
+-   T. F. Banchoff, “Critical points and curvature for embedded polyhedra”, *Journal of Differential Geometry* 1, 1967.
+-   R. Forman, “Morse theory for cell complexes”, *Advances in Mathematics* 134(1), 1998.
+-   R. Forman, “A user's guide to discrete Morse theory”, *Séminaire Lotharingien de Combinatoire* 48, 2002.
+-   V. Robins, P. J. Wood and A. P. Sheppard, “Theory and algorithms for constructing discrete Morse complexes from grayscale digital images”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 33(8), 2011.
+
+**Persistence (ch. 4 and 10)**
+
+-   H. Edelsbrunner, D. Letscher and A. Zomorodian, “Topological persistence and simplification”, *Discrete & Computational Geometry* 28, 2002.
+-   A. Zomorodian and G. Carlsson, “Computing persistent homology”, *Discrete & Computational Geometry* 33, 2005.
+-   W. Crawley-Boevey, “Decomposition of pointwise finite-dimensional persistence modules”, *Journal of Algebra and its Applications* 14(5), 2015.
+-   D. Cohen-Steiner, H. Edelsbrunner and J. Harer, “Stability of persistence diagrams”, *Discrete & Computational Geometry* 37, 2007.
+-   D. Cohen-Steiner, H. Edelsbrunner and D. Morozov, “Vines and vineyards by updating persistence in linear time”, *Symposium on Computational Geometry (SoCG)*, 2006.
+-   F. Chazal, D. Cohen-Steiner, M. Glisse, L. J. Guibas and S. Y. Oudot, “Proximity of persistence modules and their diagrams”, *Symposium on Computational Geometry (SoCG)*, 2009.
+-   M. Lesnick, “The theory of the interleaving distance on multidimensional persistence modules”, *Foundations of Computational Mathematics* 15, 2015.
+-   U. Bauer and M. Lesnick, “Induced matchings and the algebraic stability of persistence barcodes”, *Journal of Computational Geometry* 6(2), 2015.
+-   H. Edelsbrunner, D. Morozov and V. Pascucci, “Persistence-sensitive simplification of functions on 2-manifolds”, *Symposium on Computational Geometry (SoCG)*, 2006.
+-   U. Bauer, C. Lange and M. Wardetzky, “Optimal topological simplification of discrete functions on surfaces”, *Discrete & Computational Geometry* 47, 2012.
+-   J. Tierny and V. Pascucci, “Generalized topological simplification of scalar fields on surfaces”, *IEEE Transactions on Visualization and Computer Graphics* 18(12), 2012.
+-   J. E. Hopcroft and R. M. Karp, “An $n^{5/2}$ algorithm for maximum matchings in bipartite graphs”, *SIAM Journal on Computing* 2(4), 1973.
+
+**Reeb graphs, Mapper and Morse–Smale complexes (ch. 5–6)**
+
+-   G. Reeb, “Sur les points singuliers d'une forme de Pfaff complètement intégrable ou d'une fonction numérique”, *Comptes Rendus de l'Académie des Sciences* 222, 1946.
+-   K. Cole-McLaughlin, H. Edelsbrunner, J. Harer, V. Natarajan and V. Pascucci, “Loops in Reeb graphs of 2-manifolds”, *Discrete & Computational Geometry* 32, 2004.
+-   H. Carr, J. Snoeyink and U. Axen, “Computing contour trees in all dimensions”, *Computational Geometry* 24(2), 2003.
+-   V. Pascucci, K. Cole-McLaughlin and G. Scorzelli, “Multi-resolution computation and presentation of contour trees”, *IASTED Conference on Visualization, Imaging and Image Processing*, 2004.
+-   G. Singh, F. Mémoli and G. Carlsson, “Topological methods for the analysis of high dimensional data sets and 3D object recognition”, *Eurographics Symposium on Point-Based Graphics*, 2007.
+-   M. Carrière and S. Oudot, “Structure and stability of the one-dimensional Mapper”, *Foundations of Computational Mathematics* 18, 2018.
+-   M. Carrière, B. Michel and S. Oudot, “Statistical analysis and parameter selection for Mapper”, *Journal of Machine Learning Research* 19, 2018.
+-   E. Munch and B. Wang, “Convergence between categorical representations of Reeb space and Mapper”, *Symposium on Computational Geometry (SoCG)*, 2016.
+-   M. Nicolau, A. J. Levine and G. Carlsson, “Topology based data analysis identifies a subgroup of breast cancers with a unique mutational profile and excellent survival”, *Proceedings of the National Academy of Sciences* 108(17), 2011.
+-   H. Edelsbrunner, J. Harer and A. Zomorodian, “Hierarchical Morse–Smale complexes for piecewise linear 2-manifolds”, *Discrete & Computational Geometry* 30, 2003.
+-   A. Gyulassy, P.-T. Bremer, B. Hamann and V. Pascucci, “A practical approach to Morse–Smale complex computation: scalability and generality”, *IEEE Transactions on Visualization and Computer Graphics* 14(6), 2008.
+-   N. Shivashankar and V. Natarajan, “Parallel computation of 3D Morse–Smale complexes”, *Computer Graphics Forum* 31(3), 2012.
+-   L. Vincent and P. Soille, “Watersheds in digital spaces: an efficient algorithm based on immersion simulations”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 13(6), 1991.
+
+**Inference and clustering (ch. 7)**
+
+-   H. Federer, “Curvature measures”, *Transactions of the American Mathematical Society* 93, 1959.
+-   P. Niyogi, S. Smale and S. Weinberger, “Finding the homology of submanifolds with high confidence from random samples”, *Discrete & Computational Geometry* 39, 2008.
+-   F. Chazal, D. Cohen-Steiner and A. Lieutier, “A sampling theory for compact sets in Euclidean space”, *Discrete & Computational Geometry* 41, 2009.
+-   F. Chazal and S. Oudot, “Towards persistence-based reconstruction in Euclidean spaces”, *Symposium on Computational Geometry (SoCG)*, 2008.
+-   F. Chazal, D. Cohen-Steiner, L. J. Guibas, F. Mémoli and S. Oudot, “Gromov–Hausdorff stable signatures for shapes using persistence”, *Computer Graphics Forum* 28(5), 2009.
+-   F. Chazal, V. de Silva and S. Oudot, “Persistence stability for geometric complexes”, *Geometriae Dedicata* 173, 2014.
+-   F. Chazal, D. Cohen-Steiner and Q. Mérigot, “Geometric inference for probability measures”, *Foundations of Computational Mathematics* 11, 2011.
+-   F. Chazal, M. Glisse, C. Labruère and B. Michel, “Convergence rates for persistence diagram estimation in topological data analysis”, *Journal of Machine Learning Research* 16, 2015.
+-   B. T. Fasy, F. Lecci, A. Rinaldo, L. Wasserman, S. Balakrishnan and A. Singh, “Confidence sets for persistence diagrams”, *Annals of Statistics* 42(6), 2014.
+-   F. Chazal, L. J. Guibas, S. Y. Oudot and P. Skraba, “Persistence-based clustering in Riemannian manifolds”, *Journal of the ACM* 60(6), 2013.
+
+**Signatures and learning (ch. 8)**
+
+-   Y. Mileyko, S. Mukherjee and J. Harer, “Probability measures on the space of persistence diagrams”, *Inverse Problems* 27(12), 2011.
+-   K. Turner, Y. Mileyko, S. Mukherjee and J. Harer, “Fréchet means for distributions of persistence diagrams”, *Discrete & Computational Geometry* 52, 2014.
+-   M. Carrière and U. Bauer, “On the metric distortion of embedding persistence diagrams into separable Hilbert spaces”, *Symposium on Computational Geometry (SoCG)*, 2019.
+-   P. Bubenik, “Statistical topological data analysis using persistence landscapes”, *Journal of Machine Learning Research* 16, 2015.
+-   F. Chazal, B. T. Fasy, F. Lecci, A. Rinaldo and L. Wasserman, “Stochastic convergence of persistence landscapes and silhouettes”, *Journal of Computational Geometry* 6(2), 2015.
+-   H. Adams, T. Emerson, M. Kirby, R. Neville, C. Peterson, P. Shipman, S. Chepushtanova, E. Hanson, F. Motta and L. Ziegelmeier, “Persistence images: a stable vector representation of persistent homology”, *Journal of Machine Learning Research* 18, 2017.
+-   J. Reininghaus, S. Huber, U. Bauer and R. Kwitt, “A stable multi-scale kernel for topological machine learning”, *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 2015.
+-   M. Carrière, M. Cuturi and S. Oudot, “Sliced Wasserstein kernel for persistence diagrams”, *International Conference on Machine Learning (ICML)*, 2017.
+-   M. Carrière, F. Chazal, Y. Ike, T. Lacombe, M. Royer and Y. Umeda, “PersLay: a neural network layer for persistence diagrams and new graph topological signatures”, *AISTATS*, 2020.
+-   M. Carrière, F. Chazal, M. Glisse, Y. Ike, H. Kannan and Y. Umeda, “Optimizing persistent homology based functions”, *International Conference on Machine Learning (ICML)*, 2021.
+-   R. Brüel-Gabrielsson, B. J. Nelson, A. Dwaraknath and P. Skraba, “A topology layer for machine learning”, *AISTATS*, 2020.
+-   X. Hu, F. Li, D. Samaras and C. Chen, “Topology-preserving deep image segmentation”, *Advances in Neural Information Processing Systems (NeurIPS)*, 2019.
+-   M. Moor, M. Horn, B. Rieck and K. Borgwardt, “Topological autoencoders”, *International Conference on Machine Learning (ICML)*, 2020.
+
+**Implementations (ch. 9)**
+
+-   J.-D. Boissonnat and C. Maria, “The simplex tree: an efficient data structure for general simplicial complexes”, *Algorithmica* 70, 2014.
+-   J.-D. Boissonnat and S. Pritam, “Edge collapse and persistence of flag complexes”, *Symposium on Computational Geometry (SoCG)*, 2020.
+-   C. Chen and M. Kerber, “Persistent homology computation with a twist”, *European Workshop on Computational Geometry (EuroCG)*, 2011.
+-   V. de Silva, D. Morozov and M. Vejdemo-Johansson, “Dualities in persistent (co)homology”, *Inverse Problems* 27(12), 2011.
+-   U. Bauer, “Ripser: efficient computation of Vietoris–Rips persistence barcodes”, *Journal of Applied and Computational Topology* 5, 2021.
+-   U. Bauer, M. Kerber, J. Reininghaus and H. Wagner, “PHAT — persistent homology algorithms toolbox”, *Journal of Symbolic Computation* 78, 2017.
+
+**Research directions and projects (ch. 11)**
+
+-   G. Carlsson and A. Zomorodian, “The theory of multidimensional persistence”, *Discrete & Computational Geometry* 42, 2009.
+-   M. Lesnick and M. Wright, “Interactive visualization of 2-D persistence modules”, arXiv preprint, 2015.
+-   M. Carrière and A. Blumberg, “Multiparameter persistence image for topological machine learning”, *Advances in Neural Information Processing Systems (NeurIPS)*, 2020.
+-   C. Hofer, F. Graf, B. Rieck, M. Niethammer and R. Kwitt, “Graph filtration learning”, *International Conference on Machine Learning (ICML)*, 2020.
+-   M. Horn, E. De Brouwer, M. Moor, Y. Moreau, B. Rieck and K. Borgwardt, “Topological graph neural networks”, *International Conference on Learning Representations (ICLR)*, 2022.
+-   J. Vidal, J. Budin and J. Tierny, “Progressive Wasserstein barycenters of persistence diagrams”, *IEEE Transactions on Visualization and Computer Graphics* 26(1), 2020.
+-   M. Pont, J. Vidal, J. Delon and J. Tierny, “Wasserstein distances, geodesics and barycenters of merge trees”, *IEEE Transactions on Visualization and Computer Graphics* 28(1), 2022.
+-   M. Soler, M. Plainchault, B. Conche and J. Tierny, “Topologically controlled lossy compression”, *IEEE Pacific Visualization Symposium (PacificVis)*, 2018.
+-   K. Turner, S. Mukherjee and D. M. Boyer, “Persistent homology transform for modeling shapes and surfaces”, *Information and Inference* 3(4), 2014.
+-   Y. Hiraoka, T. Nakamura, A. Hirata, E. G. Escolar, K. Matsue and Y. Nishiura, “Hierarchical structures of amorphous solids characterized by persistent homology”, *Proceedings of the National Academy of Sciences* 113(26), 2016.
+-   T. Sousbie, “The persistent cosmic web and its filamentary structure — I. Theory and implementation”, *Monthly Notices of the Royal Astronomical Society* 414(1), 2011.
+-   S. R. Marschner and R. J. Lobb, “An evaluation of reconstruction filters for volume rendering”, *IEEE Visualization*, 1994.

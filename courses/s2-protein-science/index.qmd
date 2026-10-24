@@ -1,0 +1,2373 @@
+---
+title: "Algorithms and Learning for Protein Science"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: rigid motions, Boltzmann distributions, Markov chains, polytopes and attention](#ch0)
+-   [1. Proteins at the atomic level: structures, mechanisms, free energies, time scales](#ch1)
+-   [2. Structure prediction with AlphaFold2 and transformers](#ch2)
+-   [3. Molecular kinematics, inverse problems and loop sampling](#ch3)
+-   [4. Boltzmann samplers for sequences and structures](#ch4)
+-   [5. Computer practical: molecular manipulations](#ch5)
+-   [6. High-dimensional sampling: volumes of polytopes and densities of states](#ch6)
+-   [7. Spatial partitions and applications](#ch7)
+-   [8. Complements for self-study](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Algorithms and Learning for Protein Science
+  Official title       Algorithms and learning for protein science
+  Instructors          F. CAZALS (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 21 h (lectures 18 h, labs 3 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label}[Track Santé]{.badge .track} · domains on master-mva.com: Machine Learning, Theory
+  Language             English (master-mva.com: “The class is taught in English”)
+  Assessment           master-mva.com: “Projects for students working in tandem (15 points) + individual quizz (5 points)”; a project consists of reproducing or expanding recently published results, with a report plus a git repository, notebook or code archive, prepared in one month; catch-up: an oral exam on the lectures, typically a quiz with one or two questions per lecture. Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment).
+  Prerequisites        Training in algorithms or machine learning; an interest in biophysics, biology or medicine (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who knows Markov chains, linear algebra and basic deep learning, and who wants to work on proteins without a degree in biochemistry.
+
+**Empirical first**: AlphaFold2 predicts one structure per sequence, yet a membrane transporter only works by cycling through several conformations. A Metropolis chain on a double well with a barrier of $8\,kT$ crosses it six times in $2 \times 10^5$ steps and misestimates the population of the second well by 30 % (Code 0.9). This course explains both facts and the algorithms that address them.
+
+The course treats a protein as a point in a space of dimension about 15,000 that moves under thermal noise. It covers the prediction of structures from sequences, the kinematics of the backbone, generative models of sequences, and the sampling of high-dimensional spaces. It uses tools from [Computational Statistics](../s1-computational-statistics/index.html), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) and [Deep Learning](../s1-deep-learning/index.html).
+
+### What you will be able to do
+
+-   Describe a protein structure in Cartesian and internal coordinates, and compare two structures with the RMSD after optimal superposition, GDT, lDDT and the TM-score.
+-   Distinguish energies from free energies, and compute the population of a state from its energy and its width.
+-   Explain metastability and local ergodicity, and estimate an escape time with the Eyring–Kramers formula.
+-   Align sequences by dynamic programming, and explain how AlphaFold2 turns a multiple sequence alignment into a structure.
+-   Prove that invariant point attention is invariant under global rigid motions.
+-   Build a backbone from dihedral angles, count the degrees of freedom of a closed loop, and sample loop conformations.
+-   Fit mixtures of von Mises distributions to dihedral angles on the flat torus.
+-   Derive the Potts model from maximum entropy, fit it by pseudo-likelihood, and relate it to self-attention.
+-   Sample uniformly from a polytope by hit-and-run and estimate its volume by multiphase Monte Carlo.
+-   Compute a density of states with the Wang–Landau algorithm.
+-   Search nearest neighbours with random projection trees, and attribute a prediction to features with Shapley values.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from a fact: proteins underlie all biological functions, yet their mechanisms at the atomic scale remain a fundamental open problem. With about 5000 atoms and three coordinates per atom, a polypeptide chain of median size lives in a configuration space of dimension 15,000.
+
+AlphaFold2 provides plausible structures of well-folded regions, but it gives no insight into dynamics. The goal of the class is therefore twofold. First, it casts the main problems of protein dynamics into a rigorous mathematical and algorithmic framework. Second, it presents major ongoing developments at the interface of theoretical biophysics, geometry, topology and machine learning.
+
+The organisation is six lectures of three hours plus one computer practical, which introduces standard molecular manipulations on real data and illustrates selected methods. Each announced item is matched below.
+
+| Official topic | Course section |
+|---|---|
+| Objective: cast the main problems of protein dynamics into a rigorous mathematical and algorithmic framework | [ch. 1](#ch1) (Sections 1.4–1.6), [ch. 3](#ch3), [ch. 6](#ch6) |
+| Objective: ongoing developments between theoretical biophysics, geometry, topology and machine learning | [ch. 2](#ch2), [ch. 4](#ch4), [ch. 7](#ch7); topology of configuration spaces in [ch. 3](#ch3) (tori, closure varieties) and [ch. 9](#ch9) |
+| Configuration space of dimension 15,000; AlphaFold2 gives structures, not dynamics | Section 1.1 (Definition 1.1) and Section 2.3 (limits) |
+| One course devoted to a computer practical on standard molecular manipulations | [ch. 5](#ch5) |
+| Organisation: 6 lectures of 3 hours and one computer practical | [Session plan](#sessions) |
+| The class is taught in English | fiche above |
+| Lecture 1 — Introduction: understanding protein functions at the atomic level | [ch. 1](#ch1) |
+| 1 · Proteins: structures | Section 1.1 (Definition 1.1), Section 1.2 (Theorem 1.3) |
+| 1 · Three molecular mechanisms: viral attachment, membrane transport, antibody–antigen interactions | Section 1.3 |
+| 1 · Time-scales and local ergodicity in protein dynamics | Section 1.5 (Definitions 1.8 and 1.10, Theorem 1.11, Code 1.12) |
+| 1 · Energies versus free energies | Section 1.4 (Definition 1.4, Proposition 1.5, Example 1.6, Definition 1.7) |
+| 1 · Open (mathematical, algorithmic) challenges in protein science | Section 1.6 |
+| Lecture 2 — Protein structure prediction with AlphaFold2 and transformers | [ch. 2](#ch2) |
+| 2 · Protein sequences and multiple sequence alignments | Section 2.1 (Definition 2.1, Proposition 2.2, Code 2.4, Definition 2.5) |
+| 2 · AlphaFold2: architecture | Section 2.2 (Definitions 2.6–2.8, Proposition 2.9, Code 2.10) |
+| 2 · AlphaFold2: performance assessment | Section 2.3 (Definition 2.11, Code 2.12) |
+| Lecture 3 — Molecular kinematics, inverse problems, loop sampling | [ch. 3](#ch3) |
+| 3 · Modeling proteins using internal coordinates | Section 3.1 (Definition 3.1, Proposition 3.2, Code 3.3) |
+| 3 · Kinematics and loop closure problems | Section 3.2 (Definition 3.4, Proposition 3.5, Theorem 3.6) |
+| 3 · Inverse problems and protein loop sampling | Section 3.3 (Proposition 3.7, Algorithm 3.8) |
+| 3 · Modeling mixtures of multivariate densities on flat tori | Section 3.4 (Definition 3.9, Proposition 3.10, Code 3.11) |
+| Lecture 4 — Boltzmann samplers for sequences and structures | [ch. 4](#ch4) |
+| 4 · Generative models for protein sequences | Sections 4.1–4.2 (Theorem 4.1, Propositions 4.3 and 4.5, Code 4.6) |
+| 4 · Potts models versus transformers | Section 4.3 (Proposition 4.7) |
+| 4 · Application in protein design | Section 4.4 (Proposition 4.8, Definition 4.9) |
+| Lecture 5 — Computer practical | [ch. 5](#ch5) |
+| 5 · Molecular visualization with PyMOL and/or Visual Molecular Dynamics | Section 5.1 (Code 5.1 writes a PDB file for either program) |
+| 5 · Structure predictions with AlphaFold2 | Section 5.2 (procedure with ColabFold; not executed on this page, which runs offline) |
+| 5 · Molecular distances and structural alignments | Section 5.3 (Definition 5.2, Proposition 5.3), with Code 2.12 |
+| 5 · Conformational (loop) sampling | Section 5.4 (Code 5.4) |
+| Lecture 6 — High-dimensional sampling: from the volume of polytopes to densities of states | [ch. 6](#ch6) |
+| 6 · Polytopes and their volumes: hardness and approximability | Section 6.1 (Theorems 6.2–6.4, Proposition 6.3) |
+| 6 · Linear programs and hit-and-run | Section 6.2 (Algorithm 6.5, Proposition 6.6, Theorem 6.7) |
+| 6 · Estimating the volume of polytopes with hit-and-run and PDMPs | Section 6.3 (Proposition 6.8, Code 6.9, Definition 6.10) |
+| 6 · Densities of states in statistical physics: the Wang–Landau algorithm | Section 6.4 (Definition 6.11, Algorithm 6.12, Proposition 6.13, Theorem 6.14, Code 6.15) |
+| Lecture 7 — Spatial partitions and applications | [ch. 7](#ch7) |
+| 7 · Random projection trees | Section 7.1 (Definition 7.1, Lemma 7.2, Theorems 7.3 and 7.4) |
+| 7 · Applications to nearest neighbor finding, regression, dimension estimation | Section 7.2 (Proposition 7.5, Code 7.6) |
+| 7 · Shapley–Shubik indices for tree-like structures | Section 7.3 (Definitions 7.7 and 7.9, Theorem 7.8, Example 7.10, Definition 7.11) |
+| 7 · Applications to feature selection and mixing assessment | Section 7.4 (Code 7.12) |
+| Theme: proteins | [ch. 1](#ch1), [ch. 2](#ch2), [ch. 5](#ch5) |
+| Theme: molecular conformations | Sections 1.1–1.2, [ch. 3](#ch3), [ch. 5](#ch5) |
+| Theme: thermodynamics | Section 1.4, Section 0.2, Section 6.4 |
+| Theme: dynamics | Section 1.5 and Section 8.1 |
+| Theme: high-dimensional spaces | [ch. 6](#ch6), [ch. 7](#ch7) |
+| Theme: kinematics | [ch. 3](#ch3) |
+| Theme: sampling | Section 0.3, Sections 3.3, 4.2, [ch. 6](#ch6) |
+| Theme: (free) energies | Section 1.4, Section 6.4 |
+| “Les intervenants” | a heading of the official page, not a topic |
+| Prerequisites and assessment (master-mva.com, Université Paris-Saclay course detail) | the fiche above and [Projects and assessment](#projects) |
+
+Beyond the syllabus, this page adds a review chapter ([ch. 0](#ch0)), complements with longer proofs ([ch. 8](#ch8)), a research chapter ([ch. 9](#ch9)), graded exercises, project subjects and a written-exam proposal.
+
+### Where this course fits in the programme
+
+Official prerequisites: training in algorithms or machine learning, and an interest in biophysics, biology or medicine (master-mva.com). The instructor listed on master-mva.com is Frédéric Cazals (Inria). The course carries the label of the Santé track and is taught in semester 2.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) for Markov chains and maximum likelihood; [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) for the SVD, rotations and linear programs; [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) for the code.
+-   **Semester 1 courses that prepare it** — [Computational Statistics](../s1-computational-statistics/index.html) (MCMC), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (Langevin dynamics), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (distances, equivariance), [Deep Learning](../s1-deep-learning/index.html) and [Foundations of Large Language Models](../s1-foundations-llms/index.html) (transformers), [Introduction to Probabilistic Graphical Models](../s1-probabilistic-graphical-models/index.html) (Markov random fields), [Robotics](../s1-robotics/index.html) (kinematic chains) and [Topological Data Analysis](../s1-tda-imaging-ml/index.html).
+-   **Related courses of semester 2** — [Graphical Models: Discrete Inference and Learning](../s2-graphical-models-discrete/index.html) (Potts models), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Diffusion and Multiscale Models in Artificial Intelligence](../s2-diffusion-multiscale/index.html), [Geometry and Shape Spaces](../s2-shape-spaces/index.html), [Interactions: Complexity, Stochasticity, Extrema and Rare Events](../s2-interactions/index.html) (rare events), [Multimodal Explainable AI](../s2-multimodal-xai/index.html) (Shapley values) and [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html); the [Hospital Immersion](../year-hospital-immersion/index.html) of the Santé track gives a clinical context to the molecular mechanisms of ch. 1.
+
+### Course outline
+
+-   **Review: rigid motions, Boltzmann distributions, Markov chains, polytopes and attention** — the M1 tools used later, with short proofs.
+-   **Proteins at the atomic level** — structures, the RMSD and the Kabsch theorem, three molecular mechanisms, energies versus free energies, time scales and local ergodicity, open challenges.
+-   **Structure prediction with AlphaFold2 and transformers** — sequence alignment, multiple sequence alignments, the Evoformer and the structure module, invariant point attention, accuracy metrics.
+-   **Molecular kinematics, inverse problems and loop sampling** — internal coordinates, forward kinematics, loop closure, sampling on the closure variety, von Mises mixtures on the torus.
+-   **Boltzmann samplers for sequences and structures** — maximum entropy, Potts models, pseudo-likelihood, autoregressive models, factored attention, protein design.
+-   **Computer practical** — visualisation, structure prediction, distances and alignments, loop sampling.
+-   **High-dimensional sampling** — hardness of volume computation, hit-and-run, multiphase Monte Carlo, PDMPs, densities of states and Wang–Landau.
+-   **Spatial partitions and applications** — random projection trees, nearest neighbours, regression, dimension estimation, Shapley and Shapley–Shubik values, mixing assessment.
+-   **Complements for self-study** — the 1D Eyring–Kramers formula, pseudo-likelihood consistency, invariance of PDMPs, Wang–Landau as stochastic approximation.
+-   **Research directions and open problems** — conformational ensembles, generative design, enhanced sampling, high-dimensional volumes (self-study).
+
+### Session plan {#sessions}
+
+**21 h in class = 7 sessions of 3 h.**
+
+The volume is the official one of the Université Paris-Saclay programme table (18 h of lectures and 3 h of labs). master-mva.com announces six lectures of three hours and one computer practical, placed fifth; the plan keeps that order, one session per official item. The split of each session and the content of the practical are a proposal.
+
+Level 1 = foundations, 2 = core methods, 3 = advanced material close to research; the level never decreases from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 1 Proteins: structures, RMSD and the Kabsch theorem, three mechanisms, energies versus free energies, time scales and local ergodicity, open challenges (1.1–1.6) | Ex. 1, 2, 7; Code 1.12 |
+| 2 | 3 h | 2 | ch. 2 Sequences, alignments and MSAs; AlphaFold2 architecture and invariant point attention; performance assessment (2.1–2.3) | Ex. 3, 4, 8; Codes 2.4, 2.10, 2.12 |
+| 3 | 3 h | 2 | ch. 3 Internal coordinates, forward kinematics, loop closure, sampling on the closure variety, von Mises mixtures on the flat torus (3.1–3.4) | Ex. 9, 10; Codes 3.3, 3.11 |
+| 4 | 3 h | 2 | ch. 4 Maximum entropy and Potts models, pseudo-likelihood, Gibbs and autoregressive samplers, Potts versus factored attention, protein design (4.1–4.4) | Ex. 11, 12, 20; Code 4.6 |
+| 5 | 3 h | 2 | ch. 5 Computer practical: visualisation, structure prediction, distances and alignments, loop sampling (5.1–5.4) | Codes 5.1, 5.4; Ex. 17 started |
+| 6 | 3 h | 3 | ch. 6 Polytope volumes, hardness, hit-and-run, multiphase Monte Carlo, PDMPs, Wang–Landau (6.1–6.4) | Ex. 6, 13, 14, 15, 19; Codes 6.9, 6.15 |
+| 7 | 3 h | 3 | ch. 7 Random projection trees, nearest neighbours and dimension, Shapley and Shapley–Shubik values, mixing assessment (7.1–7.4) | Ex. 5, 16, 18; Codes 7.6, 7.12 |
+
+**Self-study, outside the 21 h** (about 7 h in total): ch. 0 Review — to read before session 1 (≈ 2 h, with Code 0.9) · ch. 8 Complements — the 1D Eyring–Kramers formula, pseudo-likelihood, PDMP invariance, Wang–Landau as stochastic approximation (≈ 3 h) · ch. 9 Research directions and open problems (≈ 2 h).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before session 1. The trace inequality (Lemma 0.2) gives the Kabsch theorem, and the Gibbs variational principle (Proposition 0.4) gives free energies and Potts models.
+-   Follow one thread: a Boltzmann distribution $\pi \propto e^{-\beta U}$ is the target of molecular dynamics (ch. 1), of sequence models (ch. 4) and of Wang–Landau (ch. 6). The obstacle is always a high dimension combined with rare transitions.
+-   After each session, run the code of the chapter and change one parameter (barrier height, number of dihedrals, coupling strength, dimension) to see what breaks.
+-   Do the exercises of the session plan before the next session. The ★★★ exercises and the projects prepare the tandem project, which carries 15 of the 20 points.
+-   Python environment: NumPy, SciPy, scikit-learn and PyTorch on CPU; every code block runs in under 30 seconds on synthetic data or on the digits data set of scikit-learn. PyMOL, VMD and AlphaFold2 are described in [ch. 5](#ch5) but are not needed to run the code.
+
+## 0. Review: rigid motions, Boltzmann distributions, Markov chains, polytopes and attention {#ch0}
+
+The course compares structures up to rigid motions, samples Boltzmann distributions with Markov chains, cuts polytopes with lines and reads transformers. This chapter states these M1 tools in the form used later, with short proofs. It is meant to be read before session 1.
+
+### 0.1 Rigid motions and the SVD
+
+::: def
+[Definition 0.1 — Rotations and rigid motions]{.tag} The rotation group is
+$$
+SO(3) = \{ R \in \mathbb{R}^{3 \times 3} : R^\top R = I,\ \det R = 1 \}.
+$$
+
+A rigid motion is a map $x \mapsto Rx + t$ with $R \in SO(3)$ and $t \in \mathbb{R}^3$; these maps form the group $SE(3)$. Orthogonal matrices with determinant $-1$ are reflections composed with rotations: they change the handedness of a molecule, which is a different chemical object.
+:::
+
+Every real matrix $H \in \mathbb{R}^{3 \times 3}$ has a singular value decomposition
+$$
+H = U \Sigma V^\top, \qquad U, V \in O(3), \qquad \Sigma = \mathrm{diag}(\sigma_1, \sigma_2, \sigma_3),\ \sigma_1 \geq \sigma_2 \geq \sigma_3 \geq 0 .
+$$
+
+:::: prop
+[Lemma 0.2 — Trace inequality]{.tag} Let $\Sigma$ be diagonal with non-negative entries and $Q$ be orthogonal. Then
+$$
+\mathrm{tr}(Q \Sigma) \leq \mathrm{tr}(\Sigma),
+$$
+with equality when $Q = I$.
+
+::: proof
+The diagonal entries of an orthogonal matrix satisfy $|Q_{ii}| \leq 1$, because each column has unit norm. Hence
+$$
+\mathrm{tr}(Q \Sigma) = \sum_i Q_{ii}\, \sigma_i \leq \sum_i \sigma_i .
+$$
+[∎]{.qed}
+:::
+::::
+
+### 0.2 Boltzmann distributions and entropy
+
+::: def
+[Definition 0.3 — Boltzmann–Gibbs distribution]{.tag} Let $U : \Omega \to \mathbb{R}$ be an energy on a state space $\Omega$ (a finite set or a domain of $\mathbb{R}^d$), and let $\beta = 1/(k_B T)$ be the inverse temperature. The Boltzmann distribution and its partition function are
+$$
+\pi(x) = \frac{e^{-\beta U(x)}}{Z}, \qquad Z = \int_\Omega e^{-\beta U(x)}\, dx .
+$$
+
+The entropy of a density $p$ is $S(p) = -k_B \int p \log p$. At 300 K, $k_B T = 0.596$ kcal/mol.
+:::
+
+:::: prop
+[Proposition 0.4 — Gibbs variational principle]{.tag} For every density $p$ on $\Omega$,
+
+::: key
+[Key result — free energy as a minimum]{.tag}
+$$
+F := -k_B T \log Z = \min_{p}\ \Big( \mathbb{E}_p[U] - T\, S(p) \Big),
+$$
+:::
+
+and the minimum is reached only at $p = \pi$.
+
+::: proof
+Write $\log \pi = -\beta U - \log Z$. Then
+$$
+\mathrm{KL}(p \,\|\, \pi) = \int p \log p - \int p \log \pi = -\frac{S(p)}{k_B} + \beta\, \mathbb{E}_p[U] + \log Z .
+$$
+
+Multiply by $k_B T$: the right-hand side becomes $\mathbb{E}_p[U] - T S(p) - F$. Since the Kullback–Leibler divergence is non-negative and vanishes only at $p = \pi$, the claim follows. [∎]{.qed}
+:::
+::::
+
+The same identity, read with constraints on the averages instead of a given energy, gives the maximum-entropy principle of Jaynes (1957). Chapter 4 uses it to derive the Potts model.
+
+### 0.3 Markov chains and Monte Carlo
+
+::: def
+[Definition 0.5 — Markov kernel, invariance, reversibility]{.tag} A Markov kernel $P(x, dy)$ moves a state $x$ to a random state $y$. A distribution $\pi$ is invariant if $\pi P = \pi$: one step from it gives it again.
+
+The kernel is reversible with respect to $\pi$ (detailed balance) if
+$$
+\pi(dx)\, P(x, dy) = \pi(dy)\, P(y, dx).
+$$
+:::
+
+::: prop
+[Proposition 0.6 — Detailed balance implies invariance]{.tag} Integrating the detailed-balance identity over $x$ gives
+$$
+\int_x \pi(dx) P(x, dy) = \pi(dy) \int_x P(y, dx) = \pi(dy).
+$$
+:::
+
+::: thm
+[Theorem 0.7 — Ergodic theorem]{.tag} If a chain with invariant distribution $\pi$ is $\pi$-irreducible and aperiodic (Harris recurrent in continuous spaces), then for every integrable $f$ and almost every starting point,
+$$
+\frac{1}{n} \sum_{k=1}^n f(X_k) \xrightarrow[n \to \infty]{} \mathbb{E}_\pi[f] \quad \text{almost surely.}
+$$
+
+The theorem says nothing about the speed. That speed is the whole difficulty when $\pi$ has several wells, as Code 0.9 shows. See the [Probability and Statistics refresher](../s0-refresher-probability-statistics/index.html) and [Computational Statistics](../s1-computational-statistics/index.html).
+:::
+
+:::: thm
+[Algorithm 0.8 — Metropolis–Hastings]{.tag} From $x$, draw $y \sim q(x, \cdot)$ and accept it with probability
+$$
+\alpha(x, y) = \min\Big(1,\ \frac{\pi(y)\, q(y, x)}{\pi(x)\, q(x, y)}\Big);
+$$
+otherwise stay at $x$. For a symmetric proposal and $\pi \propto e^{-\beta U}$, the ratio is $e^{-\beta (U(y) - U(x))}$, so the normalising constant $Z$ is never needed.
+
+::: proof
+For $y \neq x$ the transition density is $q(x, y)\, \alpha(x, y)$. Then
+$$
+\pi(x)\, q(x, y)\, \alpha(x, y) = \min\big(\pi(x) q(x, y),\ \pi(y) q(y, x)\big),
+$$
+which is symmetric in $x$ and $y$. Detailed balance holds, and Proposition 0.6 concludes. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 0.9 — A barrier makes Monte Carlo estimates unreliable]{.tag} The code samples the tilted double well below with random-walk Metropolis, starting in the left well. It compares the estimated probability of the right well with the exact value from numerical quadrature.
+$$
+U_h(x) = h\,(x^2 - 1)^2 + x/2
+$$
+
+```python
+import numpy as np
+from scipy.integrate import quad
+rng = np.random.default_rng(10)
+
+U = lambda x, h: h * (x**2 - 1) ** 2 + 0.5 * x          # tilted double well, barrier about h
+def metropolis(h, n=200_000, step=0.25):
+    x, out = -1.0, np.empty(n)
+    for k in range(n):
+        y = x + step * rng.standard_normal()             # symmetric proposal
+        if np.log(rng.random()) < U(x, h) - U(y, h):     # accept with min(1, exp(-(U(y) - U(x))))
+            x = y
+        out[k] = x
+    return out
+for h in (1.0, 8.0):
+    Z = quad(lambda x: np.exp(-U(x, h)), -3, 3)[0]
+    p_right = quad(lambda x: np.exp(-U(x, h)), 0, 3)[0] / Z
+    xs = metropolis(h)
+    well = np.sign(xs[np.abs(xs) > 0.5])                  # which well, away from the barrier top
+    hops = np.count_nonzero(np.diff(well))                # transitions between the two wells
+    print(f"barrier {h:4.1f}: exact P(x > 0) = {p_right:.3f}, chain estimate = {np.mean(xs > 0):.3f}, transitions {hops}")
+```
+
+With $h = 1$ the chain makes 1812 transitions and estimates 0.306 for an exact 0.304. With $h = 8$ it makes 6 transitions and estimates 0.193 for an exact 0.274.
+
+The ergodic theorem still holds, but $2 \times 10^5$ steps are far too few.
+:::
+
+### 0.4 Polytopes and linear programs
+
+::: def
+[Definition 0.10 — Polytopes and linear programs]{.tag} An H-polytope is a bounded set
+$$
+K = \{ x \in \mathbb{R}^n : A x \leq b \}, \qquad A \in \mathbb{R}^{m \times n},\ b \in \mathbb{R}^m .
+$$
+
+A V-polytope is the convex hull of finitely many points. By the Minkowski–Weyl theorem the two notions coincide, but converting one description into the other can produce exponentially many facets or vertices. A linear program maximises $c^\top x$ over an H-polytope; an optimum is reached at a vertex.
+:::
+
+::: prop
+[Proposition 0.11 — The chord of a line through a polytope]{.tag} Let $x$ be interior to $K$ and $u \neq 0$, with slacks $s = b - Ax > 0$.
+
+The line $\{x + t u\}$ meets $K$ on the segment $[t_-, t_+]$, where
+$$
+t_+ = \min_{i : (Au)_i > 0} \frac{s_i}{(Au)_i}, \qquad t_- = \max_{i : (Au)_i < 0} \frac{s_i}{(Au)_i} .
+$$
+
+This is the ratio test of the simplex method. It costs $O(mn)$, and it is the inner step of hit-and-run in ch. 6.
+:::
+
+### 0.5 Attention
+
+::: def
+[Definition 0.12 — Scaled dot-product attention]{.tag} For inputs $x_1, \dots, x_N \in \mathbb{R}^c$, a head computes queries $q_i = W_q x_i$, keys $k_j = W_k x_j$ and values $v_j = W_v x_j$. Its output is
+$$
+o_i = \sum_{j=1}^N a_{ij}\, v_j, \qquad a_{ij} = \frac{\exp(q_i^\top k_j / \sqrt{d} + b_{ij})}{\sum_{l} \exp(q_i^\top k_l / \sqrt{d} + b_{il})},
+$$
+with $d$ the key dimension and an optional bias $b_{ij}$. A multi-head layer concatenates several heads and applies a linear map.
+:::
+
+::: prop
+[Proposition 0.13 — Permutation equivariance]{.tag} Without bias, permuting the inputs by $\sigma$ permutes the outputs by $\sigma$: the weights become $a_{\sigma(i)\sigma(j)}$ and the sum over $j$ is unchanged by relabelling. A bias $b_{ij}$ that depends on the positions breaks this symmetry; this is how AlphaFold2 injects pair information (ch. 2) and how a transformer can encode a Potts model (ch. 4).
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   Rotations form $SO(3)$; the trace inequality $\mathrm{tr}(Q\Sigma) \leq \mathrm{tr}\,\Sigma$ is the core of optimal superposition.
+-   The Boltzmann distribution minimises $\mathbb{E}_p[U] - T S(p)$, and the minimum is the free energy $-k_B T \log Z$.
+-   Metropolis–Hastings needs only energy differences, but its speed collapses across barriers.
+-   A line meets a polytope on a chord computed by a ratio test; attention is a weighted average with softmax weights.
+:::
+
+## 1. Proteins at the atomic level: structures, mechanisms, free energies, time scales {#ch1}
+
+A protein works by changing shape. This chapter defines a conformation, the distance between two conformations, the free energy of a state and the time needed to leave it, then lists the open problems of the course.
+
+### 1.1 Proteins: structures
+
+A protein is a chain of amino acids, of 20 kinds, joined by peptide bonds. The repeated atoms N, Cα and C form the backbone; a side chain hangs from each Cα. The order of the amino acids is the primary structure. Local patterns of hydrogen bonds give the secondary structure (α-helices, β-strands). The fold of the whole chain is the tertiary structure, and the assembly of several chains is the quaternary structure.
+
+Experimental structures (X-ray crystallography, NMR, cryo-electron microscopy) are deposited in the Protein Data Bank (PDB), with atomic coordinates in ångströms (1 Å = $10^{-10}$ m). Branden and Tooze, and Kuriyan, Konforti and Wemmer, cover this material.
+
+::: def
+[Definition 1.1 — Conformation and configuration space]{.tag} A conformation of a molecule with $N$ atoms is a point $x \in \mathbb{R}^{3N}$. Two conformations that differ by a rigid motion (Definition 0.1) describe the same shape, so the space of shapes is the quotient
+$$
+\mathcal{C} = \mathbb{R}^{3N} / SE(3), \qquad \dim \mathcal{C} = 3N - 6 .
+$$
+
+For a chain of median size, with about 5000 atoms, this is a space of dimension close to 15,000.
+:::
+
+### 1.2 Comparing two structures
+
+::: def
+[Definition 1.2 — RMSD after optimal superposition]{.tag} For two conformations $p_1, \dots, p_n$ and $q_1, \dots, q_n$ of the same atoms,
+$$
+\mathrm{RMSD}(p, q) = \min_{R \in SO(3),\, t \in \mathbb{R}^3} \Big( \frac{1}{n} \sum_{i=1}^n \| R p_i + t - q_i \|^2 \Big)^{1/2} .
+$$
+:::
+
+:::: thm
+[Theorem 1.3 — Kabsch (1976)]{.tag} Let $p'_i = p_i - \bar p$ and $q'_i = q_i - \bar q$ be the centred points, and let $H = \sum_i p'_i q_i'^\top = U \Sigma V^\top$ be an SVD. With $s = \mathrm{sign}\det(V U^\top)$, the optimum is
+$$
+R^\star = V\, \mathrm{diag}(1, 1, s)\, U^\top, \qquad t^\star = \bar q - R^\star \bar p .
+$$
+
+::: proof
+-   For fixed $R$, the cost is a convex quadratic in $t$; its gradient vanishes at $t = \bar q - R \bar p$.
+-   With centred points, the cost becomes
+    $$
+    \sum_i \|R p'_i - q'_i\|^2 = \sum_i \big(\|p'_i\|^2 + \|q'_i\|^2\big) - 2\, \mathrm{tr}(R H).
+    $$
+    So one maximises $\mathrm{tr}(RH) = \mathrm{tr}(Q \Sigma)$ with $Q = V^\top R U$, an orthogonal matrix.
+-   If $s = 1$, Lemma 0.2 gives the maximum at $Q = I$, that is, $R = V U^\top$.
+-   If $s = -1$, every admissible $Q$ has $\det Q = -1$; its eigenvalues are $-1$ and $e^{\pm i\theta}$, so $\mathrm{tr}\, Q \leq 1$. Writing
+    $$
+    \mathrm{tr}(Q\Sigma) = \sigma_3\, \mathrm{tr}\,Q + (\sigma_2 - \sigma_3)(Q_{11} + Q_{22}) + (\sigma_1 - \sigma_2)\, Q_{11}
+    $$
+    and using $Q_{ii} \leq 1$ gives the bound $\sigma_1 + \sigma_2 - \sigma_3$, reached at $Q = \mathrm{diag}(1, 1, -1)$. [∎]{.qed}
+:::
+::::
+
+The superposition costs one $3 \times 3$ SVD after an $O(n)$ pass over the atoms. Code 2.12 implements it.
+
+### 1.3 Three molecular mechanisms
+
+::: note
+[Three mechanisms, three kinds of motion]{.tag}
+
+-   **Viral attachment.** In the trimeric spike of SARS-CoV-2, the receptor-binding domain switches between a hidden “down” state and an “up” state that binds the human receptor ACE2. After proteolytic cleavage, the S2 subunit refolds and fuses the viral and cellular membranes (Peng and coauthors, 2021).
+-   **Membrane transport.** In the trimeric bacterial pump AcrB, each protomer cycles through three conformations (access, binding, extrusion), driven by the proton gradient: a “functional rotation” that expels drugs (Murakami, 2008).
+-   **Antibody–antigen interactions.** Affinity maturation of a broadly neutralising anti-influenza antibody preconfigures its binding loop in the bound conformation, which lowers the entropic price of binding (Schmidt and coauthors, 2013).
+:::
+
+In all three cases the function lies in a change of conformation or in the rigidity of one, not in a single static structure.
+
+### 1.4 Energies versus free energies
+
+::: def
+[Definition 1.4 — Free energy of a macrostate]{.tag} A macrostate is a region $A \subset \Omega$, such as a basin of the energy. Its partition function and free energy are
+$$
+Z_A = \int_A e^{-\beta U(x)}\, dx, \qquad F_A = -k_B T \log Z_A .
+$$
+:::
+
+:::: prop
+[Proposition 1.5 — Populations follow free energies, not energies]{.tag} Under the Boltzmann distribution, for two macrostates $A$ and $B$,
+$$
+\frac{\mathbb{P}(A)}{\mathbb{P}(B)} = e^{-\beta (F_A - F_B)}, \qquad F_A = \langle U \rangle_A - T\, S_A ,
+$$
+where $\langle U \rangle_A$ and $S_A$ are the mean energy and the entropy of $\pi$ conditioned on $A$.
+
+::: proof
+The first identity is $\mathbb{P}(A) = Z_A / Z$. For the second, apply Proposition 0.4 on the state space $A$: its minimiser is $\pi$ conditioned on $A$, and the minimum value is $-k_B T \log Z_A$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.6 — A higher, wider state wins]{.tag} Take two states in the harmonic approximation along $d = 10$ directions. State $B$ lies 1 kcal/mol above state $A$, and each of its force constants is 4 times smaller. A Gaussian integral gives
+$$
+F_B - F_A = \Delta U + \frac{k_B T}{2} \sum_{j=1}^{d} \log \frac{\kappa_{B,j}}{\kappa_{A,j}} = 1 - 0.298 \times 10 \times \log 4 = -3.13 \ \text{kcal/mol}
+$$
+at 300 K. Hence
+$$
+\mathbb{P}(B) / \mathbb{P}(A) = e^{3.13 / 0.596} \approx 191 .
+$$
+
+The state of higher energy is about 190 times more populated, because its entropy is larger.
+:::
+
+::: def
+[Definition 1.7 — Free-energy profile]{.tag} For a reaction coordinate $\xi : \Omega \to \mathbb{R}$, such as a distance or a dihedral angle, the free-energy profile is
+$$
+F(z) = -k_B T \log \int_\Omega e^{-\beta U(x)}\, \delta\big(\xi(x) - z\big)\, dx .
+$$
+
+The law of $\xi(X)$ under $\pi$ then has density proportional to $e^{-\beta F(z)}$. Barriers of $F$, not of $U$, govern the transitions seen along $\xi$ (Lelièvre, Rousset and Stoltz, 2010).
+:::
+
+### 1.5 Time scales and local ergodicity
+
+Protein motions span more than fifteen decades of time. Molecular dynamics integrates Newton's equations with steps of 1 to 2 fs, so a millisecond takes about $10^{12}$ steps (Adcock and McCammon, 2006).
+
+| Motion | Typical time |
+|---|---|
+| Bond vibrations | femtoseconds |
+| Side-chain rotations | picoseconds to nanoseconds |
+| Loop motions | nanoseconds to microseconds |
+| Domain motions, folding, binding | microseconds to seconds |
+
+::: def
+[Definition 1.8 — Overdamped Langevin dynamics]{.tag} The simplest model of thermal motion is the diffusion
+$$
+dX_t = -\nabla U(X_t)\, dt + \sqrt{2 \beta^{-1}}\, dW_t ,
+$$
+where $W$ is a standard Brownian motion in $\mathbb{R}^d$.
+:::
+
+:::: prop
+[Proposition 1.9 — The Boltzmann distribution is invariant]{.tag} The density $\pi \propto e^{-\beta U}$ is a stationary solution of the Fokker–Planck equation of the dynamics.
+
+::: proof
+The Fokker–Planck equation reads $\partial_t \rho = -\nabla \cdot J$ with the flux
+$$
+J = -\rho \nabla U - \beta^{-1} \nabla \rho = -\beta^{-1} e^{-\beta U}\, \nabla\big(\rho\, e^{\beta U}\big).
+$$
+
+For $\rho \propto e^{-\beta U}$, the product $\rho e^{\beta U}$ is constant, so $J = 0$ and $\partial_t \rho = 0$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 1.10 — Local ergodicity (Schön and Jansen, 2009)]{.tag} A region $R$ of configuration space is locally ergodic on the observation time $t_{\mathrm{obs}}$ if
+$$
+t_{\mathrm{eq}}(R) \ll t_{\mathrm{obs}} \ll t_{\mathrm{esc}}(R),
+$$
+where $t_{\mathrm{eq}}$ is the time to equilibrate inside $R$ and $t_{\mathrm{esc}}$ the time to leave it. Time averages over $t_{\mathrm{obs}}$ are then averages under $\pi$ conditioned on $R$: a metastable state.
+:::
+
+::: thm
+[Theorem 1.11 — Eyring–Kramers formula]{.tag} Let $U$ have two minima separated by a saddle $s$, and start the dynamics of Definition 1.8 at the minimum $m$. In one dimension, as $\beta \to \infty$, the mean time to reach the other minimum is
+$$
+\mathbb{E}[\tau] \simeq \frac{2\pi}{\sqrt{U''(m)\, |U''(s)|}}\; e^{\beta (U(s) - U(m))} .
+$$
+
+In dimension $d$, the prefactor involves the determinants of the Hessians at $m$ and $s$ (Bovier, Eckhoff, Gayrard and Klein, 2004). Section 8.1 proves the one-dimensional case.
+:::
+
+::: ex
+[Code 1.12 — Escape times grow exponentially with the barrier]{.tag} The code simulates the dynamics in $U(x) = h(x^2 - 1)^2$ at $\beta = 1$ with the Euler–Maruyama scheme. It compares the mean first-passage time from $-1$ to $+1$ with Theorem 1.11, where $U''(\pm 1) = 8h$ and $U''(0) = -4h$.
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+
+def mfpt(h, beta=1.0, dt=2e-3, walkers=300, tmax=600.0):
+    """Mean first-passage time from x=-1 to x=+1 for dX = -U'(X) dt + sqrt(2/beta) dW,
+    with the double well U(x) = h (x^2 - 1)^2 (barrier height h)."""
+    x = -np.ones(walkers)
+    t_hit = np.full(walkers, np.nan)
+    alive = np.ones(walkers, bool)
+    for k in range(int(tmax / dt)):
+        xa = x[alive]
+        xa += -4 * h * xa * (xa**2 - 1) * dt + np.sqrt(2 * dt / beta) * rng.standard_normal(xa.size)
+        x[alive] = xa
+        hit = alive.copy(); hit[alive] = xa >= 1.0
+        t_hit[hit] = (k + 1) * dt
+        alive &= ~hit
+        if not alive.any():
+            break
+    return np.nanmean(t_hit), alive.sum()
+
+for h in [2.0, 4.0, 6.0]:
+    kramers = 2 * np.pi / (np.sqrt(8 * h * 4 * h)) * np.exp(h)   # Eyring-Kramers, beta = 1
+    tau, left = mfpt(h)
+    print(f"barrier {h:.0f} kT: simulated MFPT {tau:6.1f}, Eyring-Kramers {kramers:6.1f}, not crossed {left}")
+```
+
+The simulated times are 5.7, 17.8 and 78.5, against 4.1, 15.2 and 74.7. The exponential factor gains $e^2$ per extra $2\,kT$, the prefactor decreases like $1/h$, and the error of the formula falls from 39 % to 5 % as the barrier grows.
+:::
+
+### 1.6 Open challenges
+
+-   **Sampling.** Barriers break ergodicity on accessible time scales, so populations and free energies need biased or adaptive samplers (ch. 4, ch. 6).
+-   **Structures to ensembles.** A predicted structure is one point of $\mathcal{C}$; function needs the distribution over metastable states (ch. 2, ch. 3).
+-   **Geometry of constraints.** Bonds, angles and closed loops confine the chain to curved subsets of $\mathcal{C}$ (ch. 3).
+-   **High dimension.** Volumes, densities of states and nearest neighbours are hard except through randomisation (ch. 6, ch. 7).
+-   **Learning with physics.** Models must respect rigid motions, and their predictions must be explained (ch. 2, ch. 7).
+
+::: recap
+Key takeaways — chapter 1
+
+-   A conformation is a point of $\mathbb{R}^{3N}$ modulo rigid motions; the Kabsch theorem gives the optimal superposition by one SVD.
+-   Populations follow free energies $F_A = \langle U \rangle_A - T S_A$: a wide state can beat a deep one.
+-   Overdamped Langevin dynamics leaves the Boltzmann distribution invariant, but escape times grow like $e^{\beta \Delta U}$.
+-   Locally ergodic regions are the metastable states seen on a given time scale.
+:::
+
+## 2. Structure prediction with AlphaFold2 and transformers {#ch2}
+
+Can the structure be read from the sequence? This chapter follows AlphaFold2 from the alignment of related sequences to pair features, then to a structure built by an attention layer that respects rigid motions, and ends with the metrics of success.
+
+### 2.1 Protein sequences and multiple sequence alignments
+
+::: def
+[Definition 2.1 — Global alignment]{.tag} An alignment of two sequences $a = a_1 \dots a_n$ and $b = b_1 \dots b_m$ inserts gaps “-” so that both have the same length, and never aligns two gaps. With a substitution score $s(x, y)$, such as a BLOSUM matrix, and a gap cost $g > 0$, its score is the sum of $s$ over aligned pairs minus $g$ per gap.
+:::
+
+:::: prop
+[Proposition 2.2 — Needleman–Wunsch (1970)]{.tag} Let $S(i, j)$ be the best score of an alignment of $a_1 \dots a_i$ with $b_1 \dots b_j$. Then $S(i, 0) = -g\,i$, $S(0, j) = -g\,j$ and
+$$
+S(i, j) = \max\big( S(i-1, j-1) + s(a_i, b_j),\ S(i-1, j) - g,\ S(i, j-1) - g \big).
+$$
+
+The best score $S(n, m)$ and an optimal alignment are computed in $O(nm)$ time.
+
+::: proof
+The last column of an alignment of the two prefixes is one of three kinds: $(a_i, b_j)$, $(a_i, -)$ or $(-, b_j)$. Removing it leaves an alignment of shorter prefixes, which must itself be optimal, otherwise replacing it would improve the whole. Taking the best of the three cases gives the recursion. The table has $(n+1)(m+1)$ cells of constant cost, and a traceback recovers the alignment. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.3 — Aligning WHAT with WAT]{.tag} Score a match 2, a mismatch $-1$ and a gap $-2$. The alignment with one gap opposite H scores
+$$
+2 - 2 + 2 + 2 = 4 .
+$$
+
+The gap-free alternative, WAT- opposite WHAT, scores $2 - 1 - 1 - 2 = -2$. The recursion of Proposition 2.2 returns 4.
+:::
+
+::: ex
+[Code 2.4 — Needleman–Wunsch with traceback]{.tag}
+
+```python
+import numpy as np
+
+def needleman_wunsch(a, b, match=2, mismatch=-1, gap=-2):
+    """Global alignment by dynamic programming (Needleman-Wunsch, linear gap cost)."""
+    n, m = len(a), len(b)
+    S = np.zeros((n + 1, m + 1))
+    S[:, 0] = gap * np.arange(n + 1)
+    S[0, :] = gap * np.arange(m + 1)
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            s = match if a[i - 1] == b[j - 1] else mismatch
+            S[i, j] = max(S[i - 1, j - 1] + s, S[i - 1, j] + gap, S[i, j - 1] + gap)
+    i, j, top, bot = n, m, "", ""                       # traceback
+    while i > 0 or j > 0:
+        s = match if i > 0 and j > 0 and a[i - 1] == b[j - 1] else mismatch
+        if i > 0 and j > 0 and S[i, j] == S[i - 1, j - 1] + s:
+            top, bot, i, j = a[i - 1] + top, b[j - 1] + bot, i - 1, j - 1
+        elif i > 0 and S[i, j] == S[i - 1, j] + gap:
+            top, bot, i = a[i - 1] + top, "-" + bot, i - 1
+        else:
+            top, bot, j = "-" + top, b[j - 1] + bot, j - 1
+    return S[n, m], top, bot
+
+for a, b in [("WHAT", "WAT"), ("HEAGAWGHEE", "PAWHEAE")]:
+    score, top, bot = needleman_wunsch(a, b)
+    print(f"score {score:g}\n  {top}\n  {bot}")
+```
+
+It prints the score 4 for Example 2.3, then an alignment of score $-1$ for the second pair.
+:::
+
+::: def
+[Definition 2.5 — Multiple sequence alignment and coevolution]{.tag} A multiple sequence alignment (MSA) stacks $M$ homologous sequences of a family in $L$ aligned columns. Its single-site and pair frequencies are $f_i(a)$ and $f_{ij}(a, b)$, and the mutual information of two columns is
+$$
+\mathrm{MI}_{ij} = \sum_{a, b} f_{ij}(a, b) \log \frac{f_{ij}(a, b)}{f_i(a)\, f_j(b)} .
+$$
+
+Residues in contact tend to mutate together, so the MSA carries structural information; but correlations also propagate along chains of contacts, which ch. 4 untangles.
+:::
+
+Database search and alignment heuristics are covered by Pevsner's textbook.
+
+### 2.2 AlphaFold2: architecture
+
+AlphaFold2 (Jumper and coauthors, 2021) takes an MSA, and optionally structural templates, and returns atomic coordinates with a confidence score. It has two parts: a trunk of 48 Evoformer blocks and a structure module of 8 layers with shared weights. The whole network runs three more times on its own outputs (recycling).
+
+::: def
+[Definition 2.6 — The two representations]{.tag} The trunk maintains an MSA representation and a pair representation,
+$$
+m \in \mathbb{R}^{N_{\mathrm{seq}} \times L \times c_m}, \qquad z \in \mathbb{R}^{L \times L \times c_z} .
+$$
+
+The vector $m_{si}$ describes residue $i$ in sequence $s$; the vector $z_{ij}$ describes the relation between residues $i$ and $j$, such as their distance.
+:::
+
+::: def
+[Definition 2.7 — An Evoformer block]{.tag} One block applies, with residual connections:
+
+-   **row attention with pair bias**: within each sequence, attention over residues (Definition 0.12), with bias $b_{ij}$ a linear function of $z_{ij}$;
+-   **column attention**: for each residue, attention over the sequences of the MSA;
+-   **outer product mean**: $z_{ij}$ receives a linear map of the mean of $u_{si} \otimes w_{sj}$ over the sequences $s$, with $u, w$ linear in $m$;
+-   **triangle updates**: edge $ij$ is updated from the edges $ik$ and $jk$, by gated products $\sum_k u_{ik} \odot w_{jk}$ and by attention over $k$;
+-   **transitions**: position-wise two-layer networks on $m$ and $z$.
+
+The triangle updates encode a geometric prior: distances obey the triangle inequality, so edge $ij$ must agree with edges $ik$ and $kj$.
+:::
+
+::: def
+[Definition 2.8 — Residue frames and invariant point attention]{.tag} The structure module treats each residue as a rigid body with a frame $T_i = (R_i, t_i) \in SE(3)$, built from its N, Cα and C atoms. A head of invariant point attention (IPA) predicts local query points $q_{ip}$ and key points $k_{jp}$ in $\mathbb{R}^3$, and adds a pair bias and a distance term to the logits:
+$$
+\ell_{ij} = \frac{q_i^\top k_j}{\sqrt{c}} + b_{ij} - \frac{\gamma}{2} \sum_{p} \big\| T_i\, q_{ip} - T_j\, k_{jp} \big\|^2 .
+$$
+
+Value points $v_{jp}$ are averaged with the weights $a_{ij} = \mathrm{softmax}_j(\ell_{ij})$ in the global frame, then mapped back to the frame of $i$:
+$$
+o_{ip} = T_i^{-1} \Big( \sum_j a_{ij}\, T_j\, v_{jp} \Big).
+$$
+:::
+
+:::: prop
+[Proposition 2.9 — IPA is invariant under global rigid motions]{.tag} Replace every frame $T_i$ by $G \circ T_i$ for a rigid motion $G(x) = Rx + t$. Then the logits $\ell_{ij}$, the weights $a_{ij}$ and the outputs $o_{ip}$ are unchanged.
+
+::: proof
+-   The scalar terms $q_i^\top k_j$ and $b_{ij}$ do not involve the frames.
+-   Distances are preserved by rigid motions:
+    $$
+    \| G T_i q_{ip} - G T_j k_{jp} \| = \| T_i q_{ip} - T_j k_{jp} \| .
+    $$
+    So $\ell_{ij}$ and $a_{ij}$ are unchanged.
+-   The weights sum to one, so $\sum_j a_{ij} G(y_j) = G(\sum_j a_{ij} y_j)$ for an affine map $G$. Then $(G T_i)^{-1} G = T_i^{-1}$ gives the same $o_{ip}$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 2.10 — Checking the invariance numerically]{.tag}
+
+```python
+import numpy as np
+from scipy.spatial.transform import Rotation
+rng = np.random.default_rng(9)
+N, P, c = 6, 4, 8                                    # residues, points per residue, channels
+
+R = Rotation.random(N, random_state=1).as_matrix()   # residue frames T_i = (R_i, t_i)
+t = rng.normal(0, 5, (N, 3))
+s = rng.normal(size=(N, c))                          # single representation
+Wq, Wk = rng.normal(size=(c, c)), rng.normal(size=(c, c))
+Wqp, Wkp, Wvp = (rng.normal(size=(c, 3 * P)) for _ in range(3))
+bias = rng.normal(size=(N, N))                       # pair bias b_ij from the pair representation
+
+def ipa(R, t, gamma=0.1):
+    """One head of invariant point attention: logits and the point output in local frames."""
+    q, k = s @ Wq, s @ Wk
+    to_global = lambda W: np.einsum("nab,npb->npa", R, (s @ W).reshape(N, P, 3)) + t[:, None]
+    qg, kg, vg = to_global(Wqp), to_global(Wkp), to_global(Wvp)
+    dist2 = ((qg[:, None] - kg[None]) ** 2).sum((-1, -2))          # sum_p |T_i q_ip - T_j k_jp|^2
+    logits = q @ k.T / np.sqrt(c) + bias - gamma / 2 * dist2
+    a = np.exp(logits - logits.max(1, keepdims=True)); a /= a.sum(1, keepdims=True)
+    out = np.einsum("ij,jpa->ipa", a, vg)                          # attend in the global frame
+    return logits, np.einsum("nba,npb->npa", R, out - t[:, None])  # back to the local frame of i
+
+G = Rotation.random(random_state=2).as_matrix(); g = rng.normal(0, 10, 3)   # a global rigid motion
+l1, o1 = ipa(R, t)
+l2, o2 = ipa(G @ R, t @ G.T + g)
+print("max change of the logits:", np.abs(l1 - l2).max(), " of the local outputs:", np.abs(o1 - o2).max())
+```
+
+Both changes are of order $10^{-14}$, that is, rounding errors.
+:::
+
+Each layer of the structure module updates the frames by composing them with predicted rigid motions, and predicts the side-chain torsion angles. Training uses the frame-aligned point error (FAPE), with true frames $\tilde T_i$, true positions $\tilde x_j$, distances in ångströms and a clamp at 10 Å:
+$$
+\mathrm{FAPE} = \frac{1}{10\, N_{\mathrm{frames}} N_{\mathrm{atoms}}} \sum_{i, j} \min\Big(10,\ \big\| T_i^{-1} x_j - \tilde T_i^{-1} \tilde x_j \big\|\Big).
+$$
+
+Positions are seen from each residue, so FAPE is invariant under rigid motions but penalises mirror images. The network also predicts a per-residue confidence (pLDDT, from 0 to 100) and a predicted aligned error (PAE) for each pair.
+
+### 2.3 AlphaFold2: performance assessment
+
+::: def
+[Definition 2.11 — Accuracy scores]{.tag} Let $d_i$ be the distance between the Cα atoms of residue $i$ in the model and in the reference, after a superposition, and let $L$ be the length.
+
+-   **GDT_TS** (Zemla, 2003) averages, over the cutoffs 1, 2, 4 and 8 Å, the largest fraction of residues with $d_i$ below the cutoff over all superpositions.
+-   **TM-score** (Zhang and Skolnick, 2004) is
+    $$
+    \mathrm{TM} = \max_{\text{superpositions}} \frac{1}{L} \sum_{i=1}^{L} \frac{1}{1 + (d_i / d_0)^2}, \qquad d_0 = 1.24\, (L - 15)^{1/3} - 1.8 .
+    $$
+    The length-dependent $d_0$ makes scores comparable across sizes; a TM-score above 0.5 indicates, in general, the same fold.
+-   **lDDT** (Mariani and coauthors, 2013) is superposition-free: it counts the fraction of reference distances under 15 Å that the model preserves within 0.5, 1, 2 and 4 Å.
+:::
+
+At CASP14 (2020), the blind assessment of structure prediction, AlphaFold2 reached a median backbone accuracy of 0.96 Å (Cα RMSD at 95 % coverage), against 2.8 Å for the next best method (Jumper and coauthors, 2021). The review of Moussad, Roche and Bhattacharya (2023) describes how transformers, including protein language models that need no MSA, spread through the field.
+
+::: ex
+[Code 2.12 — RMSD, GDT and TM-score of a hinge motion]{.tag} The reference is an ideal α-helix of 60 residues (Cα trace, radius 2.3 Å, rise 1.5 Å, 100° per residue). The model bends the last 20 residues by 40° around residue 40 and adds 0.3 Å of noise. The maxima over superpositions are searched heuristically, from seed fragments refined iteratively, as in the reference programs.
+
+```python
+import numpy as np
+rng = np.random.default_rng(1)
+
+def kabsch(P, Q):
+    """Rotation R and translation t minimising sum ||R p_i + t - q_i||^2 (Theorem 1.3)."""
+    p0, q0 = P.mean(0), Q.mean(0)
+    H = (P - p0).T @ (Q - q0)                  # 3 x 3 cross-covariance
+    U, S, Vt = np.linalg.svd(H)
+    D = np.diag([1.0, 1.0, np.sign(np.linalg.det(Vt.T @ U.T))])
+    R = Vt.T @ D @ U.T
+    return R, q0 - R @ p0
+
+def rmsd(P, Q):
+    R, t = kabsch(P, Q)
+    return np.sqrt(((P @ R.T + t - Q) ** 2).sum(1).mean())
+
+def best_score(P, Q, score, cut, seed=8, iters=10):
+    """Heuristic max over superpositions: seed fragments, then refit on residues closer than cut."""
+    best = 0.0
+    for s in range(0, len(P) - seed + 1, 2):
+        idx = np.arange(s, s + seed)
+        for _ in range(iters):
+            R, t = kabsch(P[idx], Q[idx])
+            d = np.linalg.norm(P @ R.T + t - Q, axis=1)
+            best = max(best, score(d))
+            new = np.flatnonzero(d < cut)
+            if len(new) < 3 or np.array_equal(new, idx):
+                break
+            idx = new
+    return best
+
+def helix(n):                                    # C-alpha trace of an ideal alpha-helix (Angstrom)
+    k = np.arange(n)
+    return np.c_[2.3 * np.cos(np.radians(100 * k)), 2.3 * np.sin(np.radians(100 * k)), 1.5 * k]
+
+L = 60
+target = helix(L)
+model = target.copy()                            # hinge: rotate residues 40..59 by 40 degrees
+a = np.radians(40); Rx = np.array([[1, 0, 0], [0, np.cos(a), -np.sin(a)], [0, np.sin(a), np.cos(a)]])
+model[40:] = (model[40:] - model[40]) @ Rx.T + model[40]
+model += 0.3 * rng.standard_normal(model.shape)  # thermal-like noise
+
+d0 = 1.24 * (L - 15) ** (1 / 3) - 1.8
+tm = best_score(model, target, lambda d: np.mean(1 / (1 + (d / d0) ** 2)), cut=d0)
+gdt = np.mean([best_score(model, target, lambda d, c=c: np.mean(d < c), cut=c) for c in (1, 2, 4, 8)])
+print(f"global RMSD {rmsd(model, target):.2f} A, RMSD of residues 0-39 {rmsd(model[:40], target[:40]):.2f} A")
+print(f"GDT_TS {100 * gdt:.1f}, TM-score {tm:.3f} (d0 = {d0:.2f} A)")
+```
+:::
+
+The code prints a global RMSD of 3.98 Å, but 0.43 Å on residues 0–39, with GDT_TS = 79.2 and TM-score = 0.715.
+
+A single hinge inflates the global RMSD, while GDT_TS and the TM-score see that two thirds of the chain are almost exact; CASP therefore ranks models with GDT and lDDT.
+
+The limits matter here. AlphaFold2 returns one structure per sequence, its accuracy drops with shallow MSAs, and a low pLDDT often marks disorder. It does not predict the populations of alternative conformations, the subject of ch. 3, ch. 4 and ch. 6.
+
+::: recap
+Key takeaways — chapter 2
+
+-   Pairwise alignment is a dynamic programme in $O(nm)$; an MSA exposes coevolving columns, a proxy for contacts.
+-   AlphaFold2 alternates attention over the MSA and triangle updates of a pair representation, then builds frames with invariant point attention.
+-   IPA and FAPE are invariant under global rigid motions because they only use distances and relative positions.
+-   GDT_TS, TM-score and lDDT reward locally correct models that a global RMSD would penalise.
+:::
+
+## 3. Molecular kinematics, inverse problems and loop sampling {#ch3}
+
+Bond lengths and angles barely move, so a backbone moves mostly by rotations about its bonds. This chapter describes a chain by its dihedral angles, like a robot arm by its joints, then closes and samples loops and fits densities on the torus of angles.
+
+### 3.1 Internal coordinates
+
+::: def
+[Definition 3.1 — Internal coordinates]{.tag} For atoms $a, b, c, d$, the bond length is $\|c - d\|$ and the bond angle is the angle at $c$ between $b$ and $d$.
+
+The dihedral angle $\chi(a, b, c, d)$ is the angle between the planes $(a, b, c)$ and $(b, c, d)$, signed by the orientation of the four points. On the backbone, residue $i$ has three dihedrals:
+$$
+\phi_i = \chi(C_{i-1}, N_i, C^\alpha_i, C_i), \quad \psi_i = \chi(N_i, C^\alpha_i, C_i, N_{i+1}), \quad \omega_i = \chi(C^\alpha_i, C_i, N_{i+1}, C^\alpha_{i+1}) .
+$$
+
+The peptide bond is planar, with $\omega_i$ close to $180^\circ$ (trans); cis bonds are rare and occur mostly before prolines.
+:::
+
+:::: prop
+[Proposition 3.2 — From internal to Cartesian coordinates]{.tag} Let $a, b, c$ be non-collinear, and let $\ell > 0$, $\theta \in (0, \pi)$, $\chi \in (-\pi, \pi]$.
+
+There is a unique point $d$ with bond length $\ell$, bond angle $\theta$ and dihedral $\chi$. With the orthonormal frame below, it is
+$$
+d = c + \ell \big( -\cos\theta\; e_1 + \sin\theta \cos\chi\; e_2 + \sin\theta \sin\chi\; e_3 \big).
+$$
+
+Internal coordinates are invariant under rigid motions. Hence a chain is determined by its internal coordinates up to a rigid motion: the coordinates of its first three atoms fix the motion.
+
+::: proof
+Take $e_1 = (c - b)/\|c - b\|$, $e_3$ the unit normal to the plane $(a, b, c)$ along $(b - a) \times e_1$, and $e_2 = e_3 \times e_1$.
+
+The bond length fixes $\|d - c\|$; the bond angle fixes the component along $e_1$; the dihedral fixes the direction in the plane $(e_2, e_3)$. This determines $d$ uniquely.
+
+Rigid motions preserve lengths, angles and orientation, hence the three coordinates. Placing the atoms one after the other (the NeRF scheme of Parsons and coauthors, 2005) gives the last claim by induction. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 3.3 — Building a backbone from its dihedrals]{.tag} An α-helix from ideal bonds and angles (close to Engh and Huber, 1991), the recovered dihedrals, and the rank of the Jacobian of the end atoms, interpreted by Proposition 3.5.
+
+```python
+import numpy as np
+
+BOND = {"N-CA": 1.458, "CA-C": 1.525, "C-N": 1.329}            # Angstrom
+ANGLE = {"N-CA-C": 111.2, "CA-C-N": 116.2, "C-N-CA": 121.7}     # degrees
+
+def place(a, b, c, bond, angle, torsion):
+    """NeRF: position of d with |cd| = bond, angle(b,c,d) = angle, dihedral(a,b,c,d) = torsion."""
+    bc = (c - b) / np.linalg.norm(c - b)
+    n = np.cross(b - a, bc); n /= np.linalg.norm(n)
+    M = np.c_[bc, np.cross(n, bc), n]
+    th, to = np.radians(angle), np.radians(torsion)
+    return c + M @ (bond * np.array([-np.cos(th), np.sin(th) * np.cos(to), np.sin(th) * np.sin(to)]))
+
+def backbone(phi, psi, omega=None):
+    """Backbone N, CA, C of len(phi) residues from internal coordinates (ideal bonds and angles)."""
+    k = len(phi); omega = np.full(k, 180.0) if omega is None else omega
+    X = [np.zeros(3), np.array([BOND["N-CA"], 0, 0])]            # N0, CA0
+    t = np.radians(180 - ANGLE["N-CA-C"])
+    X.append(X[1] + BOND["CA-C"] * np.array([np.cos(t), np.sin(t), 0]))   # C0
+    for i in range(1, k):
+        X.append(place(X[-3], X[-2], X[-1], BOND["C-N"], ANGLE["CA-C-N"], psi[i - 1]))      # N_i
+        X.append(place(X[-3], X[-2], X[-1], BOND["N-CA"], ANGLE["C-N-CA"], omega[i - 1]))   # CA_i
+        X.append(place(X[-3], X[-2], X[-1], BOND["CA-C"], ANGLE["N-CA-C"], phi[i]))         # C_i
+    return np.array(X)
+
+def dihedral(p0, p1, p2, p3):
+    b0, b1, b2 = p0 - p1, p2 - p1, p3 - p2
+    b1 = b1 / np.linalg.norm(b1)
+    v, w = b0 - (b0 @ b1) * b1, b2 - (b2 @ b1) * b1
+    return np.degrees(np.arctan2(np.cross(b1, v) @ w, v @ w))
+
+k = 8
+phi, psi = np.full(k, -60.0), np.full(k, -45.0)                 # alpha-helix
+X = backbone(phi, psi)
+phi_back = [dihedral(X[3*i - 1], X[3*i], X[3*i + 1], X[3*i + 2]) for i in range(1, k)]
+psi_back = [dihedral(X[3*i], X[3*i + 1], X[3*i + 2], X[3*i + 3]) for i in range(k - 1)]
+print("round trip error (deg):", np.abs(np.r_[phi_back - phi[1:], psi_back - psi[:-1]]).max().round(9))
+print("CA(i)-CA(i+1) distances:", np.linalg.norm(np.diff(X[1::3], axis=0), axis=1).round(3))
+print("rise per residue along the helix (A):", round(np.linalg.norm(X[1::3][-1] - X[1::3][0]) / (k - 1), 2))
+
+def end_atoms(theta, k):                                        # last residue's N, CA, C
+    phi = np.r_[0.0, theta[: k - 1]]; psi = np.r_[theta[k - 1:], 0.0]
+    return backbone(phi, psi)[-3:].ravel()
+
+for kk in (4, 7):
+    theta0 = np.r_[np.full(kk - 1, -60.0), np.full(kk - 1, -45.0)]
+    J = np.array([(end_atoms(theta0 + 1e-4 * e, kk) - end_atoms(theta0 - 1e-4 * e, kk)) / 2e-4
+                  for e in np.eye(len(theta0))]).T
+    print(f"{len(theta0)} dihedrals: Jacobian {J.shape}, rank {np.linalg.matrix_rank(J, tol=1e-6)}")
+```
+
+The round trip is exact, the distance between consecutive Cα atoms is 3.80 Å (the trans peptide is rigid), and the rise is 1.55 Å per residue. The Jacobians, for 6 and for 12 dihedrals, both have rank 6.
+:::
+
+Steric clashes restrict $(\phi, \psi)$ to a few regions of the Ramachandran plot (Ramachandran, Ramakrishnan and Sasisekharan, 1963): the right-handed helix near $(-63^\circ, -43^\circ)$, the β region near $(-120^\circ, 130^\circ)$ and a left-handed region near $(60^\circ, 45^\circ)$.
+
+### 3.2 Kinematics and loop closure
+
+::: def
+[Definition 3.4 — Forward kinematics and loop closure]{.tag} With bond lengths and angles fixed, the backbone is a serial chain of revolute joints, as in robotics. The frame of the last residue is a product of rigid motions, one rotation about each bond axis by its dihedral, interleaved with fixed motions. This defines the forward kinematic map
+$$
+F : \mathbb{T}^n \to SE(3), \qquad \theta = (\theta_1, \dots, \theta_n) \mapsto \text{frame of the last residue}.
+$$
+
+The loop closure problem asks, for a loop between two fixed anchors, for the dihedrals $\theta$ with $F(\theta) = T^\star$, the frame imposed by the second anchor.
+:::
+
+:::: prop
+[Proposition 3.5 — Dimension of the closure set]{.tag} Let $F(\theta_0) = T^\star$ and suppose that the differential $dF(\theta_0)$ has rank 6. Then, near $\theta_0$, the solution set is a smooth submanifold of dimension $n - 6$.
+
+::: proof
+$SE(3)$ is a Lie group of dimension 6, and $F$ is smooth. If $dF(\theta_0)$ is onto, the submersion theorem (a form of the implicit function theorem) shows that $F^{-1}(T^\star)$ is, near $\theta_0$, a submanifold of codimension 6. [∎]{.qed}
+:::
+::::
+
+So a loop with fewer than 6 dihedrals generically cannot close, one with exactly 6 closes in isolated conformations, and one with more has continuous self-motions. Code 3.3 checks the rank 6 on a helix.
+
+::: thm
+[Theorem 3.6 — Tripeptide loop closure (Go and Scheraga, 1970; Coutsias and coauthors, 2004)]{.tag} Consider three residues with fixed bond lengths, bond angles and trans peptides, whose six dihedrals $(\phi_i, \psi_i)_{i = 1, 2, 3}$ must place the end frame at a target. The solutions are the real roots of a univariate polynomial of degree 16, so there are at most 16 of them.
+
+Section 8.5 sketches the elimination that produces the polynomial.
+:::
+
+Longer loops are closed numerically: cyclic coordinate descent rotates one dihedral at a time towards closure (Canutescu and Dunbrack, 2003), and Noonan, O'Brien and Snoeyink (2005) adapt robotic inverse kinematics to protein backbones.
+
+### 3.3 Inverse problems and protein loop sampling
+
+Loop sampling is an inverse problem: the end constraints are the data, and the unknowns are the conformations that satisfy them. One wants a distribution over the closure set, not one solution. A standard scheme splits $\theta = (\theta_F, \theta_C)$: draw the free dihedrals $\theta_F$, then solve for the six closure dihedrals $\theta_C$.
+
+:::: prop
+[Proposition 3.7 — The Jacobian correction]{.tag} Suppose that, near each solution, the closure set is the graph of a branch $\theta_C = g_k(\theta_F)$, $k = 1, \dots, K(\theta_F)$.
+
+Draw $\theta_F$ with density $p$, then choose one of the $K(\theta_F)$ branches uniformly. On branch $k$, with $J_k = Dg_k(\theta_F)$, the resulting point has density
+$$
+q(\theta) = \frac{p(\theta_F)}{K(\theta_F)\, \sqrt{\det\big(I + J_k^\top J_k\big)}}
+$$
+with respect to the $(n - 6)$-dimensional volume of the closure set.
+
+::: proof
+For a test function $\varphi$, the scheme gives
+$$
+\mathbb{E}\,\varphi = \int p(\theta_F)\, \frac{1}{K(\theta_F)} \sum_k \varphi\big(\theta_F, g_k(\theta_F)\big)\, d\theta_F .
+$$
+
+The area formula for a graph gives the volume element $\sqrt{\det(I + J_k^\top J_k)}\, d\theta_F$ on branch $k$. Dividing the integrand by this element gives the density. [∎]{.qed}
+:::
+::::
+
+The matrix $J_k$ follows from implicit differentiation of $F(\theta_F, g_k(\theta_F)) = T^\star$. A sampler that ignores this factor is biased towards the regions where the closure set is steep. Conditioning a density on closure adds a second factor (Section 8.6).
+
+::: thm
+[Algorithm 3.8 — Loop sampling by closure and reweighting]{.tag}
+
+1.  Draw the free dihedrals $\theta_F$ from a prior $p$, for example a mixture fitted to the Ramachandran plot (Section 3.4).
+2.  Solve the closure for $\theta_C$: all roots for a tripeptide (Theorem 3.6), or a local solver for longer loops.
+3.  Give each solution the weight $\pi(\theta)/q(\theta)$, with $q$ from Proposition 3.7 and $\pi$ the target density on the closure set.
+4.  Resample with these weights, or use the construction as a proposal inside a Metropolis–Hastings chain (Algorithm 0.8).
+:::
+
+Work by O'Donnell, Agashe and Cazals (2023) characterises the geometric constraints within tripeptides that decide whether reconstructions exist at all. O'Donnell and Cazals (2023) use a global parameterisation of the backbone geometry to explore loop conformations more broadly.
+
+### 3.4 Mixtures of densities on flat tori
+
+::: def
+[Definition 3.9 — Von Mises densities on the flat torus]{.tag} Dihedral angles live on the flat torus $\mathbb{T}^d = \mathbb{R}^d / (2\pi\mathbb{Z})^d$. The von Mises density on the circle, with mean direction $\mu$ and concentration $\kappa \geq 0$, is
+$$
+f(x; \mu, \kappa) = \frac{e^{\kappa \cos(x - \mu)}}{2\pi I_0(\kappa)} ,
+$$
+with $I_0$ a modified Bessel function. Products of von Mises densities, or the bivariate sine model with an extra term $\lambda \sin(\phi - \mu)\sin(\psi - \nu)$ (Singh, Hnizdo and Demchuk, 2002), and their mixtures model $(\phi, \psi)$ pairs.
+:::
+
+:::: prop
+[Proposition 3.10 — Maximum likelihood for the von Mises density]{.tag} For angles $x_1, \dots, x_n$ with weights $r_k \geq 0$, let $C = \sum_k r_k \cos x_k$, $S = \sum_k r_k \sin x_k$ and $\bar R = \sqrt{C^2 + S^2} / \sum_k r_k$. The weighted likelihood is maximised by
+$$
+\hat\mu = \operatorname{atan2}(S, C), \qquad A(\hat\kappa) = \bar R, \quad \text{where } A = I_1 / I_0 ,
+$$
+and $\hat\kappa$ is unique when $0 < \bar R < 1$.
+
+The proof is in Section 8.8.
+::::
+
+::: ex
+[Code 3.11 — EM for a mixture of von Mises products on the torus]{.tag} Synthetic Ramachandran-like data: three components (helix, β, left-handed) with weights 0.55, 0.35 and 0.10. The M-step applies Proposition 3.10 with the responsibilities as weights, and inverts $A$ with the approximation of Banerjee and coauthors (2005).
+
+```python
+import numpy as np
+from scipy.special import i0e, i1e
+rng = np.random.default_rng(2)
+
+# Synthetic Ramachandran-like data on the flat torus [-pi, pi)^2: three components
+mu_true = np.radians([[-63, -43], [-120, 130], [60, 45]])     # alpha, beta, left-handed
+kap_true = np.array([[12, 10], [6, 4], [15, 15]])
+w_true = np.array([0.55, 0.35, 0.10])
+z = rng.choice(3, size=3000, p=w_true)
+X = rng.vonmises(mu_true[z], kap_true[z])                      # angles in [-pi, pi)
+
+def log_vm(x, mu, kap):                                        # log density of a von Mises on S^1
+    return kap * np.cos(x - mu) - np.log(2 * np.pi * i0e(kap)) - kap
+
+def A_inv(r):                                                  # approximate inverse of I1/I0 (Banerjee et al., 2005)
+    return r * (2 - r**2) / (1 - r**2)
+
+def em_torus(X, K, iters=200):
+    mu = X[rng.choice(len(X), K, replace=False)]
+    kap, w = np.full((K, 2), 1.0), np.full(K, 1 / K)
+    for _ in range(iters):
+        logp = np.log(w) + sum(log_vm(X[:, None, j], mu[None, :, j], kap[None, :, j]) for j in range(2))
+        ll = np.logaddexp.reduce(logp, axis=1)
+        R = np.exp(logp - ll[:, None])                         # E-step: responsibilities
+        w = R.mean(0)                                          # M-step
+        C, S = R.T @ np.cos(X), R.T @ np.sin(X)                # weighted resultant vectors, per angle
+        mu = np.arctan2(S, C)
+        rbar = np.sqrt(C**2 + S**2) / R.sum(0)[:, None]
+        kap = A_inv(np.clip(rbar, 1e-6, 0.999))
+    return w, mu, kap, ll.sum()
+
+w, mu, kap, ll = em_torus(X, 3)
+order = np.argsort(-w)
+print("weights:", w[order].round(3))
+print("means (deg):", np.degrees(mu[order]).round(1).tolist())
+print("concentrations:", kap[order].round(1).tolist())
+print("check of the approximate inverse at kappa = 10:", round(A_inv(i1e(10) / i0e(10)), 2))
+```
+
+The weights come out as 0.548, 0.349 and 0.103, and every mean lies within 1.5° of its true value. The concentrations are recovered within about 15 %, partly because the approximate inverse returns 10.42 instead of 10; one Newton step on $A(\kappa) = \bar R$ removes this bias.
+:::
+
+The number of components is chosen by BIC or by minimum message length, which Amarasinghe and coauthors (2023) use for joint distributions of backbone and side-chain dihedrals.
+
+::: recap
+Key takeaways — chapter 3
+
+-   Internal coordinates determine a chain up to a rigid motion; the backbone is a serial chain of revolute joints.
+-   Closure imposes 6 conditions: $n$ dihedrals leave an $(n - 6)$-dimensional family, and a tripeptide has at most 16 closures.
+-   Sampling by “draw free dihedrals, then close” needs the Jacobian correction of Proposition 3.7.
+-   Von Mises mixtures, fitted by EM with circular means, model densities on the torus of dihedral angles.
+:::
+
+## 4. Boltzmann samplers for sequences and structures {#ch4}
+
+A family of homologous sequences is a sample from an unknown distribution. This chapter fits it with the least biased model compatible with the data, samples from it, compares it with self-attention, uses it for design, and ends with samplers for structures.
+
+### 4.1 Maximum entropy and Potts models
+
+Write a sequence of length $L$ as $a = (a_1, \dots, a_L)$, with each $a_i$ in an alphabet of $q = 21$ symbols (20 amino acids and the gap). Let $f_i$ and $f_{ij}$ be the single-site and pair frequencies of the MSA (Definition 2.5).
+
+:::: thm
+[Theorem 4.1 — Maximum entropy gives the Potts model]{.tag} Suppose that a Potts distribution
+$$
+P^\star(a) = \frac{1}{Z} \exp\Big( \sum_i h_i(a_i) + \sum_{i < j} J_{ij}(a_i, a_j) \Big)
+$$
+has the marginals $f_i$ and $f_{ij}$. Then $P^\star$ has the largest entropy among all distributions with these marginals, and it is the only one.
+
+::: proof
+Entropies are in nats here ($k_B = 1$). Let $P$ have the same marginals. The function $\log P^\star$ is a sum of terms that each depend on one site or one pair, so its expectation depends only on the marginals:
+$$
+\mathbb{E}_P[\log P^\star] = \mathbb{E}_{P^\star}[\log P^\star] = -S(P^\star).
+$$
+
+Hence
+$$
+\mathrm{KL}(P \,\|\, P^\star) = -S(P) - \mathbb{E}_P[\log P^\star] = S(P^\star) - S(P).
+$$
+
+This is non-negative and vanishes only at $P = P^\star$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 4.2 — Potts model, statistical energy, gauge]{.tag} The Potts model has fields $h_i(a)$ and couplings $J_{ij}(a, b)$, and the statistical energy
+$$
+E(a) = -\sum_i h_i(a_i) - \sum_{i < j} J_{ij}(a_i, a_j).
+$$
+
+Adding a function of $a$ alone to $J_{ij}(a, b)$ and subtracting it from $h_i$ leaves $P$ unchanged.
+
+The zero-sum gauge, where every row and column of each $J_{ij}$ sums to zero, removes this freedom. The partition function $Z$ has $q^L$ terms, so the likelihood cannot be evaluated exactly.
+:::
+
+:::: prop
+[Proposition 4.3 — Pseudo-likelihood is a set of logistic regressions]{.tag} The conditional distribution of one site is
+$$
+P(a_i = a \mid a_{-i}) = \frac{\exp\big(h_i(a) + \sum_{j \neq i} J_{ij}(a, a_j)\big)}{\sum_{b} \exp\big(h_i(b) + \sum_{j \neq i} J_{ij}(b, a_j)\big)} .
+$$
+
+The negative log pseudo-likelihood, the sum over sequences and sites of $-\log P(a_i \mid a_{-i})$, is convex in $(h, J)$. For each site it is the loss of a multinomial logistic regression of $a_i$ on the one-hot encoding of the other sites.
+
+::: proof
+In the ratio $P(a)/P(a_i = b, a_{-i})$ every term that does not involve site $i$ cancels, which gives the conditional without $Z$. Its negative logarithm is a log-sum-exp of functions linear in the parameters minus a linear function, hence convex. [∎]{.qed}
+:::
+::::
+
+Pseudo-likelihood (Besag, 1975) is consistent (Section 8.2), and its use for proteins is due to Ekeberg and coauthors (2013).
+
+::: def
+[Definition 4.4 — Direct-coupling contact score]{.tag} In the zero-sum gauge, let $F_{ij} = \| J_{ij} \|_F$. The average product correction removes a background shared by all pairs:
+$$
+F^{\mathrm{APC}}_{ij} = F_{ij} - \frac{F_{i\cdot}\, F_{\cdot j}}{F_{\cdot\cdot}} ,
+$$
+where dots denote averages. The pairs with the highest scores are predicted contacts.
+:::
+
+Unlike mutual information (Definition 2.5), couplings separate direct from indirect correlations. With a mean-field approximation $J \approx -C^{-1}$, Morcos and coauthors (2011) showed that top-ranked couplings capture native contacts across many families.
+
+### 4.2 Sampling sequences
+
+A Gibbs sampler is the natural Boltzmann sampler for a Potts model. It picks a site and redraws it from the conditional of Proposition 4.3. This is Metropolis–Hastings with acceptance probability 1, so it leaves $P$ invariant (Algorithm 0.8). Its mixing slows down when strong couplings create several modes.
+
+::: prop
+[Proposition 4.5 — Autoregressive models (arDCA)]{.tag} Every distribution factorises as $P(a) = \prod_i P(a_i \mid a_{<i})$. The arDCA model of Trinquier and coauthors (2021) takes
+$$
+P(a_i = a \mid a_{<i}) \propto \exp\Big( h_i(a) + \sum_{j < i} J_{ij}(a, a_j) \Big).
+$$
+
+Its likelihood is exact, its samples are exact and independent (draw $a_1$, then $a_2$, …), and training splits into $L$ convex logistic regressions; the model depends on the order of the sites.
+:::
+
+::: ex
+[Code 4.6 — Gibbs sampling a Potts family and recovering its contacts]{.tag} A synthetic family: $L = 12$ sites, $q = 4$ states, and 8 coupled pairs, the “contacts”. The code draws 4000 sequences with 4000 parallel Gibbs chains, fits pseudo-likelihood site by site with scikit-learn, and ranks pairs by the Frobenius score of Definition 4.4.
+
+```python
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+rng = np.random.default_rng(3)
+L, q, M = 12, 4, 4000
+
+# A synthetic "family": a Potts model with 8 coupled pairs (the "contacts")
+pairs = [(0, 5), (1, 9), (2, 3), (3, 10), (4, 7), (6, 11), (8, 9), (0, 11)]
+J = np.zeros((L, L, q, q))
+for i, j in pairs:
+    B = rng.normal(0, 1.0, (q, q)); J[i, j], J[j, i] = B, B.T
+h = rng.normal(0, 0.5, (L, q))
+
+# Boltzmann sampler: Gibbs sampling, M chains in parallel, 300 sweeps
+S = rng.integers(q, size=(M, L))
+for sweep in range(300):
+    for i in range(L):
+        field = h[i] + sum(J[i, j][:, S[:, j]].T for j in range(L) if j != i)   # (M, q)
+        p = np.exp(field - field.max(1, keepdims=True)); p /= p.sum(1, keepdims=True)
+        S[:, i] = (p.cumsum(1) > rng.random((M, 1))).argmax(1)
+
+# Pseudo-likelihood = one multinomial logistic regression per site (Proposition 4.3)
+onehot = np.eye(q)[S].reshape(M, L * q)
+Jhat = np.zeros((L, L, q, q))
+for i in range(L):
+    cols = [c for c in range(L * q) if c // q != i]
+    clf = LogisticRegression(C=0.05, max_iter=2000).fit(onehot[:, cols], S[:, i])
+    W = clf.coef_.reshape(q, L - 1, q)                     # W[a, j', b]
+    for jj, j in enumerate([j for j in range(L) if j != i]):
+        Jhat[i, j] = W[:, jj, :]
+
+Jz = Jhat - Jhat.mean(2, keepdims=True) - Jhat.mean(3, keepdims=True) + Jhat.mean((2, 3), keepdims=True)
+F = np.linalg.norm(Jz, axis=(2, 3)); F = (F + F.T) / 2      # zero-sum gauge, symmetrised score
+iu = np.triu_indices(L, 1)
+top = np.argsort(-F[iu])[:8]
+found = {(int(iu[0][t]), int(iu[1][t])) for t in top}
+is_contact = np.array([(i, j) in pairs for i, j in zip(*iu)])
+print("precision of the top 8 pairs:", len(found & set(pairs)) / 8)
+print("mean score, contacts vs non-contacts:", F[iu][is_contact].mean().round(3), F[iu][~is_contact].mean().round(3))
+```
+
+All 8 top-ranked pairs are true contacts, with a mean score of 2.34 against 0.25 for the other pairs.
+:::
+
+### 4.3 Potts models versus transformers
+
+:::: prop
+[Proposition 4.7 — One layer of factored attention is a generalised Potts conditional]{.tag} Mask site $i$ and encode each other site by the one-hot vector $e(a_j) \in \mathbb{R}^q$. Consider one layer with $H$ heads whose attention weights $A^h_{ij}$ depend on the positions only (factored attention), with value maps $V^h$ and output maps $W^h$. Its predicted distribution for the masked site is the conditional of Proposition 4.3, without fields, with couplings
+$$
+J_{ij}(a, b) = \sum_{h=1}^{H} A^h_{ij}\, \big(W^h V^h\big)_{ab} .
+$$
+
+When every site is masked in turn, the masked-language-model cross-entropy is the negative pseudo-likelihood.
+
+::: proof
+The logit of symbol $a$ at site $i$ is
+$$
+\ell_i(a) = \sum_h \Big( W^h \sum_{j \neq i} A^h_{ij}\, V^h e(a_j) \Big)_a = \sum_{j \neq i} \sum_h A^h_{ij} \big(W^h V^h\big)_{a\, a_j},
+$$
+and a softmax over $a$ gives the claimed conditional. [∎]{.qed}
+:::
+::::
+
+The couplings are “generalised”: nothing forces $J_{ij}(a, b) = J_{ji}(b, a)$. Rende, Gerace, Laio and Goldt (2024) develop this mapping, while standard attention, whose weights depend on the symbols, represents higher-order interactions. Contacts can be read from the attention maps of protein language models (Rives and coauthors, 2021; Rao and coauthors, 2021).
+
+### 4.4 Application in protein design, and samplers for structures
+
+::: prop
+[Proposition 4.8 — Sampling at low temperature]{.tag} The tempered model $P_T(a) \propto P(a)^{1/T}$ satisfies
+$$
+\frac{P_T(a)}{P_T(b)} = e^{-(E(a) - E(b))/T} .
+$$
+
+For $T < 1$ it favours low statistical energies; as $T \to 0$ it concentrates on the minima of $E$, at the cost of diversity.
+:::
+
+Russ and coauthors (2020) designed chorismate mutase enzymes by sampling a Potts model of the natural family and testing the sequences in bacteria lacking the enzyme. Many low-energy designs were functional, including sequences far from natural ones, whereas samples of a model without couplings were not: the couplings carry the information needed for function.
+
+::: def
+[Definition 4.9 — Boltzmann generator]{.tag} For conformations, Noé, Olsson, Köhler and Wu (2019) train an invertible network $x = f(z)$, $z \sim \mathcal{N}(0, I)$, with density $q$ known by the change of variables.
+
+Training minimises $\mathrm{KL}(q \,\|\, \pi)$, which needs only the energy $U$. Expectations under $\pi$ are corrected with the weights below, with effective sample size $(\sum w)^2 / \sum w^2$.
+$$
+w(x) = \frac{e^{-\beta U(x)}}{q(x)}
+$$
+:::
+
+The same weights appear in Algorithm 3.8: a learned or geometric proposal, followed by a correction, is the common form of Boltzmann samplers for structures.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Matching single and pair frequencies with maximal entropy gives the Potts model; its couplings separate direct from indirect correlations.
+-   Pseudo-likelihood avoids the partition function and reduces to convex logistic regressions; arDCA makes likelihood and sampling exact.
+-   One layer of factored attention computes a generalised Potts conditional, and masked training is pseudo-likelihood.
+-   Low-temperature sampling of family models designs functional enzymes; reweighting $e^{-\beta U}/q$ corrects samplers of structures.
+:::
+
+## 5. Computer practical: molecular manipulations {#ch5}
+
+The practical connects the previous chapters to the tools of structural biology. Viewers and AlphaFold2 need installed software or network access, so this page describes them; the computations run in NumPy on synthetic backbones.
+
+### 5.1 Molecular visualisation with PyMOL and VMD
+
+A PDB file is a text file with one fixed-width `ATOM` line per atom: atom name, residue name, chain, residue number, coordinates in Å, occupancy and a B-factor column. AlphaFold2 writes its pLDDT in the B-factor column, so any viewer can colour a prediction by confidence.
+
+::: ex
+[Code 5.1 — Writing a backbone in PDB format]{.tag} The code writes the Cα trace of a 20-residue helix with a mock confidence that drops in the middle. The output can be saved as `helix.pdb` and opened in either viewer.
+
+```python
+import numpy as np
+k = np.arange(20)
+xyz = np.c_[2.3 * np.cos(np.radians(100 * k)), 2.3 * np.sin(np.radians(100 * k)), 1.5 * k]
+plddt = 90 - 40 * np.exp(-((k - 10) / 3.0) ** 2)            # mock confidence, low in the middle
+lines = [f"ATOM  {i + 1:5d}  CA  ALA A{i + 1:4d}    {x:8.3f}{y:8.3f}{z:8.3f}{1.0:6.2f}{b:6.2f}           C"
+         for i, ((x, y, z), b) in enumerate(zip(xyz, plddt))]
+pdb = "\n".join(lines + ["END"])
+print("\n".join(pdb.splitlines()[9:12]))
+print("columns of the first line:", len(lines[0]))                # 78 = up to the element symbol
+# open("helix.pdb", "w").write(pdb)   # then, in PyMOL: load helix.pdb; spectrum b
+```
+:::
+
+The commands used in the practical are standard.
+
+-   **PyMOL**: `fetch 1ubq` downloads a PDB entry; `show cartoon`; `spectrum b` colours by B-factor; `align mobile, target` aligns sequences, then superposes with outlier rejection; `super` and `cealign` superpose without sequence identity; `rms_cur` gives the RMSD without fitting.
+-   **VMD**: in the Tcl console, `measure fit` returns the optimal transformation between two selections, `move` applies it, and `measure rmsd` gives the RMSD.
+
+### 5.2 Structure predictions with AlphaFold2
+
+ColabFold (Mirdita and coauthors, 2022) runs AlphaFold2 in a notebook and builds the MSA with the fast MMseqs2 search. The steps of the practical are as follows.
+
+1.  Submit the sequence of a small protein whose structure is in the PDB.
+2.  Read the ranked models: the pLDDT per residue and the PAE matrix (Section 2.2).
+3.  Superpose the best model on the experimental structure (Theorem 1.3) and compute the RMSD, the GDT_TS and the TM-score (Code 2.12).
+4.  Check whether the residues of low pLDDT are the ones with large errors or are disordered in the experiment.
+
+### 5.3 Molecular distances and structural alignments
+
+::: def
+[Definition 5.2 — Distance matrix, contact map, dRMSD]{.tag} For Cα positions $x_1, \dots, x_L$, the distance matrix is $D_{ij} = \|x_i - x_j\|$. The contact map keeps the pairs with $D_{ij} < 8$ Å and $|i - j| \geq 3$. For two conformations with matrices $D$ and $D'$,
+$$
+\mathrm{dRMSD} = \Big( \frac{2}{L(L-1)} \sum_{i < j} (D_{ij} - D'_{ij})^2 \Big)^{1/2} .
+$$
+:::
+
+:::: prop
+[Proposition 5.3 — Distances determine a structure up to isometry]{.tag} The dRMSD needs no superposition, and it vanishes if and only if the two conformations differ by a rigid motion or a reflection.
+
+::: proof
+Isometries preserve distances, so they preserve $D$. Conversely, centre both conformations and stack them as rows of $X$ and $Y$. The Gram matrix is recovered from the squared distances,
+$$
+X X^\top = -\tfrac{1}{2}\, H D^{(2)} H, \qquad H = I - \tfrac{1}{L} \mathbf{1}\mathbf{1}^\top ,
+$$
+where $D^{(2)}$ holds the squared distances. If $D = D'$, then $X X^\top = Y Y^\top$. Two matrices with the same Gram matrix differ by an orthogonal map, $Y = X Q$. [∎]{.qed}
+:::
+::::
+
+So distance-based scores (dRMSD, contact maps, lDDT) cannot tell a structure from its mirror image, while the RMSD over $SO(3)$ can.
+
+### 5.4 Conformational loop sampling
+
+::: ex
+[Code 5.4 — Sampling the closures of a loop]{.tag} A 12-residue native backbone has a loop at residues 4 to 7. The anchors N, Cα, C of residue 3 and C of residue 7, N and Cα of residue 8 are fixed. Nine dihedrals are free, against 6 closure conditions, so the closures form a 3-dimensional family (Proposition 3.5). Each trial draws the dihedrals from a Ramachandran-like prior and closes the loop by nonlinear least squares.
+
+```python
+import numpy as np
+from scipy.optimize import least_squares
+rng = np.random.default_rng(8)
+
+def place(a, b, c, bond, angle, torsion):                    # NeRF, as in Code 3.3
+    bc = (c - b) / np.linalg.norm(c - b)
+    n = np.cross(b - a, bc); n /= np.linalg.norm(n)
+    th, to = np.radians(angle), np.radians(torsion)
+    d = bond * np.array([-np.cos(th), np.sin(th) * np.cos(to), np.sin(th) * np.sin(to)])
+    return c + d[0] * bc + d[1] * np.cross(n, bc) + d[2] * n
+
+def extend(X, phi, psi):
+    """Append residues to the atoms X = [..., N, CA, C] with dihedrals (psi of the previous residue, phi)."""
+    X = list(X)
+    for ps, ph in zip(psi, phi):
+        X.append(place(X[-3], X[-2], X[-1], 1.329, 116.2, ps))   # N   (psi of previous residue)
+        X.append(place(X[-3], X[-2], X[-1], 1.458, 121.7, 180))  # CA  (omega = 180)
+        X.append(place(X[-3], X[-2], X[-1], 1.525, 111.2, ph))   # C   (phi)
+    return np.array(X)
+
+# A 12-residue native: helix, a loop (residues 4-7), helix
+phi = np.array([-60, -60, -60, -60, -80, 60, -90, -120, -60, -60, -60, -60.0])
+psi = np.array([-45, -45, -45, 140, 160, 30, 0, 130, -45, -45, -45, -45.0])
+t = np.radians(180 - 111.2)
+start = np.array([[0, 0, 0], [1.458, 0, 0], [1.458 + 1.525 * np.cos(t), 1.525 * np.sin(t), 0]])
+native = extend(start, phi[1:], psi[:-1])                     # atoms N0, CA0, C0, N1, ...
+
+anchor, target = native[9:12], native[23:26]                 # N3, CA3, C3 fixed; C7, N8, CA8 must be reached
+
+def loop(theta):                                             # theta = (psi3..psi7, phi4..phi7)
+    return extend(anchor, np.r_[theta[5:], 0.0], theta[:5])[3:-1]   # N4 ... C7, N8, CA8
+
+def closure(theta):
+    return (loop(theta)[-3:] - target).ravel()
+
+# Loop sampling: random starts from a Ramachandran-like prior, then closure by least squares
+loops = []
+for trial in range(40):
+    a = rng.random(9) < 0.5                                  # alpha or beta basin, per dihedral
+    theta0 = np.r_[np.where(a[:5], rng.normal(-43, 15, 5), rng.normal(130, 20, 5)),
+                   np.where(a[5:], rng.normal(-63, 15, 4), rng.normal(-120, 20, 4))]
+    sol = least_squares(closure, theta0)
+    if np.abs(sol.fun).max() < 1e-3:
+        loops.append(loop(sol.x)[:-2])                       # loop atoms N4 ... C7
+loops = np.array(loops)
+dev = np.sqrt(((loops - native[12:24]) ** 2).sum(-1).mean(-1))   # RMSD in place: anchors are fixed
+print(f"closed loops: {len(loops)} / 40; RMSD to native: min {dev.min():.2f}, median {np.median(dev):.2f} A")
+
+# Distances: the C-alpha distance matrix, the contact map and the superposition-free dRMSD
+CA = native[1::3]
+D = np.linalg.norm(CA[:, None] - CA[None], axis=-1)
+sep = np.abs(np.subtract.outer(np.arange(12), np.arange(12)))
+print("contacts (CA-CA < 8 A, |i - j| >= 3):", int(((D < 8) & (sep >= 3)).sum() // 2))
+model = native.copy(); model[12:24] = loops[np.argmin(dev)]
+Dm = np.linalg.norm(model[1::3][:, None] - model[1::3][None], axis=-1)
+iu = np.triu_indices(12, 1)
+print(f"dRMSD of the closest sampled loop: {np.sqrt(((D - Dm)[iu] ** 2).mean()):.2f} A")
+```
+
+38 of the 40 trials close, at RMSDs from 0.56 Å to several ångströms from the native loop (median 2.16 Å): closure alone does not determine the loop. The native has 14 contacts, and the closest sampled loop has a dRMSD of 0.16 Å.
+:::
+
+The least-squares solver does not sample the closure set with a known density. Weighting the solutions as in Proposition 3.7 and Algorithm 3.8 is the subject of Exercise 17.
+
+::: recap
+Key takeaways — chapter 5
+
+-   PDB files are fixed-width text; AlphaFold2 stores its confidence in the B-factor column, which viewers can display.
+-   Superposition (Kabsch) and superposition-free scores (dRMSD, contact maps, lDDT) answer different questions; the latter ignore chirality.
+-   A loop with more than six free dihedrals has a continuum of closures; sampling them requires a prior, a solver and a correction.
+:::
+
+## 6. High-dimensional sampling: volumes of polytopes and densities of states {#ch6}
+
+How large is a region of a high-dimensional space, and how can it be sampled? Polytopes are the simplest test case. This chapter shows that exact computation is hopeless, then builds the random walks and estimators that work, and carries them over to densities of states.
+
+### 6.1 Polytopes and their volumes: hardness and approximability
+
+::: def
+[Definition 6.1 — Volume computation]{.tag} A convex body $K \subset \mathbb{R}^n$ is given by a membership oracle, or explicitly as an H-polytope (Definition 0.10), with $B(0, r) \subset K \subset B(0, R)$. A randomised algorithm is a fully polynomial randomised approximation scheme (FPRAS) if, for every $\varepsilon > 0$, it returns $\hat V$ with
+$$
+\mathbb{P}\big( (1 - \varepsilon)\, \mathrm{vol}(K) \leq \hat V \leq (1 + \varepsilon)\, \mathrm{vol}(K) \big) \geq 3/4
+$$
+in time polynomial in $n$ and $1/\varepsilon$.
+:::
+
+:::: thm
+[Theorem 6.2 — Deterministic algorithms fail (Elekes, 1986)]{.tag} Computing the exact volume of an H-polytope is #P-hard (Dyer and Frieze, 1988). Moreover, consider a deterministic algorithm that queries a membership oracle at $N$ points. Some convex body $K \subset B$, with $B$ the unit ball, receives the same answers as $B$ and has
+$$
+\mathrm{vol}(K) \leq N\, 2^{-n}\, \mathrm{vol}(B).
+$$
+
+So the algorithm errs on $B$ or on $K$ by a factor at least $\sqrt{2^n / N}$.
+
+::: proof
+Run the algorithm on $B$, and let $K$ be the convex hull of the origin and of the queried points that lie in $B$. Every answer is the same for $K$, so the output is the same.
+
+For each such point $x_i$, let $B_i$ be the ball with diameter $[0, x_i]$, that is,
+$$
+B_i = \{y : \langle y, y - x_i \rangle \leq 0\}.
+$$
+
+If $y$ lies in no $B_i$, then $\langle y, x_i \rangle < \|y\|^2$ for all $i$.
+
+Every convex combination $z$ of the $x_i$ then has $\langle y, z \rangle < \|y\|^2$, so $z \neq y$.
+
+Hence $K \subset \bigcup_i B_i$. Each $B_i$ has radius at most $1/2$, which gives the bound. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 6.3 — Rejection sampling from a box fails]{.tag} Drawing uniform points in $[-1, 1]^n$ and keeping those in $B$ has acceptance rate
+$$
+\frac{\mathrm{vol}(B)}{2^n} = \frac{\pi^{n/2}}{2^n\, \Gamma(n/2 + 1)},
+$$
+which is 0.785 for $n = 2$, $2.5 \times 10^{-3}$ for $n = 10$ and $2.5 \times 10^{-8}$ for $n = 20$.
+:::
+
+::: thm
+[Theorem 6.4 — Randomisation works]{.tag} Dyer, Frieze and Kannan (1991) gave the first FPRAS for the volume of a convex body; Lovász and Vempala (2006) brought it to $O^*(n^4)$ oracle calls, with $O^*$ hiding logarithmic factors and the dependence on $\varepsilon$. All such algorithms combine a random walk with a telescoping product of ratios (Proposition 6.8).
+:::
+
+### 6.2 Linear programs and hit-and-run
+
+:::: thm
+[Algorithm 6.5 — Hit-and-run (Smith, 1984)]{.tag} From $x \in K$:
+
+1.  draw a direction $u$ uniformly on the unit sphere;
+2.  compute the chord $[t_-, t_+]$ of the line $x + t u$ in $K$ by the ratio test of Proposition 0.11;
+3.  draw $t$ uniformly in $[t_-, t_+]$ and move to $x + t u$.
+::::
+
+:::: prop
+[Proposition 6.6 — The uniform distribution is invariant]{.tag} Hit-and-run is reversible with respect to the uniform distribution on $K$.
+
+::: proof
+For $y \neq x$, write $y = x + r u$ in polar coordinates, $dy = r^{n-1} dr\, d\sigma(u)$.
+
+The directions $u$ and $-u$ give the same line, and the point is uniform on a chord of length $\ell(x, y)$. With $|S^{n-1}|$ the area of the unit sphere, the transition density is
+$$
+p(x, y) = \frac{2}{|S^{n-1}|\; \ell(x, y)\; \|x - y\|^{n-1}} .
+$$
+
+It is symmetric in $x$ and $y$, so the uniform density satisfies detailed balance (Proposition 0.6). [∎]{.qed}
+:::
+::::
+
+::: thm
+[Theorem 6.7 — Hit-and-run mixes fast (Lovász, 1999)]{.tag} From a warm start, hit-and-run in a convex body with $B(0, r) \subset K \subset B(0, R)$ is close to uniform after $O^*(n^2 R^2 / r^2)$ steps. After a rounding step that makes $R / r = O(\sqrt n)$, this is $O^*(n^3)$.
+:::
+
+Berbee and coauthors (1987) introduced hit-and-run to find non-redundant constraints: almost surely the line leaves $K$ through the interior of a facet, so the constraint attaining $t_+$ is not redundant.
+
+### 6.3 Estimating volumes with hit-and-run and PDMPs
+
+:::: prop
+[Proposition 6.8 — Multiphase Monte Carlo]{.tag} Let $r_i = r\, 2^{i/n}$ for $i = 0, \dots, m$ with $m = \lceil n \log_2(R/r) \rceil$, and $K_i = K \cap B(0, r_i)$. Then $K_0 = B(0, r)$, $K_m = K$ and
+$$
+\mathrm{vol}(K) = \mathrm{vol}\big(B(0, r)\big) \prod_{i=1}^{m} \frac{1}{\rho_i}, \qquad \rho_i = \frac{\mathrm{vol}(K_{i-1})}{\mathrm{vol}(K_i)} \geq \frac{1}{2} .
+$$
+
+Estimate each $\rho_i$ by the fraction $\hat\rho_i$ of $N$ independent uniform points of $K_i$ that fall in $K_{i-1}$.
+
+Then the relative variance of $\prod_i \hat\rho_i$ is at most $e^{m/N} - 1$, so $N = O(m / \varepsilon^2)$ points per phase give a relative error $\varepsilon$ with probability $3/4$.
+
+::: proof
+-   Since $0 \in K$ and $K$ is convex, $K \subset 2^{1/n} K$, so $K_i \subset 2^{1/n} K_{i-1}$. Taking volumes, $\mathrm{vol}(K_i) \leq 2\, \mathrm{vol}(K_{i-1})$, that is, $\rho_i \geq 1/2$.
+-   Each $\hat\rho_i$ is a binomial frequency with mean $\rho_i$ and relative variance $(1 - \rho_i)/(\rho_i N) \leq 1/N$.
+-   For independent factors,
+    $$
+    \frac{\mathbb{E}[\prod_i \hat\rho_i^2]}{\prod_i \rho_i^2} = \prod_i (1 + \mathrm{relvar}_i) \leq (1 + 1/N)^m \leq e^{m/N}.
+    $$
+-   Chebyshev's inequality concludes for the product, and the inverse product inherits a relative error of order $\varepsilon$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Code 6.9 — Volume of a simplex by hit-and-run and multiphase Monte Carlo]{.tag} The simplex $K = \{x \in \mathbb{R}^5 : x_i \geq -1,\ \sum_i x_i \leq 1\}$ has volume $6^5 / 5! = 64.8$. It contains $B(0, 1/\sqrt 5)$ and lies in $B(0, \sqrt{29})$.
+
+```python
+import numpy as np
+from math import factorial, gamma, pi
+rng = np.random.default_rng(4)
+
+n = 5                                            # K = {x : x_i >= -1, sum x_i <= 1}, a simplex
+A = np.vstack([-np.eye(n), np.ones((1, n))])     # A x <= b
+b = np.r_[np.ones(n), 1.0]
+exact = (n + 1) ** n / factorial(n)              # translate y = x + 1: y >= 0, sum y <= n + 1
+
+def har_chain(x, r, steps):
+    """Hit-and-run in K ∩ B(0, r): uniform direction, then uniform point on the chord."""
+    out = []
+    for _ in range(steps):
+        u = rng.standard_normal(n); u /= np.linalg.norm(u)
+        Au, slack = A @ u, b - A @ x                       # chord in K: A(x + t u) <= b
+        tmax = np.min(slack[Au > 0] / Au[Au > 0]); tmin = np.max(slack[Au < 0] / Au[Au < 0])
+        xu, xx = x @ u, x @ x                              # chord in the ball: |x + t u| <= r
+        disc = np.sqrt(xu**2 - xx + r**2)
+        lo, hi = max(tmin, -xu - disc), min(tmax, -xu + disc)
+        x = x + rng.uniform(lo, hi) * u
+        out.append(x)
+    return x, np.array(out)
+
+r0 = 1 / np.sqrt(n)                              # B(0, r0) ⊂ K (distance to the facet sum x = 1)
+R = np.sqrt(n**2 + n - 1)                        # K ⊂ B(0, R) (farthest vertex)
+m = int(np.ceil(n * np.log2(R / r0)))            # radii r_i = r0 * 2^(i/n), i = 0..m
+radii = np.minimum(r0 * 2.0 ** (np.arange(m + 1) / n), R)
+vol = pi ** (n / 2) / gamma(n / 2 + 1) * r0 ** n  # volume of the inner ball
+x = np.zeros(n)
+for i in range(1, m + 1):
+    x, pts = har_chain(x, radii[i], 4000)
+    pts = pts[::4]                                # thinning
+    ratio = np.mean(np.linalg.norm(pts, axis=1) <= radii[i - 1])   # vol(K_{i-1}) / vol(K_i)
+    vol /= ratio
+print(f"n = {n}, phases m = {m}, estimate {vol:.1f}, exact {exact:.1f}")
+```
+
+With 18 phases of 1000 thinned points, the estimate is 62.5, a relative error of 3.5 %. Rejection from the bounding box $[-1, 5]^5$ would accept a fraction $64.8 / 6^5 = 1/120$ of the points; for this simplex in dimension $n$ the fraction is $1/n!$.
+:::
+
+::: def
+[Definition 6.10 — A billiard PDMP]{.tag} A piecewise deterministic Markov process moves $x$ in a straight line at velocity $v$. When $x$ hits the boundary of $K$, the velocity is reflected, with $\nu$ the unit normal:
+$$
+v \leftarrow v - 2 \langle v, \nu \rangle \nu .
+$$
+
+At the times of a Poisson process of rate $\lambda$, $v$ is redrawn uniformly on the sphere.
+
+The uniform distribution on $K \times S^{n-1}$ is invariant (Section 8.3), and the ballistic trajectory reduces random-walk behaviour.
+:::
+
+Chevallier, Cazals and Fearnhead (2022) use such PDMPs instead of hit-and-run inside the multiphase scheme for polytopes in high dimension. Cousins and Vempala (2016) made the scheme practical with Gaussian cooling, which integrates Gaussians of increasing variance instead of indicators of balls.
+
+### 6.4 Densities of states: the Wang–Landau algorithm
+
+::: def
+[Definition 6.11 — Density of states]{.tag} For an energy $U$ on a finite space, the density of states is $g(E) = \#\{x : U(x) = E\}$; in a continuous space it is the derivative of $E \mapsto \mathrm{vol}\{U \leq E\}$. It gives the partition function at every temperature at once:
+$$
+Z(\beta) = \sum_E g(E)\, e^{-\beta E} .
+$$
+
+With $U(x) = \|x\|$ on $K$, the cumulative density of states is $r \mapsto \mathrm{vol}(K \cap B(0, r))$: the volumes of Section 6.3 are a special case.
+:::
+
+::: thm
+[Algorithm 6.12 — Wang–Landau (2001)]{.tag} Keep an estimate $\log \tilde g(E)$ on the energy levels, initially 0, and a modification factor $\log f$, initially 1.
+
+1.  Propose a local move $x \to y$ and accept it with probability $\min\big(1,\ \tilde g(U(x)) / \tilde g(U(y))\big)$.
+2.  At the current energy $E$, add $\log f$ to $\log \tilde g(E)$ and 1 to a histogram $H(E)$.
+3.  When $H$ is flat (every level visited at least 80 % of the mean), halve $\log f$ and reset $H$.
+
+In the variant of Belardinelli and Pereyra (2007), $\log f$ follows $1/t$ once it falls below it, with $t$ the number of steps divided by the number of levels.
+:::
+
+::: prop
+[Proposition 6.13 — Why the histogram becomes flat]{.tag} If $\tilde g = g$, step 1 is a Metropolis chain with target $\pi(x) \propto 1/g(U(x))$. Under this target, every level $E$ has probability
+$$
+\sum_{x : U(x) = E} \frac{1}{Z' g(E)} = \frac{1}{Z'} ,
+$$
+the same for all levels: a flat histogram signals a correct estimate.
+:::
+
+::: thm
+[Theorem 6.14 — Convergence (Fort, Jourdain, Kuhn, Lelièvre and Stoltz, 2015)]{.tag} For a finite state space and a version of Wang–Landau with deterministic step sizes $\gamma_t$ in place of $\log f$, with $\sum_t \gamma_t = \infty$ and $\sum_t \gamma_t^2 < \infty$, the estimates $\log \tilde g$ converge almost surely to $\log g$ up to an additive constant. The algorithm is a stochastic approximation scheme (Section 8.4).
+:::
+
+::: ex
+[Code 6.15 — Wang–Landau on the 4 × 4 Ising model]{.tag} The periodic $4 \times 4$ Ising model has $2^{16} = 65{,}536$ configurations, few enough to compute $g$ exactly by enumeration and to check the estimate.
+
+```python
+import numpy as np
+rng = np.random.default_rng(5)
+Lside = 4; N = Lside * Lside
+nbr = np.array([[((r + dr) % Lside) * Lside + (c + dc) % Lside for dr, dc in ((0, 1), (1, 0), (0, -1), (-1, 0))]
+                for r in range(Lside) for c in range(Lside)])
+
+# Exact density of states by enumeration of the 2^16 configurations (periodic 4 x 4 Ising)
+conf = 1 - 2 * ((np.arange(2**N)[:, None] >> np.arange(N)) & 1)
+E_all = -(conf * conf[:, nbr[:, 0]]).sum(1) - (conf * conf[:, nbr[:, 1]]).sum(1)
+levels, g_exact = np.unique(E_all, return_counts=True)
+idx = {e: k for k, e in enumerate(levels)}
+
+# Wang-Landau with the 1/t refinement of the modification factor
+s = rng.choice([-1, 1], N); E = -(s * s[nbr[:, 0]]).sum() - (s * s[nbr[:, 1]]).sum()
+lng, H, lnf = np.zeros(len(levels)), np.zeros(len(levels)), 1.0
+for step in range(1, 1_500_001):
+    i = rng.integers(N)
+    E_new = E + 2 * s[i] * s[nbr[i]].sum()
+    if np.log(rng.random()) < lng[idx[E]] - lng[idx[E_new]]:   # accept with min(1, g(E)/g(E'))
+        s[i] = -s[i]; E = E_new
+    k = idx[E]; lng[k] += lnf; H[k] += 1
+    if step % 1000 == 0:
+        if lnf > len(levels) / step and H.min() > 0.8 * H.mean():
+            lnf, H = lnf / 2, np.zeros(len(levels))       # flat histogram: halve ln f
+        if lnf <= len(levels) / step:
+            lnf = len(levels) / step                        # 1/t regime
+lng += np.log(2**N) - np.logaddexp.reduce(lng)              # normalise: sum_E g(E) = 2^N
+err = np.abs(lng - np.log(g_exact))
+print("energy levels:", levels.tolist())
+print("exact g(E):", g_exact.tolist())
+print(f"max |ln g_WL - ln g_exact| = {err.max():.3f}, final ln f = {lnf:.1e}")
+```
+
+The 15 levels range from $-32$ to $32$, with $g(-32) = 2$ and $g(0) = 20{,}524$. After $1.5 \times 10^6$ steps, every $\log g$ is within 0.04 of the exact value, across four orders of magnitude.
+:::
+
+Chevallier and Cazals (2020) design an adapted random walk to speed up the convergence of Wang–Landau in continuous spaces, where the levels are bins of energy.
+
+::: recap
+Key takeaways — chapter 6
+
+-   Exact volumes are #P-hard and deterministic approximations err by exponential factors; random sampling gives an FPRAS.
+-   Hit-and-run leaves the uniform distribution invariant and mixes in polynomial time; PDMPs move ballistically between reflections.
+-   Multiphase Monte Carlo writes a volume as a product of $O^*(n)$ ratios, each at least $1/2$.
+-   Wang–Landau learns $g(E)$ by penalising visited levels; at the fixed point the energy histogram is flat.
+:::
+
+## 7. Spatial partitions and applications {#ch7}
+
+Sampled conformations are clouds of points in high dimension. This chapter partitions them with random hyperplanes, which adapt to the intrinsic dimension, explains predictions with Shapley values, and uses both tools to check whether samplers have mixed.
+
+### 7.1 Random projection trees
+
+::: def
+[Definition 7.1 — Random projection tree]{.tag} A random projection (RP) tree splits a cell of points by drawing a direction $u$ uniformly on the unit sphere, projecting the points on $u$, and cutting at the median of the projections, possibly perturbed. It recurses until cells hold at most $n_0$ points. A query descends to the leaf that contains it.
+:::
+
+:::: prop
+[Lemma 7.2 — Random projections rarely invert distances]{.tag} Let $a, b \in \mathbb{R}^D$ with $\|a\| \leq \|b\|$, and let $u$ be uniform on the unit sphere. Then
+$$
+\mathbb{P}\big( |\langle u, a \rangle| \geq |\langle u, b \rangle| \big) \leq \frac{\|a\|}{\|b\|} .
+$$
+
+::: proof
+Both inner products only see the projection of $u$ on the plane spanned by $a$ and $b$, whose direction is uniform by rotational symmetry. Let $\omega$ be the angle of this direction to $b$; the event implies $\|b\|\, |\cos \omega| \leq \|a\|$. For a uniform angle,
+$$
+\mathbb{P}\big( |\cos\omega| \leq s \big) = \frac{2}{\pi} \arcsin s \leq s, \qquad s = \|a\|/\|b\| \in [0, 1],
+$$
+because $\arcsin s \leq \pi s / 2$ on $[0, 1]$ by concavity of $\sin$. [∎]{.qed}
+:::
+::::
+
+With $a = q - x_{(1)}$ and $b = q - x_{(i)}$, the lemma says that a random split rarely separates a query $q$ from its nearest neighbour $x_{(1)}$ while keeping a farther point $x_{(i)}$ with it.
+
+::: thm
+[Theorem 7.3 — Adaptation to intrinsic dimension (Dasgupta and Freund, 2008)]{.tag} A set has Assouad dimension $d$ if every ball can be covered by $2^d$ balls of half its radius.
+
+For a variant of the RP tree, if a cell has Assouad dimension at most $d$, then with probability at least $1/2$ every cell $c\, d \log d$ levels below has at most half its radius, for a constant $c$, whatever $D$.
+:::
+
+::: thm
+[Theorem 7.4 — Exact nearest neighbours (Dasgupta and Sinha, 2013)]{.tag} For a query $q$ and $m$ points ordered by distance to $q$, let
+$$
+\Phi_m(q) = \frac{1}{m} \sum_{i=2}^{m} \frac{\|q - x_{(1)}\|}{\|q - x_{(i)}\|} .
+$$
+
+The probability that an RP tree misses the exact nearest neighbour is bounded, up to constants, by a sum over the levels of terms $\Phi \log(1/\Phi)$ at the cell sizes; Lemma 7.2 is the key step. $\Phi$ is small when the nearest neighbour is markedly closer than the rest.
+:::
+
+### 7.2 Nearest neighbours, regression and dimension estimation
+
+Several independent trees reduce the failure probability, with the union of the leaves of $q$ as candidates. The same partitions give a regression estimator, the mean response in the leaf of $x$, whose convergence rate depends on the intrinsic dimension rather than on $D$ (Kpotufe and Dasgupta, 2012).
+
+:::: prop
+[Proposition 7.5 — Dimension from the shrinking rate]{.tag} Assume that median splits are used and that cells are round at their own scale: with $\mu$ the fraction of points, every cell $C$ satisfies
+$$
+c_1\, \mathrm{rad}(C)^d \leq \mu(C) \leq c_2\, \mathrm{rad}(C)^d .
+$$
+
+At depth $k$, $\mu(C) = 2^{-k}$, hence
+$$
+\mathrm{rad}(C) \asymp 2^{-k/d} .
+$$
+
+The radius halves every $d$ levels, so $d$ is estimated by the number of levels per halving.
+::::
+
+::: ex
+[Code 7.6 — RP trees on the digits data set and on synthetic manifolds]{.tag} Exact nearest neighbours of 200 digits of scikit-learn ($D = 64$) with 1, 5 and 20 trees; then the dimension of uniform data on subspaces of dimension 2 and 20 of $\mathbb{R}^{100}$.
+
+```python
+import numpy as np
+from sklearn.datasets import load_digits
+rng = np.random.default_rng(6)
+
+def rp_tree(idx, X, leaf=20):
+    """Random projection tree: split at the median of a projection on a random direction."""
+    if len(idx) <= leaf:
+        return idx
+    u = rng.standard_normal(X.shape[1]); u /= np.linalg.norm(u)
+    proj = X[idx] @ u
+    t = np.median(proj)
+    return (u, t, rp_tree(idx[proj <= t], X, leaf), rp_tree(idx[proj > t], X, leaf))
+
+def leaf_of(node, x):
+    while isinstance(node, tuple):
+        u, t, left, right = node
+        node = left if x @ u <= t else right
+    return node
+
+X = load_digits().data.astype(float)                 # 1797 images of 8 x 8 pixels, D = 64
+queries, base = X[:200], X[200:]
+true_nn = np.argmin(((queries[:, None] - base[None]) ** 2).sum(-1), axis=1)
+for n_trees in (1, 5, 20):
+    trees = [rp_tree(np.arange(len(base)), base) for _ in range(n_trees)]
+    hits = 0
+    for qi, x in enumerate(queries):
+        cand = np.unique(np.concatenate([leaf_of(T, x) for T in trees]))
+        hits += cand[np.argmin(((base[cand] - x) ** 2).sum(1))] == true_nn[qi]
+    print(f"{n_trees:2d} trees: exact nearest neighbour found for {hits / len(queries):.0%} of queries")
+
+# Cell radii shrink at a rate set by the intrinsic dimension, not by D = 100
+def diam_profile(X, depth=8):
+    cells, out = [np.arange(len(X))], []
+    for _ in range(depth):
+        new = []
+        for c in cells:
+            u = rng.standard_normal(X.shape[1]); proj = X[c] @ u; t = np.median(proj)
+            new += [c[proj <= t], c[proj > t]]
+        cells = new
+        out.append(np.mean([np.max(np.linalg.norm(X[c] - X[c].mean(0), axis=1)) for c in cells]))
+    return np.array(out) / out[0]
+for d in (2, 20):
+    Z = rng.uniform(-1, 1, (4096, d)) @ rng.standard_normal((d, 100)) / np.sqrt(d)
+    prof = diam_profile(Z)
+    slope = np.polyfit(np.arange(1, 9), np.log2(prof), 1)[0]          # log2 radius lost per level
+    print(f"intrinsic dim {d:2d}: radius ratio after 8 levels {prof[-1]:.2f}, levels per halving {-1 / slope:.1f}")
+```
+
+One tree finds the exact neighbour for 14 % of the queries, 5 trees for 68 % and 20 trees for 96 %. The radius halves every 2.1 levels for the 2-dimensional data and every 16.1 levels for the 20-dimensional data; the second estimate is biased downwards because 8 levels leave cells of only 16 points.
+:::
+
+### 7.3 Shapley values and Shapley–Shubik indices
+
+::: def
+[Definition 7.7 — Cooperative game and Shapley value]{.tag} A game on players $\{1, \dots, d\}$ is a function $v$ on subsets with $v(\emptyset) = 0$. The Shapley value of player $j$ is its average marginal contribution over the $d!$ orders of arrival:
+$$
+\phi_j(v) = \sum_{S \subseteq \{1..d\} \setminus \{j\}} \frac{|S|!\, (d - |S| - 1)!}{d!} \big( v(S \cup \{j\}) - v(S) \big).
+$$
+:::
+
+:::: thm
+[Theorem 7.8 — Shapley (1953)]{.tag} The Shapley value is the only map $v \mapsto \phi(v)$ that is efficient, symmetric, additive and gives zero to null players. Efficient means $\sum_j \phi_j(v) = v(\{1..d\})$.
+
+Section 8.7 gives the proof.
+::::
+
+::: def
+[Definition 7.9 — Simple games and the Shapley–Shubik index]{.tag} A simple game takes values in $\{0, 1\}$: a coalition wins or loses. Its Shapley value is the Shapley–Shubik index (1954): the fraction of orders in which player $j$ is pivotal, that is, turns a losing coalition into a winning one.
+:::
+
+::: ex
+[Example 7.10 — Weight is not power]{.tag} In the weighted vote with quota 51 and weights 50, 49 and 1, list the 6 orders. The first player is pivotal in 4 of them, the other two in 1 each. The indices are
+$$
+(2/3,\ 1/6,\ 1/6) .
+$$
+
+The player of weight 49 has no more power than the player of weight 1. Code 7.12 checks this by enumeration.
+:::
+
+::: def
+[Definition 7.11 — Shapley values of a prediction]{.tag} For a model $f$, an input $x$ and background data, SHAP (Lundberg and Lee, 2017) uses the game $v_x(S) = \mathbb{E}_b\big[f(x_S, b_{\bar S}) - f(b)\big]$, where the features outside $S$ are taken from background points $b$. By efficiency the values add up to $f(x) - \mathbb{E}_b f(b)$.
+:::
+
+If $f$ has 0/1 output and the background is one point $b$ with $f(b) = 0$, then $v_x$ takes values in $\{0, 1\}$; when it is monotone, it is a simple game, and the Shapley values are Shapley–Shubik indices of the features. For tree ensembles, Lundberg and coauthors (2020) compute exact values in polynomial time instead of enumerating $2^d$ coalitions.
+
+### 7.4 Feature selection and mixing assessment
+
+Features with a small mean $|\phi_j|$ can be removed: this is Shapley-based feature selection. For mixing, train a classifier to tell apart the samples of two chains. A cross-validated accuracy near 0.5 means that they are indistinguishable; otherwise Shapley values point to the coordinates that are not mixed.
+
+::: ex
+[Code 7.12 — A classifier and Shapley values detect a stuck coordinate]{.tag} Two chains sample four coordinates. Coordinates 1 to 3 are well mixed, but coordinate 0 is stuck in a different well in each chain, as in Code 0.9.
+
+```python
+import numpy as np
+from itertools import permutations, combinations
+from math import factorial
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score
+rng = np.random.default_rng(7)
+
+# 1. Shapley-Shubik index of the weighted vote [quota 51; weights 50, 49, 1]
+w, quota = [50, 49, 1], 51
+piv = np.zeros(3)
+for order in permutations(range(3)):
+    tot = 0
+    for p in order:
+        tot += w[p]
+        if tot >= quota:
+            piv[p] += 1; break
+print("Shapley-Shubik indices:", (piv / factorial(3)).round(3).tolist())
+
+# 2. Mixing assessment: can a classifier tell two MCMC chains apart, and on which coordinates?
+def chain(mode, n=2000):
+    X = rng.normal(0, 1, (n, 4))            # coordinates 1-3 well mixed in both chains
+    X[:, 0] = rng.normal(mode, 0.4, n)       # coordinate 0: each chain stuck in one well (-1 or +1)
+    return X
+X = np.vstack([chain(-1.0), chain(+1.0)]); y = np.r_[np.zeros(2000), np.ones(2000)]
+clf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=0)
+print("cross-validated accuracy:", cross_val_score(clf, X, y, cv=5).mean().round(3), "(0.5 = indistinguishable)")
+clf.fit(X, y)
+
+def shapley(f, x, background):
+    """Exact interventional Shapley values: v(S) = mean_b f(x_S, b_rest), 2^d coalitions."""
+    d = len(x); phi = np.zeros(d)
+    def v(S):
+        Z = background.copy(); Z[:, list(S)] = x[list(S)]
+        return f(Z).mean()
+    for j in range(d):
+        others = [k for k in range(d) if k != j]
+        for size in range(d):
+            for S in combinations(others, size):
+                wS = factorial(size) * factorial(d - size - 1) / factorial(d)
+                phi[j] += wS * (v(S + (j,)) - v(S))
+    return phi
+f = lambda Z: clf.predict_proba(Z)[:, 1]
+bg = X[rng.choice(len(X), 100, replace=False)]
+rows = rng.choice(len(X), 30, replace=False)
+Phi = np.array([shapley(f, X[i], bg) for i in rows])
+print("mean |Shapley value| per coordinate:", np.abs(Phi).mean(0).round(3).tolist())
+print("efficiency, sum_j phi_j = f(x) - mean_b f(b):", np.allclose(Phi.sum(1), f(X[rows]) - f(bg).mean()))
+```
+
+The indices of Example 7.10 come out as $(0.667, 0.167, 0.167)$. The classifier separates the chains with accuracy 0.99, and the mean $|\phi_j|$ is 0.47 for coordinate 0 against at most 0.005 for the others: the diagnosis names the stuck coordinate.
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   RP trees split at medians of random projections; their cells shrink at a rate set by the intrinsic dimension.
+-   A random projection inverts two distances with probability at most their ratio, which controls nearest-neighbour search.
+-   The Shapley value is the unique efficient, symmetric, additive value; for simple games it is the Shapley–Shubik index.
+-   A classifier that separates two chains, explained by Shapley values, locates the coordinates that are not mixed.
+:::
+
+## 8. Complements for self-study {#ch8}
+
+This chapter collects the proofs and side results that the sessions only state. Each section can be read right after the session that uses it.
+
+### 8.1 The Eyring–Kramers formula in one dimension
+
+:::: prop
+[Proposition 8.1 — Mean first-passage time in one dimension]{.tag} Let $U$ be smooth with $U(x) \to \infty$ as $|x| \to \infty$, and consider the dynamics of Definition 1.8 on $\mathbb{R}$. The mean time to reach $b$ from $x < b$ is
+$$
+\tau(x) = \beta \int_x^b e^{\beta U(y)} \Big( \int_{-\infty}^{y} e^{-\beta U(z)}\, dz \Big)\, dy .
+$$
+
+::: proof
+The function $\tau$ solves the backward equation $\mathcal{L}\tau = -1$ on $(-\infty, b)$, with $\tau(b) = 0$ and moderate growth at $-\infty$. Here
+$$
+\mathcal{L}\tau = \beta^{-1} \tau'' - U' \tau' = \beta^{-1} e^{\beta U} \big( e^{-\beta U} \tau' \big)' .
+$$
+
+Integrating $(e^{-\beta U}\tau')' = -\beta e^{-\beta U}$ from $-\infty$, where the boundary term vanishes, gives
+$$
+\tau'(y) = -\beta\, e^{\beta U(y)} \int_{-\infty}^y e^{-\beta U(z)}\, dz .
+$$
+
+A second integration from $x$ to $b$ concludes. [∎]{.qed}
+:::
+::::
+
+*Proof of Theorem 1.11 in one dimension.* Let $m < s < b$, with $m$ the lowest point left of the saddle $s$ and $b$ beyond $s$.
+
+As $\beta \to \infty$, the outer integrand concentrates near $y = s$. There the inner integral has already collected the whole well around $m$. Laplace's method gives two Gaussian integrals:
+$$
+\int_{-\infty}^{s} e^{-\beta U} \simeq e^{-\beta U(m)} \sqrt{\frac{2\pi}{\beta\, U''(m)}}, \qquad \int e^{\beta U(y)} dy \simeq e^{\beta U(s)} \sqrt{\frac{2\pi}{\beta\, |U''(s)|}} .
+$$
+
+Their product, times $\beta$, is the formula of Theorem 1.11; the factors $\beta$ cancel.
+
+### 8.2 Pseudo-likelihood is consistent
+
+:::: prop
+[Proposition 8.2 — The expected pseudo-likelihood is maximal at the truth]{.tag} Let the sequences be drawn from a Potts model with parameters $\theta^\star$ in a fixed gauge. The expected negative log pseudo-likelihood $\ell(\theta)$ satisfies
+$$
+\ell(\theta) - \ell(\theta^\star) = \sum_i \mathbb{E}_{a_{-i}} \Big[ \mathrm{KL}\big( P_{\theta^\star}(\cdot \mid a_{-i}) \,\|\, P_\theta(\cdot \mid a_{-i}) \big) \Big] \geq 0 .
+$$
+
+::: proof
+Write $\ell(\theta)$ as a sum over sites of $\mathbb{E}[-\log P_\theta(a_i \mid a_{-i})]$ and condition on $a_{-i}$: the difference of cross-entropies with the true conditional is a Kullback–Leibler divergence. [∎]{.qed}
+:::
+::::
+
+If the conditionals determine $\theta$ in the chosen gauge, the minimiser is unique. The empirical loss is convex (Proposition 4.3) and converges pointwise, so its minimiser converges to $\theta^\star$, by the standard argument for convex M-estimators.
+
+### 8.3 Invariance of the billiard PDMP
+
+The generator of the process of Definition 6.10 acts on functions $f(x, v)$ as
+$$
+\mathcal{L} f = v \cdot \nabla_x f + \lambda \Big( \int f(x, w)\, d\sigma(w) - f(x, v) \Big),
+$$
+on functions that satisfy $f(x, v) = f(x, R_\nu v)$ at the boundary, with $R_\nu$ the reflection.
+
+Let $\mu$ be uniform on $K \times S^{n-1}$. The refreshment term integrates to zero against $\mu$, because $\sigma$ is the refreshment law. By the divergence theorem, the transport term gives
+$$
+\int_{S^{n-1}} \int_{\partial K} (v \cdot \nu)\, f(x, v)\, dA(x)\, d\sigma(v).
+$$
+
+The reflection maps outgoing velocities ($v \cdot \nu > 0$) to incoming ones, preserves $\sigma$ and flips the sign of $v \cdot \nu$. With the boundary condition, the two halves cancel, so $\int \mathcal{L} f\, d\mu = 0$ and $\mu$ is invariant.
+
+### 8.4 Wang–Landau as stochastic approximation
+
+Write $\theta_t(E) = \log \tilde g_t(E)$. The update of Algorithm 6.12 with step $\gamma_t$ reads
+$$
+\theta_{t+1}(E) = \theta_t(E) + \gamma_{t+1}\, \mathbf{1}\big[U(X_{t+1}) = E\big].
+$$
+
+Its mean field is the vector of level probabilities under the biased target $\pi_\theta(x) \propto e^{-\theta(U(x))}$. With $\varphi = \theta - \log g$, these probabilities are
+$$
+p_\theta(E) = \frac{e^{-\varphi(E)}}{\sum_{E'} e^{-\varphi(E')}} .
+$$
+
+The mean ODE $\dot\theta = p_\theta$ raises $\varphi$ fastest where it is smallest, so $\max \varphi - \min \varphi$ decreases. Its limit points are the $\theta = \log g + c$, which give the flat histogram of Proposition 6.13. Fort and coauthors (2015) turn this picture into an almost-sure convergence theorem for decreasing steps with $\sum_t \gamma_t = \infty$ and $\sum_t \gamma_t^2 < \infty$.
+
+### 8.5 Tripeptide loop closure: the elimination
+
+The rigid peptide units fix the distances between consecutive Cα atoms, and the anchors fix the first and last Cα. The three Cα of the tripeptide therefore form a triangle of known shape. At each Cα, the pair $(\phi_i, \psi_i)$ reduces to one rotation angle $\tau_i$ of the adjacent peptide unit about a side of the triangle.
+
+Each closure condition couples two consecutive angles by an equation of degree 2 in each of the half-angle tangents $u_i = \tan(\tau_i/2)$. Eliminating $u_1$ and $u_3$ from the three equations with resultants leaves a univariate polynomial of degree 16 in $u_2$ (Coutsias and coauthors, 2004). Its real roots give the closures; each root determines the dihedrals back.
+
+### 8.6 Conditioning on closure: the co-area formula
+
+:::: prop
+[Proposition 8.3 — Conditional density on a level set]{.tag} Let $F : \mathbb{R}^n \to \mathbb{R}^6$ be smooth with $dF$ of rank 6, and let $\theta$ have density $\pi$.
+
+For almost every $y$, the law of $\theta$ given $F(\theta) = y$ has, with respect to the volume $\sigma$ of $F^{-1}(y)$, a density proportional to
+$$
+\frac{\pi(\theta)}{J_F(\theta)}, \qquad J_F = \sqrt{\det\big(dF\, dF^\top\big)} .
+$$
+
+::: proof
+The co-area formula reads
+$$
+\int_{\mathbb{R}^n} \varphi\, \pi\, d\theta = \int_{\mathbb{R}^6} \Big( \int_{F^{-1}(y)} \varphi\, \frac{\pi}{J_F}\, d\sigma \Big)\, dy ,
+$$
+which is the disintegration of the law of $\theta$ along the level sets. [∎]{.qed}
+:::
+::::
+
+The result depends on the coordinates chosen on $SE(3)$ to express closure, an instance of the Borel–Kolmogorov paradox: conditioning on an event of probability zero needs a choice of limit. Combined with Proposition 3.7, the importance weight of a closed loop is $\pi / (J_F\, q)$.
+
+### 8.7 Uniqueness of the Shapley value
+
+*Proof of Theorem 7.8.* The formula of Definition 7.7 satisfies the four axioms by inspection.
+
+Conversely, the unanimity games $u_T(S) = \mathbf{1}[T \subseteq S]$, for non-empty $T$, form a basis of the space of games.
+
+In $c\, u_T$, players outside $T$ are null and players in $T$ are symmetric, so efficiency forces $\phi_j(c\, u_T) = c / |T|$ for $j \in T$ and 0 otherwise. Additivity extends the values to every game, which proves uniqueness. [∎]{.qed}
+
+### 8.8 Maximum likelihood for the von Mises density
+
+*Proof of Proposition 3.10.* The weighted log-likelihood is
+$$
+\kappa \sum_k r_k \cos(x_k - \mu) - \Big(\sum_k r_k\Big) \log I_0(\kappa) + \text{const}.
+$$
+
+The sum equals $\sqrt{C^2 + S^2}\, \cos(\mu - \hat\mu)$, maximal at $\mu = \hat\mu$. The derivative in $\kappa$ then vanishes when $A(\kappa) = \bar R$, since $I_0' = I_1$.
+
+Now $\log I_0(\kappa)$ is the log-partition function of an exponential family with statistic $\cos(x - \mu)$, so its second derivative $A'(\kappa)$ is a variance, hence positive. $A$ increases strictly from 0 to 1, and the root is unique. [∎]{.qed}
+
+::: recap
+Key takeaways — chapter 8
+
+-   In one dimension, the mean first-passage time is an explicit double integral, and Laplace's method turns it into the Eyring–Kramers formula.
+-   Pseudo-likelihood is consistent because each site contributes a conditional Kullback–Leibler divergence.
+-   Billiard PDMPs preserve the uniform measure because reflections preserve speed and the sphere measure.
+-   Wang–Landau is a stochastic approximation whose mean field equalises $\log \tilde g - \log g$.
+-   Conditioning on closure adds the factor $1/J_F$ of the co-area formula.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter surveys active questions related to each part of the course. It is meant for self-study and for choosing a project; the cited works are starting points, not a complete bibliography.
+
+### From structures to conformational ensembles
+
+Structure predictors return one model, while function needs populations of states (ch. 1). Del Alamo and coauthors (2022) obtained alternative conformations of transporters and receptors from AlphaFold2 by subsampling the MSA. Wayment-Steele and coauthors (2024) cluster the MSA to predict multiple conformations of fold-switching proteins. AlphaFold3 (Abramson and coauthors, 2024) extends prediction to complexes with nucleic acids, ligands and ions.
+
+Open problem: whether such predictions carry thermodynamic information, that is, populations and free-energy differences, rather than a list of plausible states.
+
+### Long time scales and rare events
+
+Special-purpose hardware made millisecond simulations of small proteins possible (Shaw and coauthors, 2010). Markov state models summarise many short trajectories into a kinetic network (Prinz and coauthors, 2011). Metadynamics biases the dynamics along collective variables to escape free-energy minima (Laio and Parrinello, 2002).
+
+Open problem: finding good reaction coordinates, the $\xi$ of Definition 1.7, in dimension 15,000, possibly by learning them.
+
+### Generative models for structures and design
+
+Boltzmann generators (Noé and coauthors, 2019) learn proposals for equilibrium sampling. Diffusion models generate new backbones (Watson and coauthors, 2023), and inverse-folding networks design sequences for them (Dauparas and coauthors, 2022).
+
+Open problems: unbiased Boltzmann sampling with learned proposals in large systems, where importance weights degenerate; and the experimental success rate of designs.
+
+### Language models and Potts models
+
+Protein language models predict structure without MSAs (Lin and coauthors, 2023). The mapping between attention and Potts models (Rende and coauthors, 2024) suggests asking which higher-order interactions deeper models learn, and whether they improve design over pairwise models (Russ and coauthors, 2020).
+
+### Geometry and topology of conformation spaces
+
+Closure sets of loops are real algebraic varieties (ch. 3), whose dimension, singularities and connected components govern sampling. Persistent homology has been used to describe protein structure, flexibility and folding (Xia and Wei, 2014). The study of tripeptide reconstructions by O'Donnell, Agashe and Cazals (2023) shows how geometric constraints decide whether closures exist.
+
+### High-dimensional volumes and densities of states
+
+Practical volume algorithms (Cousins and Vempala, 2016; Chevallier, Cazals and Fearnhead, 2022) handle polytopes far beyond the reach of exact methods, and pushing them to larger dimensions and to non-convex bodies is active work. Convergence rates of Wang–Landau and of its variants remain partly open (Fort and coauthors, 2015). Energy landscapes are not convex, and sublevel sets of the energy can have many components, so the guarantees of ch. 6 do not apply.
+
+### Explaining and validating samplers
+
+Classifier-based two-sample tests and Shapley values (ch. 7) give diagnostics for mixing. Their statistical calibration on correlated MCMC output, and the choice of the background distribution for Shapley values, are open questions.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Predicting populations of conformations, not only structures, is the main open problem of the field.
+-   Rare events need reaction coordinates, biased dynamics or learned proposals with exact reweighting.
+-   Volumes and densities of states are tractable for convex bodies; energy landscapes need new guarantees.
+:::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. The session plan says which ones to do after each session. Exercises 13, 15, 17, 19 and 20 are computational.
+
+1.  **★ Counting degrees of freedom.** (a) What is the dimension of the space of shapes of a molecule of 5000 atoms? (b) A chain of 300 residues has ideal bond lengths and angles and trans peptides. How many backbone dihedrals move its backbone atoms, and what fraction is this of the $3 \times 900 - 6$ coordinates of its backbone shape?
+
+    *Solution*: (a) $3 \times 5000 - 6 = 14{,}994$ (Definition 1.1).
+
+    (b) Each residue has $\phi$ and $\psi$, but $\phi_1$ and $\psi_{300}$ move no backbone atom of the chain, which leaves $2 \times 300 - 2 = 598$ dihedrals. The fraction is $598 / 2694 \approx 0.22$: fixing bonds and angles removes almost four fifths of the coordinates.
+
+2.  **★ Energy against entropy.** State $B$ lies $\Delta U = 2$ kcal/mol above state $A$, with an entropy larger by $\Delta S = 0.01$ kcal/(mol·K). Compute $\mathbb{P}(B)/\mathbb{P}(A)$ at 300 K, then the temperature at which both states are equally populated.
+
+    *Solution*: by Proposition 1.5, $\Delta F = \Delta U - T \Delta S = 2 - 3 = -1$ kcal/mol at 300 K, so the ratio is $e^{1/0.596} \approx 5.35$. The populations are equal when $\Delta F = 0$, that is, at $T = \Delta U / \Delta S = 200$ K; below it $A$ dominates.
+
+3.  **★ Needleman–Wunsch by hand.** Align HEAG with HAG (match 2, mismatch $-1$, gap $-2$). Fill the table of Proposition 2.2 and trace back an optimal alignment.
+
+    *Solution*: with rows H, E, A, G and columns H, A, G, after the borders $0, -2, -4, \dots$, the rows of the table are $(2, 0, -2)$, $(0, 1, -1)$, $(-2, 2, 0)$ and $(-4, 0, 4)$. The score is 4. The traceback gives HEAG over H-AG: two matches, a gap, then a match.
+
+4.  **★ The TM-score scale.** (a) Compute $d_0$ for $L = 100$ and $L = 300$. (b) For $L = 100$, a model has 80 % of its residues at 1 Å and 20 % at 10 Å after superposition. Compute its TM-score for this superposition.
+
+    *Solution*: (a) $d_0 = 1.24 \times 85^{1/3} - 1.8 = 3.65$ Å and $6.36$ Å; a longer chain tolerates larger deviations. (b) The score is
+    $$
+    0.8 / (1 + (1/3.65)^2) + 0.2 / (1 + (10/3.65)^2) = 0.744 + 0.024 = 0.768 .
+    $$
+    The badly placed fifth contributes almost nothing, and does not pull the score down as it would pull the RMSD up.
+
+5.  **★ A Shapley–Shubik index.** Compute the indices of the weighted vote with quota 4 and weights 3, 2, 1 and 1.
+
+    *Solution*: the winning coalitions are those that contain player 1 and someone else, and $\{2, 3, 4\}$. Player 1 is pivotal exactly when it arrives second or third, in 12 of the 24 orders, so its index is $1/2$. Players 2, 3 and 4 play symmetric roles in this game, so each gets $1/6$: weight 2 brings no more power than weight 1.
+
+6.  **★ Rejection in high dimension.** How many uniform proposals in $[-1, 1]^n$ are needed, on average, to obtain 100 points of the unit ball, for $n = 10$ and $n = 20$?
+
+    *Solution*: by Proposition 6.3 the acceptance rates are $2.49 \times 10^{-3}$ and $2.46 \times 10^{-8}$, so about $4.0 \times 10^4$ and $4.1 \times 10^9$ proposals.
+
+7.  **★★ Superposition in the plane.** For centred points $p'_i, q'_i \in \mathbb{R}^2$, show that the optimal rotation angle is
+    $$
+    \theta^\star = \operatorname{atan2}\Big( \sum_i p'_i \times q'_i,\ \sum_i p'_i \cdot q'_i \Big),
+    $$
+    with $p \times q = p_x q_y - p_y q_x$. Why can no reflection problem arise in this formula?
+
+    *Solution*: with $A$ the sum of dot products and $B$ the sum of cross products, the cost is a constant minus
+    $$
+    2 \sum_i q'_i \cdot R_\theta p'_i = 2 (A \cos\theta + B \sin\theta).
+    $$
+
+    The maximum is at $\theta = \operatorname{atan2}(B, A)$. The search runs over rotations only, so the determinant is 1 by construction; Theorem 1.3 needs the sign $s$ because the SVD searches over $O(3)$.
+
+8.  **★★ Breaking the invariance.** In Definition 2.8, replace the distance term by an inner product in the global frame:
+    $$
+    -\gamma \sum_p \big\langle T_i q_{ip},\ T_j k_{jp} \big\rangle .
+    $$
+    Is the attention still invariant under global rotations? Under global translations?
+
+    *Solution*: rotations preserve inner products, so rotations about the origin leave the logits unchanged. A translation by $t$ adds $\langle a_i + b_j, t \rangle + \|t\|^2$, where $a_i$ and $b_j$ are the transformed points (summed over $p$).
+
+    The term $\|t\|^2$ and the part $\langle a_i, t \rangle$ do not depend on $j$, so they cancel in the softmax over $j$; the part $\langle b_j, t \rangle$ does not cancel. The squared distance of IPA avoids this, because it depends on differences only.
+
+9.  **★★ Closing a planar arm.** A planar arm has two links of lengths $\ell_1, \ell_2$ from the origin, with joint angles $\theta_1, \theta_2$. (a) For which end distances $r$ can it reach a given point, and with how many solutions? (b) Solve for $\ell_1 = \ell_2 = r = 1$. (c) What is the dimension of the solution set for three links, and how does this match Proposition 3.5?
+
+    *Solution*: (a) The law of cosines gives
+    $$
+    \cos\theta_2 = \frac{r^2 - \ell_1^2 - \ell_2^2}{2 \ell_1 \ell_2} .
+    $$
+    There are two solutions (elbow up and down) when $|\ell_1 - \ell_2| < r < \ell_1 + \ell_2$, one at the boundary and none outside. (b) $\cos\theta_2 = -1/2$, so $\theta_2 = \pm 120^\circ$. (c) The end position imposes 2 conditions on 3 angles, which leaves a curve: the planar analogue of $n - 6$ is $n - 2$ for a position, or $n - 3$ for a position and an orientation.
+
+10. **★★ The von Mises concentration.** (a) Show that $A'(\kappa) = 1 - A(\kappa)/\kappa - A(\kappa)^2$, using $I_1' = I_0 - I_1/\kappa$. (b) For $\bar R = 0.9$, compare the approximation of Code 3.11 with the exact root.
+
+    *Solution*: (a) Differentiate $A = I_1/I_0$ with $I_0' = I_1$:
+    $$
+    A' = \frac{I_1'}{I_0} - \frac{I_1^2}{I_0^2} = 1 - \frac{A}{\kappa} - A^2 .
+    $$
+    It equals the variance of $\cos(x - \mu)$ (Section 8.8), hence it is positive. (b) The approximation gives $0.9 \times 1.19 / 0.19 = 5.64$, the exact root is $5.30$: a 6 % bias, removed by one Newton step with the formula of (a).
+
+11. **★★ Gauge and parameter count.** (a) Show that replacing $J_{ij}(a, b)$ by $J_{ij}(a, b) + u(a)$ and $h_i(a)$ by $h_i(a) - u(a)$ leaves the Potts distribution unchanged. (b) Count the parameters for $L = 100$ and $q = 21$, before and after fixing the gauge.
+
+    *Solution*: (a) The energy of every sequence changes by $u(a_i) - u(a_i) = 0$.
+
+    (b) Before fixing the gauge, the count is
+    $$
+    Lq + \binom{L}{2} q^2 = 2100 + 4950 \times 441 = 2{,}185{,}050 .
+    $$
+
+    In the zero-sum gauge, each field has $q - 1$ free entries and each coupling $(q-1)^2$: $100 \times 20 + 4950 \times 400 = 1{,}982{,}000$.
+
+12. **★★ Factored attention is economical.** In Proposition 4.7, show that scaling $A^h$ by $c > 0$ and $W^h V^h$ by $1/c$ gives the same model. Then compare the number of coupling parameters of a Potts model and of 4 heads of factored attention, for 50 sites and 21 symbols, with one square symbol matrix per head.
+
+    *Solution*: $J$ only involves the products $A^h_{ij} (W^h V^h)_{ab}$, which are unchanged. The Potts model has $\binom{50}{2} \times 441 = 540{,}225$ coupling parameters. Four heads have $4 \times 2500$ positional entries and $4 \times 441$ symbol entries, 11,764 in total: the factorisation is a strong low-rank prior on the couplings.
+
+13. **★★ Hit-and-run against a ball walk (computational).** In the rectangle $[0, 100] \times [0, 1]$, run $2 \times 10^5$ steps of hit-and-run and of a random-walk Metropolis (Gaussian steps of 0.5, rejected outside), both from $(50, 0.5)$. Compare the means and the autocorrelation times of $x_1$.
+
+    *Hints and expected result*: estimate the autocorrelation time by batch means, with batches longer than the mixing time. Hit-and-run has an autocorrelation time of order $10^2$ steps and a mean near 50. The ball walk moves diffusively, with steps of about 0.5, so crossing 100 units takes of order $(100/0.5)^2 = 4 \times 10^4$ steps. Its mean can still be off by tens after $2 \times 10^5$ steps. Long chords make hit-and-run insensitive to the elongation, in line with the $R^2/r^2$ factor of Theorem 6.7 being a worst case.
+
+14. **★★ Phases of the multiphase scheme.** For the cube $[-1, 1]^n$, take $r = 1$ and $R = \sqrt n$. Compute the number of phases in dimensions 10 and 100, and the total number of points with $N = 8m / \varepsilon^2$ per phase for $\varepsilon = 0.1$. Why can the bound of Proposition 6.8 on the ratios fail for a non-convex body?
+
+    *Solution*: $m = \lceil (n/2) \log_2 n \rceil$ gives 17 and 333 phases. With $N = 800\,m$, the totals are $800\, m^2 = 2.3 \times 10^5$ and $8.9 \times 10^7$ points, each produced by a hit-and-run chain.
+
+    The proof of Proposition 6.8 uses $K \subset 2^{1/n} K$, which needs convexity and $0 \in K$; a thin non-convex shell can have $\mathrm{vol}(K_{i-1})$ much smaller than $\mathrm{vol}(K_i)$.
+
+15. **★★ Heat capacity from a density of states (computational).** From the exact $g(E)$ printed by Code 6.15, compute the heat capacity per spin $C(T) = \mathrm{Var}(E) / (N T^2)$, with $k_B = J = 1$, on a grid of temperatures, and locate its maximum.
+
+    *Hints and expected result*: use $p_T(E) \propto g(E) e^{-(E - E_{\min})/T}$ to avoid overflow. The maximum is near $T \approx 2.44$, with $C \approx 0.82$ per spin. It lies above the infinite-lattice critical temperature $2/\log(1 + \sqrt 2) \approx 2.27$ (Onsager), a finite-size effect. One density of states gives every temperature at once (Definition 6.11).
+
+16. **★★ An exact projection probability.** For orthogonal $a, b \in \mathbb{R}^D$ and $u$ uniform on the sphere, show that
+    $$
+    \mathbb{P}\big( |\langle u, a\rangle| \geq |\langle u, b \rangle| \big) = \frac{2}{\pi} \arctan \frac{\|a\|}{\|b\|},
+    $$
+    and evaluate it for the ratios 0.5 and 0.1. Compare with Lemma 7.2.
+
+    *Solution*: in the plane of $a$ and $b$ the direction angle $\omega$ is uniform, and the event reads $|\tan\omega| \geq \|b\|/\|a\|$ when $\omega$ is measured from $b$. Its probability is
+    $$
+    1 - \frac{2}{\pi}\arctan\frac{\|b\|}{\|a\|} = \frac{2}{\pi}\arctan\frac{\|a\|}{\|b\|} .
+    $$
+
+    The values are 0.295 and 0.063, below the bounds 0.5 and 0.1 of the lemma.
+
+17. **★★★ Loop sampling with the Jacobian correction (computational).** Start from Code 5.4. Split the nine dihedrals into three free and six closure dihedrals, compute $J_k$ by implicit differentiation, and weight each closure by Proposition 3.7 and by the factor of Section 8.6. Compare the weighted and unweighted distributions of one dihedral of the loop.
+
+    *Hints and expected result*: the closure Jacobian is the $9 \times 6$ derivative of the three end atoms with respect to the closure dihedrals; use a least-squares solve for implicit differentiation. Expect weights that vary over at least one order of magnitude, and visible differences between weighted and unweighted histograms. Report the effective sample size $(\sum w)^2 / \sum w^2$.
+
+18. **★★★ A mixing diagnostic.** Use the chains of Code 0.9, for $h = 1$ and $h = 8$, and test whether the first and second halves of each chain are distinguishable. Build a classifier test as in Code 7.12, on lagged features such as $(x_t, x_{t-10})$, and compare with the Gelman–Rubin statistic on four chains.
+
+    *Hints and expected result*: for $h = 1$ the cross-validated accuracy should stay near 0.5. For $h = 8$ it depends on whether a transition happened in one half only. Discuss how the correlation of MCMC samples biases the cross-validated accuracy, and how thinning or block splits correct it.
+
+19. **★★★ Billiard PDMP for volumes (computational).** Implement the PDMP of Definition 6.10 in the polytope of Code 6.9, using it in place of hit-and-run, and compare the relative errors of both for $n = 5, 10, 20$ at equal numbers of oracle calls.
+
+    *Hints and expected result*: between events, move to the first boundary hit (a ratio test), reflect, and refresh at rate $\lambda$ of order $1/\mathrm{diam}(K)$. Sample the position at regular times, not at events. Chevallier, Cazals and Fearnhead (2022) report gains of PDMPs in high dimension; check whether they appear in your runs.
+
+20. **★★★ Does factored attention learn the couplings? (computational)** On the sequences of Code 4.6, train one layer of factored attention by masked prediction, in PyTorch, and compare its couplings (Proposition 4.7) with the pseudo-likelihood estimate.
+
+    *Hints and expected result*: parametrise $A^h$ by a softmax over $j \neq i$ of free logits, and use 1 to 8 heads. With enough heads, the contact precision should approach that of pseudo-likelihood, as in Rende and coauthors (2024). With one head, the rank constraint should show in the coupling matrices.
+
+## Projects and assessment {#projects}
+
+master-mva.com announces projects for students working in tandem (15 points) and an individual quiz (5 points). A project reproduces or expands recently published results; students return a report and a git repository, notebook or code archive, and have one month. The catch-up is an oral exam on the lectures, typically one or two questions per lecture. The Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (partial continuous assessment).
+
+The subjects below are proposals in that format. The group subjects are sized for a tandem, as in the official modality; the solo subjects suit a student who works alone or prepares the quiz. The written exam is a self-assessment proposal in the spirit of the quiz, not an official modality.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: Wang–Landau and its 1/t variant.** Reproduce the convergence behaviour discussed by Belardinelli and Pereyra (2007) and analysed by Fort and coauthors (2015).
+    -   *Work*: extend Code 6.15 to the $4 \times 4$ and $5 \times 5$ periodic Ising models, with exact $g(E)$ by enumeration ($2^{25}$ states, vectorised); compare the flat-histogram rule, the 1/t rule and deterministic steps $\gamma_t = 1/t$.
+    -   *Success criterion*: a log–log plot of $\max_E |\log \tilde g - \log g|$ against the number of steps, with the saturation of the plain rule and the decay of the 1/t rule visible.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 6 and 8.
+
+2.  **[Solo · ≈ 20 h] Paper study: random projection trees and intrinsic dimension.** Reproduce the main claim of Dasgupta and Freund (2008): cell radii shrink at a rate set by the intrinsic dimension.
+    -   *Work*: synthetic manifolds (subspaces, spheres, swiss rolls) of dimension 1 to 10 in $\mathbb{R}^{100}$, with noise; RP trees with median and with max-type splits; the digits data set; the nearest-neighbour bound of Theorem 7.4 checked empirically against $\Phi$.
+    -   *Success criterion*: levels-per-halving estimates within 20 % of the true dimension up to $d = 6$, and failure rates that grow with $\Phi$.
+    -   *Deliverables*: code, report, talk. Chapter 7.
+
+3.  **[Solo · ≈ 20 h] Mixtures on the torus with model selection.** Fit mixtures of von Mises products and of bivariate sine models to synthetic Ramachandran-like data, and choose the number of components.
+    -   *Work*: EM for both families (Code 3.11, with Newton steps for $\kappa$); BIC and a held-out log-likelihood; data with 2 to 6 components, including correlated ones; the minimum-message-length approach of Amarasinghe and coauthors (2023) read and summarised.
+    -   *Success criterion*: the true number of components recovered in at least 8 of 10 synthetic data sets with 3000 points, and an explanation of the failures.
+    -   *Deliverables*: code, report, talk. Chapter 3.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2 · ≈ 30 h each] Paper study: arDCA against pseudo-likelihood.** Reproduce, on synthetic families, the comparison of Trinquier and coauthors (2021) between autoregressive models and Potts models.
+    -   *Data*: Potts models with planted contacts on $L = 30$ to 60 sites and $q = 4$ to 21 (as in Code 4.6), sampled by Gibbs chains; MSAs of 500 to 5000 sequences.
+    -   *Split*: one member implements pseudo-likelihood and the contact score with APC; the other implements arDCA, its exact sampling and its likelihood; both evaluate the generated sequences.
+    -   *Success criterion*: contact precision against MSA size for both models, and the match of single and pair frequencies of generated sequences (correlation of connected pair frequencies above 0.9 for the larger MSAs).
+    -   *Deliverables*: code, a 6–8 page report, a 15-minute talk. Chapters 4 and 8.
+
+2.  **[Group of 2 · ≈ 30 h each] Paper study: volumes of polytopes with hit-and-run and PDMPs.** Reproduce the comparison of Chevallier, Cazals and Fearnhead (2022) on polytopes with known volumes.
+    -   *Data*: simplices, cross-polytopes and cubes cut by random half-spaces (exact volumes from the Irwin–Hall law for $\{x \in [-1,1]^n : \sum x_i \leq t\}$), in dimensions 5 to 40.
+    -   *Split*: one member implements multiphase Monte Carlo with hit-and-run (Code 6.9); the other implements the billiard PDMP (Definition 6.10, Exercise 19); both run the benchmark at equal numbers of oracle calls.
+    -   *Success criterion*: relative error against cost curves in each dimension, and a reasoned conclusion on which walk wins and from which dimension.
+    -   *Deliverables*: code, report, talk. Chapter 6.
+
+3.  **[Group of 2 · ≈ 30 h each] Loop sampling with exact closure and reweighting.** Implement tripeptide loop closure following Coutsias and coauthors (2004) and use it as a proposal for loop sampling.
+    -   *Data*: synthetic backbones built with Code 3.3, or a public PDB entry downloaded by the students, with one loop of 6 to 10 residues.
+    -   *Split*: one member implements the closure (numerical root finding of the closure equations is acceptable before the polynomial), and checks the at most 16 solutions; the other implements the weights of Proposition 3.7 and Section 8.6, the prior of Section 3.4 and a Metropolis–Hastings chain.
+    -   *Success criterion*: all solutions found for random tripeptides (checked against Code 5.4), and a weighted ensemble whose dihedral histograms match the target on a test case where it is known.
+    -   *Deliverables*: code, report, talk. Chapters 3, 5 and 8.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic devices, four exercises.
+
+1.  **Question (5 points).** Explain the difference between an energy and a free energy, and why a protein state of higher energy can be more populated. Define local ergodicity, and explain what Code 0.9 shows about Monte Carlo estimates across a barrier.
+
+    *Expected*: Definition 1.4 and Proposition 1.5, with $F_A = \langle U \rangle_A - T S_A$; a harmonic example such as Example 1.6. Definition 1.10 with the two inequalities, and the escape time of order $e^{\beta \Delta U}$ (Theorem 1.11). For Code 0.9: the ergodic theorem holds, but with 6 transitions in $2 \times 10^5$ steps the estimate of the second well is off by 30 %.
+
+2.  **Question (5 points).** (a) Align WHAT with WAT by Needleman–Wunsch (match 2, mismatch $-1$, gap $-2$). (b) Compute the Shapley–Shubik indices of the vote with quota 51 and weights 50, 49, 1. (c) Compute $d_0$ of the TM-score for $L = 100$.
+
+    *Expected*: (a) score 4, WHAT over W-AT (Example 2.3). (b) $(2/3, 1/6, 1/6)$ by enumerating the 6 orders (Example 7.10). (c) $d_0 = 3.65$ Å.
+
+3.  **Question (5 points).** Prove that the maximum-entropy distribution with given single and pair marginals is a Potts model, when such a Potts model exists. Then explain why pseudo-likelihood avoids the partition function, and why its loss is convex.
+
+    *Expected*: Theorem 4.1, using that $\mathbb{E}_P[\log P^\star]$ depends only on the marginals, so $\mathrm{KL}(P \| P^\star) = S(P^\star) - S(P)$. Proposition 4.3: $Z$ cancels in the conditional, and the loss is a sum of log-sum-exp terms of linear functions.
+
+4.  **Question (5 points).** Prove that hit-and-run leaves the uniform distribution of a convex body invariant. Then show that, in the multiphase scheme, each ratio $\rho_i$ is at least $1/2$, and deduce the order of the number of phases.
+
+    *Expected*: Proposition 6.6, the symmetric kernel $2 / (|S^{n-1}|\, \ell(x, y)\, \|x - y\|^{n-1})$ and detailed balance. Proposition 6.8: $K_i \subset 2^{1/n} K_{i-1}$ by convexity, so $\mathrm{vol}(K_i) \leq 2\,\mathrm{vol}(K_{i-1})$, and $m = \lceil n \log_2(R/r) \rceil$ phases.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Understanding of the paper and of the problem | 20 % | The biological question, the mathematical model and the claim reproduced are stated precisely, in the students' own notation |
+| Mathematical correctness | 15 % | Invariances, densities and estimators are derived or checked: closure Jacobians, importance weights, variance bounds |
+| Implementation | 20 % | The code runs, is tested on a case with a known answer (exact enumeration, exact volume, planted contacts), and is shared as a repository or notebook |
+| Experiments | 20 % | A clear protocol with the baselines of the course, the success criterion reached or the gap explained |
+| Analysis and extension | 10 % | Influence of the key parameters (barrier, dimension, MSA size, number of heads), failure cases, at least one extension beyond the paper |
+| Report and talk | 15 % | A report and a talk that a classmate can follow, with figures, units and captions, and an honest account of the work of each member |
+
+## References {#refs}
+
+**Official references** (master-mva.com, in the order of the course page)
+
+General references listed on the course page: bioinformatics [10]; biophysics and theoretical biophysics [2], [8], [35]; algorithms and machine learning [9], [24], [36].
+
+-   [1] C. I. Branden and J. Tooze, *Introduction to Protein Structure*, Garland Science, 2012.
+-   [2] J. Kuriyan, B. Konforti and D. Wemmer, *The Molecules of Life: Physical and Chemical Principles*, Garland Science, 2012.
+-   [3] R. Peng, L.-A. Wu, Q. Wang, J. Qi and G. F. Gao, "Cell entry by SARS-CoV-2", *Trends in Biochemical Sciences* 46(10):848–860, 2021.
+-   [4] S. Murakami, "Multidrug efflux transporter, AcrB — the pumping mechanism", *Current Opinion in Structural Biology* 18(4):459–465, 2008.
+-   [5] A. Schmidt, H. Xu, A. Khan, T. O'Donnell, S. Khurana, L. King, J. Manischewitz, H. Golding, P. Suphaphiphat, A. Carfi, E. Settembre, P. Dormitzer, T. Kepler, R. Zhang, A. Moody, B. Haynes, H.-X. Liao, D. Shaw and S. Harrison, "Preconfiguration of the antigen-binding site during affinity maturation of a broadly neutralizing influenza virus antibody", *PNAS* 110(1):264–269, 2013.
+-   [6] J. C. Schön and M. Jansen, "Prediction, determination and validation of phase diagrams via the global study of energy landscapes", *International Journal of Materials Research* 100(2):135, 2009.
+-   [7] S. A. Adcock and J. A. McCammon, "Molecular dynamics: survey of methods for simulating the activity of proteins", *Chemical Reviews* 106(5):1589–1615, 2006.
+-   [8] K. Dill and S. Bromberg, *Molecular Driving Forces: Statistical Thermodynamics in Biology, Chemistry, Physics, and Nanoscience*, Garland Science, 2010.
+-   [9] T. Lelièvre, M. Rousset and G. Stoltz, *Free Energy Computations: A Mathematical Perspective*, Imperial College Press / World Scientific, 2010.
+-   [10] J. Pevsner, *Bioinformatics and Functional Genomics*, John Wiley & Sons, 2015.
+-   [11] J. Jumper, R. Evans, A. Pritzel, T. Green, M. Figurnov, O. Ronneberger, K. Tunyasuvunakool, R. Bates, A. Žídek, A. Potapenko et al., "Highly accurate protein structure prediction with AlphaFold", *Nature* 596(7873):583–589, 2021.
+-   [12] B. Moussad, R. Roche and D. Bhattacharya, "The transformative power of transformers in protein structure prediction", *PNAS* 120(32):e2303499120, 2023.
+-   [13] T. O'Donnell and F. Cazals, "Modeling the dynamics of proteins: techniques from geometry and kinematics", in preparation, 2024 (as listed on master-mva.com).
+-   [14] E. Coutsias, C. Seok, M. Jacobson and K. Dill, "A kinematic view of loop closure", *Journal of Computational Chemistry* 25(4):510–528, 2004.
+-   [15] K. Noonan, D. O'Brien and J. Snoeyink, "Probik: protein backbone motion by inverse kinematics", *The International Journal of Robotics Research* 24(11):971–982, 2005.
+-   [16] T. O'Donnell, V. Agashe and F. Cazals, "Geometric constraints within tripeptides and the existence of tripeptide reconstructions", *Journal of Computational Chemistry* 44(13):1236–1249, 2023.
+-   [17] T. O'Donnell and F. Cazals, "Enhanced conformational exploration of protein loops using a global parameterization of the backbone geometry", *Journal of Computational Chemistry* 44(11):1094–1104, 2023.
+-   [18] P. R. Amarasinghe, L. Allison, P. J. Stuckey, M. Garcia de la Banda, A. M. Lesk and A. S. Konagurthu, "Getting ‘ϕψχal’ with proteins: minimum message length inference of joint distributions of backbone and sidechain dihedral angles", *Bioinformatics* 39(Supplement 1):i357–i367, 2023.
+-   [19] F. Morcos, A. Pagnani, B. Lunt, A. Bertolino, D. Marks, C. Sander, R. Zecchina, J. Onuchic, T. Hwa and M. Weigt, "Direct-coupling analysis of residue coevolution captures native contacts across many protein families", *PNAS* 108(49):E1293–E1301, 2011.
+-   [20] J. Trinquier, G. Uguzzoni, A. Pagnani, F. Zamponi and M. Weigt, "Efficient generative modeling of protein sequences using simple autoregressive models", *Nature Communications* 12(1):5800, 2021.
+-   [21] R. Rende, F. Gerace, A. Laio and S. Goldt, "Mapping of attention mechanisms to a generalized Potts model", *Physical Review Research* 6(2):023057, 2024.
+-   [22] W. P. Russ, M. Figliuzzi, C. Stocker, P. Barrat-Charlaix, M. Socolich, P. Kast, D. Hilvert, R. Monasson, S. Cocco, M. Weigt et al., "An evolution-based model for designing chorismate mutase enzymes", *Science* 369(6502):440–445, 2020.
+-   [23] S. Levy (ed.), *Flavors of Geometry*, Cambridge University Press, 1997.
+-   [24] A. Blum, J. Hopcroft and R. Kannan, *Foundations of Data Science*, Cambridge University Press, 2020.
+-   [25] H. Berbee, C. Boender, A. Ran, C. Scheffer, R. Smith and J. Telgen, "Hit-and-run algorithms for the identification of nonredundant linear inequalities", *Mathematical Programming* 37(2):184–207, 1987.
+-   [26] L. Lovász, "Hit-and-run mixes fast", *Mathematical Programming, Series B* 86:443–461, 1999.
+-   [27] B. Cousins and S. Vempala, "A practical volume algorithm", *Mathematical Programming Computation* 8(2):133–160, 2016.
+-   [28] A. Chevallier, F. Cazals and P. Fearnhead, "Efficient computation of the volume of a polytope in high-dimensions using piecewise deterministic Markov processes", *AISTATS*, 2022.
+-   [29] G. Fort, B. Jourdain, E. Kuhn, T. Lelièvre and G. Stoltz, "Convergence of the Wang–Landau algorithm", *Mathematics of Computation* 84(295):2297–2327, 2015.
+-   [30] A. Chevallier and F. Cazals, "Wang–Landau algorithm: an adapted random walk to boost convergence", *Journal of Computational Physics* 410:1–19, 2020.
+-   [31] S. Dasgupta and K. Sinha, "Randomized partition trees for exact nearest neighbor search", *JMLR Workshop and Conference Proceedings (COLT)* 30:1–21, 2013.
+-   [32] S. Dasgupta and Y. Freund, "Random projection trees and low dimensional manifolds", *Proceedings of the 40th ACM Symposium on Theory of Computing*, 537–546, 2008.
+-   [33] S. M. Lundberg and S.-I. Lee, "A unified approach to interpreting model predictions", *Advances in Neural Information Processing Systems* 30, 2017.
+-   [34] S. M. Lundberg, G. Erion, H. Chen, A. DeGrave, J. M. Prutkin, B. Nair, R. Katz, J. Himmelfarb, N. Bansal and S.-I. Lee, "From local explanations to global understanding with explainable AI for trees", *Nature Machine Intelligence* 2(1):56–67, 2020.
+-   [35] D. M. Zuckerman, *Statistical Physics of Biomolecules: An Introduction*, CRC Press, 2010.
+-   [36] T. Hastie, R. Tibshirani and J. Friedman, *The Elements of Statistical Learning: Data Mining, Inference and Prediction*, Springer, 2001.
+
+**Structures, alignment and structure prediction (ch. 1–2, 5)**
+
+-   W. Kabsch, "A solution for the best rotation to relate two sets of vectors", *Acta Crystallographica A* 32(5):922–923, 1976.
+-   S. B. Needleman and C. D. Wunsch, "A general method applicable to the search for similarities in the amino acid sequence of two proteins", *Journal of Molecular Biology* 48(3):443–453, 1970.
+-   S. Henikoff and J. G. Henikoff, "Amino acid substitution matrices from protein blocks", *PNAS* 89(22):10915–10919, 1992.
+-   A. Zemla, "LGA: a method for finding 3D similarities in protein structures", *Nucleic Acids Research* 31(13):3370–3374, 2003.
+-   Y. Zhang and J. Skolnick, "Scoring function for automated assessment of protein structure template quality", *Proteins* 57(4):702–710, 2004.
+-   J. Xu and Y. Zhang, "How significant is a protein structure similarity with TM-score = 0.5?", *Bioinformatics* 26(7):889–895, 2010.
+-   V. Mariani, M. Biasini, A. Barbato and T. Schwede, "lDDT: a local superposition-free score for comparing protein structures and models using distance difference tests", *Bioinformatics* 29(21):2722–2728, 2013.
+-   M. Mirdita, K. Schütze, Y. Moriwaki, L. Heo, S. Ovchinnikov and M. Steinegger, "ColabFold: making protein folding accessible to all", *Nature Methods* 19:679–682, 2022.
+-   A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser and I. Polosukhin, "Attention is all you need", *Advances in Neural Information Processing Systems* 30, 2017.
+
+**Dynamics, kinematics and directional statistics (ch. 1, 3, 8)**
+
+-   H. A. Kramers, "Brownian motion in a field of force and the diffusion model of chemical reactions", *Physica* 7(4):284–304, 1940.
+-   A. Bovier, M. Eckhoff, V. Gayrard and M. Klein, "Metastability in reversible diffusion processes I: sharp asymptotics for capacities and exit times", *Journal of the European Mathematical Society* 6(4):399–424, 2004.
+-   E. T. Jaynes, "Information theory and statistical mechanics", *Physical Review* 106(4):620–630, 1957.
+-   G. N. Ramachandran, C. Ramakrishnan and V. Sasisekharan, "Stereochemistry of polypeptide chain configurations", *Journal of Molecular Biology* 7(1):95–99, 1963.
+-   R. A. Engh and R. Huber, "Accurate bond and angle parameters for X-ray protein structure refinement", *Acta Crystallographica A* 47(4):392–400, 1991.
+-   J. Parsons, J. B. Holmes, J. M. Rojas, J. Tsai and C. E. M. Strauss, "Practical conversion from torsion space to Cartesian space for in silico protein synthesis", *Journal of Computational Chemistry* 26(10):1063–1068, 2005.
+-   N. Go and H. A. Scheraga, "Ring closure and local conformational deformations of chain molecules", *Macromolecules* 3(2):178–187, 1970.
+-   A. A. Canutescu and R. L. Dunbrack, "Cyclic coordinate descent: a robotics algorithm for protein loop closure", *Protein Science* 12(5):963–972, 2003.
+-   H. Singh, V. Hnizdo and E. Demchuk, "Probabilistic model for two dependent circular variables", *Biometrika* 89(3):719–723, 2002.
+-   A. Banerjee, I. S. Dhillon, J. Ghosh and S. Sra, "Clustering on the unit hypersphere using von Mises–Fisher distributions", *Journal of Machine Learning Research* 6:1345–1382, 2005.
+-   K. V. Mardia and P. E. Jupp, *Directional Statistics*, Wiley, 2000.
+
+**Sequence models and samplers (ch. 4)**
+
+-   J. Besag, "Statistical analysis of non-lattice data", *Journal of the Royal Statistical Society, Series D (The Statistician)* 24(3):179–195, 1975.
+-   M. Weigt, R. A. White, H. Szurmant, J. A. Hoch and T. Hwa, "Identification of direct residue contacts in protein–protein interaction by message passing", *PNAS* 106(1):67–72, 2009.
+-   S. D. Dunn, L. M. Wahl and G. B. Gloor, "Mutual information without the influence of phylogeny or entropy dramatically improves residue contact prediction", *Bioinformatics* 24(3):333–340, 2008.
+-   M. Ekeberg, C. Lövkvist, Y. Lan, M. Weigt and E. Aurell, "Improved contact prediction in proteins: using pseudolikelihoods to infer Potts models", *Physical Review E* 87(1):012707, 2013.
+-   A. Rives, J. Meier, T. Sercu, S. Goyal, Z. Lin, J. Liu, D. Guo, M. Ott, C. L. Zitnick, J. Ma and R. Fergus, "Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences", *PNAS* 118(15):e2016239118, 2021.
+-   R. Rao, J. Meier, T. Sercu, S. Ovchinnikov and A. Rives, "Transformer protein language models are unsupervised structure learners", *International Conference on Learning Representations*, 2021.
+-   F. Noé, S. Olsson, J. Köhler and H. Wu, "Boltzmann generators: sampling equilibrium states of many-body systems with deep learning", *Science* 365(6457):eaaw1147, 2019.
+
+**High-dimensional sampling and partitions (ch. 6–7)**
+
+-   G. Elekes, "A geometric inequality and the complexity of computing volume", *Discrete & Computational Geometry* 1(4):289–292, 1986.
+-   M. E. Dyer and A. M. Frieze, "On the complexity of computing the volume of a polyhedron", *SIAM Journal on Computing* 17(5):967–974, 1988.
+-   M. Dyer, A. Frieze and R. Kannan, "A random polynomial-time algorithm for approximating the volume of convex bodies", *Journal of the ACM* 38(1):1–17, 1991.
+-   L. Lovász and S. Vempala, "Simulated annealing in convex bodies and an $O^*(n^4)$ volume algorithm", *Journal of Computer and System Sciences* 72(2):392–417, 2006.
+-   R. L. Smith, "Efficient Monte Carlo procedures for generating points uniformly distributed over bounded regions", *Operations Research* 32(6):1296–1308, 1984.
+-   P. Fearnhead, J. Bierkens, M. Pollock and G. O. Roberts, "Piecewise deterministic Markov processes for continuous-time Monte Carlo", *Statistical Science* 33(3):386–412, 2018.
+-   F. Wang and D. P. Landau, "Efficient, multiple-range random walk algorithm to calculate the density of states", *Physical Review Letters* 86(10):2050–2053, 2001.
+-   R. E. Belardinelli and V. D. Pereyra, "Fast algorithm to calculate density of states", *Physical Review E* 75(4):046701, 2007.
+-   S. Kpotufe and S. Dasgupta, "A tree-based regressor that adapts to intrinsic dimension", *Journal of Computer and System Sciences* 78(5):1496–1515, 2012.
+-   L. S. Shapley, "A value for n-person games", in *Contributions to the Theory of Games II*, Annals of Mathematics Studies 28, Princeton University Press, 307–317, 1953.
+-   L. S. Shapley and M. Shubik, "A method for evaluating the distribution of power in a committee system", *American Political Science Review* 48(3):787–792, 1954.
+
+**Research directions (ch. 9)**
+
+-   D. del Alamo, D. Sala, H. S. Mchaourab and J. Meiler, "Sampling alternative conformational states of transporters and receptors with AlphaFold2", *eLife* 11:e75751, 2022.
+-   H. K. Wayment-Steele, A. Ojoawo, R. Otten, J. M. Apitz, W. Pitsawong, M. Hömberger, S. Ovchinnikov, L. Colwell and D. Kern, "Predicting multiple conformations via sequence clustering and AlphaFold2", *Nature* 625:832–839, 2024.
+-   J. Abramson, J. Adler, J. Dunger, R. Evans, T. Green, A. Pritzel, O. Ronneberger, L. Willmore, A. J. Ballard, J. Bambrick et al., "Accurate structure prediction of biomolecular interactions with AlphaFold 3", *Nature* 630:493–500, 2024.
+-   D. E. Shaw, P. Maragakis, K. Lindorff-Larsen, S. Piana, R. O. Dror, M. P. Eastwood, J. A. Bank, J. M. Jumper, J. K. Salmon, Y. Shan and W. Wriggers, "Atomic-level characterization of the structural dynamics of proteins", *Science* 330(6002):341–346, 2010.
+-   J.-H. Prinz, H. Wu, M. Sarich, B. Keller, M. Senne, M. Held, J. D. Chodera, C. Schütte and F. Noé, "Markov models of molecular kinetics: generation and validation", *Journal of Chemical Physics* 134(17):174105, 2011.
+-   A. Laio and M. Parrinello, "Escaping free-energy minima", *PNAS* 99(20):12562–12566, 2002.
+-   J. L. Watson, D. Juergens, N. R. Bennett, B. L. Trippe, J. Yim, H. E. Eisenach, W. Ahern, A. J. Borst, R. J. Ragotte, L. F. Milles et al., "De novo design of protein structure and function with RFdiffusion", *Nature* 620:1089–1100, 2023.
+-   J. Dauparas, I. Anishchenko, N. Bennett, H. Bai, R. J. Ragotte, L. F. Milles, B. I. M. Wicky, A. Courbet, R. J. de Haas, N. Bethel et al., "Robust deep learning-based protein sequence design using ProteinMPNN", *Science* 378(6615):49–56, 2022.
+-   Z. Lin, H. Akin, R. Rao, B. Hie, Z. Zhu, W. Lu, N. Smetanin, R. Verkuil, O. Kabeli, Y. Shmueli et al., "Evolutionary-scale prediction of atomic-level protein structure with a language model", *Science* 379(6637):1123–1130, 2023.
+-   K. Xia and G.-W. Wei, "Persistent homology analysis of protein structure, flexibility, and folding", *International Journal for Numerical Methods in Biomedical Engineering* 30(8):814–844, 2014.

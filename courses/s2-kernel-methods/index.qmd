@@ -1,0 +1,2572 @@
+---
+title: "Kernel Methods for Machine Learning"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: Hilbert spaces, positive matrices and duality](#ch0)
+-   [1. Positive definite kernels and the kernel trick](#ch1)
+-   [2. Reproducing kernel Hilbert spaces](#ch2)
+-   [3. The representer theorem and kernel ridge regression](#ch3)
+-   [4. Support vector machines](#ch4)
+-   [5. Unsupervised kernel methods: kernel PCA, kernel k-means, kernel CCA](#ch5)
+-   [6. Mercer, Bochner and semigroup kernels](#ch6)
+-   [7. Kernels for strings and graphs, kernels on graphs](#ch7)
+-   [8. Multiple kernel learning and kernel mean embeddings](#ch8)
+-   [9. Large-scale learning with kernels](#ch9)
+-   [10. Deep learning with kernels](#ch10)
+-   [11. Complements for self-study](#ch11)
+-   [12. Research directions and open problems](#ch12)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Kernel Methods for Machine Learning
+  Official title       Kernel methods for machine learning
+  Instructors          J. MAIRAL, M. ARBEL, A. RUDI (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 23 h (lectures 23 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label}[Track Santé]{.badge .track}
+  Language             Not displayed (the master-mva.com course description is written in English)
+  Assessment           One final exam (40%), a data challenge (40%), 3 homework assignments submitted online (20%) (master-mva.com); Université Paris-Saclay: “Evaluation Continue non Intégrale” (partial continuous assessment)
+  Prerequisites        Introductory course on probability; introductory course on computer programming and data structures (master-mva.com)
+  Note on sources      master-mva.com announces 9 sessions + a final written exam; the Université Paris-Saclay table gives 23 h
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics or computer science who knows linear models and wants learning algorithms that work on sequences, graphs and probability distributions as well as on vectors.
+
+**Empirical first**: on the scikit-learn "two moons" data set (600 points, noise 0.15, half of them for training), a linear support vector machine reaches 89.7 % test accuracy, while the same algorithm with a Gaussian kernel reaches 99.0 % (code in [ch. 4](#ch4)). A protein sequence or a molecule has no natural vector representation at all. One idea fixes both problems: replace every inner product by a positive definite kernel.
+
+This course builds the theory behind that idea and the algorithms that follow from it. It starts from positive definite kernels and their reproducing kernel Hilbert spaces, derives the classical kernel algorithms, then turns to the design of kernels for structured data and to current research on scale and depth.
+
+It shares tools with [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Convex Optimization](../s1-convex-optimization/index.html), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) and [Bayesian Machine Learning](../s2-bayesian-ml/index.html).
+
+### What you will be able to do
+
+-   Prove that a function is a positive definite kernel, with closure properties, Bochner's theorem or Schoenberg's theorem.
+-   Construct the reproducing kernel Hilbert space (RKHS) of a kernel and compute norms and pointwise bounds in it.
+-   Apply the representer theorem to turn a learning problem over functions into a problem over $n$ coefficients.
+-   Derive, implement and tune kernel ridge regression and the support vector machine, including its dual and its optimality conditions.
+-   Run kernel PCA, kernel k-means, spectral clustering and kernel CCA, and explain the centering and regularization each one needs.
+-   Design kernels for strings, for whole graphs and for the nodes of a graph, and compute them by dynamic programming or matrix functions.
+-   Learn a combination of kernels by multiple kernel learning.
+-   Embed probability distributions in an RKHS and test whether two samples come from the same distribution.
+-   Scale kernel methods with the Nyström method and random features, and quantify what the approximation costs.
+-   Relate deep networks to kernels through arc-cosine kernels, convolutional kernel networks and the neural tangent kernel.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents an introductory course on kernel methods for machine learning. It starts from an observation: many real-world problems are classical statistical problems, such as pattern recognition, regression or dimension reduction, but the data are often not vectors of numbers.
+
+Its examples are protein sequences and structures in computational biology, text and XML documents in web mining, segmented pictures in image processing, and time series in speech recognition and finance. These objects carry structure that matters for the statistical problem but is hard to encode as a finite-dimensional vector.
+
+According to the description, kernel methods extend statistical methods designed for vectors to virtually any type of data, without an explicit vectorization. The price is the definition of a positive definite kernel between the objects, which is formally equivalent to an implicit vectorization. The description notes that the design of kernels for various objects has advanced considerably and produced state-of-the-art algorithms in many domains.
+
+The stated goal is to present the mathematical foundations of kernel methods and the main approaches to kernel design. The course starts with positive definite kernels and RKHS, which lead to kernel PCA and support vector machines. It then returns to the definition of the kernel, with the main results on Mercer kernels and semigroup kernels and examples of kernels for strings and graphs from computational biology, text processing and image analysis.
+
+Finally it touches on active research topics such as large-scale kernel methods and deep kernel machines. The organisation announced is 9 sessions plus a final written exam, with a numerus clausus of 60 students. The Université Paris-Saclay programme table gives the volume (23 h of lectures); its course detail gives only the assessment type, with no programme of its own.
+
+| Official topic | Course section |
+|---|---|
+| Positive definite kernels | [ch. 1](#ch1): Definition 1.1, Propositions 1.2 and 1.4, Example 1.5 |
+| Reproducing kernel Hilbert spaces | [ch. 2](#ch2): Definition 2.1, Theorem 2.4 (Moore–Aronszajn), Examples 2.7–2.8 |
+| Kernel trick | [ch. 1](#ch1), "The kernel trick": Example 1.6, Proposition 1.7, kernel mean classifier code |
+| Representer theorem | [ch. 3](#ch3): Theorem 3.1 |
+| Kernel ridge regression | [ch. 3](#ch3): Proposition 3.2, Example 3.3, Proposition 3.4 |
+| Support vector machines | [ch. 4](#ch4): Definition 4.1, Theorem 4.3 (dual), Proposition 4.4 (support vectors) |
+| Kernel k-means and Spectral clustering | [ch. 5](#ch5): Algorithm 5.3, Proposition 5.4 (trace form and spectral relaxation) |
+| Kernel PCA | [ch. 5](#ch5): Proposition 5.1, Example 5.2 |
+| Kernel CCA | [ch. 5](#ch5): Definition 5.5, Propositions 5.6–5.7 |
+| Mercer kernels | [ch. 6](#ch6): Theorem 6.1, Corollary 6.2, Example 6.3 |
+| Kernel for strings | [ch. 7](#ch7): Definitions 7.1 and 7.3, Proposition 7.4 (dynamic programming) |
+| Kernels for graphs | [ch. 7](#ch7): Proposition 7.5 (hardness), Definition 7.6 (walk kernels), Algorithm 7.7 (Weisfeiler–Lehman) |
+| Kernels on graphs | [ch. 7](#ch7): Definition 7.8 (diffusion kernel), Proposition 7.9 |
+| Multiple kernel learning | [ch. 8](#ch8): Proposition 8.1, Theorem 8.2, Proposition 8.3 |
+| Large-scale learning with kernels | [ch. 9](#ch9): random features (Propositions 9.1–9.2), Nyström (Propositions 9.3–9.4), Theorem 9.5 |
+| Deep learning with kernels | [ch. 10](#ch10): Proposition 10.1, Theorem 10.2, Definition 10.3 (convolutional kernel networks), Proposition 10.4 (neural tangent kernel) |
+| Kernel mean embedding | [ch. 8](#ch8): Definitions 8.4–8.5, Theorem 8.6, Proposition 8.7 (two-sample test) |
+| Course objective: semigroup kernels | [ch. 6](#ch6): Definition 6.5, Theorem 6.6 (Schoenberg), Propositions 6.7–6.8 |
+| Course objective: kernels from text processing and image analysis | [ch. 7](#ch7) (string kernels for text; segmentation graph kernels for images), [ch. 6](#ch6) (histogram kernels for bags of visual words), [ch. 10](#ch10) (convolutional kernels for images) |
+| Organisation: 9 sessions + a final written exam | [Session plan](#sessions) (9 sessions); [written exam proposal](#projects-exam) |
+| Assessment: final exam, data challenge, 3 homework | [Projects and assessment](#projects) |
+
+Every official topic has a section in these notes. The extensions beyond the syllabus are the review of ch. 0, the neural tangent kernel of ch. 10, and two self-study chapters: the complements of ch. 11 (a Rademacher bound, Gaussian processes, SVM solvers, the Fourier view of an RKHS, more sequence kernels, uses of mean embeddings) and the research directions of ch. 12.
+
+### Where this course fits in the programme
+
+Official prerequisites: an introductory course on probability and an introductory course on computer programming and data structures. In practice the course also uses linear algebra (symmetric matrices), a little functional analysis (Hilbert spaces) and convex duality; ch. 0 reviews them.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) and [Scientific Python](../s0-refresher-python-scientific-computing/index.html) cover the background of ch. 0 and the code.
+-   **Semester 1 courses that prepare it** — [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html) (convex risk minimization, complexity measures) and [Convex Optimization](../s1-convex-optimization/index.html) (duality, used for the SVM). [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) (risk bounds, Rademacher complexity, double descent) meets ch. 10 and 12. [Optimal Transport](../s1-optimal-transport-ml/index.html) offers another way to compare distributions than the MMD of ch. 8, and [ALTEGRAD](../s1-altegrad/index.html) uses graph kernels.
+-   **Related courses of semester 2** — [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) (Laplacians, spectral clustering), [Bayesian Machine Learning](../s2-bayesian-ml/index.html) (Bayesian nonparametrics; Gaussian processes, the Bayesian reading of KRR in ch. 11, use the same kernels), [Large Random Matrices](../s2-random-matrices-ml/index.html) (kernel methods are among its applications), [Protein Science](../s2-protein-science/index.html) (protein sequences and alignments, the data of the string kernels of ch. 7) and [Learning Physical Phenomena](../s2-physics-learning-uq/index.html) (kriging metamodels).
+
+### Course outline
+
+-   **0. Review** — positive semidefinite matrices, Hilbert spaces, projection and Riesz, Lagrange duality.
+-   **1. Positive definite kernels and the kernel trick** — the definition, the closure properties, and how inner products become kernels.
+-   **2. Reproducing kernel Hilbert spaces** — the canonical feature space, the Moore–Aronszajn theorem, smoothness.
+-   **3. Representer theorem and kernel ridge regression** — from functions to coefficients, a closed-form estimator and its spectral reading.
+-   **4. Support vector machines** — hinge loss, margin, dual problem, support vectors.
+-   **5. Unsupervised kernel methods** — kernel PCA, kernel k-means and spectral clustering, kernel CCA.
+-   **6. Mercer, Bochner and semigroup kernels** — the spectral theorems that characterize kernels, and kernels on histograms.
+-   **7. Kernels for strings and graphs, kernels on graphs** — dynamic programming, walks, Weisfeiler–Lehman, diffusion.
+-   **8. Multiple kernel learning and kernel mean embeddings** — learning the kernel; embedding distributions and testing two samples.
+-   **9. Large-scale learning with kernels** — random features, Nyström, and how many features are enough.
+-   **10. Deep learning with kernels** — compositional kernels, convolutional kernel networks, the neural tangent kernel.
+-   **11. Complements for self-study** — a generalization bound, Gaussian processes, SVM solvers, the Fourier view of an RKHS, more sequence kernels, uses of mean embeddings.
+-   **12. Research directions and open problems** — a self-study tour of current work.
+
+### Session plan {#sessions}
+
+**23 h in class = 9 sessions (1 × 3 h + 8 × 2.5 h).** The volume of 23 h of lectures comes from the Université Paris-Saclay programme table, and master-mva.com announces 9 sessions plus a final written exam. The split below is a proposal: neither source gives the length of each session, nor says whether the 23 h include the exam.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material. The level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: PSD matrices, Hilbert spaces, duality; ch. 1 Positive definite kernels, closure properties, kernel trick | Ex. 2, 3 |
+| 2 | 2.5 h | 1 | ch. 2 RKHS: reproducing property, Moore–Aronszajn, smoothness, the min kernel | Ex. 1 |
+| 3 | 2.5 h | 2 | ch. 3 Representer theorem, kernel ridge regression, spectral filtering | Ex. 4, 7 |
+| 4 | 2.5 h | 2 | ch. 4 Support vector machines: margin, dual, KKT conditions, support vectors | Ex. 5 |
+| 5 | 2.5 h | 2 | ch. 5 Kernel PCA, kernel k-means and spectral clustering, kernel CCA | Ex. 8, 9 |
+| 6 | 2.5 h | 2 | ch. 6 Mercer's theorem, Bochner's theorem, negative definite and semigroup kernels | Ex. 10 |
+| 7 | 2.5 h | 2 | ch. 7 String kernels, graph kernels, diffusion kernels on graphs | Ex. 6, 11, 15 |
+| 8 | 2.5 h | 3 | ch. 8 Multiple kernel learning; kernel mean embeddings and the MMD test | Ex. 12, 16 |
+| 9 | 2.5 h | 3 | ch. 9 Random features and Nyström; ch. 10 Compositional kernels, CKN, neural tangent kernel | Ex. 13, 14 |
+
+**Self-study, outside the 23 h** (about 6 h in total): ch. 11 Complements for self-study (≈ 2 h) · ch. 12 Research directions and open problems (≈ 4 h).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 if Hilbert spaces or Lagrange duality feel distant; the rest of the page uses them without warning.
+-   After each session, do the exercises listed in its row, then run the code of the chapter and change one parameter (bandwidth, regularization, number of features) to see its effect.
+-   Implement the algorithms yourself at least once (kernel ridge regression, the SVM dual, kernel PCA) before using a library: each one is a few lines of NumPy.
+-   The code uses NumPy, SciPy, scikit-learn, NetworkX and PyTorch (CPU), with synthetic data or data sets bundled with scikit-learn; every block runs in a few seconds.
+-   The projects of the last section are sized like the official homework and data challenge; start one after session 4.
+
+## 0. Review: Hilbert spaces, positive matrices and duality {#ch0}
+
+Kernel methods compute with positive semidefinite matrices, live in Hilbert spaces and are trained by convex optimization. This chapter collects the M1-level facts used later.
+
+The [Linear Algebra, Analysis and Optimization refresher](../s0-refresher-linear-algebra-optimization/index.html) covers the same ground at a slower pace.
+
+### Positive semidefinite matrices
+
+::: def
+[Definition 0.1 — Positive semidefinite matrix]{.tag} A symmetric matrix $K \in \mathbb{R}^{n \times n}$ is **positive semidefinite** (PSD) when
+$$
+\alpha^\top K \alpha \;\geq\; 0 \qquad \text{for every } \alpha \in \mathbb{R}^n .
+$$
+It is **positive definite** when the inequality is strict for every $\alpha \neq 0$.
+:::
+
+:::: prop
+[Proposition 0.2 — Three characterizations]{.tag} For a symmetric matrix $K$, the following are equivalent:
+
+1.  $K$ is PSD;
+2.  all eigenvalues of $K$ are non-negative;
+3.  $K = B^\top B$ for some matrix $B$, so $K$ is the Gram matrix of the columns of $B$.
+
+::: proof
+By the spectral theorem, $K = U \Lambda U^\top$ with $U$ orthogonal and $\Lambda$ diagonal.
+
+-   (1 ⇒ 2): take $\alpha = u_i$, the $i$-th column of $U$; then $u_i^\top K u_i = \lambda_i \geq 0$.
+-   (2 ⇒ 3): take $B = \Lambda^{1/2} U^\top$.
+-   (3 ⇒ 1): $\alpha^\top B^\top B \alpha = \|B\alpha\|^2 \geq 0$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 0.3 — Schur product theorem]{.tag} If $K_1$ and $K_2$ are PSD, so is their entrywise (Hadamard) product $K_1 \circ K_2$.
+
+::: proof
+Write $K_2 = \sum_k \lambda_k u_k u_k^\top$ with $\lambda_k \geq 0$. Entry $(i, j)$ of $K_1 \circ K_2$ is $\sum_k \lambda_k (K_1)_{ij} u_{k,i} u_{k,j}$, hence
+$$
+\alpha^\top (K_1 \circ K_2)\, \alpha = \sum_k \lambda_k\, (\alpha \circ u_k)^\top K_1\, (\alpha \circ u_k) \;\geq\; 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+### Hilbert spaces
+
+::: def
+[Definition 0.4 — Hilbert space]{.tag} A **Hilbert space** $\mathcal{H}$ is a real vector space with an inner product $\langle \cdot, \cdot \rangle$ that is complete for the norm $\|f\| = \sqrt{\langle f, f \rangle}$: every Cauchy sequence converges.
+
+Examples: $\mathbb{R}^d$; the sequences $\ell^2$; the square-integrable functions $L^2(\mu)$. The Cauchy–Schwarz inequality holds in all of them:
+$$
+|\langle f, g \rangle| \leq \|f\|\, \|g\| .
+$$
+:::
+
+:::: thm
+[Theorem 0.5 — Projection and Riesz representation]{.tag}
+
+1.  **Projection.** Let $F$ be a closed subspace of $\mathcal{H}$. Every $f \in \mathcal{H}$ writes uniquely $f = f_F + f_\perp$ with $f_F \in F$ and $f_\perp \perp F$, and
+    $$
+    \|f\|^2 = \|f_F\|^2 + \|f_\perp\|^2 .
+    $$
+2.  **Riesz.** For every continuous linear form $L$ on $\mathcal{H}$ there is a unique $g \in \mathcal{H}$ such that
+    $$
+    L(f) = \langle g, f \rangle \quad \text{for all } f \in \mathcal{H}.
+    $$
+
+::: proof
+*Sketch.* (1) Take a minimizing sequence of $\|f - h\|$ over $h \in F$. The parallelogram law shows it is Cauchy; completeness and closedness give a minimizer $f_F$. The first-order condition of the minimization says $f - f_F \perp F$, and Pythagoras gives the norm identity.
+
+(2) If $L = 0$, take $g = 0$. Otherwise $F = \ker L$ is closed and proper; pick $z \perp F$ with $L(z) = 1$.
+
+For any $f$, the vector $f - L(f) z$ lies in $F$, hence is orthogonal to $z$. This gives $\langle z, f \rangle = L(f)\, \|z\|^2$, so $g = z / \|z\|^2$ works. [∎]{.qed}
+:::
+::::
+
+Finite-dimensional subspaces are closed, so part 1 applies to the span of finitely many vectors, as in the representer theorem of ch. 3.
+
+### Lagrange duality
+
+Consider a convex problem $\min_x f_0(x)$ subject to $g_i(x) \leq 0$ for $i = 1, \dots, m$, with $f_0$ and $g_i$ convex.
+
+:::: prop
+[Proposition 0.6 — Lagrangian, dual problem and KKT conditions]{.tag} The Lagrangian and the dual function are
+$$
+\mathcal{L}(x, \mu) = f_0(x) + \sum_{i=1}^m \mu_i\, g_i(x), \qquad q(\mu) = \inf_x \mathcal{L}(x, \mu), \qquad \mu \geq 0 .
+$$
+
+1.  **Weak duality**: $q(\mu) \leq f_0(x)$ for every feasible $x$ and every $\mu \geq 0$.
+2.  **Strong duality** (Slater): if some $x$ satisfies all $g_i(x) < 0$, or if all constraints are affine and the problem is feasible, then $\max_{\mu \geq 0} q(\mu) = \min f_0$ when the minimum is attained.
+3.  **KKT**: with differentiable functions and under the conditions of item 2, $(x^\star, \mu^\star)$ is primal–dual optimal if and only if it satisfies stationarity $\nabla_x \mathcal{L}(x^\star, \mu^\star) = 0$, feasibility, and **complementary slackness**:
+    $$
+    \mu_i^\star\, g_i(x^\star) = 0 \qquad \text{for every } i .
+    $$
+
+::: proof
+Weak duality: for feasible $x$, $q(\mu) \leq \mathcal{L}(x, \mu) \leq f_0(x)$ because each $\mu_i g_i(x) \leq 0$. Strong duality and the KKT characterization are proved by a separating-hyperplane argument; see Boyd and Vandenberghe (2004), §5.2–5.5.
+:::
+::::
+
+::: ex
+[Example 0.7 — Duality on one variable]{.tag} Minimize $x^2$ subject to $1 - x \leq 0$.
+
+-   Lagrangian: $\mathcal{L}(x, \mu) = x^2 + \mu (1 - x)$, minimized at $x = \mu / 2$.
+-   Dual function: $q(\mu) = \mu - \mu^2 / 4$, maximized at $\mu^\star = 2$.
+-   Dual optimum $q(2) = 1$, equal to the primal optimum $f_0(1) = 1$.
+
+Complementary slackness holds, since the constraint is active: $\mu^\star (1 - x^\star) = 2 \times 0 = 0$.
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   A symmetric matrix is PSD iff its eigenvalues are non-negative iff it is a Gram matrix; Hadamard products of PSD matrices are PSD.
+-   In a Hilbert space, projection onto a closed subspace splits the norm (Pythagoras), and continuous linear forms are inner products (Riesz).
+-   Feasible convex problems with affine constraints, or with a strictly feasible point, have no duality gap; complementary slackness tells which constraints are active.
+:::
+
+## 1. Positive definite kernels and the kernel trick {#ch1}
+
+Many learning algorithms use the data only through inner products $\langle x_i, x_j \rangle$. Positive definite kernels are the functions that can replace them, turning linear algorithms into non-linear ones on any set of objects.
+
+::: def
+[Definition 1.1 — Positive definite kernel]{.tag} Let $\mathcal{X}$ be any non-empty set. A symmetric function $K : \mathcal{X} \times \mathcal{X} \to \mathbb{R}$ is a **positive definite (p.d.) kernel** when, for every $n$, every $x_1, \dots, x_n \in \mathcal{X}$ and every $a \in \mathbb{R}^n$,
+$$
+\sum_{i=1}^n \sum_{j=1}^n a_i\, a_j\, K(x_i, x_j) \;\geq\; 0 .
+$$
+Equivalently, every Gram matrix $[K(x_i, x_j)]_{i,j}$ is PSD (Definition 0.1).
+:::
+
+The name is a historical convention: a p.d. kernel only needs PSD Gram matrices, not positive definite ones.
+
+:::: prop
+[Proposition 1.2 — Feature maps give kernels]{.tag} Let $\mathcal{F}$ be a Hilbert space and $\varphi : \mathcal{X} \to \mathcal{F}$ any map. Then the following function is a p.d. kernel:
+$$
+K(x, y) = \langle \varphi(x), \varphi(y) \rangle_{\mathcal{F}} .
+$$
+
+::: proof
+Symmetry is clear, and
+$$
+\sum_{i,j} a_i a_j \langle \varphi(x_i), \varphi(x_j) \rangle = \Big\| \sum_i a_i \varphi(x_i) \Big\|^2 \geq 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+With $\varphi(x) = x$ this gives the **linear kernel** $K(x, y) = x^\top y$. Chapter 2 proves the converse; on a finite set it is already visible.
+
+::: ex
+[Example 1.3 — Kernels on a finite set]{.tag} If $\mathcal{X} = \{1, \dots, n\}$, a kernel is a symmetric matrix and it is p.d. iff the matrix is PSD.
+
+By Proposition 0.2, $K = B^\top B$, so the columns of $B = \Lambda^{1/2} U^\top$ are explicit feature vectors: $K(i, j) = \langle b_i, b_j \rangle$.
+:::
+
+### Building kernels
+
+:::: prop
+[Proposition 1.4 — Closure properties]{.tag} Let $K_1, K_2$ be p.d. kernels on $\mathcal{X}$. Then the following are p.d. kernels:
+
+1.  $a K_1 + b K_2$ for $a, b \geq 0$;
+2.  the product $K_1 K_2$;
+3.  the pointwise limit of a sequence of p.d. kernels, when it exists;
+4.  $f(x)\, K_1(x, y)\, f(y)$ for any function $f : \mathcal{X} \to \mathbb{R}$;
+5.  $K_1(\psi(z), \psi(z'))$ on a set $\mathcal{Z}$, for any map $\psi : \mathcal{Z} \to \mathcal{X}$.
+
+Consequently, $P(K_1)$ is p.d. for every polynomial $P$ with non-negative coefficients, and so is $\exp(K_1)$.
+
+::: proof
+Work on Gram matrices.
+
+-   (1) Non-negative combinations of PSD matrices are PSD.
+-   (2) The Gram matrix of $K_1 K_2$ is the Hadamard product of the two Gram matrices (Proposition 0.3).
+-   (3) A limit of non-negative numbers is non-negative.
+-   (4) The Gram matrix is $D K_1 D$ with $D = \mathrm{diag}(f(x_i))$, and $\alpha^\top D K_1 D \alpha = (D\alpha)^\top K_1 (D\alpha)$.
+-   (5) The Gram matrix on $z_1, \dots, z_n$ is the Gram matrix of $K_1$ on $\psi(z_1), \dots, \psi(z_n)$.
+
+The exponential is the limit of its partial sums, which are polynomials with non-negative coefficients. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.5 — Polynomial and Gaussian kernels]{.tag}
+
+-   **Polynomial**: $K(x, y) = (x^\top y + c)^d$ with $c \geq 0$ and integer $d$ is p.d. by items 1–2.
+-   **Gaussian**: with bandwidth $\sigma > 0$,
+    $$
+    K(x, y) = \exp\Big(-\frac{\|x - y\|^2}{2\sigma^2}\Big) = e^{-\|x\|^2 / 2\sigma^2}\; \exp\Big(\frac{x^\top y}{\sigma^2}\Big)\; e^{-\|y\|^2 / 2\sigma^2} .
+    $$
+    The middle factor is the exponential of a linear kernel (p.d.), and item 4 with $f(x) = e^{-\|x\|^2/2\sigma^2}$ concludes.
+:::
+
+### The kernel trick
+
+The **kernel trick** is the following recipe. Write an algorithm for vectors so that it uses the data only through inner products $x_i^\top x_j$; then replace each of them by $K(x_i, x_j)$. The new algorithm runs the old one on the feature vectors $\varphi(x_i)$, without ever computing them.
+
+::: ex
+[Example 1.6 — An explicit feature map]{.tag} On $\mathbb{R}^2$, the kernel $K(x, y) = (x^\top y)^2$ has the feature map
+$$
+\varphi(x) = \big(x_1^2,\; \sqrt{2}\, x_1 x_2,\; x_2^2\big) \in \mathbb{R}^3 .
+$$
+
+Take $x = (1, 2)$ and $y = (3, 1)$. Then $x^\top y = 5$, so $K(x, y) = 25$.
+
+The features are $\varphi(x) = (1, 2\sqrt{2}, 4)$ and $\varphi(y) = (9, 3\sqrt{2}, 1)$, and
+$$
+\langle \varphi(x), \varphi(y) \rangle = 9 + 12 + 4 = 25 .
+$$
+
+For the degree-$d$ kernel on $\mathbb{R}^p$, the feature space has dimension $\binom{p + d - 1}{d}$; the kernel costs $O(p)$ whatever $d$.
+:::
+
+Distances also kernelize. Expanding the squared norm gives
+$$
+\|\varphi(x) - \varphi(y)\|^2 = K(x, x) + K(y, y) - 2 K(x, y) .
+$$
+
+:::: prop
+[Proposition 1.7 — Distance to a mean in feature space]{.tag} Let $C = \{x_1, \dots, x_m\}$ and let $m_C = \frac{1}{m} \sum_{j} \varphi(x_j)$ be its mean in feature space. Then
+$$
+\|\varphi(x) - m_C\|^2 = K(x, x) - \frac{2}{m} \sum_{j=1}^m K(x, x_j) + \frac{1}{m^2} \sum_{j, l = 1}^m K(x_j, x_l) .
+$$
+
+::: proof
+Expand the square and use bilinearity of the inner product; each inner product $\langle \varphi(u), \varphi(v) \rangle$ equals $K(u, v)$. [∎]{.qed}
+:::
+::::
+
+The **kernel mean classifier** assigns $x$ to the class with the closest feature-space mean; with the linear kernel it is the nearest-centroid rule:
+
+```python
+import numpy as np
+from sklearn.datasets import make_moons
+
+def gauss(A, B, s):
+    d2 = (A**2).sum(1)[:, None] + (B**2).sum(1)[None, :] - 2 * A @ B.T
+    return np.exp(-d2 / (2 * s**2))
+
+X, y = make_moons(n_samples=600, noise=0.15, random_state=0)
+Xtr, ytr, Xte, yte = X[:300], y[:300], X[300:], y[300:]
+
+def mean_classifier(kern):
+    scores = []
+    for c in (0, 1):
+        C = Xtr[ytr == c]
+        # K(x,x) is the same for both classes and cancels; keep the rest
+        d = -2 * kern(Xte, C).mean(1) + kern(C, C).mean()
+        scores.append(d)
+    return np.argmin(np.vstack(scores), axis=0)
+
+lin = lambda A, B: A @ B.T
+print("linear  :", (mean_classifier(lin) == yte).mean())
+print("gaussian:", (mean_classifier(lambda A, B: gauss(A, B, 0.3)) == yte).mean())
+```
+
+The term $K(x, x)$ is the same for both classes and cancels. On the two moons, the Gaussian kernel raises the test accuracy from 0.84 to 0.98.
+
+Kernels also apply to objects that are not vectors. For finite subsets $A, B$ of a set, $K(A, B) = |A \cap B|$ is the inner product of their indicator vectors, hence p.d.; counting shared words between documents is the **bag-of-words** kernel.
+
+::: recap
+Key takeaways — chapter 1
+
+-   A p.d. kernel is a symmetric function whose Gram matrices are all PSD; inner products of feature vectors are p.d. kernels.
+-   Sums, products, limits, exponentials, rescalings $f(x) K f(y)$ and compositions with maps preserve positive definiteness; the polynomial and Gaussian kernels follow.
+-   The kernel trick runs any inner-product algorithm in feature space; distances and means kernelize too.
+:::
+
+## 2. Reproducing kernel Hilbert spaces {#ch2}
+
+The feature space of a kernel is not unique, but one choice is canonical: a Hilbert space of *functions* in which evaluation is an inner product with the kernel. The estimators of ch. 3–5 live there, and its norm measures their smoothness.
+
+:::: def
+[Definition 2.1 — Reproducing kernel Hilbert space]{.tag} Let $\mathcal{H}$ be a Hilbert space of functions $\mathcal{X} \to \mathbb{R}$. A function $K : \mathcal{X} \times \mathcal{X} \to \mathbb{R}$ is a **reproducing kernel** of $\mathcal{H}$ when:
+
+1.  for every $x \in \mathcal{X}$, the function $K_x = K(x, \cdot)$ belongs to $\mathcal{H}$;
+2.  for every $f \in \mathcal{H}$ and every $x \in \mathcal{X}$, the **reproducing property** holds.
+
+::: key
+[Key formula — the reproducing property]{.tag}
+$$
+f(x) = \langle f, K_x \rangle_{\mathcal{H}}
+$$
+:::
+
+$\mathcal{H}$ is a **reproducing kernel Hilbert space** (RKHS) when it has a reproducing kernel.
+::::
+
+:::: prop
+[Proposition 2.2 — RKHS = continuous evaluations]{.tag} A Hilbert space of functions $\mathcal{H}$ is an RKHS if and only if every evaluation map $\delta_x : f \mapsto f(x)$ is continuous on $\mathcal{H}$.
+
+::: proof
+If $K$ is a reproducing kernel, Cauchy–Schwarz gives
+$$
+|f(x)| = |\langle f, K_x \rangle| \leq \|f\|_{\mathcal{H}}\, \|K_x\|_{\mathcal{H}} = \|f\|_{\mathcal{H}} \sqrt{K(x, x)} ,
+$$
+so $\delta_x$ is continuous. Here $\|K_x\|^2 = \langle K_x, K_x \rangle = K_x(x) = K(x, x)$ by the reproducing property.
+
+Conversely, if $\delta_x$ is continuous, Riesz (Theorem 0.5) gives $g_x \in \mathcal{H}$ with $f(x) = \langle g_x, f \rangle$. Set $K(x, y) = g_x(y)$; then $K_x = g_x \in \mathcal{H}$ and the reproducing property holds. [∎]{.qed}
+:::
+::::
+
+Convergence in an RKHS implies pointwise convergence. $L^2([0, 1])$ is not an RKHS: evaluation at a point is not defined on its elements.
+
+:::: prop
+[Proposition 2.3 — The reproducing kernel is unique and p.d.]{.tag} If $K$ is a reproducing kernel of $\mathcal{H}$, then $K(x, y) = \langle K_x, K_y \rangle_{\mathcal{H}}$; hence $K$ is a p.d. kernel, and it is the only reproducing kernel of $\mathcal{H}$.
+
+::: proof
+Apply the reproducing property to $f = K_y$ at the point $x$: $K(y, x) = \langle K_y, K_x \rangle$. Positive definiteness follows from Proposition 1.2 with $\varphi(x) = K_x$.
+
+If $K'$ is another reproducing kernel, then $\langle f, K_x - K'_x \rangle = f(x) - f(x) = 0$ for every $f$. Taking $f = K_x - K'_x$ gives $K_x = K'_x$. [∎]{.qed}
+:::
+::::
+
+### From a kernel to its RKHS
+
+:::: thm
+[Theorem 2.4 — Moore–Aronszajn]{.tag} If $K$ is a p.d. kernel on $\mathcal{X}$, there is a unique Hilbert space $\mathcal{H}_K$ of functions on $\mathcal{X}$ with reproducing kernel $K$. It is the completion of the span of the functions $K_x$ for the inner product defined in step 1 of the proof.
+
+::: proof
+1.  **Pre-Hilbert space.** Let $\mathcal{H}_0 = \mathrm{span}\{K_x : x \in \mathcal{X}\}$. For $f = \sum_i a_i K_{x_i}$ and $g = \sum_j b_j K_{y_j}$, set
+    $$
+    \langle f, g \rangle = \sum_{i, j} a_i\, b_j\, K(x_i, y_j) .
+    $$
+2.  **Well defined.** The same number equals $\sum_j b_j f(y_j)$ and $\sum_i a_i g(x_i)$. It depends on the functions $f$ and $g$, not on their representations.
+3.  **Reproducing on $\mathcal{H}_0$.** With $g = K_x$ the formula gives $\langle f, K_x \rangle = f(x)$. The form is symmetric, bilinear and $\langle f, f \rangle \geq 0$ because $K$ is p.d.
+4.  **Definite.** Cauchy–Schwarz holds for any symmetric non-negative bilinear form, so $|f(x)| = |\langle f, K_x \rangle| \leq \|f\| \sqrt{K(x, x)}$. If $\|f\| = 0$, then $f = 0$.
+5.  **Completion.** A Cauchy sequence $(f_n)$ of $\mathcal{H}_0$ is pointwise Cauchy by the bound of step 4. Let $f$ be its pointwise limit; $\mathcal{H}_K$ is the set of such limits, with $\|f\| = \lim \|f_n\|$.
+
+    This norm is well defined: a Cauchy sequence that tends to 0 pointwise tends to 0 in norm. Write
+    $$
+    \|f_n\|^2 = \langle f_n, f_n - f_m \rangle + \langle f_n, f_m \rangle .
+    $$
+    The first term is small for large $n$ and $m$. For fixed $n$, the second is a finite combination of values $f_m(x_i)$, which tend to 0 as $m \to \infty$.
+6.  **Uniqueness.** In any RKHS $\mathcal{H}$ with kernel $K$, a function orthogonal to every $K_x$ vanishes everywhere, so $\mathcal{H}_0$ is dense. Its inner product is forced by step 1, so $\mathcal{H} = \mathcal{H}_K$. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Corollary 2.5 — Aronszajn's characterization]{.tag} A symmetric function $K$ is a p.d. kernel if and only if there are a Hilbert space $\mathcal{F}$ and a map $\varphi : \mathcal{X} \to \mathcal{F}$ such that
+$$
+K(x, y) = \langle \varphi(x), \varphi(y) \rangle_{\mathcal{F}} .
+$$
+
+One direction is Proposition 1.2; for the other, take $\mathcal{F} = \mathcal{H}_K$ and the **canonical feature map** $\varphi(x) = K_x$.
+:::
+
+### The norm measures smoothness
+
+:::: prop
+[Proposition 2.6 — Lipschitz bound]{.tag} For every $f \in \mathcal{H}_K$ and $x, y \in \mathcal{X}$,
+$$
+|f(x) - f(y)| \leq \|f\|_{\mathcal{H}_K}\; d_K(x, y), \qquad d_K(x, y) = \|K_x - K_y\|_{\mathcal{H}_K} .
+$$
+
+::: proof
+$f(x) - f(y) = \langle f, K_x - K_y \rangle$ by the reproducing property, then Cauchy–Schwarz. [∎]{.qed}
+:::
+::::
+
+A function of small norm varies little between points that the kernel finds similar: regularizing by $\|f\|_{\mathcal{H}_K}^2$ is a smoothness prior defined by the kernel.
+
+::: ex
+[Example 2.7 — The RKHS of the linear kernel]{.tag} For $K(x, y) = x^\top y$ on $\mathbb{R}^d$, $\mathcal{H}_K$ is the space of linear functions $f_w(x) = w^\top x$, with norm $\|f_w\| = \|w\|$.
+
+Check: $K_x = f_x$, and $\langle f_w, K_x \rangle = w^\top x = f_w(x)$. Ridge regression is regularized learning in this RKHS.
+:::
+
+::: ex
+[Example 2.8 — The min kernel and a Sobolev space]{.tag} On $[0, 1]$, the kernel $K(x, y) = \min(x, y)$ (the covariance of Brownian motion) has the RKHS
+$$
+\mathcal{H}_K = \Big\{ f \text{ absolutely continuous},\; f(0) = 0,\; f' \in L^2 \Big\}, \qquad \langle f, g \rangle = \int_0^1 f'(t)\, g'(t)\, dt .
+$$
+
+-   $K_x(t) = \min(x, t)$ vanishes at 0 and has derivative $\mathbb{1}_{[0, x]}(t)$, so $K_x \in \mathcal{H}_K$.
+-   For $f \in \mathcal{H}_K$, the reproducing property is the fundamental theorem of calculus:
+    $$
+    \langle f, K_x \rangle = \int_0^x f'(t)\, dt = f(x) - f(0) = f(x) .
+    $$
+-   Norms: $f(t) = t$ has $\|f\|^2 = 1$; $f(t) = t^2$ has $\|f\|^2 = \int_0^1 4 t^2\, dt = 4/3$.
+
+The RKHS norm is the energy $\int f'^2$: regularizing with this kernel penalizes slopes.
+:::
+
+For $f = \sum_i a_i K_{x_i}$, the RKHS norm is a quadratic form in the coefficients:
+$$
+\|f\|_{\mathcal{H}_K}^2 = a^\top K a .
+$$
+
+The code checks this against the energy $\int f'^2$ for the min kernel:
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+x = np.sort(rng.uniform(0, 1, 5))           # centres x_i
+a = rng.normal(size=5)                       # coefficients a_i
+K = np.minimum.outer(x, x)                   # Gram matrix of min(x, y)
+norm_from_gram = a @ K @ a
+
+t = np.linspace(0, 1, 200001)
+fprime = sum(ai * (t <= xi) for ai, xi in zip(a, x))   # f' = sum a_i 1[0, x_i]
+energy = np.trapezoid(fprime**2, t) if hasattr(np, "trapezoid") else np.trapz(fprime**2, t)
+print(f"a^T K a = {norm_from_gram:.5f},  integral of f'^2 = {energy:.5f}")
+```
+
+::: recap
+Key takeaways — chapter 2
+
+-   An RKHS is a Hilbert space of functions where evaluation is continuous; then $f(x) = \langle f, K_x \rangle$ for a unique p.d. kernel $K$.
+-   Conversely every p.d. kernel has a unique RKHS (Moore–Aronszajn), the completion of the span of the $K_x$; so p.d. kernels are exactly inner products of feature maps.
+-   $|f(x) - f(y)| \leq \|f\|\, d_K(x, y)$: the RKHS norm is a smoothness measure adapted to the kernel. For the min kernel it is $\int f'^2$.
+:::
+
+## 3. The representer theorem and kernel ridge regression {#ch3}
+
+Learning in an RKHS minimizes a risk over a usually infinite-dimensional space of functions. The representer theorem reduces it to $n$ unknowns; kernel ridge regression is the simplest instance.
+
+Throughout, the data are pairs $(x_1, y_1), \dots, (x_n, y_n)$ with $x_i \in \mathcal{X}$, the Gram matrix is $K = [K(x_i, x_j)]_{i,j}$, and $\mathcal{H} = \mathcal{H}_K$.
+
+:::: thm
+[Theorem 3.1 — Representer theorem]{.tag} Let $\Psi : \mathbb{R}^{n+1} \to \mathbb{R}$ be strictly increasing in its last argument. Every minimizer over $\mathcal{H}$ of
+$$
+J(f) = \Psi\big(f(x_1), \dots, f(x_n),\; \|f\|_{\mathcal{H}}\big)
+$$
+has the form
+$$
+f = \sum_{i=1}^n \alpha_i\, K_{x_i}, \qquad \alpha \in \mathbb{R}^n .
+$$
+
+::: proof
+Let $S = \mathrm{span}\{K_{x_1}, \dots, K_{x_n}\}$, a finite-dimensional, hence closed, subspace. By Theorem 0.5, any $f \in \mathcal{H}$ splits as $f = f_S + f_\perp$ with $f_\perp \perp S$.
+
+-   The data term does not see $f_\perp$: since $f(x_i) = \langle f, K_{x_i} \rangle$ and $f_\perp \perp K_{x_i}$, we get $f(x_i) = f_S(x_i)$.
+-   The norm does: $\|f\|^2 = \|f_S\|^2 + \|f_\perp\|^2$, which is larger than $\|f_S\|^2$ when $f_\perp \neq 0$.
+
+So if $f_\perp \neq 0$, then $J(f_S) < J(f)$ and $f$ is not a minimizer. [∎]{.qed}
+:::
+::::
+
+The theorem goes back to Kimeldorf and Wahba (1971); the general form is due to Schölkopf, Herbrich and Smola (2001). It does not assert existence, which holds for convex losses and $\Psi$ coercive in $\|f\|$.
+
+With $f = \sum_i \alpha_i K_{x_i}$, both ingredients of $J$ are explicit:
+$$
+\big(f(x_1), \dots, f(x_n)\big) = K\alpha, \qquad \|f\|_{\mathcal{H}}^2 = \alpha^\top K \alpha .
+$$
+
+### Kernel ridge regression
+
+Kernel ridge regression (KRR) minimizes the regularized empirical squared error, with a regularization parameter $\lambda > 0$:
+$$
+\min_{f \in \mathcal{H}}\; \frac{1}{n} \sum_{i=1}^n \big(y_i - f(x_i)\big)^2 + \lambda\, \|f\|_{\mathcal{H}}^2 .
+$$
+
+:::: prop
+[Proposition 3.2 — Closed form of kernel ridge regression]{.tag} The problem has a unique solution $\hat f = \sum_i \alpha_i K_{x_i}$ with
+$$
+\alpha = (K + n\lambda I)^{-1}\, y, \qquad \hat f(x) = k_x^\top (K + n\lambda I)^{-1} y ,
+$$
+where $k_x = \big(K(x_1, x), \dots, K(x_n, x)\big)^\top$.
+
+::: proof
+By Theorem 3.1, it suffices to minimize over $\alpha$ the convex function
+$$
+G(\alpha) = \frac{1}{n} \|y - K\alpha\|^2 + \lambda\, \alpha^\top K \alpha .
+$$
+
+Its gradient is $\frac{2}{n} K \big( (K + n\lambda I)\alpha - y \big)$, which vanishes at the announced $\alpha$; the matrix $K + n\lambda I$ is invertible because $K$ is PSD.
+
+If another $\alpha'$ is also optimal, then $K(\alpha' - \alpha) = 0$, so the two functions differ by $g$ with $\|g\|^2 = (\alpha' - \alpha)^\top K (\alpha' - \alpha) = 0$. The function $\hat f$ is unique. [∎]{.qed}
+:::
+::::
+
+::: key
+[Key formula — kernel ridge regression]{.tag}
+$$
+\hat f(x) = k_x^\top\, (K + n\lambda I)^{-1}\, y
+$$
+:::
+
+::: ex
+[Example 3.3 — Two points, Gaussian kernel]{.tag} Take $x_1 = 0$, $x_2 = 1$, $y = (1, -1)$, the Gaussian kernel with $\sigma = 1$, and $n\lambda = 0.1$.
+
+-   Gram matrix: off-diagonal entry $e^{-1/2} = 0.6065$, diagonal entries 1.
+-   By symmetry, $\alpha = (a, -a)$ with $a\,(1.1 - 0.6065) = 1$, so
+    $$
+    \alpha = (2.026,\; -2.026) .
+    $$
+-   Fitted values: $\hat f(0) = 2.026 \times (1 - 0.6065) = 0.797$ and $\hat f(1) = -0.797$; the regularization shrinks the targets $\pm 1$.
+-   Elsewhere: $\hat f(0.5) = 0$ by symmetry, $\hat f(2) = 2.026\,(e^{-2} - e^{-1/2}) = -0.955$ and $\hat f(3) = -0.252$.
+
+Far from the data, $\hat f$ returns to 0: the Gaussian RKHS contains no non-zero constant function.
+:::
+
+### Regularization as spectral filtering
+
+Write the eigendecomposition $K = \sum_i \mu_i u_i u_i^\top$. The fitted values $\hat y = K\alpha$ are a linear smoother of the targets.
+
+:::: prop
+[Proposition 3.4 — Shrinkage of each eigendirection]{.tag} The fitted values satisfy $\hat y = S_\lambda\, y$ with
+$$
+S_\lambda = K (K + n\lambda I)^{-1} = \sum_{i=1}^n \frac{\mu_i}{\mu_i + n\lambda}\, u_i u_i^\top .
+$$
+
+The component of $y$ along $u_i$ is multiplied by a factor in $[0, 1)$, close to 1 when $\mu_i \gg n\lambda$ and close to 0 when $\mu_i \ll n\lambda$. The **effective degrees of freedom** are
+$$
+\mathrm{df}(\lambda) = \mathrm{tr}\, S_\lambda = \sum_i \frac{\mu_i}{\mu_i + n\lambda} .
+$$
+
+::: proof
+$K$ and $(K + n\lambda I)^{-1}$ are diagonal in the same basis, with eigenvalues $\mu_i$ and $1/(\mu_i + n\lambda)$. [∎]{.qed}
+:::
+::::
+
+For smooth kernels the eigenvalues decay fast and the eigenvectors with small $\mu_i$ oscillate (ch. 6). KRR keeps the smooth components of $y$ and damps the rough ones; $\mathrm{df}(\lambda)$ counts those kept.
+
+The code fits KRR from scratch, checks it against scikit-learn (whose `alpha` is $n\lambda$) and prints the effective degrees of freedom:
+
+```python
+import numpy as np
+from sklearn.kernel_ridge import KernelRidge
+
+rng = np.random.default_rng(0)
+n = 80
+x = np.sort(rng.uniform(-3, 3, n))
+y = np.sin(2 * x) + 0.3 * rng.normal(size=n)
+xt = np.linspace(-3, 3, 400)
+yt = np.sin(2 * xt)
+
+def gauss(a, b, s=0.5):
+    return np.exp(-(a[:, None] - b[None, :]) ** 2 / (2 * s**2))
+
+K = gauss(x, x)
+mu = np.linalg.eigvalsh(K)
+for lam in [1e-4, 1e-2, 1.0]:
+    alpha = np.linalg.solve(K + n * lam * np.eye(n), y)
+    pred = gauss(xt, x) @ alpha
+    df = np.sum(mu / (mu + n * lam))
+    sk = KernelRidge(alpha=n * lam, kernel="rbf", gamma=1 / (2 * 0.5**2)).fit(x[:, None], y)
+    gap = np.abs(sk.predict(xt[:, None]) - pred).max()
+    print(f"lambda={lam:g}: test MSE={np.mean((pred - yt) ** 2):.4f}, df={df:.1f}, |ours-sklearn|={gap:.1e}")
+```
+
+The middle $\lambda$ is best: the smallest spends 16 effective parameters fitting noise, the largest keeps less than one and oversmooths.
+
+::: recap
+Key takeaways — chapter 3
+
+-   Representer theorem: when the objective depends on $f$ only through $f(x_1), \dots, f(x_n)$ and increasingly on $\|f\|$, the minimizer is $\sum_i \alpha_i K_{x_i}$.
+-   KRR: $\alpha = (K + n\lambda I)^{-1} y$. It shrinks each eigendirection of $K$ by $\mu_i / (\mu_i + n\lambda)$.
+:::
+
+## 4. Support vector machines {#ch4}
+
+The support vector machine (SVM) is regularized learning in an RKHS with the hinge loss. Its dual involves only the Gram matrix, and its solution depends only on a few training points, the support vectors.
+
+Labels are now $y_i \in \{-1, +1\}$, and the classifier is the sign of $g(x) = f(x) + b$, with $f \in \mathcal{H}$ and an unpenalized offset $b \in \mathbb{R}$.
+
+::: def
+[Definition 4.1 — Soft-margin SVM]{.tag} With the **hinge loss** $\max(0, 1 - y\,g(x))$ and a constant $C > 0$, the SVM solves
+$$
+\min_{f \in \mathcal{H},\, b,\, \xi}\; \frac{1}{2} \|f\|_{\mathcal{H}}^2 + C \sum_{i=1}^n \xi_i
+\quad \text{s.t.} \quad
+y_i \big(f(x_i) + b\big) \geq 1 - \xi_i, \;\; \xi_i \geq 0 .
+$$
+
+At the optimum $\xi_i = \max(0, 1 - y_i g(x_i))$. Dividing by $nC$ shows that this is the hinge-loss risk plus $\lambda \|f\|^2$ with $\lambda = 1/(2nC)$.
+:::
+
+:::: prop
+[Proposition 4.2 — Margin]{.tag} Take the linear kernel, so $g(x) = w^\top x + b$, and separable data with all $\xi_i = 0$. The distance from $x_i$ to the hyperplane $\{g = 0\}$ is $|g(x_i)| / \|w\|$. The constraints $y_i g(x_i) \geq 1$ therefore guarantee a margin
+$$
+\min_i \frac{|g(x_i)|}{\|w\|} \geq \frac{1}{\|w\|} .
+$$
+
+Minimizing $\|w\|^2$ maximizes this margin. With a general kernel, the same holds for the hyperplane in feature space.
+
+::: proof
+The distance formula is the projection of $x_i$ on the normal direction $w / \|w\|$. [∎]{.qed}
+:::
+::::
+
+### The dual problem
+
+:::: thm
+[Theorem 4.3 — Dual of the SVM]{.tag} The dual of Definition 4.1 is the quadratic program
+$$
+\max_{\alpha \in \mathbb{R}^n}\; \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i,j} \alpha_i \alpha_j\, y_i y_j\, K(x_i, x_j)
+\quad \text{s.t.} \quad 0 \leq \alpha_i \leq C, \;\; \sum_{i=1}^n \alpha_i y_i = 0 .
+$$
+
+There is no duality gap, and the optimal function is
+$$
+\hat f = \sum_{i=1}^n \alpha_i\, y_i\, K_{x_i} .
+$$
+
+::: proof
+Introduce multipliers $\alpha_i \geq 0$ for the margin constraints and $\nu_i \geq 0$ for $\xi_i \geq 0$:
+$$
+\mathcal{L} = \frac{1}{2}\|f\|^2 + C \sum_i \xi_i - \sum_i \alpha_i \big( y_i (f(x_i) + b) - 1 + \xi_i \big) - \sum_i \nu_i \xi_i .
+$$
+
+Minimize over the primal variables, writing $f(x_i) = \langle f, K_{x_i} \rangle$:
+
+1.  in $f$, the gradient $f - \sum_i \alpha_i y_i K_{x_i}$ must vanish, which gives $\hat f$;
+2.  in $b$, the coefficient $\sum_i \alpha_i y_i$ must vanish, otherwise the infimum is $-\infty$;
+3.  in $\xi_i$, $C - \alpha_i - \nu_i = 0$, and $\nu_i \geq 0$ gives $\alpha_i \leq C$.
+
+Substituting $\hat f$ gives $\|\hat f\|^2 = \alpha^\top Q \alpha$ with $Q_{ij} = y_i y_j K(x_i, x_j)$, and the dual function is the announced objective. The constraints are affine and the problem is feasible, so strong duality holds (Proposition 0.6). [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 4.4 — Support vectors]{.tag} Complementary slackness reads $\alpha_i \big( y_i g(x_i) - 1 + \xi_i \big) = 0$ and $(C - \alpha_i)\, \xi_i = 0$. Hence, for each training point:
+
+-   $\alpha_i = 0$: then $y_i g(x_i) \geq 1$, the point is correctly classified, on or outside the margin;
+-   $0 < \alpha_i < C$: then $\xi_i = 0$ and $y_i g(x_i) = 1$, the point lies **on** the margin;
+-   $\alpha_i = C$: then $y_i g(x_i) \leq 1$, the point is on or inside the margin, possibly misclassified.
+
+Only the **support vectors** ($\alpha_i > 0$) enter $\hat f$. Any point with $0 < \alpha_i < C$ gives the offset:
+$$
+b = y_i - \hat f(x_i) .
+$$
+
+::: proof
+-   If $\alpha_i = 0$, then $\nu_i = C > 0$ forces $\xi_i = 0$, and feasibility gives $y_i g(x_i) \geq 1$.
+-   If $0 < \alpha_i < C$, then $\nu_i > 0$ forces $\xi_i = 0$, and $\alpha_i > 0$ makes the margin constraint active.
+-   If $\alpha_i = C$, the margin constraint is active, so $y_i g(x_i) = 1 - \xi_i \leq 1$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 4.5 — Four points on a line]{.tag} Take the linear kernel on $\mathbb{R}$, points $x = (-2, -1, 1, 2)$ and labels $y = (-1, -1, +1, +1)$, with $C \geq 1/2$.
+
+-   Guess that only $x = \pm 1$ are support vectors, with equal multipliers $a$. Then $\hat f(x) = w x$ with $w = a \cdot 1 + a \cdot 1 = 2a$.
+-   The margin condition $y\, g(x) = 1$ at $x = 1$ and $x = -1$ gives $b = 0$ and $w = 1$, so $a = 1/2$.
+-   Check: the dual objective is $\sum_i \alpha_i - \frac{1}{2} w^2 = \frac{1}{2}$, equal to the primal value $\frac{1}{2} w^2 = \frac{1}{2}$.
+
+The points $\pm 2$ satisfy $y\, g(x) = 2 > 1$ and get $\alpha = 0$: moving them does not change the classifier.
+:::
+
+The code reproduces the introduction's comparison, then checks Proposition 4.4 on the dual solution:
+
+```python
+import numpy as np
+from sklearn.datasets import make_moons
+from sklearn.svm import SVC
+
+X, y01 = make_moons(n_samples=600, noise=0.15, random_state=0)
+y = 2 * y01 - 1                                   # labels in {-1, +1}
+Xtr, ytr, Xte, yte = X[:300], y[:300], X[300:], y[300:]
+
+def gauss(A, B, s=0.5):
+    d2 = (A**2).sum(1)[:, None] + (B**2).sum(1)[None, :] - 2 * A @ B.T
+    return np.exp(-d2 / (2 * s**2))
+
+C = 1.0
+for name, ker in [("linear", lambda A, B: A @ B.T), ("gaussian", gauss)]:
+    svm = SVC(kernel="precomputed", C=C).fit(ker(Xtr, Xtr), ytr)
+    print(f"{name:8s} test accuracy {svm.score(ker(Xte, Xtr), yte):.3f}, "
+          f"{len(svm.support_)} support vectors")
+
+# KKT check for the Gaussian SVM: alpha_i * y_i are stored in dual_coef_
+alpha = np.abs(svm.dual_coef_.ravel())
+idx = svm.support_
+g = svm.decision_function(gauss(Xtr, Xtr))
+free = (alpha > 1e-6) & (alpha < C - 1e-6)
+print("sum alpha_i y_i  =", round(float(alpha @ ytr[idx]), 8))
+print("y g(x) on free SVs: min %.3f, max %.3f" % ((ytr[idx] * g[idx])[free].min(),
+                                                   (ytr[idx] * g[idx])[free].max()))
+nonsv = np.setdiff1d(np.arange(300), idx)
+print("min y g(x) off the support:", round(float((ytr[nonsv] * g[nonsv]).min()), 3))
+```
+
+Free support vectors sit at $y\, g(x) = 1$ up to solver tolerance, and all other points have $y\, g(x) \geq 1$.
+
+::: recap
+Key takeaways — chapter 4
+
+-   The SVM minimizes $\frac{1}{2}\|f\|^2 + C \sum_i \max(0, 1 - y_i g(x_i))$; in feature space it maximizes a soft margin.
+-   Its dual is a quadratic program in $\alpha \in [0, C]^n$ with $\sum_i \alpha_i y_i = 0$, and $\hat f = \sum_i \alpha_i y_i K_{x_i}$.
+-   Complementary slackness sorts the points: $\alpha_i = 0$ on or outside the margin, $0 < \alpha_i < C$ on it, $\alpha_i = C$ on or inside it. Only support vectors matter.
+:::
+
+## 5. Unsupervised kernel methods: kernel PCA, kernel k-means, kernel CCA {#ch5}
+
+PCA, k-means and canonical correlation analysis use the data only through inner products and distances, so the kernel trick applies to each. Two details need care: centering in feature space, and regularization for CCA.
+
+### Kernel PCA
+
+Kernel PCA (Schölkopf, Smola and Müller, 1998) runs PCA on the centred features
+$$
+\tilde\varphi(x_i) = \varphi(x_i) - \frac{1}{n} \sum_{j=1}^n \varphi(x_j) .
+$$
+Their Gram matrix is the **centred Gram matrix**
+$$
+K_c = H K H, \qquad H = I - \frac{1}{n} \mathbf{1}\mathbf{1}^\top .
+$$
+
+:::: prop
+[Proposition 5.1 — Kernel PCA]{.tag} Let $K_c = \sum_k \mu_k u_k u_k^\top$ with $\mu_1 \geq \mu_2 \geq \dots \geq 0$. For each $k$ with $\mu_k > 0$, the $k$-th principal direction in feature space is
+$$
+f_k = \sum_{i=1}^n \alpha_{k,i}\, \tilde\varphi(x_i), \qquad \alpha_k = u_k / \sqrt{\mu_k} .
+$$
+
+It has unit norm, the directions are orthogonal, and the variance of the data along $f_k$ is $\mu_k / n$. The coordinate of the training point $x_i$ is $\sqrt{\mu_k}\, u_{k,i}$. For a new point, with the kernel $\tilde K$ centred by the training means,
+$$
+\langle f_k, \tilde\varphi(x) \rangle = \sum_i \alpha_{k,i}\, \tilde K(x_i, x) .
+$$
+
+::: proof
+The variance along a unit vector $f$ is the mean of the squared projections $\langle f, \tilde\varphi(x_i) \rangle^2$. A component of $f$ orthogonal to all $\tilde\varphi(x_i)$ adds norm but no variance, so the optimal $f$ lies in their span: $f = \sum_i \alpha_i \tilde\varphi(x_i)$.
+
+Then the projections are $K_c \alpha$ and $\|f\|^2 = \alpha^\top K_c \alpha$. We maximize $\alpha^\top K_c^2 \alpha$ subject to $\alpha^\top K_c \alpha = 1$.
+
+Write $\alpha = \sum_k c_k u_k$. The objective is $\sum_k \mu_k \cdot \mu_k c_k^2$, under the constraint $\sum_k \mu_k c_k^2 = 1$.
+
+This is a weighted average of the eigenvalues, with weights $\mu_k c_k^2$ summing to 1. It is maximal when all the weight is on $\mu_1$, that is $c_1^2 = 1/\mu_1$: the claim for $k = 1$.
+
+The following directions are obtained in the same way, orthogonally to the previous ones: $\langle f_k, f_l \rangle = \alpha_k^\top K_c \alpha_l = 0$ for $k \neq l$. [∎]{.qed}
+:::
+::::
+
+The directions found are curved in the input space. Mapping a feature-space point back to the input space (the **pre-image problem**) has no exact solution in general.
+
+::: ex
+[Example 5.2 — Two concentric circles]{.tag} On 400 points on two concentric circles, logistic regression on the raw coordinates scores 0.50. With a Gaussian kernel ($\sigma = 0.25$), the first kernel principal component alone separates the circles perfectly (code below).
+:::
+
+### Kernel k-means and spectral clustering
+
+Kernel k-means minimizes, over partitions into clusters $c_1, \dots, c_k$, the within-cluster scatter in feature space:
+$$
+W(c_1, \dots, c_k) = \sum_{l=1}^k \sum_{i \in c_l} \big\| \varphi(x_i) - m_l \big\|^2, \qquad m_l = \frac{1}{|c_l|} \sum_{j \in c_l} \varphi(x_j) .
+$$
+
+::: thm
+[Algorithm 5.3 — Kernel k-means]{.tag} Start from a partition. Repeat until no point moves:
+
+1.  for every point $i$ and cluster $l$, compute $\|\varphi(x_i) - m_l\|^2$ from the Gram matrix with Proposition 1.7;
+2.  move every point to its closest cluster.
+
+Each iteration costs $O(n^2)$ and does not increase $W$, by the argument of Lloyd's algorithm. Like k-means, it can stop at a poor local minimum.
+:::
+
+:::: prop
+[Proposition 5.4 — Trace form and spectral relaxation]{.tag} Let $Z \in \mathbb{R}^{n \times k}$ with $Z_{il} = 1 / \sqrt{|c_l|}$ if $i \in c_l$ and 0 otherwise, so that $Z^\top Z = I_k$. Then
+$$
+W = \mathrm{tr}(K) - \mathrm{tr}(Z^\top K Z) .
+$$
+
+Relaxing $Z$ to any matrix with orthonormal columns, $\mathrm{tr}(Z^\top K Z)$ is maximized by the $k$ leading eigenvectors of $K$ (Ky Fan's theorem). Rounding the rows of this relaxed solution with k-means is **spectral clustering**.
+
+::: proof
+Expanding with Proposition 1.7, the scatter of cluster $c$ is
+$$
+\sum_{i \in c} K_{ii} - \frac{1}{|c|} \sum_{i, j \in c} K_{ij} .
+$$
+
+Summing over clusters, the first terms give $\mathrm{tr}(K)$ and the second ones give $\mathrm{tr}(Z^\top K Z)$, by definition of $Z$. [∎]{.qed}
+:::
+::::
+
+Applied to a normalized affinity matrix $D^{-1/2} W D^{-1/2}$, the same relaxation gives the algorithm of Ng, Jordan and Weiss (2002); Dhillon, Guan and Kulis (2004) show that normalized cut is a weighted kernel k-means objective. See also [Graphs in Machine Learning](../s2-graphs-in-ml/index.html).
+
+### Kernel CCA
+
+CCA looks for maximally correlated projections of two views $(x_i, y_i)$ of the same objects, such as an image and its caption. Kernel CCA uses functions $f \in \mathcal{H}_1$ and $g \in \mathcal{H}_2$.
+
+::: def
+[Definition 5.5 — Empirical kernel CCA]{.tag} Let $K_1$ and $K_2$ be the centred Gram matrices of the two views. For $f = \sum_i \alpha_i \tilde\varphi_1(x_i)$ and $g = \sum_i \beta_i \tilde\varphi_2(y_i)$, the empirical correlation of $f(x_i)$ and $g(y_i)$ is
+$$
+\rho(\alpha, \beta) = \frac{\alpha^\top K_1 K_2\, \beta}{\sqrt{\alpha^\top K_1^2\, \alpha}\; \sqrt{\beta^\top K_2^2\, \beta}} .
+$$
+:::
+
+:::: prop
+[Proposition 5.6 — Unregularized kernel CCA is degenerate]{.tag} If $K_1$ and $K_2$ both have range $\{\mathbf{1}\}^\perp$, the maximal value of $\rho$ is 1, whatever the data. This is the case for the Gaussian kernel and distinct points.
+
+::: proof
+Pick any non-zero $u \perp \mathbf{1}$ and set $\alpha = K_1^{+} u$, $\beta = K_2^{+} u$. Then $K_1 \alpha = K_2 \beta = u$, and $\rho = u^\top u / (\|u\| \|u\|) = 1$.
+
+For the Gaussian kernel, $K$ is positive definite on distinct points, so $v^\top H K H v = v^\top K v > 0$ for every non-zero $v \perp \mathbf{1}$. [∎]{.qed}
+:::
+::::
+
+A correlation of 1 for any data carries no information. The remedy (Bach and Jordan, 2002) penalizes the RKHS norms, replacing each variance $\alpha^\top K_1^2 \alpha$ by $\alpha^\top (K_1 + \gamma I)^2 \alpha$, which adds $2\gamma \|f\|^2 + \gamma^2 \|\alpha\|^2$.
+
+:::: prop
+[Proposition 5.7 — Regularized kernel CCA]{.tag} With $R_j = K_j (K_j + \gamma I)^{-1}$, the largest regularized canonical correlation is the largest singular value of $R_1 R_2$. If $(a, b)$ are the top singular vectors, then
+$$
+\alpha = (K_1 + \gamma I)^{-1} a, \qquad \beta = (K_2 + \gamma I)^{-1} b .
+$$
+
+::: proof
+Substitute $a = (K_1 + \gamma I)\alpha$ and $b = (K_2 + \gamma I)\beta$; the constraints become $\|a\| = \|b\| = 1$.
+
+Because $K_j$ and $(K_j + \gamma I)^{-1}$ commute, the numerator becomes $a^\top R_1 R_2\, b$. Its maximum over unit vectors is the largest singular value of $R_1 R_2$. [∎]{.qed}
+:::
+::::
+
+The matrices $R_j$ are the smoother matrices of kernel ridge regression (Proposition 3.4). As $\gamma \to 0$ they tend to projections and the correlation tends to 1, which is Proposition 5.6 again.
+
+The code runs kernel PCA, spectral clustering and kernel k-means on the circles, then kernel CCA on two non-linearly related views:
+
+```python
+import numpy as np
+from sklearn.datasets import make_circles
+from sklearn.decomposition import KernelPCA
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import adjusted_rand_score as ari
+
+X, y = make_circles(n_samples=400, factor=0.3, noise=0.05, random_state=0)
+n, s = len(X), 0.25
+K = np.exp(-((X[:, None] - X[None]) ** 2).sum(-1) / (2 * s**2))
+
+# kernel PCA (Proposition 5.1)
+H = np.eye(n) - np.ones((n, n)) / n
+mu, U = np.linalg.eigh(H @ K @ H)
+mu, U = mu[::-1], U[:, ::-1]
+pc = U[:, :2] * np.sqrt(mu[:2])
+sk = KernelPCA(2, kernel="rbf", gamma=1 / (2 * s**2)).fit_transform(X)
+print("same as sklearn up to sign:", np.allclose(np.abs(pc), np.abs(sk), atol=1e-6))
+lr = lambda F: LogisticRegression().fit(F, y).score(F, y)
+print("linear separability: raw %.2f, first kernel PC %.2f" % (lr(X), lr(pc[:, :1])))
+
+# kernel k-means (Algorithm 5.3) and spectral relaxation (Proposition 5.4)
+def kernel_kmeans(K, k, lab):
+    while True:
+        D = np.stack([np.diag(K) - 2 * K[:, lab == c].mean(1)
+                      + K[np.ix_(lab == c, lab == c)].mean() for c in range(k)], 1)
+        if np.array_equal(D.argmin(1), lab):
+            return lab
+        lab = D.argmin(1)
+
+d = K.sum(1)
+V = np.linalg.eigh(K / np.sqrt(np.outer(d, d)))[1][:, -2:]          # normalized relaxation
+V /= np.linalg.norm(V, axis=1, keepdims=True)
+spec = KMeans(2, n_init=10, random_state=0).fit_predict(V)
+rand = kernel_kmeans(K, 2, np.random.default_rng(0).integers(0, 2, n))
+print("ARI: kernel k-means from random start %.2f, spectral %.2f, kernel k-means from spectral %.2f"
+      % (ari(y, rand), ari(y, spec), ari(y, kernel_kmeans(K, 2, spec.copy()))))
+```
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+def views(n):
+    x = rng.uniform(-1, 1, n)
+    return x, x**2 + 0.1 * rng.normal(size=n)       # y depends on x, but not linearly
+x, y = views(200)
+xt, yt = views(200)                                  # held-out pairs
+gram = lambda a, b, s=0.1: np.exp(-(a[:, None] - b[None, :]) ** 2 / (2 * s**2))
+
+def centre(K, Ktr):          # centre K[i, t] = k(train_i, point_t) with training means
+    return K - K.mean(0) - Ktr.mean(1)[:, None] + Ktr.mean()
+
+def kcca(gamma):             # Proposition 5.7
+    n = len(x)
+    K1, K2 = gram(x, x), gram(y, y)
+    K1c, K2c = centre(K1, K1), centre(K2, K2)
+    A1, A2 = K1c + gamma * np.eye(n), K2c + gamma * np.eye(n)
+    U, s, Vt = np.linalg.svd(np.linalg.solve(A1, K1c) @ np.linalg.solve(A2, K2c))
+    alpha, beta = np.linalg.solve(A1, U[:, 0]), np.linalg.solve(A2, Vt[0])
+    f = centre(gram(x, xt), K1).T @ alpha            # f on held-out points
+    g = centre(gram(y, yt), K2).T @ beta
+    return s[0], abs(np.corrcoef(f, g)[0, 1])
+
+print("linear correlation of (x, y): %.3f" % abs(np.corrcoef(x, y)[0, 1]))
+for gamma in [1e-10, 1e-3, 1e-1]:
+    train, test = kcca(gamma)
+    print(f"gamma={gamma:g}: training correlation {train:.3f}, held-out {test:.3f}")
+```
+
+Kernel k-means from a random start stops at a poor local minimum (adjusted Rand index 0.37); the spectral relaxation finds the circles (1.00), and kernel k-means started there keeps them.
+
+For kernel CCA, the linear correlation of the views is 0.08. With a negligible $\gamma = 10^{-10}$, the training correlation is 0.98, close to the value 1 of Proposition 5.6, but the held-out one is 0.02. With $\gamma = 10^{-3}$ or $10^{-1}$, the held-out correlation stays at 0.94–0.95.
+
+::: recap
+Key takeaways — chapter 5
+
+-   Kernel PCA diagonalizes the centred Gram matrix $HKH$; the coefficients of the $k$-th direction are $u_k / \sqrt{\mu_k}$, and the variance it explains is $\mu_k / n$.
+-   Kernel k-means needs only the Gram matrix; its objective is $\mathrm{tr}\,K - \mathrm{tr}(Z^\top K Z)$, and relaxing $Z$ gives spectral clustering.
+-   Kernel CCA without regularization always reaches correlation 1; regularized kernel CCA is a singular value problem for $R_1 R_2$, built from KRR smoothers.
+:::
+
+## 6. Mercer, Bochner and semigroup kernels {#ch6}
+
+Choosing a kernel means choosing an RKHS, that is, a notion of smoothness. Three theorems recognize p.d. kernels and describe their RKHS: Mercer's on compact domains, Bochner's for translation-invariant kernels, and Schoenberg's for kernels built from distances, which leads to kernels on histograms.
+
+### Mercer kernels
+
+Let $\mathcal{X}$ be a compact metric space, $\mu$ a finite Borel measure whose support is $\mathcal{X}$, and $K$ a continuous p.d. kernel. The **integral operator** of $K$ acts on $L^2(\mu)$:
+$$
+(T_K f)(x) = \int_{\mathcal{X}} K(x, t)\, f(t)\, d\mu(t) .
+$$
+It is compact, self-adjoint, and positive: $\langle f, T_K f \rangle_{L^2} \geq 0$.
+
+:::: thm
+[Theorem 6.1 — Mercer (1909)]{.tag} There is an orthonormal family $(\psi_k)_{k \geq 1}$ of $L^2(\mu)$ of continuous eigenfunctions of $T_K$, with eigenvalues $\lambda_1 \geq \lambda_2 \geq \dots > 0$ tending to 0, such that
+$$
+K(x, y) = \sum_{k \geq 1} \lambda_k\, \psi_k(x)\, \psi_k(y),
+$$
+where the series converges absolutely and uniformly on $\mathcal{X} \times \mathcal{X}$.
+
+::: proof
+*Sketch.* The spectral theorem for compact self-adjoint operators gives the eigenpairs; positivity of $T_K$ makes the eigenvalues non-negative, and continuity of $K$ makes $\psi_k = T_K \psi_k / \lambda_k$ continuous.
+
+The remainder $K - \sum_{k \leq N} \lambda_k \psi_k \otimes \psi_k$ is a continuous p.d. kernel, so its diagonal is non-negative and $\sum_k \lambda_k \psi_k(x)^2 \leq K(x, x)$. Dini's theorem makes the convergence on the diagonal uniform, and Cauchy–Schwarz extends it off the diagonal. Full proof: Steinwart and Christmann (2008), Theorem 4.49.
+:::
+::::
+
+:::: prop
+[Corollary 6.2 — The RKHS in the Mercer basis]{.tag} With the notation of Theorem 6.1,
+$$
+\mathcal{H}_K = \Big\{ f = \sum_k a_k \psi_k \;:\; \sum_k \frac{a_k^2}{\lambda_k} < \infty \Big\}, \qquad \|f\|_{\mathcal{H}_K}^2 = \sum_k \frac{a_k^2}{\lambda_k} .
+$$
+
+The **Mercer feature map** sends $x$ to the sequence $\big(\sqrt{\lambda_k}\, \psi_k(x)\big)_{k \geq 1}$ of $\ell^2$.
+
+::: proof
+*Check of the reproducing property.* $K_x$ has coefficients $a_k = \lambda_k \psi_k(x)$, and $\sum_k a_k^2 / \lambda_k = K(x, x) < \infty$, so $K_x$ belongs to the space.
+
+For $f = \sum_k a_k \psi_k$, the inner product with $K_x$ is $\sum_k a_k\, \lambda_k \psi_k(x) / \lambda_k = f(x)$. Uniqueness of the RKHS (Theorem 2.4) concludes. [∎]{.qed}
+:::
+::::
+
+Eigenfunctions with small eigenvalues, typically the oscillating ones, are expensive in RKHS norm. This is the continuous version of Proposition 3.4: the eigenvalues of $K / n$ approximate the $\lambda_k$ when the $x_i$ are drawn from $\mu$.
+
+::: ex
+[Example 6.3 — The Mercer expansion of the min kernel]{.tag} On $[0, 1]$ with the Lebesgue measure, the kernel $\min(x, y)$ of Example 2.8 has eigenfunctions and eigenvalues
+$$
+\psi_k(x) = \sqrt{2}\, \sin\big((k - \tfrac{1}{2}) \pi x\big), \qquad \lambda_k = \frac{1}{(k - \frac{1}{2})^2 \pi^2} .
+$$
+
+-   Numerically: $\lambda_1 = 0.4053$, $\lambda_2 = 0.0450$, $\lambda_3 = 0.0162$, $\lambda_4 = 0.0083$; the code below recovers them from a $2000 \times 2000$ Gram matrix.
+-   The RKHS norm $\sum_k a_k^2 (k - \frac{1}{2})^2 \pi^2$ equals $\int_0^1 f'^2$, because the derivatives $\psi_k'$ are orthogonal with squared norms $(k - \frac{1}{2})^2 \pi^2$.
+
+This is the Karhunen–Loève expansion of Brownian motion.
+:::
+
+### Translation-invariant kernels
+
+Bochner's theorem characterizes the p.d. kernels of the form $K(x, y) = \kappa(x - y)$ on $\mathbb{R}^d$.
+
+:::: thm
+[Theorem 6.4 — Bochner]{.tag} A continuous function $\kappa : \mathbb{R}^d \to \mathbb{R}$ defines a p.d. kernel $\kappa(x - y)$ if and only if it is the Fourier transform of a finite, non-negative, symmetric Borel measure $\Lambda$:
+$$
+\kappa(z) = \int_{\mathbb{R}^d} e^{i\, \omega^\top z}\, d\Lambda(\omega) .
+$$
+
+::: proof
+(⇐) For any points and coefficients,
+$$
+\sum_{j, l} a_j a_l\, \kappa(x_j - x_l) = \int \Big| \sum_j a_j\, e^{i\, \omega^\top x_j} \Big|^2 d\Lambda(\omega) \geq 0 .
+$$
+(⇒) is the harder direction; see Rudin, *Fourier Analysis on Groups* (1962), or Berg, Christensen and Ressel (1984).
+:::
+::::
+
+Examples: the Gaussian kernel $e^{-\|z\|^2 / 2\sigma^2}$ corresponds to a Gaussian measure $\Lambda$ with covariance $\sigma^{-2} I$; the Laplace kernel $e^{-|z| / \sigma}$ on $\mathbb{R}$ corresponds to a Cauchy measure. Sampling $\omega \sim \Lambda$ is the basis of the random features of ch. 9.
+
+### Negative definite and semigroup kernels
+
+Schoenberg's theorem says when exponentiating a distance or a divergence gives a p.d. kernel.
+
+::: def
+[Definition 6.5 — Negative definite kernel]{.tag} A symmetric function $\psi$ on $\mathcal{X} \times \mathcal{X}$ is **negative definite** (n.d.) when, for all points $x_1, \dots, x_n$ and all $c \in \mathbb{R}^n$ with $\sum_i c_i = 0$,
+$$
+\sum_{i, j} c_i\, c_j\, \psi(x_i, x_j) \leq 0 .
+$$
+
+Example: $\psi(x, y) = \|\varphi(x) - \varphi(y)\|^2$ for any feature map. Expanding, the terms $\|\varphi(x_i)\|^2$ cancel because $\sum_i c_i = 0$, and what remains is $-2 \|\sum_i c_i \varphi(x_i)\|^2 \leq 0$.
+:::
+
+:::: thm
+[Theorem 6.6 — Schoenberg (1938)]{.tag} A symmetric function $\psi$ is negative definite if and only if
+$$
+\exp(-t\, \psi) \text{ is a p.d. kernel for every } t > 0 .
+$$
+
+::: proof
+(⇐) Let $\sum_i c_i = 0$. The constant 1 then contributes nothing, so
+$$
+\sum_{i,j} c_i c_j\, \frac{1 - e^{-t\psi_{ij}}}{t} = -\frac{1}{t} \sum_{i,j} c_i c_j\, e^{-t\psi_{ij}} \leq 0 .
+$$
+Let $t \to 0$: the left-hand side tends to $\sum_{i,j} c_i c_j \psi_{ij}$, which is therefore $\leq 0$.
+
+(⇒) Fix $x_0 \in \mathcal{X}$ and set
+$$
+\tilde K(x, y) = \psi(x, x_0) + \psi(y, x_0) - \psi(x, y) - \psi(x_0, x_0) .
+$$
+
+-   $\tilde K$ is p.d.: given $a \in \mathbb{R}^n$, apply negative definiteness to the points $x_0, x_1, \dots, x_n$ with coefficients $(-\sum_i a_i, a_1, \dots, a_n)$, which sum to 0. Expanding gives exactly $-\sum_{i,j} a_i a_j \tilde K(x_i, x_j) \leq 0$.
+-   Then, with $f(x) = e^{-t\psi(x, x_0)}$,
+    $$
+    e^{-t\psi(x, y)} = e^{t \psi(x_0, x_0)}\, f(x)\, e^{t \tilde K(x, y)}\, f(y) .
+    $$
+-   The exponential of a p.d. kernel is p.d., and so is $f(x) \cdot f(y)$ times it (Proposition 1.4). [∎]{.qed}
+:::
+::::
+
+With $\psi = \|x - y\|^2$ this proves again that the Gaussian kernel is p.d. Moreover $\|x - y\|^p$ is n.d. for $0 < p \leq 2$, so $e^{-t \|x - y\|^p}$ is p.d.; it is not for $p > 2$, and the code exhibits a negative eigenvalue for $p = 3$.
+
+Data such as histograms and measures form a **semigroup** $(S, +)$, for instance $S = \mathbb{R}_+^d$. A **semigroup kernel** has the form $K(x, y) = \phi(x + y)$, as in Berg, Christensen and Ressel (1984).
+
+:::: prop
+[Proposition 6.7 — Semigroup kernels from Laplace transforms]{.tag} Let $\nu$ be a non-negative measure on $\mathbb{R}_+^d$ such that $\phi(s) = \int e^{-\langle t, s \rangle} d\nu(t)$ is finite for every $s \in (0, \infty)^d$. Then $K(x, y) = \phi(x + y)$ is a p.d. kernel on $(0, \infty)^d$.
+
+::: proof
+$$
+\sum_{i,j} a_i a_j\, \phi(x_i + x_j) = \int \Big( \sum_i a_i\, e^{-\langle t, x_i \rangle} \Big)^2 d\nu(t) \geq 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+Under regularity conditions, every bounded p.d. function on this semigroup has this form (Berg, Christensen and Ressel). For instance $1 / (x + y) = \int_0^\infty e^{-t(x + y)} dt$ is p.d. on $(0, \infty)$.
+
+:::: prop
+[Proposition 6.8 — Kernels on histograms]{.tag} On histograms with positive entries, $x, y \in (0, \infty)^d$:
+
+1.  the **intersection kernel** $K(x, y) = \sum_k \min(x_k, y_k)$ is p.d.;
+2.  the **$\chi^2$ distance** below is n.d., so $e^{-t\, \chi^2(x, y)}$ is p.d. for every $t > 0$:
+    $$
+    \chi^2(x, y) = \sum_k \frac{(x_k - y_k)^2}{x_k + y_k} .
+    $$
+
+::: proof
+(1) For $a, b \geq 0$, $\min(a, b)$ is the inner product of the indicators of $[0, a]$ and $[0, b]$ in $L^2(\mathbb{R}_+)$, hence p.d.; sum over $k$.
+
+(2) Write each term as
+$$
+\frac{(a - b)^2}{a + b} = a + b - \frac{4ab}{a + b} .
+$$
+-   The part $a + b$ contributes 0 when $\sum_i c_i = 0$.
+-   The part $ab / (a + b)$ is p.d.: $1/(a + b)$ is p.d. (Proposition 6.7), and multiplying by $a \cdot b$ keeps it p.d. (Proposition 1.4).
+-   So $-4ab/(a + b)$ contributes a non-positive amount; summing over the bins $k$ keeps negative definiteness, and Theorem 6.6 concludes. [∎]{.qed}
+:::
+::::
+
+These kernels were the standard tool of image classification with **bags of visual words**, histograms of quantized local descriptors (Zhang, Marszałek, Lazebnik and Schmid, 2007). Cuturi, Fukumizu and Vert (2005) extend the construction to measures.
+
+The code checks Example 6.3 and the positivity claims of this section:
+
+```python
+import numpy as np
+
+# Mercer eigenvalues of min(x, y) on [0, 1]: K / m on a grid approximates T_K
+m = 2000
+t = (np.arange(m) + 0.5) / m
+lam = np.linalg.eigvalsh(np.minimum.outer(t, t) / m)[::-1][:4]
+print("from the Gram matrix:", np.round(lam, 4))
+print("Mercer eigenvalues  :", np.round(1 / ((np.arange(1, 5) - 0.5) ** 2 * np.pi**2), 4))
+
+# kernels on histograms (Proposition 6.8), and exp(-|x-y|^p) for p = 1.5 and 3
+rng = np.random.default_rng(0)
+Hs = rng.dirichlet(np.ones(10), size=200)          # 200 histograms with 10 bins
+chi2 = (((Hs[:, None] - Hs[None]) ** 2) / (Hs[:, None] + Hs[None] + 1e-12)).sum(-1)
+inter = np.minimum(Hs[:, None], Hs[None]).sum(-1)
+z = np.linspace(0, 3, 40)
+dist = np.abs(z[:, None] - z[None])
+for name, G in [("exp(-chi2)", np.exp(-chi2)), ("intersection", inter),
+                ("exp(-|x-y|^1.5)", np.exp(-dist**1.5)), ("exp(-|x-y|^3)", np.exp(-dist**3))]:
+    print(f"{name:16s} smallest eigenvalue {np.linalg.eigvalsh(G).min():+.2e}")
+```
+
+::: recap
+Key takeaways — chapter 6
+
+-   Mercer: on a compact domain, $K = \sum_k \lambda_k \psi_k \otimes \psi_k$, and $\|f\|^2 = \sum_k a_k^2 / \lambda_k$; the RKHS norm penalizes eigenfunctions with small eigenvalues.
+-   Bochner: $\kappa(x - y)$ is p.d. iff $\kappa$ is the Fourier transform of a non-negative measure; ch. 11 reads the RKHS in the frequency domain.
+-   Schoenberg: $e^{-t\psi}$ is p.d. for all $t > 0$ iff $\psi$ is negative definite; with semigroup arguments this gives the $\chi^2$ and intersection kernels on histograms.
+:::
+
+## 7. Kernels for strings and graphs, kernels on graphs {#ch7}
+
+Sequences and graphs motivated kernel methods in computational biology, text processing and chemistry. This chapter builds kernels for them by counting substructures and by diffusing along a graph, and shows that some natural kernels are intractable.
+
+### Kernels for strings
+
+Let $\mathcal{A}$ be a finite alphabet (4 nucleotides, 20 amino acids, or letters) and $\mathcal{X} = \mathcal{A}^*$ the set of finite strings.
+
+::: def
+[Definition 7.1 — Spectrum kernel (Leslie, Eskin and Noble, 2002)]{.tag} For $u \in \mathcal{A}^k$, let $\varphi_u(x)$ be the number of occurrences of $u$ as a contiguous substring of $x$. The **$k$-spectrum kernel** is
+$$
+K(x, y) = \sum_{u \in \mathcal{A}^k} \varphi_u(x)\, \varphi_u(y) .
+$$
+
+With a hash table or a suffix tree, $K(x, y)$ costs $O(|x| + |y|)$ for fixed $k$, although the feature space has dimension $|\mathcal{A}|^k$.
+:::
+
+::: ex
+[Example 7.2 — A 2-spectrum kernel]{.tag} Let $x$ be ACGTACG and $y$ be TACGT.
+
+-   The 2-mers of $x$ are AC, CG, GT, TA, AC, CG, so AC and CG appear twice, GT and TA once.
+-   The 2-mers of $y$ are TA, AC, CG, GT, each once.
+
+Hence
+$$
+K(x, y) = 2 \cdot 1 + 2 \cdot 1 + 1 \cdot 1 + 1 \cdot 1 = 6 .
+$$
+
+The **mismatch kernel** (Leslie, Eskin, Cohen, Weston and Noble, 2004) also counts $k$-mers within $m$ substitutions, which suits mutations in protein families.
+:::
+
+::: def
+[Definition 7.3 — Gap-weighted subsequence kernel (Lodhi et al., 2002)]{.tag} Fix a length $p$ and a decay $\lambda \in (0, 1]$. An occurrence of $u \in \mathcal{A}^p$ in $s$ is a tuple of indices $i_1 < \dots < i_p$ such that $s_{i_1} \cdots s_{i_p} = u$.
+
+Its span is $\ell(i) = i_p - i_1 + 1$. The features and the kernel are
+$$
+\varphi_u(s) = \sum_{i \,:\, s[i] = u} \lambda^{\ell(i)}, \qquad K_p(s, t) = \sum_{u \in \mathcal{A}^p} \varphi_u(s)\, \varphi_u(t) .
+$$
+
+Gaps are allowed but penalized: "cat" occurs in "cart" with span 4, hence weight $\lambda^4$.
+:::
+
+Enumerating the occurrences costs $\binom{|s|}{p}$ operations; a dynamic program avoids it. Write $sa$ for the string $s$ followed by the letter $a$, and $t[1{:}j]$ for the prefix of length $j$.
+
+:::: prop
+[Proposition 7.4 — Dynamic programming for the subsequence kernel]{.tag} Define auxiliary kernels $K'_i$, which weight each common subsequence by its span from its first letter to the *end* of both strings. They satisfy $K'_0 = 1$, $K'_i(s, t) = 0$ if $\min(|s|, |t|) < i$, and
+$$
+K'_i(sa, t) = \lambda\, K'_i(s, t) + \sum_{j \,:\, t_j = a} K'_{i-1}\big(s, t[1{:}j{-}1]\big)\, \lambda^{|t| - j + 2} .
+$$
+
+The kernel follows, with $K_p(s, t) = 0$ if $\min(|s|, |t|) < p$:
+$$
+K_p(sa, t) = K_p(s, t) + \lambda^2 \sum_{j \,:\, t_j = a} K'_{p-1}\big(s, t[1{:}j{-}1]\big) .
+$$
+
+The cost is $O(p\, |s|\, |t|^2)$, and $O(p\, |s|\, |t|)$ with one more auxiliary table.
+
+::: proof
+*Key step.* Split the common subsequences of $sa$ and $t$ according to whether they use the final letter $a$ of $sa$.
+
+-   Those that do not use it are common subsequences of $s$ and $t$. Appending $a$ lengthens their span to the end of the first string by one: factor $\lambda$ in $K'_i$, and no change in $K_p$, which measures spans only between the first and last matched letters.
+-   Those that use it match $a$ with some $t_j = a$. Their first $i - 1$ letters form a common subsequence of $s$ and $t[1{:}j{-}1]$, counted by $K'_{i-1}$ up to the end of these prefixes.
+
+    Extending the spans to the ends of $sa$ and $t$ adds $1 + (|t| - j + 1)$, hence the factor $\lambda^{|t| - j + 2}$. In $K_p$ the last letter closes the span, which leaves $\lambda^2$. [∎]{.qed}
+:::
+::::
+
+### Kernels for graphs
+
+A kernel *for* graphs compares two graphs, for instance two molecules. A feature map that identifies graphs up to isomorphism is out of reach.
+
+:::: prop
+[Proposition 7.5 — Hardness of complete graph kernels (Gärtner, Flach and Wrobel, 2003)]{.tag}
+
+1.  If $\varphi$ is injective on isomorphism classes, computing $K(G, G') = \langle \varphi(G), \varphi(G') \rangle$ is at least as hard as deciding graph isomorphism.
+2.  The kernel whose features count, for every graph $F$, the subgraphs of $G$ isomorphic to $F$, is NP-hard to compute.
+
+::: proof
+(1) $G \cong G'$ if and only if $\varphi(G) = \varphi(G')$, if and only if
+$$
+K(G, G) - 2K(G, G') + K(G', G') = 0 .
+$$
+Three kernel evaluations decide isomorphism.
+
+(2) *Sketch.* From such kernel values one can extract the number of subgraphs isomorphic to the path on $n$ vertices, which is positive iff $G$ has a Hamiltonian path, an NP-complete property. [∎]{.qed}
+:::
+::::
+
+Practical graph kernels therefore count simpler substructures: walks, paths or subtrees. Let $G$ and $G'$ have vertex labels (atom types, for instance).
+
+::: def
+[Definition 7.6 — Product graph and random-walk kernel]{.tag} The **product graph** $G_\times$ has one vertex per pair of vertices of $G$ and $G'$ with the same label. Two pairs are adjacent when both components are adjacent, in $G$ and in $G'$ respectively.
+
+Let $A_\times$ be its adjacency matrix; without labels, $A_\times = A \otimes A'$.
+
+A walk of length $k$ in $G_\times$ is a pair of walks of length $k$ in $G$ and $G'$ with the same label sequence. For $0 < \lambda < 1 / \rho(A_\times)$, the **random-walk kernel** is
+$$
+K_\times(G, G') = \sum_{k \geq 0} \lambda^k\, \mathbf{1}^\top A_\times^k\, \mathbf{1} = \mathbf{1}^\top (I - \lambda A_\times)^{-1} \mathbf{1} .
+$$
+
+It is p.d.: the $k$-th term is $\langle \varphi_k(G), \varphi_k(G') \rangle$, where $\varphi_k$ counts the walks of length $k$ by label sequence.
+
+For graphs with $n$ vertices, a direct solve costs $O(n^6)$; Sylvester-equation and conjugate-gradient methods bring it to about $O(n^3)$ (Vishwanathan et al., 2010).
+:::
+
+::: thm
+[Algorithm 7.7 — Weisfeiler–Lehman subtree kernel (Shervashidze et al., 2011)]{.tag} Start from the vertex labels $l_0(v)$. For $h = 1, \dots, H$:
+
+1.  give each vertex the pair formed by its label $l_{h-1}(v)$ and the sorted multiset of its neighbours' labels $l_{h-1}(u)$, $u \in \mathcal{N}(v)$;
+2.  compress each distinct pair into a new label $l_h(v)$.
+
+The feature vector $\varphi(G)$ counts every label at every iteration $0, \dots, H$, and $K(G, G') = \langle \varphi(G), \varphi(G') \rangle$. One graph costs $O(H m)$ for $m$ edges.
+:::
+
+The kernel is fast and strong on molecule benchmarks, but graphs that the 1-dimensional Weisfeiler–Lehman isomorphism test cannot tell apart get the same features. Message-passing graph neural networks share this limit (Xu, Hu, Leskovec and Jegelka, 2019; Morris et al., 2019).
+
+Graph kernels also serve image analysis. A segmented image is a graph whose vertices are regions, labelled by their colour histograms and joined when the regions touch. Harchaoui and Bach (2007) compare such segmentation graphs with walk-based kernels, using a histogram kernel of ch. 6 between the labels of matched regions, and classify the images with an SVM.
+
+### Kernels on graphs
+
+A kernel *on* a graph compares the vertices of one graph, for instance genes in an interaction network; it is an $n \times n$ PSD matrix. Recall that the Laplacian $L = D - A$ is PSD, with quadratic form
+$$
+f^\top L f = \sum_{uv \in E} (f_u - f_v)^2 .
+$$
+
+::: def
+[Definition 7.8 — Diffusion and regularized Laplacian kernels]{.tag} For $\beta > 0$, the **diffusion kernel** (Kondor and Lafferty, 2002) and the **regularized Laplacian kernel** are
+$$
+K_\beta = e^{-\beta L} = \sum_{k \geq 0} \frac{(-\beta)^k}{k!}\, L^k, \qquad K'_\beta = (I + \beta L)^{-1} .
+$$
+
+Both are PSD, with eigenvalues $e^{-\beta \mu_i}$ and $1 / (1 + \beta \mu_i)$ for the eigenvalues $\mu_i$ of $L$.
+
+The diffusion kernel solves the heat equation $\frac{d}{d\beta} K_\beta = -L K_\beta$: entry $(u, v)$ is the mass found at $v$ at time $\beta$ when heat starts at $u$.
+:::
+
+:::: prop
+[Proposition 7.9 — RKHS norms on a graph (Smola and Kondor, 2003)]{.tag} Let $K = \sum_i r(\mu_i)\, u_i u_i^\top$ with $r > 0$, where $(\mu_i, u_i)$ are the eigenpairs of $L$. Its RKHS is the space of functions on the vertices, with
+$$
+\|f\|_K^2 = f^\top K^{-1} f = \sum_i \frac{\langle f, u_i \rangle^2}{r(\mu_i)} .
+$$
+
+For the regularized Laplacian kernel, this norm is a smoothness penalty along the edges:
+$$
+\|f\|_{K'_\beta}^2 = \sum_{v} f_v^2 + \beta \sum_{uv \in E} (f_u - f_v)^2 .
+$$
+
+::: proof
+Check the reproducing property: the column $K_x = K e_x$ satisfies $\langle f, K_x \rangle = f^\top K^{-1} K e_x = f_x$. For $K'_\beta$, $K^{-1} = I + \beta L$, and the quadratic form of $L$ concludes. [∎]{.qed}
+:::
+::::
+
+Regression with these kernels spreads labels known on a few vertices to their neighbours; Vert and Kanehisa (2003) used diffusion kernels on gene networks.
+
+The code checks Example 7.2 and Proposition 7.4 against brute force:
+
+```python
+import itertools
+from functools import lru_cache
+from collections import Counter
+
+def spectrum(x, y, k):
+    cx = Counter(x[i:i + k] for i in range(len(x) - k + 1))
+    cy = Counter(y[i:i + k] for i in range(len(y) - k + 1))
+    return sum(c * cy[u] for u, c in cx.items())
+
+print("2-spectrum kernel of Example 7.2:", spectrum("ACGTACG", "TACGT", 2))
+
+def subseq_brute(s, t, p, lam):        # Definition 7.3, by enumeration
+    def phi(x):
+        f = Counter()
+        for idx in itertools.combinations(range(len(x)), p):
+            f["".join(x[i] for i in idx)] += lam ** (idx[-1] - idx[0] + 1)
+        return f
+    fs, ft = phi(s), phi(t)
+    return sum(v * ft[u] for u, v in fs.items())
+
+def subseq_dp(s, t, p, lam):           # Proposition 7.4, on prefixes s[:a], t[:b]
+    @lru_cache(maxsize=None)
+    def Kp(i, a, b):
+        if i == 0:
+            return 1.0
+        if min(a, b) < i:
+            return 0.0
+        r = lam * Kp(i, a - 1, b)
+        for j in range(1, b + 1):
+            if t[j - 1] == s[a - 1]:
+                r += Kp(i - 1, a - 1, j - 1) * lam ** (b - j + 2)
+        return r
+    @lru_cache(maxsize=None)
+    def K(a, b):
+        if min(a, b) < p:
+            return 0.0
+        r = K(a - 1, b)
+        for j in range(1, b + 1):
+            if t[j - 1] == s[a - 1]:
+                r += Kp(p - 1, a - 1, j - 1) * lam ** 2
+        return r
+    return K(len(s), len(t))
+
+for s, t in [("cat", "cart"), ("science", "silence"), ("ACGTTGCA", "ACTTGGCA")]:
+    print(f"{s:8s} {t:8s} brute {subseq_brute(s, t, 3, 0.7):.10f}  dp {subseq_dp(s, t, 3, 0.7):.10f}")
+```
+
+The second block compares graph kernels on four small graphs, then classifies the vertices of a two-community graph from four labels:
+
+```python
+import numpy as np
+import networkx as nx
+from collections import Counter
+from scipy.linalg import expm
+
+def wl_features(G, H=3):               # Algorithm 7.7 (labels kept as strings)
+    lab = {v: str(G.degree(v)) for v in G}
+    feats = Counter(("0", l) for l in lab.values())
+    for h in range(1, H + 1):
+        lab = {v: lab[v] + "|" + ",".join(sorted(lab[u] for u in G[v])) for v in G}
+        feats.update((str(h), l) for l in lab.values())
+    return feats
+
+def wl_kernel(G1, G2):
+    f1, f2 = wl_features(G1), wl_features(G2)
+    return sum(c * f2[k] for k, c in f1.items())
+
+def walk_kernel(G1, G2, lam=0.1):      # Definition 7.6, unlabelled graphs
+    Ax = np.kron(nx.to_numpy_array(G1), nx.to_numpy_array(G2))
+    one = np.ones(len(Ax))
+    return one @ np.linalg.solve(np.eye(len(Ax)) - lam * Ax, one)
+
+graphs = {"2 triangles": nx.disjoint_union(nx.cycle_graph(3), nx.cycle_graph(3)),
+          "hexagon": nx.cycle_graph(6), "path": nx.path_graph(6), "star": nx.star_graph(5)}
+names = list(graphs)
+for kern in (wl_kernel, walk_kernel):
+    M = np.array([[kern(graphs[a], graphs[b]) for b in names] for a in names])
+    M = M / np.sqrt(np.outer(np.diag(M), np.diag(M)))   # normalized kernel
+    print(kern.__name__, names, "\n", np.round(M, 2))
+
+G = nx.stochastic_block_model([50, 50], [[0.2, 0.02], [0.02, 0.2]], seed=0)
+Kd = expm(-0.5 * nx.laplacian_matrix(G).toarray().astype(float))   # Definition 7.8
+y = np.r_[np.ones(50), -np.ones(50)]
+known = np.array([0, 1, 50, 51])                                      # four labels
+alpha = np.linalg.solve(Kd[np.ix_(known, known)] + 0.01 * np.eye(4), y[known])
+pred = np.sign(Kd[:, known] @ alpha)
+print("diffusion kernel: smallest eigenvalue %.1e, accuracy %.2f"
+      % (np.linalg.eigvalsh(Kd).min(), (pred == y).mean()))
+```
+
+Both graph kernels give similarity 1.00 between two triangles and a hexagon, two 2-regular graphs with 6 vertices; counting triangles, $\mathrm{tr}(A^3)/6$, separates them. With the diffusion kernel, 99 % of the vertices are labelled correctly.
+
+::: recap
+Key takeaways — chapter 7
+
+-   String kernels count substrings (spectrum, mismatch) or gapped subsequences; dynamic programming computes the latter in $O(p\, |s|\, |t|)$.
+-   Complete graph kernels are as hard as graph isomorphism; walk kernels ($\mathbf{1}^\top (I - \lambda A_\times)^{-1} \mathbf{1}$) and Weisfeiler–Lehman kernels are tractable but blind to some structures.
+-   Kernels on a graph are matrix functions of the Laplacian, such as $e^{-\beta L}$; their RKHS norms penalize variation along edges.
+:::
+
+## 8. Multiple kernel learning and kernel mean embeddings {#ch8}
+
+Multiple kernel learning chooses the kernel itself, as a combination of candidate kernels learned with the predictor. Kernel mean embeddings represent probability distributions as points of an RKHS, which gives a distance between distributions, the MMD, and a two-sample test.
+
+### Multiple kernel learning
+
+Given kernels $K_1, \dots, K_M$ (one per data source, per feature group, or per bandwidth), consider the combinations
+$$
+K_\eta = \sum_{m=1}^M \eta_m K_m, \qquad \eta \in \Delta_M = \Big\{ \eta \geq 0,\; \sum_m \eta_m = 1 \Big\} .
+$$
+**Multiple kernel learning** (MKL; Lanckriet et al., 2004; Bach, Lanckriet and Jordan, 2004) minimizes the regularized risk jointly over $\eta$ and $f \in \mathcal{H}_{K_\eta}$.
+
+:::: prop
+[Proposition 8.1 — The RKHS of a sum of kernels]{.tag} If all $\eta_m > 0$, then $\mathcal{H}_{K_\eta}$ is the set of sums $f = \sum_m f_m$ with $f_m \in \mathcal{H}_m = \mathcal{H}_{K_m}$, and
+$$
+\|f\|_{K_\eta}^2 = \min \Big\{ \sum_{m=1}^M \frac{\|f_m\|_{\mathcal{H}_m}^2}{\eta_m} \;:\; f = \sum_m f_m \Big\} .
+$$
+
+::: proof
+*Sketch.* Equip $\mathcal{F} = \bigoplus_m \mathcal{H}_m$ with the norm $\sum_m \|f_m\|^2 / \eta_m$ and map $(f_m)_m$ to $\sum_m f_m$. With the quotient norm (the minimum above), the image is a Hilbert space of functions.
+
+Key step: $g_x = (\eta_m K_{m, x})_m$ represents evaluation at $x$, since $\langle (f_m), g_x \rangle_{\mathcal{F}} = \sum_m f_m(x)$, and it maps to $K_{\eta, x}$. So the reproducing kernel of the image is $K_\eta$ (Aronszajn, 1950). [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 8.2 — MKL is a group-sparse problem]{.tag} For any loss $\mathcal{L}$ of the values $f(x_1), \dots, f(x_n)$,
+$$
+\min_{\eta \in \Delta_M} \min_{f \in \mathcal{H}_{K_\eta}} \mathcal{L}(f) + \lambda \|f\|_{K_\eta}^2
+= \min_{f_1, \dots, f_M} \mathcal{L}\Big(\sum_m f_m\Big) + \lambda \Big( \sum_{m=1}^M \|f_m\|_{\mathcal{H}_m} \Big)^2 .
+$$
+
+::: proof
+By Proposition 8.1, the left side is the joint minimum over $\eta$ and $(f_m)_m$ of
+$$
+\mathcal{L}\Big(\sum_m f_m\Big) + \lambda \sum_m \frac{\|f_m\|^2}{\eta_m} .
+$$
+For fixed $(f_m)$, Cauchy–Schwarz gives
+$$
+\Big( \sum_m \|f_m\| \Big)^2 = \Big( \sum_m \frac{\|f_m\|}{\sqrt{\eta_m}} \sqrt{\eta_m} \Big)^2 \leq \sum_m \frac{\|f_m\|^2}{\eta_m} \cdot \sum_m \eta_m ,
+$$
+with equality for $\eta_m \propto \|f_m\|$. Minimizing over $\eta$ first gives the right side. [∎]{.qed}
+:::
+::::
+
+The penalty $\sum_m \|f_m\|$ is a block $\ell^1$ norm, as in the group lasso. At the optimum many blocks vanish, together with their weights $\eta_m$: MKL **selects** kernels.
+
+:::: prop
+[Proposition 8.3 — The MKL objective for kernel ridge regression]{.tag} With the squared loss, the inner minimum over $f$ has the closed form
+$$
+J(\eta) = \min_{f} \frac{1}{n} \sum_{i=1}^n (y_i - f(x_i))^2 + \lambda \|f\|_{K_\eta}^2 = \lambda\, y^\top (K_\eta + n\lambda I)^{-1} y .
+$$
+
+$J$ is convex on $\Delta_M$. With $\alpha = (K_\eta + n\lambda I)^{-1} y$, its partial derivatives are
+$$
+\frac{\partial J}{\partial \eta_m} = -\lambda\, \alpha^\top K_m \alpha .
+$$
+
+::: proof
+With $\alpha$ from Proposition 3.2, the residual is $y - K_\eta \alpha = n\lambda\, \alpha$. The two terms of the objective add up to
+$$
+\frac{1}{n} \|n\lambda\alpha\|^2 + \lambda\, \alpha^\top K_\eta \alpha = \lambda\, \alpha^\top (K_\eta + n\lambda I)\, \alpha = \lambda\, y^\top \alpha .
+$$
+
+Convexity: $y^\top X^{-1} y = \sup_v \big( 2 v^\top y - v^\top X v \big)$ is a supremum of affine functions of $X$, and $X = K_\eta + n\lambda I$ is affine in $\eta$.
+
+Gradient: $d(X^{-1}) = -X^{-1} (dX) X^{-1}$ with $dX = K_m\, d\eta_m$. [∎]{.qed}
+:::
+::::
+
+Gradient methods on the simplex therefore solve MKL; SimpleMKL (Rakotomamonjy, Bach, Canu and Grandvalet, 2008) uses an SVM in the inner loop. The code uses exponentiated gradient, with one kernel per input feature; the target ignores feature 3:
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+n, lam = 200, 1e-2
+X = rng.uniform(-2, 2, size=(n, 3))                 # feature 3 is pure noise
+y = np.sin(2 * X[:, 0]) + 0.5 * X[:, 1] ** 2 + 0.1 * rng.normal(size=n)
+y = y - y.mean()
+gram = lambda a: np.exp(-(a[:, None] - a[None, :]) ** 2 / 2)
+Ks = [gram(X[:, m]) for m in range(3)]              # one kernel per feature
+
+def J_and_grad(eta):                                 # Proposition 8.3
+    alpha = np.linalg.solve(sum(e * K for e, K in zip(eta, Ks)) + n * lam * np.eye(n), y)
+    return lam * y @ alpha, np.array([-lam * alpha @ K @ alpha for K in Ks])
+
+eta = np.ones(3) / 3
+for it in range(300):                                # exponentiated gradient on the simplex
+    J, g = J_and_grad(eta)
+    eta = eta * np.exp(-g / np.abs(g).max())
+    eta /= eta.sum()
+    if it in (0, 10, 299):
+        print(f"iteration {it:3d}: J = {J:.4f}, eta = {np.round(eta, 3)}")
+```
+
+The weights converge to about $(0.63, 0.37, 0)$, the minimum found by a grid search: the noise kernel is switched off.
+
+### Kernel mean embeddings
+
+Let $K$ be a measurable kernel with $\sup_x K(x, x) = \kappa^2 < \infty$.
+
+::: def
+[Definition 8.4 — Kernel mean embedding]{.tag} The **mean embedding** of a probability distribution $P$ on $\mathcal{X}$ is the element $\mu_P \in \mathcal{H}$ such that
+$$
+\langle f, \mu_P \rangle_{\mathcal{H}} = \mathbb{E}_{X \sim P}\, f(X) \qquad \text{for all } f \in \mathcal{H} .
+$$
+
+It exists by Riesz's theorem, because $|\mathbb{E} f(X)| \leq \kappa \|f\|$ (Proposition 2.2). As a function, $\mu_P(y) = \mathbb{E}_{X \sim P} K(X, y)$.
+:::
+
+::: def
+[Definition 8.5 — Maximum mean discrepancy]{.tag} The MMD between $P$ and $Q$ is the RKHS distance between their embeddings, which is also the largest difference of expectations over the unit ball:
+$$
+\mathrm{MMD}(P, Q) = \|\mu_P - \mu_Q\|_{\mathcal{H}} = \sup_{\|f\|_{\mathcal{H}} \leq 1} \Big( \mathbb{E}_P f(X) - \mathbb{E}_Q f(Y) \Big) .
+$$
+
+Expanding the square norm, with $X, X' \sim P$ and $Y, Y' \sim Q$ all independent:
+$$
+\mathrm{MMD}^2(P, Q) = \mathbb{E}\, K(X, X') + \mathbb{E}\, K(Y, Y') - 2\, \mathbb{E}\, K(X, Y) .
+$$
+:::
+
+With the linear kernel, $\mathrm{MMD}(P, Q) = \|\mathbb{E} X - \mathbb{E} Y\|$ compares only the means. A kernel is **characteristic** when $P \mapsto \mu_P$ is injective, so that $\mathrm{MMD}(P, Q) = 0$ forces $P = Q$.
+
+:::: thm
+[Theorem 8.6 — Characteristic translation-invariant kernels]{.tag} Let $K(x, y) = \kappa(x - y)$ on $\mathbb{R}^d$ with Bochner measure $\Lambda$ (Theorem 6.4), and let $\phi_P, \phi_Q$ be the characteristic functions of $P$ and $Q$. Then
+$$
+\mathrm{MMD}^2(P, Q) = \int_{\mathbb{R}^d} \big| \phi_P(\omega) - \phi_Q(\omega) \big|^2\, d\Lambda(\omega) .
+$$
+
+If the support of $\Lambda$ is $\mathbb{R}^d$, the kernel is characteristic. The Gaussian and Laplace kernels are characteristic.
+
+::: proof
+By Bochner's theorem and Fubini,
+$$
+\mathbb{E}\, K(X, Y) = \int \mathbb{E}\big[e^{i \omega^\top X}\big]\, \overline{\mathbb{E}\big[e^{i \omega^\top Y}\big]}\, d\Lambda(\omega) = \int \phi_P\, \overline{\phi_Q}\, d\Lambda .
+$$
+The other two terms are computed in the same way, and expanding $|\phi_P - \phi_Q|^2$ gives the formula.
+
+If the MMD is 0, then $\phi_P = \phi_Q$ $\Lambda$-almost everywhere; by continuity they agree on the support of $\Lambda$, that is everywhere, and $P = Q$. Sriperumbudur et al. (2010) prove that full support is also necessary. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 8.7 — Estimating the embedding and the MMD]{.tag} Let $x_1, \dots, x_m \sim P$ and $y_1, \dots, y_n \sim Q$ be independent samples.
+
+1.  The empirical embedding $\hat\mu_P = \frac{1}{m} \sum_i K_{x_i}$ satisfies $\mathbb{E} \|\hat\mu_P - \mu_P\|^2 \leq \kappa^2 / m$, in any dimension.
+2.  The following statistic is an unbiased estimator of $\mathrm{MMD}^2(P, Q)$:
+    $$
+    \widehat{\mathrm{MMD}}{}^2_u = \frac{\sum_{i \neq j} K(x_i, x_j)}{m(m-1)} + \frac{\sum_{i \neq j} K(y_i, y_j)}{n(n-1)} - \frac{2}{mn} \sum_{i, j} K(x_i, y_j) .
+    $$
+
+::: proof
+(1) The terms $K_{x_i} - \mu_P$ are independent and centred in $\mathcal{H}$, so the cross terms vanish and
+$$
+\mathbb{E} \|\hat\mu_P - \mu_P\|^2 = \frac{1}{m}\, \mathbb{E} \|K_X - \mu_P\|^2 = \frac{1}{m} \big( \mathbb{E} K(X, X) - \|\mu_P\|^2 \big) \leq \frac{\kappa^2}{m} .
+$$
+
+(2) Each sum averages a kernel over independent pairs, so its expectation is the corresponding term of Definition 8.5. [∎]{.qed}
+:::
+::::
+
+The **kernel two-sample test** (Gretton, Borgwardt, Rasch, Schölkopf and Smola, 2012) rejects $P = Q$ when the statistic is large. Under the null hypothesis the pooled sample is exchangeable, so permutations give an exact p-value.
+
+```python
+import numpy as np
+from scipy import stats
+
+rng = np.random.default_rng(0)
+
+def mmd2_u(K, m):                     # Proposition 8.7 from the Gram matrix of [x; y]
+    Kxx, Kyy, Kxy = K[:m, :m], K[m:, m:], K[:m, m:]
+    n = len(K) - m
+    return ((Kxx.sum() - np.trace(Kxx)) / (m * (m - 1))
+            + (Kyy.sum() - np.trace(Kyy)) / (n * (n - 1)) - 2 * Kxy.mean())
+
+def mmd_test(x, y, n_perm=500):
+    z = np.r_[x, y]
+    d2 = (z[:, None] - z[None, :]) ** 2
+    K = np.exp(-d2 / (2 * np.median(d2[d2 > 0])))  # Gaussian kernel, median heuristic
+    stat = mmd2_u(K, len(x))
+    null = [mmd2_u(K[np.ix_(p, p)], len(x))
+            for p in (rng.permutation(len(z)) for _ in range(n_perm))]
+    return stat, (1 + np.sum(np.array(null) >= stat)) / (1 + n_perm)
+
+m = 200
+x = rng.normal(0, 1, m)
+for name, y in [("N(0,1) vs N(0,1)", rng.normal(0, 1, m)),
+                ("N(0,1) vs Laplace", rng.laplace(0, 1 / np.sqrt(2), m))]:  # same mean and variance
+    stat, p = mmd_test(x, y)
+    print(f"{name:18s}: MMD^2_u = {stat:+.4f}, permutation p = {p:.3f}, "
+          f"t-test p = {stats.ttest_ind(x, y).pvalue:.2f}")
+```
+
+With equal means and variances, a t-test sees nothing (p = 0.64); the MMD test detects the Laplace shape (p = 0.002) and does not reject for two Gaussian samples (p = 0.13).
+
+::: recap
+Key takeaways — chapter 8
+
+-   The RKHS of $\sum_m \eta_m K_m$ has norm $\min \sum_m \|f_m\|^2 / \eta_m$; optimizing $\eta$ turns MKL into a group-sparse problem that selects kernels.
+-   For KRR, the MKL objective $\lambda\, y^\top (K_\eta + n\lambda I)^{-1} y$ is convex in $\eta$, with gradient $-\lambda\, \alpha^\top K_m \alpha$.
+-   The mean embedding $\mu_P = \mathbb{E} K_X$ turns distributions into points; the MMD $\|\mu_P - \mu_Q\|$ is a metric for characteristic kernels, estimated at rate $1/\sqrt{m}$ and tested by permutation.
+:::
+
+## 9. Large-scale learning with kernels {#ch9}
+
+Exact kernel methods need $O(n^2)$ memory and $O(n^3)$ time; with $n = 10^5$ points the Gram matrix alone takes 80 GB. This chapter replaces it by low-rank approximations, random features or Nyström, and states how small the rank can be without losing accuracy.
+
+Both methods build an explicit feature map $z : \mathcal{X} \to \mathbb{R}^D$ with $z(x)^\top z(y) \approx K(x, y)$. KRR then becomes ridge regression on $z$, with weights
+$$
+w = (Z^\top Z + n\lambda I_D)^{-1} Z^\top y,
+$$
+where $Z \in \mathbb{R}^{n \times D}$ stacks the $z(x_i)^\top$. This costs $O(nD^2 + D^3)$ time and $O(nD)$ memory.
+
+### Random Fourier features
+
+Let $K(x, y) = \kappa(x - y)$ with $\kappa(0) = 1$. By Bochner's theorem (Theorem 6.4), $\Lambda$ is then a probability distribution, and since it is symmetric,
+$$
+\kappa(z) = \mathbb{E}_{\omega \sim \Lambda} \cos(\omega^\top z) .
+$$
+
+:::: prop
+[Proposition 9.1 — Random Fourier features (Rahimi and Recht, 2007)]{.tag} Draw $\omega_1, \dots, \omega_D \sim \Lambda$ and $b_1, \dots, b_D \sim \mathcal{U}[0, 2\pi]$ independently, and set
+$$
+z(x) = \sqrt{\tfrac{2}{D}}\, \big( \cos(\omega_j^\top x + b_j) \big)_{j = 1, \dots, D} .
+$$
+Then $z(x)^\top z(y)$ is an unbiased estimator of $K(x, y)$.
+
+::: proof
+Each term is $2 \cos(\omega^\top x + b) \cos(\omega^\top y + b) / D$. By the product formula,
+$$
+2 \cos(u + b) \cos(v + b) = \cos(u - v) + \cos(u + v + 2b) .
+$$
+The second term has mean 0 over $b$. The first has mean $\kappa(x - y)$ over $\omega$, by the formula above. [∎]{.qed}
+:::
+::::
+
+For the Gaussian kernel, $\Lambda = \mathcal{N}(0, \sigma^{-2} I)$: the features form a one-hidden-layer network with random, fixed first-layer weights.
+
+:::: prop
+[Proposition 9.2 — Pointwise concentration]{.tag} For fixed $x, y$ and every $\varepsilon > 0$,
+$$
+\mathbb{P}\Big( \big| z(x)^\top z(y) - K(x, y) \big| \geq \varepsilon \Big) \leq 2 \exp\Big( -\frac{D \varepsilon^2}{8} \Big) .
+$$
+
+::: proof
+$z(x)^\top z(y)$ is the average of $D$ independent variables $2 \cos(\omega_j^\top x + b_j) \cos(\omega_j^\top y + b_j)$, each in $[-2, 2]$. Hoeffding's inequality for a range of 4 gives $2 \exp(-2D\varepsilon^2 / 16)$. [∎]{.qed}
+:::
+::::
+
+A union bound over a net extends this to all pairs in a compact set of diameter $\ell$. A number of features $D$ of order
+$$
+d\, \varepsilon^{-2} \log(\sigma_\Lambda \ell / \varepsilon)
+$$
+gives a uniform error $\varepsilon$, where $\sigma_\Lambda^2$ is the second moment of $\Lambda$ (Rahimi and Recht, 2007). The error decreases only like $D^{-1/2}$, which is why the statistical analysis below matters.
+
+### The Nyström method
+
+The Nyström method (Williams and Seeger, 2001) picks $m$ landmarks $\tilde x_1, \dots, \tilde x_m$, usually a uniform subsample. With $K_{nm}$ the kernel between data and landmarks and $K_{mm}$ among landmarks, it approximates
+$$
+K \approx \tilde K = K_{nm}\, K_{mm}^{+}\, K_{mn} .
+$$
+
+:::: prop
+[Proposition 9.3 — Nyström is a projection]{.tag} Let $P$ be the orthogonal projection of $\mathcal{H}$ onto $\mathrm{span}\{K_{\tilde x_1}, \dots, K_{\tilde x_m}\}$. Then
+$$
+\tilde K(x, y) = \langle P K_x, P K_y \rangle_{\mathcal{H}} .
+$$
+In particular $K - \tilde K$ is PSD: it is the Gram matrix of the residuals $(I - P) K_x$.
+
+::: proof
+Write $k_m(x) = (K(\tilde x_j, x))_j$. The projection $P K_x = \sum_j c_j K_{\tilde x_j}$ satisfies the normal equations $K_{mm}\, c = k_m(x)$, so $c = K_{mm}^{+} k_m(x)$. Then
+$$
+\langle P K_x, P K_y \rangle = c(x)^\top K_{mm}\, c(y) = k_m(x)^\top K_{mm}^{+}\, k_m(y) .
+$$
+Finally, $\langle K_x, K_y \rangle$ is the sum of the inner products of the projections and of the residuals, because the cross terms vanish: $(I - P) K_y \perp P K_x$. [∎]{.qed}
+:::
+::::
+
+:::: prop
+[Proposition 9.4 — Nyström kernel ridge regression]{.tag} Minimizing the KRR objective over $f = \sum_j \beta_j K_{\tilde x_j}$ gives
+$$
+\big( K_{mn} K_{nm} + n\lambda\, K_{mm} \big)\, \beta = K_{mn}\, y,
+$$
+at a cost of $O(nm^2 + m^3)$ time and $O(nm)$ memory.
+
+::: proof
+On this subspace, the fitted values are $K_{nm} \beta$ and the squared norm is $\beta^\top K_{mm} \beta$. Setting to zero the gradient of the objective
+$$
+\frac{1}{n} \|y - K_{nm}\beta\|^2 + \lambda\, \beta^\top K_{mm} \beta
+$$
+gives the system. [∎]{.qed}
+:::
+::::
+
+FALKON (Rudi, Carratino and Rosasco, 2017) solves this problem by preconditioned conjugate gradient, in about $O(n \sqrt{n})$ time and $O(n)$ memory.
+
+### How many features are enough?
+
+:::: thm
+[Theorem 9.5 — Computational regularization (informal statement)]{.tag} Consider KRR with a bounded kernel and a regression function in the RKHS, where exact KRR with $\lambda \asymp n^{-1/2}$ attains an excess risk of order $n^{-1/2}$. Then:
+
+-   Nyström KRR with $m$ of order $\sqrt{n} \log n$ uniformly sampled landmarks attains the same order (Rudi, Camoriano and Rosasco, 2015);
+-   KRR on random features with $D$ of order $\sqrt{n} \log n$ features attains the same order (Rudi and Rosasco, 2017).
+
+Under stronger assumptions on the eigenvalue decay and on the regularity of the target, fast rates hold with correspondingly adapted $m$ or $D$.
+
+::: proof
+*Idea.* The approximation error only needs to be small in the directions that KRR does not already shrink, about $\mathrm{df}(\lambda)$ of them (Proposition 3.4); concentration inequalities for random operators control it. See the cited papers, and Bach (2013) for leverage scores.
+:::
+::::
+
+The rank acts as a second regularization parameter.
+
+```python
+import time
+import numpy as np
+
+rng = np.random.default_rng(0)
+d, n, s, lam = 5, 3000, 1.5, 1e-4
+f_star = lambda X: np.sin(X[:, 0]) + np.cos(X[:, 1] * X[:, 2]) + 0.5 * X[:, 3]
+X, Xt = rng.normal(size=(n, d)), rng.normal(size=(1000, d))
+y = f_star(X) + 0.2 * rng.normal(size=n)
+
+def gauss(A, B):
+    d2 = (A**2).sum(1)[:, None] + (B**2).sum(1)[None, :] - 2 * A @ B.T
+    return np.exp(-d2 / (2 * s**2))
+
+def report(name, pred, t0):
+    err = np.mean((pred - f_star(Xt)) ** 2)
+    print(f"{name:22s} test MSE {err:.4f}   time {time.time() - t0:.2f} s")
+
+t0 = time.time()                                       # exact KRR: O(n^3)
+alpha = np.linalg.solve(gauss(X, X) + n * lam * np.eye(n), y)
+report("exact KRR", gauss(Xt, X) @ alpha, t0)
+
+for D in [50, 200, 800]:
+    t0 = time.time()                                   # random Fourier features
+    W, b = rng.normal(scale=1 / s, size=(d, D)), rng.uniform(0, 2 * np.pi, D)
+    z = lambda A: np.sqrt(2 / D) * np.cos(A @ W + b)
+    Z = z(X)
+    w = np.linalg.solve(Z.T @ Z + n * lam * np.eye(D), Z.T @ y)
+    report(f"random features D={D}", z(Xt) @ w, t0)
+
+    t0 = time.time()                                   # Nystrom KRR, Proposition 9.4
+    land = X[rng.choice(n, D, replace=False)]
+    Knm, Kmm = gauss(X, land), gauss(land, land)
+    beta = np.linalg.solve(Knm.T @ Knm + n * lam * Kmm + 1e-8 * np.eye(D), Knm.T @ y)
+    report(f"Nystrom m={D}", gauss(Xt, land) @ beta, t0)
+```
+
+With $n = 3000$, exact KRR is by far the slowest and reaches a test error of 0.024. Nyström with $m = 800$ nearly matches it (0.025) in a fraction of the time; random features, sampled independently of the data, reach 0.036 at $D = 800$.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Random Fourier features sample the Bochner measure: $\sqrt{2/D}\cos(\omega^\top x + b)$ gives an unbiased, $D^{-1/2}$-accurate approximation of a translation-invariant kernel.
+-   Nyström projects the features onto the span of $m$ landmarks; the approximation $K_{nm} K_{mm}^{+} K_{mn}$ is PSD-dominated by $K$, and Nyström KRR solves an $m \times m$ system.
+-   About $\sqrt{n} \log n$ features or landmarks keep the $n^{-1/2}$ rate of exact KRR: the rank is a regularization parameter.
+:::
+
+## 10. Deep learning with kernels {#ch10}
+
+Kernels and neural networks meet in two ways. Multilayer kernels, once approximated, are networks: convolutional kernel networks. Conversely, infinitely wide random networks are kernel machines: the arc-cosine kernel and the neural tangent kernel.
+
+### Compositional and arc-cosine kernels
+
+:::: prop
+[Proposition 10.1 — Composing kernels]{.tag} Let $K_1$ be a p.d. kernel with $K_1(x, x) > 0$, and let $\kappa(t) = \sum_{k \geq 0} b_k t^k$ with all $b_k \geq 0$ and convergence on $[-1, 1]$. Write $\bar K_1(x, y) = K_1(x, y) / \sqrt{K_1(x, x) K_1(y, y)}$. Then the following kernel is p.d.:
+$$
+K_2(x, y) = \sqrt{K_1(x, x)\, K_1(y, y)}\;\; \kappa\big( \bar K_1(x, y) \big) .
+$$
+
+It is the dot-product kernel $\|u\| \|v\|\, \kappa(\langle u, v \rangle / \|u\| \|v\|)$ applied to the feature vectors $u = \varphi_1(x)$ and $v = \varphi_1(y)$.
+
+::: proof
+$\bar K_1$ is p.d. by Proposition 1.4 (item 4, with $f = K_1(x, x)^{-1/2}$). Its powers, their non-negative combinations and their limits are p.d. (items 1–3), hence $\kappa(\bar K_1)$ is p.d. Multiplying by $f(x) f(y)$ with $f = \sqrt{K_1(x, x)}$ concludes. [∎]{.qed}
+:::
+::::
+
+Iterating gives a **multilayer kernel** $K_{l+1}$ computed from $K_l$ alone. The Gaussian kernel restricted to the unit sphere is of this form, since there
+$$
+e^{-\|u - v\|^2 / 2\sigma^2} = e^{(\langle u, v \rangle - 1)/\sigma^2} .
+$$
+
+:::: thm
+[Theorem 10.2 — The arc-cosine kernel (Cho and Saul, 2009)]{.tag} Let $w \sim \mathcal{N}(0, I_d)$ and let $\theta$ be the angle between $x$ and $y$. Then
+$$
+\mathbb{E}\big[ \mathrm{relu}(w^\top x)\, \mathrm{relu}(w^\top y) \big] = \frac{\|x\| \|y\|}{2\pi} \big( \sin\theta + (\pi - \theta) \cos\theta \big),
+$$
+$$
+\mathbb{E}\big[ \mathbb{1}[w^\top x > 0]\; \mathbb{1}[w^\top y > 0] \big] = \frac{\pi - \theta}{2\pi} .
+$$
+
+So a one-hidden-layer ReLU network with $D$ random Gaussian weights $w_j$ computes random features, whose kernel converges to the first expression as $D \to \infty$:
+$$
+\frac{1}{D} \sum_{j=1}^D \mathrm{relu}(w_j^\top x)\, \mathrm{relu}(w_j^\top y) \;\longrightarrow\; \mathbb{E}\big[ \mathrm{relu}(w^\top x)\, \mathrm{relu}(w^\top y) \big] .
+$$
+
+::: proof
+Only the projection of $w$ on the plane of the two inputs matters; it is a standard Gaussian vector of $\mathbb{R}^2$. In polar coordinates, write $w = r(\cos\phi, \sin\phi)$, $x = \|x\|(1, 0)$ and $y = \|y\|(\cos\theta, \sin\theta)$.
+
+The angle $\phi$ is uniform on the circle and independent of $r$, and $\mathbb{E} r^2 = 2$.
+
+-   Both inner products are positive exactly when $\phi \in (\theta - \pi/2, \pi/2)$, an arc of length $\pi - \theta$. This gives the second formula.
+-   For the first, compute
+    $$
+    \int_{\theta - \pi/2}^{\pi/2} \cos\phi\, \cos(\phi - \theta)\, d\phi = \frac{1}{2} \big( \sin\theta + (\pi - \theta) \cos\theta \big),
+    $$
+    and multiply by $\mathbb{E}r^2 / (2\pi) \cdot \|x\| \|y\| = \|x\| \|y\| / \pi$. [∎]{.qed}
+:::
+::::
+
+If the output weights are also Gaussian, the network output is, in the limit of infinite width, a Gaussian process with this covariance (Neal, 1996). The same holds for deep networks with the compositional recursion above (Lee et al., 2018).
+
+### Convolutional kernel networks
+
+An image is a map $x : \Omega \to \mathbb{R}^p$ on a grid, whose value at each position is a patch. A convolutional kernel compares all pairs of patches with a dot-product kernel, and its feature map is approximated by projection, as in ch. 9.
+
+::: def
+[Definition 10.3 — A convolutional kernel network layer (Mairal et al., 2014; Mairal, 2016)]{.tag} Fix a dot-product kernel on patches, with $\tilde z = z / \|z\|$,
+$$
+k(z, z') = \|z\|\, \|z'\|\; \kappa(\langle \tilde z, \tilde z' \rangle),
+$$
+and anchor points $Z = [z_1, \dots, z_m]$ on the unit sphere. The layer maps each patch $z$ to
+$$
+\psi(z) = \|z\|\; \kappa(Z^\top Z)^{-1/2}\; \kappa(Z^\top \tilde z) \in \mathbb{R}^m ,
+$$
+with $\kappa$ applied entrywise, then applies a linear Gaussian pooling over positions. The next layer extracts patches from the pooled map.
+:::
+
+By Proposition 9.3, $\psi(z)^\top \psi(z')$ is the Nyström approximation of $k(z, z')$ with landmarks $z_j$: here $K_{mm} = \kappa(Z^\top Z)$ and $k_m(z) = \|z\|\, \kappa(Z^\top \tilde z)$. The layer is therefore a CNN layer in disguise:
+
+-   a convolution with the filters $z_j$;
+-   a pointwise non-linearity $\kappa$;
+-   a $1 \times 1$ linear map $\kappa(Z^\top Z)^{-1/2}$;
+-   pooling.
+
+The anchors can be learned without labels (k-means on patches) or end-to-end by back-propagation, which gives the supervised CKN of Mairal (2016).
+
+Bietti and Mairal (2019a) show that these representations are stable to small deformations, and that the RKHS norm controls the complexity of CNNs.
+
+### The neural tangent kernel
+
+Let $f(x; \theta)$ be a network with parameters $\theta \in \mathbb{R}^p$, initialized at $\theta_0$. Its **neural tangent kernel** (NTK) is the kernel of the feature map $\nabla_\theta f(x; \theta_0)$, p.d. by Proposition 1.2:
+$$
+\Theta(x, x') = \big\langle \nabla_\theta f(x; \theta_0),\; \nabla_\theta f(x'; \theta_0) \big\rangle .
+$$
+
+:::: prop
+[Proposition 10.4 — Training the linearized network is kernel regression]{.tag} Let $f_{\mathrm{lin}}$ be the linearization of the network at $\theta_0$,
+$$
+f_{\mathrm{lin}}(x; \theta) = f(x; \theta_0) + \nabla_\theta f(x; \theta_0)^\top (\theta - \theta_0),
+$$
+trained by gradient flow on the loss
+$$
+\frac{1}{2} \sum_{i=1}^n \big( f_{\mathrm{lin}}(x_i; \theta) - y_i \big)^2 .
+$$
+
+Let $\Theta$ be the NTK Gram matrix on the training points, assumed invertible, and $u(t) = f_{\mathrm{lin}}(X; \theta_t) - y$. Then $u(t) = e^{-t\Theta} u(0)$, and for every $x$:
+$$
+f_{\mathrm{lin}}(x; \theta_t) = f(x; \theta_0) + \Theta(x, X)\, \Theta^{-1} \big( I - e^{-t\Theta} \big) \big( y - f(X; \theta_0) \big) .
+$$
+
+As $t \to \infty$, this is kernel regression without regularization, with the NTK, on the residuals of the initial network.
+
+::: proof
+Let $J \in \mathbb{R}^{n \times p}$ have rows $\nabla_\theta f(x_i; \theta_0)^\top$, so that $\Theta = J J^\top$. The gradient flow is $\dot\theta = -J^\top u$, hence $\dot u = J \dot\theta = -\Theta u$ and $u(t) = e^{-t\Theta} u(0)$.
+
+For a new point,
+$$
+f_{\mathrm{lin}}(x; \theta_t) - f(x; \theta_0) = -\Theta(x, X) \int_0^t e^{-s\Theta} u(0)\, ds = -\Theta(x, X)\, \Theta^{-1} (I - e^{-t\Theta})\, u(0),
+$$
+and $u(0) = f(X; \theta_0) - y$. [∎]{.qed}
+:::
+::::
+
+Jacot, Gabriel and Hongler (2018) show that, as the width grows with a suitable scaling, the NTK becomes deterministic and constant during training: the trained network is the kernel regressor above.
+
+Chizat, Oyallon and Bach (2019) show that this **lazy** regime, in which the features barely move, is an effect of the scaling of the model. Networks that leave it and learn features can outperform any fixed kernel (ch. 12).
+
+::: ex
+[Example 10.5 — The NTK of a two-layer ReLU network]{.tag} Take a two-layer network of width $m$, with $a_j \sim \mathcal{N}(0, 1)$ and $w_j \sim \mathcal{N}(0, I_d)$:
+$$
+f(x) = \frac{1}{\sqrt{m}} \sum_{j=1}^m a_j\, \mathrm{relu}(w_j^\top x) .
+$$
+
+-   The gradient in $a_j$ is $\mathrm{relu}(w_j^\top x) / \sqrt{m}$; its contribution to $\Theta$ tends to the first formula of Theorem 10.2.
+-   The gradient in $w_j$ is $a_j\, \mathbb{1}[w_j^\top x > 0]\, x / \sqrt{m}$; since $\mathbb{E} a_j^2 = 1$, its contribution tends to $x^\top x'$ times the second formula.
+
+In the limit,
+$$
+\Theta_\infty(x, x') = \frac{\|x\| \|x'\|}{2\pi} \big( \sin\theta + (\pi - \theta)\cos\theta \big) + x^\top x'\, \frac{\pi - \theta}{2\pi} .
+$$
+:::
+
+The code checks Theorem 10.2 by Monte Carlo, and Example 10.5 with PyTorch on a network of width 20,000:
+
+```python
+import numpy as np
+import torch
+
+torch.manual_seed(0)
+d, m = 3, 20000
+X = torch.randn(5, d, dtype=torch.float64)
+
+def arccos_terms(X):                       # the two formulas of Theorem 10.2
+    nrm = X.norm(dim=1)
+    cos = (X @ X.T / torch.outer(nrm, nrm)).clamp(-1, 1)
+    th = torch.arccos(cos)
+    k1 = torch.outer(nrm, nrm) * (torch.sin(th) + (np.pi - th) * cos) / (2 * np.pi)
+    return k1, (np.pi - th) / (2 * np.pi)
+
+k1, k0 = arccos_terms(X)
+F = torch.relu(X @ torch.randn(d, 200000, dtype=torch.float64))
+print("arc-cosine kernel: max |Monte Carlo - formula| = %.4f" % (F @ F.T / 200000 - k1).abs().max())
+
+W = torch.randn(m, d, dtype=torch.float64, requires_grad=True)
+a = torch.randn(m, dtype=torch.float64, requires_grad=True)
+net = lambda x: a @ torch.relu(W @ x) / np.sqrt(m)
+G = torch.stack([torch.cat([g.ravel() for g in torch.autograd.grad(net(x), (W, a))]) for x in X])
+ntk_emp, ntk_inf = G @ G.T, k1 + (X @ X.T) * k0     # Example 10.5
+print("NTK: relative error, width %d vs infinite width = %.4f"
+      % (m, (ntk_emp - ntk_inf).norm() / ntk_inf.norm()))
+```
+
+The Monte Carlo error is below 0.01, and the finite-width NTK is within 1 % of its limit; its fluctuations are of order $m^{-1/2}$.
+
+::: recap
+Key takeaways — chapter 10
+
+-   Dot-product functions with non-negative Taylor coefficients compose kernels layer by layer; ReLU random features give the arc-cosine kernel.
+-   A convolutional kernel network layer is the Nyström approximation of a patch kernel: convolution, non-linearity, linear mixing and pooling.
+-   The NTK is the kernel of the gradient features; training the linearized network is kernel regression with it, and infinitely wide networks under the NTK scaling stay in this lazy regime.
+:::
+
+## 11. Complements for self-study {#ch11}
+
+This chapter collects results that extend chapters 3, 4, 6, 7 and 8 beyond what the sessions can cover: a generalization bound, links with Gaussian processes, SVM consistency and solvers, the Fourier description of an RKHS, more sequence kernels, and applications of mean embeddings. It is read after the corresponding chapter; nothing in chapters 0–10 depends on it.
+
+### Why the RKHS norm controls overfitting (complement to ch. 3)
+
+The ball $\mathcal{F}_B$ of radius $B$ in $\mathcal{H}$ is infinite-dimensional, yet its complexity on a sample is small. The empirical Rademacher complexity, with i.i.d. random signs $\varepsilon_i$, is
+$$
+\hat{\mathfrak{R}}_n(\mathcal{F}_B) = \mathbb{E}_\varepsilon \sup_{f \in \mathcal{F}_B} \frac{1}{n} \sum_{i=1}^n \varepsilon_i\, f(x_i) .
+$$
+
+:::: prop
+[Proposition 11.1 — Rademacher complexity of an RKHS ball]{.tag}
+$$
+\hat{\mathfrak{R}}_n(\mathcal{F}_B) \leq \frac{B}{n} \sqrt{\sum_{i=1}^n K(x_i, x_i)} \leq \frac{B \kappa}{\sqrt{n}} \qquad \text{if } K(x, x) \leq \kappa^2 .
+$$
+
+::: proof
+By the reproducing property,
+$$
+\frac{1}{n} \sum_i \varepsilon_i f(x_i) = \Big\langle f, \frac{1}{n} \sum_i \varepsilon_i K_{x_i} \Big\rangle .
+$$
+The supremum over the ball is $\frac{B}{n} \| \sum_i \varepsilon_i K_{x_i} \|$, by Cauchy–Schwarz with equality.
+
+Jensen's inequality bounds its expectation by the square root of
+$$
+\mathbb{E} \Big\| \sum_i \varepsilon_i K_{x_i} \Big\|^2 = \sum_{i,j} \mathbb{E}[\varepsilon_i \varepsilon_j]\, K(x_i, x_j) = \sum_i K(x_i, x_i) .
+$$
+[∎]{.qed}
+:::
+::::
+
+The bound does not depend on the dimension of the feature space. Combined with the standard Rademacher generalization bound for Lipschitz losses (Bartlett and Mendelson, 2002), it shows that the gap between empirical and true risk over $\mathcal{F}_B$ is of order $B\kappa / \sqrt{n}$. The regularization $\lambda \|f\|^2$ is the Lagrangian form of the constraint $\|f\| \leq B$.
+
+### Gaussian processes and other losses (complement to ch. 3)
+
+::: note
+[Two connections]{.tag}
+
+-   **Gaussian processes.** If $f$ is a centred Gaussian process with covariance $K$ and $y_i = f(x_i) + \varepsilon_i$ with noise variance $n\lambda$, the posterior mean of $f(x)$ is exactly $\hat f(x)$. See [Bayesian Machine Learning](../s2-bayesian-ml/index.html).
+-   **Other losses.** The representer theorem holds for any loss. With the logistic loss $\log(1 + e^{-y f(x)})$, Newton's method on $\alpha$ solves a weighted KRR problem at each step: this is **kernel logistic regression**.
+:::
+
+### Consistency and solvers for the SVM (complement to ch. 4)
+
+The hinge loss is a convex upper bound of the 0–1 loss $\mathbb{1}[y\, g(x) \leq 0]$. With a universal kernel such as the Gaussian kernel, the SVM is consistent: its risk converges to the Bayes risk for a suitable $C = C_n$ (Steinwart, 2001).
+
+::: note
+[Solving the dual]{.tag} The dual is a quadratic program with one equality constraint. **Sequential minimal optimization** (SMO, Platt, 1999) updates two multipliers at a time, which keeps $\sum_i \alpha_i y_i = 0$ and has a closed-form solution. Each step costs $O(n)$ kernel evaluations with a cached Gram matrix; this is the algorithm of LIBSVM, behind scikit-learn's `SVC`. Multiclass problems are usually solved by combining binary SVMs (one-versus-rest or one-versus-one).
+:::
+
+### The RKHS of a translation-invariant kernel (complement to ch. 6)
+
+Bochner's theorem (Theorem 6.4) also describes the RKHS of $\kappa(x - y)$: its norm is a weighted energy in the frequency domain.
+
+:::: prop
+[Proposition 11.2 — The RKHS of a translation-invariant kernel]{.tag} Suppose $\kappa$ is integrable with a positive Fourier transform $\hat\kappa$. With $\hat f(\omega) = \int f(x) e^{-i \omega^\top x} dx$, the RKHS is the space of continuous $f \in L^2(\mathbb{R}^d)$ with finite norm
+$$
+\|f\|_{\mathcal{H}_K}^2 = \frac{1}{(2\pi)^d} \int_{\mathbb{R}^d} \frac{|\hat f(\omega)|^2}{\hat\kappa(\omega)}\, d\omega .
+$$
+
+::: proof
+*Check of the reproducing property.* The Fourier transform of $K_x = \kappa(\cdot - x)$ is $\hat\kappa(\omega) e^{-i \omega^\top x}$. The inner product associated with the norm gives
+$$
+\langle f, K_x \rangle = \frac{1}{(2\pi)^d} \int \hat f(\omega)\, e^{i \omega^\top x}\, d\omega = f(x)
+$$
+by Fourier inversion. Uniqueness of the RKHS concludes. [∎]{.qed}
+:::
+::::
+
+The penalty $1 / \hat\kappa(\omega)$ is a frequency weighting. For the Gaussian kernel it grows like $e^{\sigma^2 \|\omega\|^2 / 2}$: functions of its RKHS are extremely smooth. For the Laplace kernel on $\mathbb{R}$, $\hat\kappa(\omega) = 2\sigma / (1 + \sigma^2 \omega^2)$, and Plancherel's identity turns the norm into a Sobolev norm:
+$$
+\|f\|_{\mathcal{H}_K}^2 = \frac{1}{2\sigma} \int f^2 + \frac{\sigma}{2} \int f'^2 .
+$$
+
+### More kernels for sequences (complement to ch. 7)
+
+::: note
+[Other sequence kernels]{.tag}
+
+-   **Convolution kernels** (Haussler, 1999) sum products of kernels over all decompositions of two objects into parts; the subsequence kernel is one of them.
+-   The Smith–Waterman alignment score is not a p.d. kernel. The **local alignment kernel** (Saigo, Vert, Ueda and Akutsu, 2004) sums $e^{\beta \cdot \text{score}}$ over all alignments instead of taking the best one, and is p.d.
+-   The **Fisher kernel** (Jaakkola and Haussler, 1999) uses the gradient of the log-likelihood of a generative model (such as an HMM) as the feature vector.
+:::
+
+### Uses of mean embeddings (complement to ch. 8)
+
+::: note
+[Uses of mean embeddings]{.tag}
+
+-   **Independence testing**: the Hilbert–Schmidt independence criterion is the MMD between a joint distribution and the product of its marginals, with a product kernel (Gretton, Bousquet, Smola and Schölkopf, 2005).
+-   **Generative models**: the MMD to the data distribution can be minimized over the parameters of a generator (Li, Swersky and Zemel, 2015; Dziugaite, Roy and Ghahramani, 2015).
+-   **Conditional embeddings** represent $P(Y \mid X = x)$. They support kernel filtering for dynamical systems (Song, Huang, Smola and Fukumizu, 2009) and a kernel version of Bayes' rule (Fukumizu, Song and Gretton, 2013). Muandet et al. (2017) survey the field.
+:::
+
+::: recap
+Key takeaways — chapter 11
+
+-   An RKHS ball of radius $B$ has Rademacher complexity at most $B\kappa / \sqrt{n}$, whatever the dimension of the feature space.
+-   KRR is the posterior mean of a Gaussian process; the SVM with a universal kernel is consistent and is solved by SMO.
+-   For a translation-invariant kernel, the RKHS norm weights frequencies by $1/\hat\kappa$: Gaussian RKHS functions are very smooth, the Laplace kernel gives a Sobolev space.
+-   Convolution, alignment and Fisher kernels extend the string kernels of ch. 7; mean embeddings support independence tests, generative models and conditional inference.
+:::
+
+## 12. Research directions and open problems {#ch12}
+
+This chapter is for self-study. It surveys active research questions that build on chapters 3–10, with pointers to papers whose authors and year are given in the references. It is a map, not a review: each item says what the question is and where to start reading.
+
+### Kernel methods at the scale of modern data
+
+-   Preconditioned solvers made exact-accuracy kernel regression practical on millions of points: FALKON (Rudi, Carratino and Rosasco, 2017) and its multi-GPU implementation for billions of points (Meanti, Carratino, Rosasco and Rudi, 2020). EigenPro (Ma and Belkin, 2017) follows a related route with preconditioned stochastic gradient.
+-   Open questions include the choice of landmarks beyond uniform sampling (leverage scores, Bach, 2013; El Alaoui and Mahoney, 2015), kernel learning at this scale, and the trade-off between precision, memory and communication on distributed hardware.
+
+### Interpolation and generalization
+
+-   Belkin, Ma and Mandal (2018) observed that kernel machines that interpolate noisy training data can still generalize, as deep networks do. Liang and Rakhlin (2020) analysed minimum-norm interpolation with kernels in high dimension.
+-   A precise picture of when interpolation is benign, as a function of dimension, sample size and kernel spectrum, is still being worked out; random matrix theory is one of the tools (see [Large Random Matrices](../s2-random-matrices-ml/index.html)).
+
+### Beyond the lazy regime
+
+-   The NTK explains some aspects of wide networks but not feature learning. Chizat, Oyallon and Bach (2019) characterized lazy training; Ghorbani, Mei, Misiakiewicz and Montanari (2021) quantified the gap between linearized and trained two-layer networks in high dimension.
+-   Bietti and Mairal (2019b) studied the inductive bias of the NTK (smoothness, stability to deformations). How much of the success of deep networks a well-designed kernel can recover remains open.
+
+### Kernels for distributions, sampling and generation
+
+-   The MMD has become a training criterion and a geometry on distributions. Arbel, Korba, Salim and Gretton (2019) studied the MMD gradient flow and its convergence; Bińkowski, Sutherland, Arbel and Gretton (2018) analysed MMD GANs.
+-   Kernel Stein discrepancies (Chwialkowski, Strathmann and Gretton, 2016; Liu, Lee and Jordan, 2016) test goodness of fit without normalizing constants, and Stein variational gradient descent (Liu and Wang, 2016) turns them into a particle sampler. Langevin sampling, studied in [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html), and the gradient flows of [Optimal Transport](../s1-optimal-transport-ml/index.html) are the natural points of comparison.
+
+### Kernels as models of non-negative functions and for optimization
+
+-   Marteau-Ferey, Bach and Rudi (2020) represent non-negative functions as quadratic forms in feature space, $f(x) = \varphi(x)^\top A\, \varphi(x)$ with $A \succeq 0$, which keeps a representer theorem and convexity. Densities and global optimization are natural applications (Rudi, Marteau-Ferey and Bach, 2020).
+
+### Structured data and attention
+
+-   Convolutional kernel networks have been extended to sequences (Chen, Jacob and Mairal, 2019) and graphs (Chen, Jacob and Mairal, 2020). Graph kernels and graph neural networks share the Weisfeiler–Lehman limit (Morris et al., 2019; Xu et al., 2019).
+-   Attention in transformers can be read as a kernel smoother (Tsai et al., 2019), and random features give linear-time approximations of softmax attention (Choromanski et al., 2021).
+
+### Questions to explore
+
+1.  Can the kernel itself be learned from data with guarantees comparable to those of fixed kernels, beyond the convex combinations of ch. 8?
+2.  What is the best rank–accuracy trade-off for kernel approximation when the data lie near a low-dimensional manifold?
+3.  How should a kernel encode known invariances (rotations, permutations, deformations) while keeping a tractable RKHS norm?
+4.  When is the MMD the right discrepancy for generative modelling, and how should its bandwidth adapt during training?
+
+::: recap
+Key takeaways — chapter 12
+
+-   Preconditioned Nyström solvers make kernel methods competitive at very large scale; the choice of landmarks is still an active topic.
+-   Interpolation, lazy training and feature learning are where kernel theory meets deep learning theory.
+-   Mean embeddings, Stein discrepancies and non-negative kernel models extend kernels to sampling, generation and optimization.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. Exercises 3, 13, 14, 15 and 16 are computational.
+
+1.  **★ Gram matrices of the min kernel.** For the points $0.2, 0.5, 0.9$ and the kernel $\min(x, y)$ on $[0, 1]$, write the Gram matrix, show that it is positive definite with a Cholesky factorization, and compute the RKHS norm of $f = K_{0.5} - K_{0.2}$ in two ways.
+
+    *Solution*: the Gram matrix has rows $(0.2, 0.2, 0.2)$, $(0.2, 0.5, 0.5)$ and $(0.2, 0.5, 0.9)$. Its Cholesky factor has diagonal $\sqrt{0.2}, \sqrt{0.3}, \sqrt{0.4}$, all positive, so it is positive definite (eigenvalues 0.092, 0.2 and 1.308).
+
+    With $a = (-1, 1, 0)$, $a^\top K a = 0.2 + 0.5 - 2 \times 0.2 = 0.3$. Directly, $f' = \mathbb{1}_{[0.2, 0.5]}$, and $\int f'^2 = 0.3$ (Example 2.8).
+
+2.  **★ An explicit polynomial feature map.** Find a feature map $\varphi : \mathbb{R}^2 \to \mathbb{R}^6$ for $K(x, y) = (x^\top y + 1)^2$, and check it on $x = (1, 2)$, $y = (3, 1)$. What is the dimension for $(x^\top y + 1)^d$ on $\mathbb{R}^p$?
+
+    *Solution*: expanding the square,
+    $$
+    \varphi(x) = \big( x_1^2,\; x_2^2,\; \sqrt{2}\, x_1 x_2,\; \sqrt{2}\, x_1,\; \sqrt{2}\, x_2,\; 1 \big) .
+    $$
+    Here $\varphi(x) = (1, 4, 2\sqrt{2}, \sqrt{2}, 2\sqrt{2}, 1)$ and $\varphi(y) = (9, 1, 3\sqrt{2}, 3\sqrt{2}, \sqrt{2}, 1)$. Their inner product is $9 + 4 + 12 + 6 + 4 + 1 = 36 = (5 + 1)^2$.
+
+    The monomials of degree at most $d$ in $p$ variables number $\binom{p + d}{d}$, here $\binom{4}{2} = 6$.
+
+3.  **★ The kernel mean classifier, in Python.** Run the code of ch. 1 with Gaussian bandwidths $\sigma \in \{0.02, 0.05, 0.1, 0.3, 1, 3, 10\}$. Explain the two extremes.
+
+    *Hints and expected result*: test accuracies are about 0.74, 0.98, 0.99, 0.98, 0.87, 0.85 and 0.84.
+
+    For large $\sigma$, $K(x, y) \approx 1 - \|x - y\|^2 / 2\sigma^2$, so the rule compares mean squared distances to the classes, which is the nearest-centroid rule: the linear kernel's 0.84.
+
+    For very small $\sigma$, $K(x, x_j)$ is almost 0 unless $x$ is very close to a training point. The decision then rests on a few neighbours and on the constant term of Proposition 1.7, and it degrades.
+
+4.  **★ Kernel ridge regression by hand.** Redo Example 3.3 with targets $y = (1, 1)$. Compute $\alpha$, $\hat f(0)$, $\hat f(0.5)$, the degrees of freedom, and the limit $\lambda \to 0$.
+
+    *Solution*: by symmetry $\alpha = (a, a)$ with $a\,(1 + 0.6065 + 0.1) = 1$, so $a = 0.586$.
+
+    Then $\hat f(0) = a\,(1 + 0.6065) = 0.941$ and $\hat f(0.5) = 2a\, e^{-1/8} = 1.034$: between the two points the fit overshoots slightly.
+
+    The eigenvalues of $K$ are $1.6065$ and $0.3935$, so
+    $$
+    \mathrm{df} = \frac{1.6065}{1.7065} + \frac{0.3935}{0.4935} = 1.74 .
+    $$
+    As $\lambda \to 0$, $a \to 1/1.6065 = 0.622$, and $\hat f$ interpolates.
+
+5.  **★ A support vector machine on three points.** Points $x = (0, 1, 3)$ on the line, labels $(-1, +1, +1)$, linear kernel, hard margin. Find $w$, $b$, the support vectors, the multipliers and the margin; check that there is no duality gap.
+
+    *Solution*: the support vectors are the points 0 and 1. The margin conditions $g(0) = -1$ and $g(1) = 1$ give $w = 2$ and $b = -1$. The point 3 has $y\, g(3) = 5 > 1$, so $\alpha_3 = 0$.
+
+    The constraint $\sum_i \alpha_i y_i = 0$ forces $\alpha_1 = \alpha_2 = a$, and $w = \sum_i \alpha_i y_i x_i = a = 2$.
+
+    Dual value: $4 - \frac{1}{2} \cdot 4 = 2$; primal value: $\frac{1}{2} w^2 = 2$. The margin is $1/w = 0.5$. The soft-margin SVM gives the same solution when $C \geq 2$.
+
+6.  **★ A spectrum kernel by hand.** Compute the 2-spectrum kernel between GATTACA and TACATA, and the normalized kernel $K(x, y) / \sqrt{K(x, x)\, K(y, y)}$.
+
+    *Solution*: GATTACA has the 2-mers GA, AT, TT, TA, AC, CA, once each, so $K(x, x) = 6$. TACATA has TA twice and AC, CA, AT once, so $K(y, y) = 4 + 1 + 1 + 1 = 7$.
+
+    The shared 2-mers give $K(x, y) = 1 \cdot 2 + 1 + 1 + 1 = 5$, and the normalized kernel is $5 / \sqrt{42} = 0.772$.
+
+7.  **★★ Minimum-norm interpolation with the min kernel.** Let $0 < x_1 < \dots < x_n \leq 1$ and values $y_i$. Show that the function of minimal norm in the RKHS of Example 2.8 with $f(x_i) = y_i$ is piecewise linear. Compute its norm, then evaluate it for the data $(0.5, 1)$ and $(1, 0)$.
+
+    *Solution*: apply Theorem 3.1 with $\Psi$ equal to $\|f\|$ on the interpolation constraints and $+\infty$ elsewhere; its proof works unchanged for this extended-valued $\Psi$. The minimizer is $\sum_i \alpha_i \min(x_i, \cdot)$.
+
+    This function is piecewise linear with kinks at the $x_i$, zero at 0 and constant after $x_n$. It is fixed by its values at the $x_i$, so it is the piecewise-linear interpolant through $(0, 0)$ and the data.
+
+    With $x_0 = y_0 = 0$, its norm is the sum of squared slopes times lengths:
+    $$
+    \|f\|^2 = \sum_{i=1}^n \frac{(y_i - y_{i-1})^2}{x_i - x_{i-1}} .
+    $$
+    For the data given, $1/0.5 + 1/0.5 = 4$.
+
+8.  **★★ Centering in feature space.** (a) Show that the Gram matrix of the centred features is $HKH$. (b) Deduce that the kernel principal components of the training points have zero mean. (c) Write the centred kernel between a training point $x_i$ and a new point $x$.
+
+    *Solution*: (a) with the mean feature $\bar\varphi = \frac{1}{n} \sum_l \varphi_l$, expanding gives
+    $$
+    \langle \varphi_i - \bar\varphi, \varphi_j - \bar\varphi \rangle = K_{ij} - \frac{1}{n} \sum_l K_{il} - \frac{1}{n} \sum_l K_{lj} + \frac{1}{n^2} \sum_{l, k} K_{lk} = (HKH)_{ij} .
+    $$
+    (b) $H\mathbf{1} = 0$ gives $\mathbf{1}^\top K_c = 0$, and the scores are $K_c \alpha_k$, so they sum to 0.
+
+    (c) Replace $\varphi_j$ by $\varphi(x)$ in (a):
+    $$
+    \tilde K(x_i, x) = K(x_i, x) - \frac{1}{n} \sum_l K(x_l, x) - \frac{1}{n} \sum_l K(x_i, x_l) + \frac{1}{n^2} \sum_{l, k} K_{lk} .
+    $$
+
+9.  **★★ Regularized kernel CCA.** (a) Show that the regularized canonical correlation of Proposition 5.7 is strictly less than 1 when $\gamma > 0$. (b) Show that, as $\gamma \to \infty$, the canonical directions tend to those of the singular value problem for $K_1 K_2$, and interpret.
+
+    *Solution*: (a) $R_j$ has eigenvalues $\mu / (\mu + \gamma) < 1$, so $\|R_1 R_2\| \leq \|R_1\|\, \|R_2\| < 1$.
+
+    (b) $\gamma R_j = K_j (I + K_j / \gamma)^{-1} \to K_j$. So $\gamma^2 R_1 R_2 \to K_1 K_2$, and the singular vectors of $R_1 R_2$ tend to those of $K_1 K_2$.
+
+    The criterion becomes the covariance $\alpha^\top K_1 K_2 \beta$ under $\|\alpha\| = \|\beta\| = 1$: strong regularization turns kernel CCA into a kernel partial least squares, which maximizes covariance instead of correlation.
+
+10. **★★ The Laplace kernel through Schoenberg.** For $x \in \mathbb{R}$, let $g_x = \mathbb{1}_{[0, x)}$ if $x \geq 0$ and $g_x = -\mathbb{1}_{[x, 0)}$ if $x < 0$. Show that $|x - y| = \|g_x - g_y\|_{L^2}^2$.
+
+    Deduce that $e^{-t |x - y|}$ and $e^{-t \|x - y\|_1}$ are p.d. on $\mathbb{R}$ and $\mathbb{R}^d$.
+
+    *Solution*: whatever the signs of the two points, $g_x - g_y$ equals $\pm 1$ between $x$ and $y$ and 0 elsewhere. Its squared norm is therefore $|x - y|$.
+
+    A squared distance between feature vectors is negative definite (Definition 6.5), so Theorem 6.6 gives $e^{-t|x - y|}$ p.d. On $\mathbb{R}^d$, $\|x - y\|_1 = \sum_k |x_k - y_k|$ is a sum of negative definite kernels, hence negative definite, and Theorem 6.6 applies again.
+
+11. **★★ Unlabelled walk kernels are weak.** Without labels, show that $\mathbf{1}^\top (A \otimes A')^k \mathbf{1}$ is the product $w_k(G)\, w_k(G')$, where $w_k(G) = \mathbf{1}^\top A^k \mathbf{1}$ counts the walks of length $k$ in $G$.
+
+    Deduce that all $d$-regular graphs on $n$ vertices have the same random-walk features, and explain the normalized values close to 0.99 printed in ch. 7.
+
+    *Solution*: the mixed-product rule gives $(A \otimes A')^k = A^k \otimes A'^k$, and $\mathbf{1} = \mathbf{1}_n \otimes \mathbf{1}_{n'}$. Conclude with the identity
+    $$
+    (u \otimes v)^\top (M \otimes N)(u \otimes v) = (u^\top M u)(v^\top N v) .
+    $$
+
+    For a $d$-regular graph, $A\mathbf{1} = d\mathbf{1}$, so $w_k = n d^k$ for every such graph.
+
+    The kernel is $\sum_k \lambda^k w_k(G) w_k(G')$, an inner product of walk-count sequences. These sequences grow geometrically and are nearly parallel for graphs of similar size, hence normalized values close to 1.
+
+12. **★★ The MKL objective and its optimality conditions.** Starting from Proposition 8.3, write the optimality conditions of $\min_{\eta \in \Delta_M} J(\eta)$ and interpret them.
+
+    *Solution*: $J$ is convex and differentiable on the simplex. So $\eta$ is optimal iff, for some $t$, every active kernel ($\eta_m > 0$) has $\partial J / \partial \eta_m = -t$ and every inactive one has $\partial J / \partial \eta_m \geq -t$.
+
+    With the gradient of Proposition 8.3, all active kernels reach the same maximal value of $\alpha^\top K_m \alpha$, and inactive kernels have a value no larger.
+
+    In words, $\alpha^\top K_m \alpha = \|f_m\|^2 / \eta_m^2$ measures how much kernel $m$ correlates with the dual residual $\alpha = (y - \hat y)/(n\lambda)$. Only the kernels that explain the residual best are switched on.
+
+13. **★★ Random features: variance, in Python.** (a) Show that a single term $2\cos(\omega^\top x + b)\cos(\omega^\top y + b)$ has variance $1 + \kappa(2\delta)/2 - \kappa(\delta)^2$, where $\delta = x - y$.
+
+    (b) For the Gaussian kernel with $\sigma = 1$ and $\|\delta\| = 1$, compare the predicted standard deviation of $z(x)^\top z(y)$ with a simulation over 2000 draws, for $D \in \{10, 100, 1000\}$.
+
+    *Solution*: (a) write the term as $\cos(\omega^\top \delta) + \cos(u + v + 2b)$ with $u = \omega^\top x$, $v = \omega^\top y$. The two parts are uncorrelated, with second moments $(1 + \kappa(2\delta))/2$ and $1/2$. Subtract the squared mean $\kappa(\delta)^2$.
+
+    (b) Here $\kappa(\delta) = e^{-1/2}$ and $\kappa(2\delta) = e^{-2}$, so the variance of one term is $0.700$. The predicted standard deviations are 0.265, 0.084 and 0.026. A simulation over 2000 draws matches them up to its own Monte Carlo error of a few percent (one run gave 0.266, 0.084 and 0.026). The error decreases like $D^{-1/2}$.
+
+14. **★★★ The neural tangent kernel of a two-layer network.** (a) Derive the formula of Example 10.5 from Theorem 10.2. (b) With the code of ch. 10, measure the relative error between the empirical and the limiting NTK for widths $m \in \{10^2, 10^3, 10^4, 10^5\}$ and estimate the rate. (c) Train the network by gradient descent with a small step on 20 points of a one-dimensional regression problem, and compare its predictions with Proposition 10.4 as $m$ grows.
+
+    *Hints and expected result*: (a) sum the contributions of $a$ and of $W$, using independence of $a_j$ and $w_j$ and $\mathbb{E} a_j^2 = 1$. (b) The error decreases roughly like $m^{-1/2}$, about a factor 3 per decade of width.
+
+    (c) For large widths, the trained network and the NTK predictor agree closely and the weights barely move (lazy regime). For small widths they separate. Report the relative change $\|W_t - W_0\| / \|W_0\|$ as a function of $m$.
+
+15. **★★★ Kernels on a graph for semi-supervised classification.** On two-block stochastic block models with within-block probability 0.2 and between-block probability $q \in \{0.02, 0.05, 0.1\}$, compare the diffusion kernel and the regularized Laplacian kernel for kernel ridge regression from 2 labels per class. Study the accuracy as a function of $\beta$ and explain the limits $\beta \to 0$ and $\beta \to \infty$.
+
+    *Hints and expected result*: as $\beta \to 0$, both kernels tend to the identity, so nothing propagates and unlabelled vertices get the prediction 0. As $\beta \to \infty$ on a connected graph, $e^{-\beta L} \to \frac{1}{n} \mathbf{1}\mathbf{1}^\top$, and every vertex gets the same prediction. The accuracy is therefore maximal at an intermediate $\beta$, comparable to the inverse spectral gap of the graph.
+
+    It degrades as $q$ grows and the communities blur. Report curves averaged over 20 random graphs.
+
+16. **★★★ Choosing the bandwidth of an MMD test.** For the Gaussian-versus-Laplace problem of ch. 8, estimate the power of the permutation test at level 0.05 as a function of the bandwidth $\sigma \in \{0.1, 0.3, 1, 3\}$ and of the sample size $m \in \{50, 100, 200\}$. Compare with the median heuristic, then implement a selection of $\sigma$ on half of the data and testing on the other half.
+
+    *Hints and expected result*: the two distributions differ in the tails and in the peak, so small and medium bandwidths are more powerful than very large ones.
+
+    With a very large $\sigma$, expand the kernel in powers of $1/\sigma^2$. The first term of the squared MMD is
+    $$
+    \frac{(\mathbb{E}X - \mathbb{E}Y)^2}{\sigma^2} .
+    $$
+
+    More generally, when the moments of order below $r$ agree, the first non-zero term is proportional to the squared difference of the moments of order $r$, at order $\sigma^{-2r}$.
+
+    Here the means, variances and third moments agree, so the signal is of order $\sigma^{-8}$ (about $1.6\, \sigma^{-8}$), far below the estimation noise, and the power falls towards the level.
+
+    Selecting $\sigma$ on held-out data and testing on the rest keeps the level exact. It may beat the median heuristic despite halving the sample, which is the idea of Gretton et al. (2012b) and of later work learning deep kernels for testing (Liu et al., 2020).
+
+## Projects and assessment {#projects}
+
+The official assessment, per master-mva.com, combines one final exam (40%), a data challenge (40%) and 3 homework assignments submitted online (20%); the Université Paris-Saclay course detail classifies it as "Evaluation Continue non Intégrale" (partial continuous assessment). The solo subjects below are sized like a homework assignment extended into a short study. The group subjects rehearse the data challenge. The written exam proposal shows the kind of questions a 40% final exam can ask; none of these proposals is official material.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Random features versus Nyström: a paper study.** Reproduce the main experiments of Rahimi and Recht (2007) and the comparison of Rudi, Camoriano and Rosasco (2015).
+    -   *Implement*: kernel ridge regression with random Fourier features and with Nyström landmarks, from NumPy.
+    -   *Data*: a public regression set such as California housing (scikit-learn) or YearPredictionMSD (UCI), subsampled to fit a laptop.
+    -   *Success criterion*: plots of test error and time against $D$ and $m$, showing where each method reaches exact-KRR accuracy, and checking the $\sqrt{n}$ scaling of Theorem 9.5 on 3 values of $n$.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. Chapters 3, 6, 9.
+
+2.  **[Solo · ≈ 20 h] Kernel two-sample tests: a paper study.** Study and reimplement the MMD test of Gretton, Borgwardt, Rasch, Schölkopf and Smola (2012).
+    -   *Implement*: the unbiased statistic, the permutation test, and the linear-time statistic of the same paper.
+    -   *Data*: synthetic problems (Gaussian against Laplace, mixtures with a shifted component, the "blobs" problem in two dimensions).
+    -   *Success criterion*: empirical level within $0.05 \pm 0.02$ under the null, and power curves against $m$ and against the bandwidth that reproduce the qualitative findings of the paper.
+    -   *Deliverables*: code, report, talk. Chapters 6, 8.
+
+3.  **[Solo · ≈ 15 h] Subsequence string kernels for text.** Implement the gap-weighted subsequence kernel of Lodhi et al. (2002) with the $O(p\, |s|\, |t|)$ recursion, and test it against brute force.
+    -   *Task*: classify two topics of the 20 Newsgroups corpus (scikit-learn) with an SVM on a precomputed kernel. Use at most 400 documents cut to their first 250 characters, and vectorize the recursion in NumPy (or compile it with Numba) so that the Gram matrix takes minutes, not hours.
+    -   *Success criterion*: an accuracy comparison with the bag-of-words and spectrum kernels, with timings and the effect of $p$ and $\lambda$.
+    -   *Deliverables*: code, report, talk. Chapters 4, 7.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Data-challenge rehearsal: classifying DNA sequences with hand-made kernel methods.** The rule is that every learning algorithm is implemented by the group, without a machine-learning library.
+    -   *Data*: the public UCI "Molecular Biology (Splice-junction Gene Sequences)" data set (3190 sequences of 60 nucleotides), or synthetic sequences with planted motifs.
+    -   *Work split*: one member writes the kernels (spectrum, mismatch, gap-weighted subsequence); one writes the solvers (KRR, kernel logistic regression by Newton's method, an SVM dual solver); one runs model selection, kernel combination (ch. 8) and the final submission.
+    -   *Success criterion*: a held-out accuracy above a $k$-mer logistic-regression baseline, with cross-validated hyperparameters.
+    -   *Deliverables*: code, a 6-page report, a leaderboard-style submission, a 15-minute talk. Chapters 3, 4, 7, 8.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Graph kernels for molecules: a paper study.** Reproduce part of the experimental table of Shervashidze et al. (2011).
+    -   *Data*: MUTAG and ENZYMES, two of the data sets of that table, from the public TU Dortmund graph benchmark collection.
+    -   *Work split*: one kernel per member (Weisfeiler–Lehman subtree, shortest-path, random-walk with labels), plus a shared nested cross-validation harness and SVM.
+    -   *Success criterion*: accuracies within 2 points of the published ones for the WL kernel, and a timing comparison that reproduces the paper's ranking of the kernels.
+    -   *Deliverables*: code, report, talk. Chapters 4, 7.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Convolutional kernel networks on small images.** Study Mairal et al. (2014) and Mairal (2016), and build a one- and two-layer CKN as in Definition 10.3.
+    -   *Data*: the 8×8 digits of scikit-learn, then Fashion-MNIST (public) on a laptop CPU.
+    -   *Work split*: patch extraction and Nyström layer with k-means anchors; pooling and the second layer; comparison with a Gaussian-kernel SVM on raw pixels, random features, and a small CNN of similar size.
+    -   *Success criterion*: a table of test accuracy against the number of anchors, showing where the two-layer CKN beats the one-layer one.
+    -   *Deliverables*: code, report, talk. Chapters 4, 9, 10.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 3 hours, one handwritten A4 sheet allowed, no electronic device; four exercises, independent of each other.
+
+1.  **Course question (4 points).** Define a positive definite kernel and a reproducing kernel Hilbert space. State and prove the representer theorem.
+
+    *Expected*: Definitions 1.1 and 2.1; Theorem 3.1 with the orthogonal decomposition onto the span of the $K_{x_i}$, the invariance of the data term, and the strict increase of the norm term.
+
+2.  **Computation (6 points).** Kernel ridge regression with the kernel $K(x, y) = \min(x, y) + 1$ on $[0, 2]$, the points $x = (0, 1, 2)$, the targets $y = (0, 1, 0)$ and $n\lambda = 1$.
+
+    (a) Show that the kernel is p.d. (b) Compute $\alpha$ and $\hat f(1)$. (c) Compute the degrees of freedom.
+
+    *Expected*: (a) on $[0, 2]$, $\min(x, y)$ is the $L^2$ inner product of the indicators of $[0, x]$ and $[0, y]$, hence p.d. (Proposition 1.2); the constant 1 is p.d., and so is the sum (Proposition 1.4).
+
+    (b) The Gram matrix has rows $(1, 1, 1)$, $(1, 2, 2)$ and $(1, 2, 3)$; solving $(K + I)\alpha = y$ gives
+    $$
+    \alpha = \tfrac{1}{13}(-2, 7, -3), \qquad \hat f(1) = \tfrac{6}{13} \approx 0.46 .
+    $$
+    (c) From the eigenvalues of $K$, or from the trace of $(K + I)^{-1}$:
+    $$
+    \mathrm{df} = \mathrm{tr}\, K (K + I)^{-1} = 3 - \mathrm{tr}\,(K + I)^{-1} = \tfrac{19}{13} \approx 1.46 .
+    $$
+
+3.  **Short proof (5 points).** Show that if $\psi$ is negative definite, then $e^{-t\psi}$ is p.d. for all $t > 0$. Deduce that $e^{-t \chi^2(x, y)}$ is p.d. on histograms.
+
+    *Expected*: the auxiliary kernel $\tilde K$ of Theorem 6.6 with its positivity proof, the factorization of $e^{-t\psi}$, and Proposition 6.8.
+
+4.  **Problem (5 points).** Let $\hat\mu_P$ and $\hat\mu_Q$ be the empirical mean embeddings of two samples of size $m$, from $P$ and $Q$, for a kernel bounded by $\kappa^2$.
+
+    (a) Show that $\mathbb{E} \|\hat\mu_P - \mu_P\|^2 \leq \kappa^2 / m$. (b) Deduce a bound on the expected error of the plug-in estimate of the MMD:
+    $$
+    \mathbb{E}\, \Big| \|\hat\mu_P - \hat\mu_Q\| - \mathrm{MMD}(P, Q) \Big| .
+    $$
+    (c) Explain why a permutation test has the exact level.
+
+    *Expected*: (a) Proposition 8.7. (b) The triangle inequality and Jensen give $2\kappa / \sqrt{m}$. (c) Under the null hypothesis the pooled sample is exchangeable, so the observed statistic is uniformly ranked among the permuted ones.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 30 % | Correct derivations, assumptions stated, proofs or precise references for every claim used |
+| Implementation | 25 % | Code from first principles where required, tested against brute force or a library, seeds fixed, runs end to end |
+| Experimental method | 20 % | Proper train/validation/test splits, hyperparameters chosen by cross-validation, error bars over repetitions |
+| Analysis | 15 % | Results explained with the course (bias–variance, spectra, approximation error), negative results discussed |
+| Communication | 10 % | Clear report within the page limit, readable figures, a talk that fits its time slot |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   N. Aronszajn. Theory of reproducing kernels. *Transactions of the American Mathematical Society*, 68:337–404, 1950.
+-   C. Berg, J. P. R. Christensen and P. Ressel. *Harmonic Analysis on Semigroups*. Springer, 1994 (year as listed on the course page; the book appeared in 1984 as Graduate Texts in Mathematics 100, *Harmonic Analysis on Semigroups: Theory of Positive Definite and Related Functions*).
+-   N. Cristianini and J. Shawe-Taylor. *Kernel Methods for Pattern Analysis*. Cambridge University Press, 2004 (as listed on the course page; the book gives the authors in the order J. Shawe-Taylor and N. Cristianini).
+-   Course website linked from the official description: <https://mva-kernel-methods.github.io/course-2023-2024/>.
+
+### Textbooks
+
+-   A. Berlinet and C. Thomas-Agnan. *Reproducing Kernel Hilbert Spaces in Probability and Statistics*. Kluwer Academic Publishers, 2004.
+-   S. Boyd and L. Vandenberghe. *Convex Optimization*. Cambridge University Press, 2004.
+-   C. E. Rasmussen and C. K. I. Williams. *Gaussian Processes for Machine Learning*. MIT Press, 2006.
+-   W. Rudin. *Fourier Analysis on Groups*. Interscience Publishers, 1962.
+-   B. Schölkopf and A. J. Smola. *Learning with Kernels*. MIT Press, 2002.
+-   B. Schölkopf, K. Tsuda and J.-P. Vert (eds.). *Kernel Methods in Computational Biology*. MIT Press, 2004.
+-   I. Steinwart and A. Christmann. *Support Vector Machines*. Springer, 2008.
+-   G. Wahba. *Spline Models for Observational Data*. SIAM, 1990.
+
+### Foundations, kernel ridge regression and SVMs (ch. 1–4)
+
+-   P. L. Bartlett and S. Mendelson. Rademacher and Gaussian complexities: risk bounds and structural results. *Journal of Machine Learning Research*, 3:463–482, 2002.
+-   B. E. Boser, I. M. Guyon and V. N. Vapnik. A training algorithm for optimal margin classifiers. *Proceedings of COLT*, 1992.
+-   C.-C. Chang and C.-J. Lin. LIBSVM: a library for support vector machines. *ACM Transactions on Intelligent Systems and Technology*, 2(3):27, 2011.
+-   C. Cortes and V. Vapnik. Support-vector networks. *Machine Learning*, 20(3):273–297, 1995.
+-   T. Hofmann, B. Schölkopf and A. J. Smola. Kernel methods in machine learning. *Annals of Statistics*, 36(3):1171–1220, 2008.
+-   G. Kimeldorf and G. Wahba. Some results on Tchebycheffian spline functions. *Journal of Mathematical Analysis and Applications*, 33(1):82–95, 1971.
+-   J. C. Platt. Fast training of support vector machines using sequential minimal optimization. In *Advances in Kernel Methods — Support Vector Learning*, MIT Press, 1999.
+-   B. Schölkopf, R. Herbrich and A. J. Smola. A generalized representer theorem. *Proceedings of COLT*, 2001.
+-   I. Steinwart. On the influence of the kernel on the consistency of support vector machines. *Journal of Machine Learning Research*, 2:67–93, 2001.
+
+### Unsupervised kernel methods (ch. 5)
+
+-   F. R. Bach and M. I. Jordan. Kernel independent component analysis. *Journal of Machine Learning Research*, 3:1–48, 2002.
+-   I. S. Dhillon, Y. Guan and B. Kulis. Kernel k-means, spectral clustering and normalized cuts. *Proceedings of KDD*, 2004.
+-   A. Y. Ng, M. I. Jordan and Y. Weiss. On spectral clustering: analysis and an algorithm. *Advances in Neural Information Processing Systems 14*, 2002.
+-   B. Schölkopf, A. Smola and K.-R. Müller. Nonlinear component analysis as a kernel eigenvalue problem. *Neural Computation*, 10(5):1299–1319, 1998.
+-   U. von Luxburg. A tutorial on spectral clustering. *Statistics and Computing*, 17(4):395–416, 2007.
+
+### Kernel design (ch. 6–7)
+
+-   M. Cuturi, K. Fukumizu and J.-P. Vert. Semigroup kernels on measures. *Journal of Machine Learning Research*, 6:1169–1198, 2005.
+-   T. Gärtner, P. Flach and S. Wrobel. On graph kernels: hardness results and efficient alternatives. *Proceedings of COLT*, 2003.
+-   Z. Harchaoui and F. Bach. Image classification with segmentation graph kernels. *Proceedings of CVPR*, 2007.
+-   D. Haussler. Convolution kernels on discrete structures. Technical report UCSC-CRL-99-10, University of California at Santa Cruz, 1999.
+-   M. Hein and O. Bousquet. Hilbertian metrics and positive definite kernels on probability measures. *Proceedings of AISTATS*, 2005.
+-   T. Jaakkola and D. Haussler. Exploiting generative models in discriminative classifiers. *Advances in Neural Information Processing Systems 11*, 1999.
+-   H. Kashima, K. Tsuda and A. Inokuchi. Marginalized kernels between labeled graphs. *Proceedings of ICML*, 2003.
+-   R. I. Kondor and J. Lafferty. Diffusion kernels on graphs and other discrete input spaces. *Proceedings of ICML*, 2002.
+-   C. Leslie, E. Eskin and W. S. Noble. The spectrum kernel: a string kernel for SVM protein classification. *Pacific Symposium on Biocomputing*, 2002.
+-   C. Leslie, E. Eskin, A. Cohen, J. Weston and W. S. Noble. Mismatch string kernels for discriminative protein classification. *Bioinformatics*, 20(4):467–476, 2004.
+-   H. Lodhi, C. Saunders, J. Shawe-Taylor, N. Cristianini and C. Watkins. Text classification using string kernels. *Journal of Machine Learning Research*, 2:419–444, 2002.
+-   J. Mercer. Functions of positive and negative type, and their connection with the theory of integral equations. *Philosophical Transactions of the Royal Society A*, 209:415–446, 1909.
+-   C. Morris, M. Ritzert, M. Fey, W. L. Hamilton, J. E. Lenssen, G. Rattan and M. Grohe. Weisfeiler and Leman go neural: higher-order graph neural networks. *Proceedings of AAAI*, 2019.
+-   H. Saigo, J.-P. Vert, N. Ueda and T. Akutsu. Protein homology detection using string alignment kernels. *Bioinformatics*, 20(11):1682–1689, 2004.
+-   I. J. Schoenberg. Metric spaces and positive definite functions. *Transactions of the American Mathematical Society*, 44(3):522–536, 1938.
+-   N. Shervashidze, P. Schweitzer, E. J. van Leeuwen, K. Mehlhorn and K. M. Borgwardt. Weisfeiler-Lehman graph kernels. *Journal of Machine Learning Research*, 12:2539–2561, 2011.
+-   A. J. Smola and R. Kondor. Kernels and regularization on graphs. *Proceedings of COLT*, 2003.
+-   J.-P. Vert and M. Kanehisa. Graph-driven feature extraction from microarray data using diffusion kernels and kernel CCA. *Advances in Neural Information Processing Systems 15*, 2003.
+-   S. V. N. Vishwanathan, N. N. Schraudolph, R. Kondor and K. M. Borgwardt. Graph kernels. *Journal of Machine Learning Research*, 11:1201–1242, 2010.
+-   K. Xu, W. Hu, J. Leskovec and S. Jegelka. How powerful are graph neural networks? *Proceedings of ICLR*, 2019.
+-   J. Zhang, M. Marszałek, S. Lazebnik and C. Schmid. Local features and kernels for classification of texture and object categories: a comprehensive study. *International Journal of Computer Vision*, 73(2):213–238, 2007.
+
+### Multiple kernel learning and mean embeddings (ch. 8)
+
+-   F. R. Bach, G. R. G. Lanckriet and M. I. Jordan. Multiple kernel learning, conic duality, and the SMO algorithm. *Proceedings of ICML*, 2004.
+-   G. K. Dziugaite, D. M. Roy and Z. Ghahramani. Training generative neural networks via maximum mean discrepancy optimization. *Proceedings of UAI*, 2015.
+-   K. Fukumizu, L. Song and A. Gretton. Kernel Bayes' rule: Bayesian inference with positive definite kernels. *Journal of Machine Learning Research*, 14:3753–3783, 2013.
+-   M. Gönen and E. Alpaydın. Multiple kernel learning algorithms. *Journal of Machine Learning Research*, 12:2211–2268, 2011.
+-   A. Gretton, O. Bousquet, A. Smola and B. Schölkopf. Measuring statistical dependence with Hilbert-Schmidt norms. *Proceedings of ALT*, 2005.
+-   A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf and A. Smola. A kernel two-sample test. *Journal of Machine Learning Research*, 13:723–773, 2012.
+-   A. Gretton, B. Sriperumbudur, D. Sejdinovic, H. Strathmann, S. Balakrishnan, M. Pontil and K. Fukumizu. Optimal kernel choice for large-scale two-sample tests. *Advances in Neural Information Processing Systems 25*, 2012 (cited as 2012b).
+-   G. R. G. Lanckriet, N. Cristianini, P. Bartlett, L. El Ghaoui and M. I. Jordan. Learning the kernel matrix with semidefinite programming. *Journal of Machine Learning Research*, 5:27–72, 2004.
+-   Y. Li, K. Swersky and R. Zemel. Generative moment matching networks. *Proceedings of ICML*, 2015.
+-   F. Liu, W. Xu, J. Lu, G. Zhang, A. Gretton and D. J. Sutherland. Learning deep kernels for non-parametric two-sample tests. *Proceedings of ICML*, 2020.
+-   K. Muandet, K. Fukumizu, B. Sriperumbudur and B. Schölkopf. Kernel mean embedding of distributions: a review and beyond. *Foundations and Trends in Machine Learning*, 10(1–2):1–141, 2017.
+-   A. Rakotomamonjy, F. R. Bach, S. Canu and Y. Grandvalet. SimpleMKL. *Journal of Machine Learning Research*, 9:2491–2521, 2008.
+-   A. Smola, A. Gretton, L. Song and B. Schölkopf. A Hilbert space embedding for distributions. *Proceedings of ALT*, 2007.
+-   L. Song, J. Huang, A. Smola and K. Fukumizu. Hilbert space embeddings of conditional distributions with applications to dynamical systems. *Proceedings of ICML*, 2009.
+-   B. K. Sriperumbudur, A. Gretton, K. Fukumizu, B. Schölkopf and G. R. G. Lanckriet. Hilbert space embeddings and metrics on probability measures. *Journal of Machine Learning Research*, 11:1517–1561, 2010.
+
+### Large-scale kernel methods (ch. 9)
+
+-   F. Bach. Sharp analysis of low-rank kernel matrix approximations. *Proceedings of COLT*, 2013.
+-   A. Caponnetto and E. De Vito. Optimal rates for the regularized least-squares algorithm. *Foundations of Computational Mathematics*, 7(3):331–368, 2007.
+-   A. El Alaoui and M. W. Mahoney. Fast randomized kernel ridge regression with statistical guarantees. *Advances in Neural Information Processing Systems 28*, 2015.
+-   S. Ma and M. Belkin. Diving into the shallows: a computational perspective on large-scale shallow learning. *Advances in Neural Information Processing Systems 30*, 2017.
+-   G. Meanti, L. Carratino, L. Rosasco and A. Rudi. Kernel methods through the roof: handling billions of points efficiently. *Advances in Neural Information Processing Systems 33*, 2020.
+-   A. Rahimi and B. Recht. Random features for large-scale kernel machines. *Advances in Neural Information Processing Systems 20*, 2007.
+-   A. Rudi, R. Camoriano and L. Rosasco. Less is more: Nyström computational regularization. *Advances in Neural Information Processing Systems 28*, 2015.
+-   A. Rudi, L. Carratino and L. Rosasco. FALKON: an optimal large scale kernel method. *Advances in Neural Information Processing Systems 30*, 2017.
+-   A. Rudi and L. Rosasco. Generalization properties of learning with random features. *Advances in Neural Information Processing Systems 30*, 2017.
+-   C. K. I. Williams and M. Seeger. Using the Nyström method to speed up kernel machines. *Advances in Neural Information Processing Systems 13*, 2001.
+
+### Kernels and deep learning (ch. 10)
+
+-   A. Bietti and J. Mairal. Group invariance, stability to deformations, and complexity of deep convolutional representations. *Journal of Machine Learning Research*, 20(25):1–49, 2019 (cited as 2019a).
+-   A. Bietti and J. Mairal. On the inductive bias of neural tangent kernels. *Advances in Neural Information Processing Systems 32*, 2019 (cited as 2019b).
+-   D. Chen, L. Jacob and J. Mairal. Biological sequence modeling with convolutional kernel networks. *Bioinformatics*, 35(18):3294–3302, 2019.
+-   D. Chen, L. Jacob and J. Mairal. Convolutional kernel networks for graph-structured data. *Proceedings of ICML*, 2020.
+-   L. Chizat, E. Oyallon and F. Bach. On lazy training in differentiable programming. *Advances in Neural Information Processing Systems 32*, 2019.
+-   Y. Cho and L. K. Saul. Kernel methods for deep learning. *Advances in Neural Information Processing Systems 22*, 2009.
+-   A. Jacot, F. Gabriel and C. Hongler. Neural tangent kernel: convergence and generalization in neural networks. *Advances in Neural Information Processing Systems 31*, 2018.
+-   J. Lee, Y. Bahri, R. Novak, S. S. Schoenholz, J. Pennington and J. Sohl-Dickstein. Deep neural networks as Gaussian processes. *Proceedings of ICLR*, 2018.
+-   J. Mairal, P. Koniusz, Z. Harchaoui and C. Schmid. Convolutional kernel networks. *Advances in Neural Information Processing Systems 27*, 2014.
+-   J. Mairal. End-to-end kernel learning with supervised convolutional kernel networks. *Advances in Neural Information Processing Systems 29*, 2016.
+-   R. M. Neal. *Bayesian Learning for Neural Networks*. Springer, 1996.
+
+### Research directions (ch. 12)
+
+-   M. Arbel, A. Korba, A. Salim and A. Gretton. Maximum mean discrepancy gradient flow. *Advances in Neural Information Processing Systems 32*, 2019.
+-   M. Belkin, S. Ma and S. Mandal. To understand deep learning we need to understand kernel learning. *Proceedings of ICML*, 2018.
+-   M. Bińkowski, D. J. Sutherland, M. Arbel and A. Gretton. Demystifying MMD GANs. *Proceedings of ICLR*, 2018.
+-   K. Choromanski, V. Likhosherstov, D. Dohan et al. Rethinking attention with Performers. *Proceedings of ICLR*, 2021.
+-   K. Chwialkowski, H. Strathmann and A. Gretton. A kernel test of goodness of fit. *Proceedings of ICML*, 2016.
+-   B. Ghorbani, S. Mei, T. Misiakiewicz and A. Montanari. Linearized two-layers neural networks in high dimension. *Annals of Statistics*, 49(2):1029–1054, 2021.
+-   T. Liang and A. Rakhlin. Just interpolate: kernel "ridgeless" regression can generalize. *Annals of Statistics*, 48(3):1329–1347, 2020.
+-   Q. Liu, J. D. Lee and M. I. Jordan. A kernelized Stein discrepancy for goodness-of-fit tests. *Proceedings of ICML*, 2016.
+-   Q. Liu and D. Wang. Stein variational gradient descent: a general purpose Bayesian inference algorithm. *Advances in Neural Information Processing Systems 29*, 2016.
+-   U. Marteau-Ferey, F. Bach and A. Rudi. Non-parametric models for non-negative functions. *Advances in Neural Information Processing Systems 33*, 2020.
+-   A. Rudi, U. Marteau-Ferey and F. Bach. Finding global minima via kernel approximations. arXiv preprint, 2020.
+-   Y.-H. H. Tsai, S. Bai, M. Yamada, L.-P. Morency and R. Salakhutdinov. Transformer dissection: a unified understanding of transformer's attention via the lens of kernel. *Proceedings of EMNLP-IJCNLP*, 2019.

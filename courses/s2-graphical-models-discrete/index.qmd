@@ -1,0 +1,2207 @@
+---
+title: "Graphical Models: Discrete Inference and Learning"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: discrete probability, graphs and linear programming](#ch0)
+-   [1. Discrete graphical models: representation and inference problems](#ch1)
+-   [2. Message passing: belief propagation](#ch2)
+-   [3. Bayesian networks: representation and learning](#ch3)
+-   [4. Graph cuts: binary and multi-label energy minimisation](#ch4)
+-   [5. Linear programming and convex relaxations](#ch5)
+-   [6. Tree-reweighted message passing and dual decomposition](#ch6)
+-   [7. Causality](#ch7)
+-   [8. Learning and deep learning in graphical models](#ch8)
+-   [9. Complements for self-study](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Graphical Models: Discrete Inference and Learning
+  Official title       Graphical Models: Discrete Inference and Learning
+  Instructors          K. ALAHARI, D. WASSERMANN, C. A. BARBANO (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 24 h (lectures 24 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Machine Learning
+  Language             Not displayed (the master-mva.com course description is written in English)
+  Assessment           Project: “project (report + defense)” (master-mva.com, “Mode de validation”), with a “Project defense on March” (organisation section); Université Paris-Saclay course detail: “Evaluation Continue non Intégrale” (partial continuous assessment); no weights displayed; external auditors may attend “without any grade, assessment or certificate”
+  Prerequisites        Not displayed on master-mva.com or on the Université Paris-Saclay course detail
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who knows discrete probability, basic graph algorithms and linear programming, and wants to compute with distributions over thousands of discrete variables, not only write them down.
+
+**Empirical first**: take a 48 × 48 binary image buried in Gaussian noise. Thresholding each pixel misclassifies 24.0 % of them. Coordinate descent on an Ising energy stops at a local minimum with 3.6 % errors, while a single minimum cut returns the exact minimiser, with 1.6 % errors, in under a second (ch. 4). On three nodes that pairwise "want to disagree", the linear-programming relaxation answers one half everywhere (ch. 5). Exact minimisation in one case and an honest, certified failure in the other: this course explains both.
+
+A graphical model writes a joint distribution of many discrete variables as a product of small factors, and the graph records which variables share a factor. The course studies the three questions this raises. *Representation*: which factorisations, Markov or Bayesian, encode which independences. *Inference*: how to compute marginals and the most probable configuration, exactly on trees and for submodular energies, approximately with certificates elsewhere. *Learning*: how to fit the factors, the structure and, through interventions, causal relations.
+
+The probabilistic foundations are those of [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) in semester 1. The optimisation side relies on the duality of [Convex Optimization](../s1-convex-optimization/index.html), and shares max-flow and cut arguments with [Algorithms for Network Optimization and Management](../s2-network-optimization/index.html). The vision applications connect to [3D Computer Vision](../s1-3d-computer-vision/index.html) (stereo) and [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html) (segmentation).
+
+### What you will be able to do
+
+-   Translate a labelling problem (segmentation, denoising, stereo, sequence tagging) into a Gibbs distribution and an energy, and name the inference problem to solve.
+-   Read conditional independences off an undirected or a directed graph, and decide when two Bayesian networks are Markov equivalent.
+-   Run sum-product and min-sum message passing, prove their exactness on trees, and explain what loopy belief propagation computes.
+-   Learn the parameters of a Bayesian network, and its structure with the Chow–Liu algorithm or a penalised score.
+-   Decide whether a binary energy can be minimised by a minimum cut, build the graph, and apply α-expansion with its approximation bound to multi-label problems.
+-   Write the linear-programming relaxation of MAP inference, prove when it is tight, and compare it with quadratic and second-order cone relaxations.
+-   Derive the dual of the relaxation as a problem over reparametrisations, and run tree-reweighted message passing or dual decomposition with a certificate of optimality.
+-   Compute the effect of an intervention from observational data with the back-door criterion, and state what causal discovery can and cannot identify.
+-   Train a conditional random field by likelihood or by a structured hinge loss, combine it with neural potentials, and unroll mean-field inference as network layers.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents graphical models as a paradigm that jointly exploits probability theory and graph theory to solve complex real-world problems, a graph expressing the conditional dependence among random variables. It calls them an indispensable component of statistics, machine learning and computer vision.
+
+The course focuses on *discrete* models. After an introduction to the basics, it addresses problems of representation, inference and learning, with classical and state-of-the-art algorithms, and studies several applications in machine learning and computer vision.
+
+The master-mva.com page lists the topics below (“Thèmes abordés”) and an organisation of seven lectures followed by a project defence in March. The Université Paris-Saclay course detail lists no programme beyond the type of assessment. Each row points to the section where the topic is taught.
+
+| Official topic (master-mva.com) | Course section |
+|---|---|
+| Introduction, graphical models | ch. 1 (Gibbs distributions and energies, Markov properties, Hammersley–Clifford theorem, the four inference problems and their complexity, exponential-family view) |
+| Message-passing methods – belief propagation | ch. 2 (sum-product and min-sum on trees, Theorem 2.2 and Proposition 2.3; loopy belief propagation and the Bethe free energy); junction trees in ch. 9.1 |
+| Graph-cuts: binary energy minimization | ch. 4.1–4.2 (max-flow min-cut theorem, submodularity, the graph construction of Theorem 4.4); roof duality for non-submodular energies in ch. 9.2 |
+| Graph-cuts: multi-label energy minimization | ch. 4.3 (α-expansion and its bound, Theorem 4.8; α–β swap); Ishikawa's exact construction for convex priors in ch. 9.3 |
+| Tree-reweighted message passing | ch. 6.2–6.3 (tree-reweighted bounds on the minimum energy and on the log-partition function, TRW-S and weak tree agreement) |
+| Dual decomposition | ch. 6.4 (Lagrangian dual, supergradient ascent, optimality certificate, code) |
+| Convex relaxations | ch. 5.4 (quadratic, second-order cone and semidefinite relaxations; dominance of the LP relaxation, Theorem 5.5) |
+| Linear programming relaxations | ch. 5.1–5.3 (marginal and local polytopes, tightness on trees and for submodular energies, frustrated cycles) and ch. 6.1 (the dual as a problem over reparametrisations) |
+| Causality | ch. 7 (structural causal models, interventions, back-door adjustment, do-calculus); causal discovery and counterfactuals in ch. 9.4–9.5 |
+| Bayesian Networks | ch. 3 (factorisation, d-separation, explaining away, parameter learning, Chow–Liu and score-based structure learning); Markov equivalence in ch. 9.4 |
+| Deep Learning in graphical models | ch. 8 (CRF likelihood and pseudo-likelihood, structured SVM, mean field as recurrent layers, neural chain CRF); graph neural networks as learned message passing in ch. 9.6 |
+| “Plus de détails” | not a topic: a link to further details on the master-mva.com page |
+| “Les intervenants” | not a topic: the heading above the list of instructors |
+| Organisation: “7 lectures” | the [session plan](#sessions) splits the 24 h of the Université Paris-Saclay table into 8 sessions |
+| Organisation: “Project defense on March” | [Projects and assessment](#projects): project subjects, a rubric and a written-exam proposal |
+| Organisation: “All information at https://project.inria.fr/grmdil/” | not a topic: the course website, whose material these notes do not reproduce |
+| Organisation: open to external auditors without grade, assessment or certificate | not a topic: an attendance rule |
+
+Beyond the syllabus, the page adds the review of ch. 0, roof duality and Ishikawa's construction (ch. 9.2–9.3), and a self-study chapter on research directions (ch. 10). Chapter 9 gathers complements for self-study, so that the in-class chapters fit the 24 h. The order of the topics differs from the official list: Bayesian networks (ch. 3) come before causality (ch. 7), which builds on them.
+
+### Where this course fits in the programme
+
+No prerequisite is displayed on the official pages. The course uses discrete probability and conditional independence, which the [probability and statistics refresher](../s0-refresher-probability-statistics/index.html) reviews, and linear programming duality, which the [linear algebra and optimisation refresher](../s0-refresher-linear-algebra-optimization/index.html) prepares. The [scientific Python refresher](../s0-refresher-python-scientific-computing/index.html) covers the NumPy, NetworkX and PyTorch code.
+
+-   **Semester 1 courses that prepare it** — [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (directed and undirected models, sum-product, potential outcomes), [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html) (Lagrangian duality, linear programs), [Deep Learning](../s1-deep-learning/index.html) (back-propagation), [Computational Statistics](../s1-computational-statistics/index.html) (Gibbs sampling).
+-   **Related courses in semester 2** — [Algorithms for Network Optimization and Management](../s2-network-optimization/index.html) (flows, cuts, integer programming), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) (graph Laplacians, semi-supervised learning), [Bayesian Machine Learning](../s2-bayesian-ml/index.html) (variational inference), [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html) (sequence labelling), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html) (segmentation), [Biostatistics](../s2-biostatistics/index.html) (causal effects).
+-   **Afterwards** — the [research internship](../s3-research-internship/index.html), where structured prediction, energy minimisation and causal reasoning are common tools.
+
+The instructors listed on master-mva.com are Karteek Alahari, Demian Wassermann and Carlo Alberto Barbano.
+
+### Course outline
+
+-   **Review: discrete probability, graphs and linear programming** — conditional independence, entropy, cuts, LP duality and Lagrangian lower bounds.
+-   **Discrete graphical models** — Gibbs distributions, energies, Markov properties, Hammersley–Clifford, the four inference problems and their hardness.
+-   **Message passing** — sum-product and min-sum, exact on trees; loopy belief propagation and the Bethe free energy.
+-   **Bayesian networks** — d-separation, explaining away, parameter learning, Chow–Liu trees and penalised scores.
+-   **Graph cuts** — max-flow min-cut, submodular binary energies, α-expansion and its bound, α–β swap.
+-   **Linear programming and convex relaxations** — marginal and local polytopes, tightness results, frustrated cycles, QP and SOCP relaxations.
+-   **Tree-reweighted message passing and dual decomposition** — reparametrisations, tree bounds, TRW-S, Lagrangian decomposition with certificates.
+-   **Causality** — structural causal models, interventions, back-door adjustment, do-calculus.
+-   **Learning and deep learning in graphical models** — CRF training, structured SVMs, mean field as recurrent layers, neural potentials.
+-   **Complements** — junction trees, roof duality, Ishikawa's construction, Markov equivalence and causal discovery, counterfactuals, learned message passing (self-study).
+-   **Research directions** — tighter relaxations, learned and differentiable inference, structured deep generative models, causal discovery at scale (self-study).
+
+### Session plan {#sessions}
+
+**24 h in class = 8 sessions of 3 h.**
+
+The volume is the Université Paris-Saclay programme table's (24 h of lectures, 5 ECTS). The master-mva.com page announces seven lectures and a project defence in March, without saying how the 24 h divide between them. The split into eight sessions of course material below is a proposal.
+
+Level 1 = foundations, 2 = core algorithms and their guarantees, 3 = duality-based solvers, causality and deep structured models.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: conditional independence, cuts, LP duality; ch. 1 Gibbs distributions, Markov properties, the four inference problems, exponential-family view | Ex. 1 |
+| 2 | 3 h | 1 | ch. 2 Variable elimination, sum-product and min-sum on trees, loopy belief propagation, Bethe free energy | Ex. 2, 6 |
+| 3 | 3 h | 2 | ch. 3 Bayesian networks: d-separation, explaining away, parameter learning, Chow–Liu and score-based structure learning | Ex. 3, 7 |
+| 4 | 3 h | 2 | ch. 4 Graph cuts: max-flow min-cut, submodular binary energies, α-expansion and its bound, α–β swap | Ex. 4, 8 |
+| 5 | 3 h | 2 | ch. 5 LP relaxation over the local polytope, tightness on trees and for submodular energies, QP and SOCP relaxations | Ex. 9, 10 |
+| 6 | 3 h | 3 | ch. 6 Reparametrisation and the LP dual, tree-reweighted bounds, TRW-S, dual decomposition | Ex. 11, 14 |
+| 7 | 3 h | 3 | ch. 7 Causality: structural causal models, interventions, back-door adjustment, do-calculus | Ex. 5 |
+| 8 | 3 h | 3 | ch. 8 CRF likelihood, pseudo-likelihood, structured SVM, mean field and CRF-as-RNN, neural chain CRFs | Ex. 12, 13, 15 |
+
+**Self-study, outside the 24 h** (about 9 h in total): ch. 9 Complements: junction trees, roof duality, Ishikawa's construction, Markov equivalence and causal discovery, counterfactuals, learned message passing (≈ 3 h) · ch. 10 Research directions and open problems (≈ 3 h) · Ex. 14–16, the open-ended computational exercises (≈ 1 h each to get started, more as a project).
+
+### How to study this module
+
+-   Read ch. 0 before the first session: the Lagrangian lower bound of Proposition 0.5 is the thread of ch. 5 and 6.
+-   After session 2, run the belief-propagation code of ch. 2 with stronger couplings until it fails, then do Exercise 6.
+-   Do Exercises 4 and 8 by hand before running the graph-cut code of ch. 4: the construction is short, but its signs are easy to get wrong.
+-   Read ch. 5 and ch. 6 together: the relaxation, its dual and the message-passing solvers are three views of one linear program.
+-   All code runs on a laptop CPU in seconds, with NumPy, SciPy, NetworkX and PyTorch, on synthetic data.
+-   Start the project after session 5, when the inference toolbox is complete; ch. 10 lists directions for the more ambitious subjects.
+
+## 0. Review: discrete probability, graphs and linear programming {#ch0}
+
+The course combines distributions on finite sets, graphs, and linear programs with their duals. This review fixes notation and facts; the [probability refresher](../s0-refresher-probability-statistics/index.html) and the [optimisation refresher](../s0-refresher-linear-algebra-optimization/index.html) give the background.
+
+### 0.1 Distributions on finite sets
+
+Throughout, $x = (x_1, \dots, x_n)$ is a vector of discrete variables, each taking values in a finite set of labels $\mathcal X = \{0, \dots, K-1\}$. A distribution on $\mathcal X^n$ is a table of $K^n$ non-negative numbers summing to one. Marginals and conditionals are sums and ratios of entries of that table.
+
+::: def
+[Definition 0.1 — Conditional independence]{.tag} Subsets of variables $x_A$ and $x_B$ are independent given $x_C$, written $x_A \perp x_B \mid x_C$, if for every $x_C$ with $p(x_C) > 0$:
+$$
+p(x_A, x_B \mid x_C) = p(x_A \mid x_C)\, p(x_B \mid x_C).
+$$
+:::
+
+:::: prop
+[Proposition 0.2 — Factorisation criterion]{.tag} For disjoint $A, B, C$ covering the variables, $x_A \perp x_B \mid x_C$ holds if and only if there are non-negative functions $f$ and $g$ such that
+$$
+p(x_A, x_B, x_C) = f(x_A, x_C)\, g(x_B, x_C).
+$$
+
+::: proof
+The direct implication takes $f = p(x_A \mid x_C)\,p(x_C)$ and $g = p(x_B \mid x_C)$.
+
+Conversely, let $F(x_C) = \sum_{x_A} f$ and $G(x_C) = \sum_{x_B} g$. Summing the factorisation over $x_A$, over $x_B$, and over both gives
+$$
+p(x_B, x_C) = F g, \qquad p(x_A, x_C) = f G, \qquad p(x_C) = F G.
+$$
+
+Hence, whenever $p(x_C) > 0$,
+$$
+p(x_A, x_B \mid x_C) = \frac{f g}{F G} = \frac{p(x_A, x_C)}{p(x_C)} \cdot \frac{p(x_B, x_C)}{p(x_C)}.
+$$
+[∎]{.qed}
+:::
+::::
+
+Two information quantities return in ch. 3 and ch. 8. The **entropy** is $H(p) = -\sum_x p(x) \log p(x)$. The **Kullback–Leibler divergence** $\mathrm{KL}(q \| p) = \sum_x q(x) \log (q(x)/p(x))$ is non-negative, and zero only at $q = p$ (Gibbs' inequality, from Jensen's inequality applied to the logarithm).
+
+The **mutual information** is the divergence between a joint distribution and the product of its marginals:
+$$
+I(X; Y) = \mathrm{KL}\big(p(x, y) \,\|\, p(x)\, p(y)\big) = H(X) - H(X \mid Y) \;\ge\; 0,
+$$
+with equality if and only if $X \perp Y$.
+
+### 0.2 Graphs and cuts
+
+An undirected graph $G = (V, E)$ has neighbourhoods $N(i)$. A **clique** is a set of pairwise adjacent vertices. A **tree** is a connected graph without cycles, so $|E| = |V| - 1$. A maximum-weight spanning tree is found greedily by Kruskal's or Prim's algorithm in $O(|E| \log |E|)$ operations; ch. 3 uses it.
+
+A directed acyclic graph (DAG) has parents $\mathrm{pa}(i)$, descendants and a topological order, in which every vertex comes after its parents.
+
+::: def
+[Definition 0.3 — s–t cut]{.tag} Let $G = (V, E)$ be a directed graph with capacities $c(u, v) \ge 0$, a source $s$ and a sink $t$.
+
+An **s–t cut** is a partition $(S, T)$ of $V$ with $s \in S$ and $t \in T$. Its capacity counts only the edges going from $S$ to $T$:
+$$
+c(S, T) = \sum_{u \in S,\ v \in T} c(u, v).
+$$
+:::
+
+### 0.3 Linear programming and Lagrangian duality
+
+A linear program in standard form minimises $c^\top x$ subject to $A x = b$ and $x \ge 0$. Its dual maximises $b^\top y$ subject to $A^\top y \le c$.
+
+:::: thm
+[Theorem 0.4 — LP duality]{.tag} For every primal-feasible $x$ and dual-feasible $y$, $c^\top x \ge b^\top y$ (weak duality). If the primal has a finite optimum, so does the dual, and the two optimal values are equal (strong duality).
+
+::: proof
+Weak duality is one line:
+$$
+c^\top x \;\ge\; (A^\top y)^\top x = y^\top A x = b^\top y,
+$$
+using $x \ge 0$ and $A^\top y \le c$. Strong duality follows from Farkas' lemma; see the duality chapter of [Convex Optimization](../s1-convex-optimization/index.html#ch4). [∎]{.qed}
+:::
+::::
+
+Replacing $x_i \in \{0, 1\}$ by $0 \le x_i \le 1$ in an integer program enlarges the feasible set, so this **relaxation** gives a lower bound. Lagrangian duality, the engine of ch. 6, gives another.
+
+:::: prop
+[Proposition 0.5 — Lagrangian lower bound]{.tag} Let $\mathcal S$ be any set (finite, or a polytope), $f$ a function on $\mathcal S$ and $g : \mathcal S \to \mathbb R^m$. Define the **dual function**
+$$
+q(\lambda) = \min_{x \in \mathcal S} \big[ f(x) + \lambda^\top g(x) \big], \qquad \lambda \in \mathbb R^m.
+$$
+Then $q$ is concave, and for every $\lambda$:
+$$
+q(\lambda) \;\le\; \min \{ f(x) : x \in \mathcal S,\ g(x) = 0 \}.
+$$
+
+::: proof
+For each fixed $x$, the map $\lambda \mapsto f(x) + \lambda^\top g(x)$ is affine, and a minimum of affine functions is concave.
+
+If $x$ is feasible, then $g(x) = 0$, so $q(\lambda) \le f(x) + \lambda^\top g(x) = f(x)$. Minimise over feasible $x$. [∎]{.qed}
+:::
+::::
+
+::: recap
+Key takeaways — chapter 0
+
+-   Conditional independence is a factorisation of the joint table into two functions that share only the conditioning variables (Proposition 0.2).
+-   Mutual information is a KL divergence, non-negative and zero exactly under independence.
+-   An s–t cut is paid only on edges from the source side to the sink side.
+-   Relaxing integrality and dualising constraints both produce lower bounds on a minimum; the Lagrangian dual function is always concave.
+:::
+
+## 1. Discrete graphical models: representation and inference problems {#ch1}
+
+A distribution over $n$ variables with $K$ labels is a table of $K^n$ numbers: for a 100 × 100 binary image, more than the atoms in the universe. A graphical model writes it as a product of small factors, and the graph records which variables share one. This chapter defines the objects and the four problems the course solves.
+
+### 1.1 Gibbs distributions and energies
+
+::: def
+[Definition 1.1 — Gibbs distribution, factor graph, energy]{.tag} Let $\mathcal C$ be a family of subsets of $\{1, \dots, n\}$ and, for each $c \in \mathcal C$, let $\psi_c \ge 0$ be a function of $x_c = (x_i)_{i \in c}$. The **Gibbs distribution** with these factors is
+$$
+p(x) = \frac{1}{Z} \prod_{c \in \mathcal C} \psi_c(x_c), \qquad Z = \sum_{x \in \mathcal X^n} \prod_{c \in \mathcal C} \psi_c(x_c).
+$$
+
+The normaliser $Z$ is the **partition function**. The **factor graph** is the bipartite graph linking each factor $c$ to the variables it contains.
+
+With $\psi_c = e^{-\theta_c}$, the distribution reads $p(x) = e^{-E(x)} / Z$, where the **energy** is $E(x) = \sum_c \theta_c(x_c)$.
+:::
+
+Most of the course uses **pairwise** models, whose factors involve one or two variables. On an undirected graph $G = (V, E)$, the energy is
+$$
+E(x) = \sum_{i \in V} \theta_i(x_i) + \sum_{(i, j) \in E} \theta_{ij}(x_i, x_j).
+$$
+The unary terms are *data terms*, the pairwise terms *smoothness terms*.
+
+::: ex
+[Example 1.2 — Labelling problems in vision]{.tag}
+
+-   *Binary segmentation.* $x_i \in \{0, 1\}$ marks object pixels. The data term $-\log p(y_i \mid x_i = k)$ comes from a colour model of each class; the Potts penalty $w_{ij} [x_i \ne x_j]$ decreases with $|y_i - y_j|$, so that boundaries follow image edges (Boykov and Jolly, 2001).
+-   *Denoising.* With Gaussian noise of variance $\sigma^2$, the data term is $(y_i - k)^2 / (2\sigma^2)$, and the Potts prior with $K = 2$ is the **Ising model**.
+-   *Stereo.* $x_i$ is a disparity between two rectified views, the data term a colour mismatch, and the prior the truncated linear penalty $w \min(|x_i - x_j|, \tau)$, which allows depth discontinuities.
+:::
+
+### 1.2 Markov properties and the Hammersley–Clifford theorem
+
+The graph of a Gibbs distribution encodes independences. A set of vertices $S$ **separates** $A$ from $B$ if every path from $A$ to $B$ meets $S$.
+
+::: def
+[Definition 1.3 — Markov properties]{.tag} A distribution $p$ on $\mathcal X^V$ is
+
+-   *pairwise Markov* with respect to $G$ if $x_i \perp x_j \mid x_{V \setminus \{i, j\}}$ for every non-adjacent pair $i, j$;
+-   *locally Markov* if $x_i \perp x_{V \setminus (N(i) \cup \{i\})} \mid x_{N(i)}$ for every $i$;
+-   *globally Markov* if $x_A \perp x_B \mid x_S$ whenever $S$ separates $A$ from $B$.
+:::
+
+:::: thm
+[Theorem 1.4 — Hammersley–Clifford]{.tag} If $p$ factorises over the cliques of $G$, then $p$ is globally Markov with respect to $G$.
+
+Conversely, if $p(x) > 0$ for every $x$ and $p$ is pairwise Markov, then $p$ factorises over the cliques of $G$.
+
+For strictly positive distributions, the three Markov properties and the factorisation are therefore equivalent.
+
+::: proof
+*Factorisation implies global Markov.* Let $S$ separate $A$ from $B$, and let $\tilde A$ be the union of the connected components of $G \setminus S$ that meet $A$.
+
+The rest, $\tilde B = V \setminus (\tilde A \cup S)$, contains $B$.
+
+No clique contains both a vertex of $\tilde A$ and a vertex of $\tilde B$: these two vertices would be adjacent, hence in the same component. So every clique lies in $\tilde A \cup S$ or in $\tilde B \cup S$.
+
+Grouping the factors accordingly writes $p = f(x_{\tilde A}, x_S)\, g(x_{\tilde B}, x_S)$. Proposition 0.2 gives $x_{\tilde A} \perp x_{\tilde B} \mid x_S$, and summing out the variables outside $A$ and $B$ keeps the independence.
+
+*The converse* builds the clique potentials by Möbius inversion of $\log p$ around a reference configuration. The pairwise Markov property shows that the inverted terms vanish on non-cliques; positivity is needed to take logarithms. See Besag (1974) or Lauritzen (1996, ch. 3). [∎]{.qed}
+:::
+::::
+
+Positivity matters: Moussouris (1974) gives a distribution with zeros that is globally Markov on a 4-cycle and does not factorise (reproduced in Lauritzen, 1996). The [semester 1 course](../s1-probabilistic-graphical-models/index.html#ch4) treats the directed counterpart and moralisation, recalled in ch. 3.
+
+### 1.3 The four inference problems and their complexity
+
+Given a model, four computations are needed:
+
+1.  **marginals** $p(x_i)$ and $p(x_i, x_j)$, for uncertainty and learning (ch. 8);
+2.  the **partition function** $Z$, for likelihoods;
+3.  the **MAP configuration**, a minimiser of the energy;
+4.  **samples** from $p$.
+
+Each is a sum or a minimum over $K^n$ configurations.
+
+:::: prop
+[Proposition 1.5 — MAP inference is NP-hard]{.tag} Minimising a pairwise energy over binary labels is NP-hard, even when every unary term is zero.
+
+::: proof
+Reduce from maximum cut, which is NP-hard (Karp, 1972). Given a graph with weights $w_{ij} \ge 0$, set $\theta_i = 0$ and $\theta_{ij}(a, b) = -w_{ij} [a \ne b]$.
+
+A binary labelling $x$ is a partition of the vertices, and $-E(x)$ is the total weight of the edges between the two parts. So $\min_x E(x)$ is minus the maximum cut. [∎]{.qed}
+:::
+::::
+
+Computing $Z$ is #P-hard in general: for suitable factors it counts the independent sets of a graph. Hence three regimes in this course: exact algorithms for special structures, trees (ch. 2) and submodular energies (ch. 4); relaxations with certificates (ch. 5–6); heuristics without guarantee, such as loopy belief propagation.
+
+### 1.4 The exponential-family view
+
+Stack the indicators $[x_i = a]$ and $[x_i = a, x_j = b]$ into one vector $\phi(x)$, and the energy tables into a vector $\theta$ of the same length. Then $E(x) = \langle \theta, \phi(x) \rangle$, and
+$$
+p_\theta(x) = \exp\big( -\langle \theta, \phi(x) \rangle - A(\theta) \big), \qquad A(\theta) = \log \sum_x e^{-\langle \theta, \phi(x) \rangle} = \log Z(\theta).
+$$
+
+:::: prop
+[Proposition 1.6 — The log-partition function]{.tag} $A$ is convex. Its gradient is minus the vector of marginals, and its Hessian is the covariance of $\phi$ under $p_\theta$:
+$$
+\frac{\partial A}{\partial \theta_i(a)} = -p_\theta(x_i = a), \qquad \frac{\partial A}{\partial \theta_{ij}(a, b)} = -p_\theta(x_i = a, x_j = b), \qquad \nabla^2 A = \mathrm{Cov}_{p_\theta}[\phi].
+$$
+
+::: proof
+Differentiate the log-sum-exp:
+$$
+\nabla A(\theta) = -\frac1Z \sum_x \phi(x)\, e^{-\langle \theta, \phi(x) \rangle} = -\mathbb E_{p_\theta}[\phi],
+$$
+and the expectation of an indicator is a probability. Differentiating once more gives $\mathrm{Cov}_{p_\theta}[\phi]$, which is positive semi-definite. [∎]{.qed}
+:::
+::::
+
+The vector $\mu = \mathbb E_p[\phi(x)]$ collects the node and edge marginals of $p$. The set of all such vectors, over all distributions on $\mathcal X^n$, is the **marginal polytope**
+$$
+\mathcal M = \mathrm{conv} \{ \phi(x) : x \in \mathcal X^n \}.
+$$
+
+Because the energy is linear in $\phi$, MAP inference is a linear program over $\mathcal M$:
+
+::: key
+[Key result — MAP inference as a linear program]{.tag}
+$$
+\min_{x \in \mathcal X^n} E(x) \;=\; \min_{\mu \in \mathcal M} \langle \theta, \mu \rangle .
+$$
+:::
+
+Indeed, a linear function on the convex hull of a finite set reaches its minimum at a point of that set. The difficulty has moved into $\mathcal M$, which in general has no description by polynomially many inequalities; ch. 5 replaces it by a larger, simpler polytope.
+
+The code enumerates the $2^9$ states of a 3 × 3 Ising grid, and checks Proposition 1.6 by a finite difference.
+
+```python
+import itertools
+import numpy as np
+
+# A 3x3 Ising grid: x_i in {0, 1}, energy E(x) = sum_i h_i x_i + sum_ij w [x_i != x_j]
+rng = np.random.default_rng(2)
+n_side = 3
+nodes = [(r, c) for r in range(n_side) for c in range(n_side)]
+idx = {v: k for k, v in enumerate(nodes)}
+edges = [(idx[(r, c)], idx[(r, c + 1)]) for r in range(n_side) for c in range(n_side - 1)]
+edges += [(idx[(r, c)], idx[(r + 1, c)]) for r in range(n_side - 1) for c in range(n_side)]
+h = rng.normal(0, 1.5, size=len(nodes))   # unary cost of label 1
+w = 0.8                                     # Potts penalty for disagreeing neighbours
+
+X = np.array(list(itertools.product([0, 1], repeat=len(nodes))))   # all 2^9 states
+E = X @ h + w * sum((X[:, i] != X[:, j]) for i, j in edges)
+p = np.exp(-E - np.logaddexp.reduce(-E))                          # Gibbs distribution
+logZ = np.logaddexp.reduce(-E)
+print(f"{len(X)} states, log Z = {logZ:.4f}")
+print("P(x_i = 1):", np.round(p @ X, 3))
+print("MAP state:", X[np.argmin(E)], "energy", round(E.min(), 4))
+
+# Exponential-family check: d log Z / d(-h_i) = P(x_i = 1)
+eps, i = 1e-5, 4
+h2 = h.copy(); h2[i] -= eps
+E2 = X @ h2 + w * sum((X[:, a] != X[:, b]) for a, b in edges)
+print("finite difference:", round((np.logaddexp.reduce(-E2) - logZ) / eps, 4),
+      " marginal:", round(p @ X[:, i], 4))
+```
+
+It prints $\log Z = 4.3341$ and the MAP state (1, 1, 1, 1, 0, 0, 1, 0, 0), of energy −2.0705; finite difference and marginal of the centre pixel both equal 0.0771.
+
+Pixel 2 has marginal 0.507: its MAP label 1 is barely more likely than 0, an uncertainty the MAP state hides. At $n = 30$, enumeration would need $10^9$ states.
+
+::: recap
+Key takeaways — chapter 1
+
+-   A Gibbs distribution is $e^{-E(x)}/Z$ with an energy that sums small terms; pairwise energies cover most vision and sequence models.
+-   For positive distributions, factorising over the cliques of a graph is equivalent to the Markov properties of that graph (Hammersley–Clifford).
+-   Marginals, partition function, MAP and sampling are the four inference problems; MAP is NP-hard and $Z$ is #P-hard in general.
+-   In the indicator representation, $\log Z$ is convex with the marginals as (minus) gradient, and MAP is a linear program over the marginal polytope.
+:::
+
+## 2. Message passing: belief propagation {#ch2}
+
+On a tree, the distributive law pushes each sum inside the product, and the partial sums travel along the edges as *messages*. This chapter derives the algorithm, proves it exact on trees, and studies what remains of it with cycles.
+
+### 2.1 Variable elimination on a chain
+
+Take a chain $x_1 - x_2 - \dots - x_n$ with factors $\psi_i(x_i)$ and $\psi_{i,i+1}(x_i, x_{i+1})$. Summing $x_1$ first touches only the factors that contain it:
+$$
+Z = \sum_{x_2, \dots, x_n} \Big[ \prod_{i \ge 2} \psi_i \prod_{i \ge 2} \psi_{i,i+1} \Big] \underbrace{\sum_{x_1} \psi_1(x_1)\, \psi_{12}(x_1, x_2)}_{m_{1 \to 2}(x_2)} .
+$$
+
+The message $m_{1 \to 2}$ is a vector of $K$ numbers, computed in $O(K^2)$ operations; eliminating $x_2, x_3, \dots$ in turn costs $O(nK^2)$ instead of $O(K^n)$.
+
+### 2.2 Sum-product on trees
+
+::: def
+[Definition 2.1 — Sum-product messages and beliefs]{.tag} On a pairwise model with factors $\psi_i$ and $\psi_{ij}$, the message from $i$ to a neighbour $j$ is the function of $x_j$
+$$
+m_{i \to j}(x_j) = \sum_{x_i} \psi_i(x_i)\, \psi_{ij}(x_i, x_j) \prod_{k \in N(i) \setminus \{j\}} m_{k \to i}(x_i).
+$$
+The **belief** of node $i$ is the normalised product of its factor and of all its incoming messages:
+$$
+b_i(x_i) \propto \psi_i(x_i) \prod_{k \in N(i)} m_{k \to i}(x_i).
+$$
+:::
+
+:::: thm
+[Theorem 2.2 — Sum-product is exact on trees]{.tag} On a tree, compute the messages from the leaves to an arbitrary root, then back from the root to the leaves: two messages per edge, $O(|E| K^2)$ operations in total. Then, for every node $i$:
+$$
+b_i(x_i) = p(x_i).
+$$
+
+::: proof
+Removing the edge $(i, j)$ splits the tree in two; let $T_{i \to j}$ be the part containing $i$.
+
+We show, by induction on its size, that $m_{i \to j}(x_j)$ sums, over the variables of $T_{i \to j}$, the product of $\psi_{ij}$ and of all factors inside $T_{i \to j}$.
+
+-   If $i$ is a leaf, $T_{i \to j} = \{i\}$, and this is the definition of the message.
+-   Otherwise, $T_{i \to j}$ is $\{i\}$ together with the subtrees $T_{k \to i}$, $k \in N(i) \setminus \{j\}$. These subtrees share no variable and no factor.
+-   The sum of a product of functions of disjoint variables is the product of their sums (distributive law). By the induction hypothesis, each of these sums is a message $m_{k \to i}(x_i)$.
+
+The subtrees $T_{k \to i}$ for $k \in N(i)$ partition $V \setminus \{i\}$. So $\psi_i(x_i) \prod_k m_{k \to i}(x_i)$ is the sum of the product of all factors over all variables except $x_i$, that is $Z\, p(x_i)$. [∎]{.qed}
+:::
+::::
+
+The same argument gives the edge marginals
+$$
+p(x_i, x_j) \propto \psi_i \psi_j \psi_{ij} \prod_{k \in N(i) \setminus j} m_{k \to i}(x_i) \prod_{l \in N(j) \setminus i} m_{l \to j}(x_j),
+$$
+and summing the unnormalised belief of any node gives $Z$. The [semester 1 course](../s1-probabilistic-graphical-models/index.html#ch5) gives the factor-graph version and forward–backward, this theorem on a chain.
+
+### 2.3 Min-sum and MAP inference on trees
+
+Replace sums by minima and products by sums, and work with energies. The **min-sum** message is
+$$
+m_{i \to j}(x_j) = \min_{x_i} \Big[ \theta_i(x_i) + \theta_{ij}(x_i, x_j) + \sum_{k \in N(i) \setminus \{j\}} m_{k \to i}(x_i) \Big].
+$$
+
+:::: prop
+[Proposition 2.3 — Min-sum computes min-marginals on trees]{.tag} On a tree, after one pass in each direction, for every node $i$ and label $a$:
+$$
+\theta_i(a) + \sum_{k \in N(i)} m_{k \to i}(a) = \min_{x :\, x_i = a} E(x).
+$$
+A MAP configuration follows by fixing the label of the root to its best value and propagating the minimising choices back to the leaves.
+
+::: proof
+The proof of Theorem 2.2 only used that multiplication distributes over addition. Addition distributes over minimum, $a + \min(b, c) = \min(a + b, a + c)$, so the same induction applies with $(\min, +)$ in place of $(+, \times)$.
+
+For the backtracking, each child takes a label achieving the minimum in the message it sent to its parent, given the parent's label. [∎]{.qed}
+:::
+::::
+
+On a chain this is the Viterbi algorithm.
+
+::: ex
+[Example 2.4 — Min-sum by hand]{.tag} Take a binary chain $x_1 - x_2 - x_3$ with unary costs $\theta_1 = (0, 2)$, $\theta_2 = (1, 0)$, $\theta_3 = (2, 0)$, listed as (label 0, label 1), and a Potts penalty of 1.5 on both edges.
+
+1.  $m_{1 \to 2}(0) = \min(0, 2 + 1.5) = 0$ and $m_{1 \to 2}(1) = \min(0 + 1.5, 2) = 1.5$.
+2.  At node 2, $\theta_2 + m_{1 \to 2} = (1, 1.5)$, so $m_{2 \to 3} = (\min(1, 3), \min(2.5, 1.5)) = (1, 1.5)$.
+3.  At node 3, the min-marginals are $\theta_3 + m_{2 \to 3} = (3, 1.5)$, so $x_3 = 1$.
+4.  Backtracking: node 2 compares $1 + 1.5$ and $1.5 + 0$ and takes $x_2 = 1$; node 1 compares $0 + 1.5$ and $2 + 0$ and takes $x_1 = 0$.
+
+The MAP configuration and its energy are
+$$
+x^\star = (0, 1, 1), \qquad E(x^\star) = 1.5 .
+$$
+The eight energies, from 1.5 to 6.5, confirm it.
+:::
+
+### 2.4 Loopy belief propagation and the Bethe free energy
+
+On a graph with cycles, iterating the updates of Definition 2.1 from uniform messages is **loopy belief propagation**. It may not converge (*damping*, which averages new and old messages, helps); when it does, its marginals are often good, without general guarantee (Murphy, Weiss and Jordan, 1999).
+
+What does it compute? Gibbs' inequality $\mathrm{KL}(q \| p) \ge 0$ gives the **Gibbs variational principle**:
+$$
+-\log Z = \min_{q} \Big( \mathbb E_q[E(x)] - H(q) \Big),
+$$
+attained at $q = p$. Over the marginal polytope, the first term is linear, but the entropy and the polytope are intractable.
+
+The **Bethe approximation** keeps only node and edge beliefs $b = (b_i, b_{ij})$, locally consistent: each $b_{ij}$ sums to $b_i$ over $x_j$ and to $b_j$ over $x_i$. The entropy becomes
+$$
+H_{\mathrm{Bethe}}(b) = \sum_{(i, j) \in E} H(b_{ij}) - \sum_{i \in V} (d_i - 1)\, H(b_i),
+$$
+where $d_i$ is the degree of node $i$.
+
+:::: thm
+[Theorem 2.5 — Belief propagation and the Bethe free energy (Yedidia, Freeman and Weiss, 2005)]{.tag} For strictly positive factors, the fixed points of loopy belief propagation correspond to the stationary points of the Bethe free energy
+$$
+F_{\mathrm{Bethe}}(b) = \langle \theta, b \rangle - H_{\mathrm{Bethe}}(b)
+$$
+under the local consistency constraints.
+
+::: proof
+*Sketch.* Write the Lagrangian of $F_{\mathrm{Bethe}}$ with a multiplier $\lambda_{ij}(x_j)$ for each constraint "$b_{ij}$ sums over $x_i$ to $b_j(x_j)$", plus normalisation multipliers.
+
+Its stationarity conditions give the beliefs as exponentials of the energies and of the multipliers.
+
+The identification
+$$
+\lambda_{ij}(x_j) = \log \prod_{k \in N(j) \setminus \{i\}} m_{k \to j}(x_j)
+$$
+turns the stationarity conditions into the fixed-point equations of Definition 2.1, and conversely. See Yedidia, Freeman and Weiss (2005). [∎]{.qed}
+:::
+::::
+
+On a tree, a distribution equals $\prod_i p_i \prod_{ij} p_{ij} / (p_i p_j)$, so its entropy is exactly the Bethe entropy: a second proof of Theorem 2.2. With cycles, the Bethe free energy is neither exact nor convex, which explains both the good behaviour and the occasional multiple fixed points (ch. 9.1 adds two exact results).
+
+The code checks exactness on a random tree, then compares loopy BP with exact marginals on a 4 × 4 grid ($2^{16}$ states).
+
+```python
+import itertools
+import numpy as np
+
+def sum_product(n, edges, unary, pair, iters=200, damping=0.0):
+    """Parallel sum-product on a pairwise MRF. unary: (n, K) potentials,
+    pair[(i, j)]: (K, K) potential psi_ij(x_i, x_j). Returns beliefs (n, K)."""
+    K = unary.shape[1]
+    nbrs = {i: [] for i in range(n)}
+    for i, j in edges:
+        nbrs[i].append(j); nbrs[j].append(i)
+    psi = {}
+    for (i, j), P in pair.items():
+        psi[(i, j)], psi[(j, i)] = P, P.T
+    msg = {(i, j): np.ones(K) / K for i in nbrs for j in nbrs[i]}
+    for _ in range(iters):
+        new = {}
+        for (i, j) in msg:                      # message i -> j, a function of x_j
+            prod = unary[i] * np.prod([msg[(k, i)] for k in nbrs[i] if k != j], axis=0)
+            m = prod @ psi[(i, j)]
+            new[(i, j)] = (1 - damping) * m / m.sum() + damping * msg[(i, j)]
+        msg = new
+    b = np.array([unary[i] * np.prod([msg[(k, i)] for k in nbrs[i]], axis=0) for i in range(n)])
+    return b / b.sum(1, keepdims=True)
+
+def exact(n, edges, unary, pair):
+    X = np.array(list(itertools.product(range(unary.shape[1]), repeat=n)))
+    logp = sum(np.log(unary[i, X[:, i]]) for i in range(n))
+    logp = logp + sum(np.log(pair[(i, j)][X[:, i], X[:, j]]) for i, j in edges)
+    p = np.exp(logp - logp.max()); p /= p.sum()
+    return np.array([[p[X[:, i] == k].sum() for k in range(unary.shape[1])] for i in range(n)])
+
+rng = np.random.default_rng(0)
+potts = lambda w: np.exp(-w * (1 - np.eye(2)))           # psi = exp(-w [x_i != x_j])
+
+# (a) a random tree on 12 nodes: BP is exact
+n = 12
+tree = [(int(rng.integers(0, i)), i) for i in range(1, n)]
+un = np.exp(rng.normal(0, 1, (n, 2)))
+pt = {e: potts(1.0) for e in tree}
+print("tree, max |BP - exact| =", f"{np.abs(sum_product(n, tree, un, pt) - exact(n, tree, un, pt)).max():.1e}")
+
+# (b) a 4x4 grid: loopy BP is approximate, worse when couplings are strong
+s = 4; n = s * s
+grid = [(r * s + c, r * s + c + 1) for r in range(s) for c in range(s - 1)]
+grid += [(r * s + c, (r + 1) * s + c) for r in range(s - 1) for c in range(s)]
+un = np.exp(rng.normal(0, 0.3, (n, 2)))
+for w in [0.2, 0.6, 1.0]:
+    pg = {e: potts(w) for e in grid}
+    err = np.abs(sum_product(n, grid, un, pg, damping=0.5) - exact(n, grid, un, pg)).max()
+    print(f"grid, w = {w}: max |BP - exact| = {err:.4f}")
+```
+
+On the tree the error is $10^{-16}$, rounding only. On the grid, the largest error on a marginal grows with the coupling:
+$$
+0.0001 \ (w = 0.2), \qquad 0.0145 \ (w = 0.6), \qquad 0.1410 \ (w = 1.0).
+$$
+With strong couplings, messages circulating around the 4-cycles count the same evidence several times: BP becomes overconfident.
+
+::: recap
+Key takeaways — chapter 2
+
+-   Messages are partial sums (or minima) over the subtree behind an edge; two passes give all marginals (or min-marginals) of a tree in $O(|E| K^2)$.
+-   Min-sum with backtracking returns a MAP configuration on a tree; on a chain it is Viterbi.
+-   Loopy BP runs the same updates on cycles; its fixed points are stationary points of the Bethe free energy, an approximation that is exact on trees.
+:::
+
+## 3. Bayesian networks: representation and learning {#ch3}
+
+A Bayesian network describes how data could have been generated, each variable drawn given a few parents. Its factors are conditional probabilities, so $Z = 1$. This chapter covers its independences and how to learn its parameters and graph.
+
+### 3.1 Factorisation and d-separation
+
+::: def
+[Definition 3.1 — Bayesian network]{.tag} A Bayesian network is a DAG $G$ on $\{1, \dots, n\}$ with, for each node, a conditional probability table $p(x_i \mid x_{\mathrm{pa}(i)})$. It defines
+$$
+p(x) = \prod_{i=1}^n p(x_i \mid x_{\mathrm{pa}(i)}).
+$$
+With $K$ labels, node $i$ needs $(K-1) K^{|\mathrm{pa}(i)|}$ free parameters.
+:::
+
+Summing out the variables in reverse topological order shows that the product is normalised, and proves the basic independence of the model.
+
+:::: prop
+[Proposition 3.2 — Local Markov property]{.tag} In a Bayesian network, every variable is independent of its non-descendants given its parents.
+
+::: proof
+Let $D$ be the descendants of $i$ and $N$ its other non-descendants, so that $\mathrm{pa}(i) \subseteq N$. Summing the factorisation over $x_D$ in reverse topological order removes all their tables, each summing to one.
+
+What remains is $p(x_i \mid x_{\mathrm{pa}(i)})$ times a product of tables of variables in $N$. That is a function of $(x_i, x_{\mathrm{pa}(i)})$ times a function of $x_N$, and Proposition 0.2 concludes. [∎]{.qed}
+:::
+::::
+
+The general criterion inspects paths. On a path, a node is a **collider** if both neighbouring edges point into it ($\to v \leftarrow$).
+
+::: def
+[Definition 3.3 — d-separation]{.tag} A path is **blocked** by a set $Z$ if it contains a non-collider that belongs to $Z$, or a collider that is not in $Z$ and has no descendant in $Z$.
+
+The set $Z$ **d-separates** $X$ and $Y$ if it blocks every path between them.
+:::
+
+D-separation is sound and complete. If $Z$ d-separates $X$ and $Y$, then $X \perp Y \mid Z$ for every distribution factorising over $G$; otherwise some such distribution makes them dependent (Geiger, Verma and Pearl, 1990). Moralisation, which marries the parents of each node and drops directions, turns a Bayesian network into a Gibbs distribution, to which ch. 2 applies.
+
+::: ex
+[Example 3.4 — Explaining away]{.tag} A burglary $B$ and an earthquake $E$ can each set off an alarm $A$. Take $P(B = 1) = 0.01$, $P(E = 1) = 0.02$ and
+$$
+P(A = 1 \mid B, E) = 0.001,\ 0.3,\ 0.9,\ 0.95 \quad \text{for } (B, E) = (0,0), (0,1), (1,0), (1,1).
+$$
+
+1.  $B$ and $E$ are independent: the path $B \to A \leftarrow E$ is blocked at the collider $A$.
+2.  $P(A = 1) = 0.000970 + 0.00594 + 0.00882 + 0.00019 = 0.01592$.
+3.  Hearing the alarm, $P(B = 1 \mid A = 1) = 0.00901 / 0.01592 \approx 0.566$.
+4.  Learning that there was an earthquake, $P(B = 1 \mid A = 1, E = 1) = 0.00019 / 0.00613 \approx 0.031$.
+
+Observing the collider made $B$ and $E$ dependent: the earthquake *explains away* the alarm, and the probability of a burglary drops from
+$$
+0.566 \;\longrightarrow\; 0.031 .
+$$
+:::
+
+### 3.2 Parameter learning
+
+Observe $N$ independent complete samples $x^{(1)}, \dots, x^{(N)}$. Write $N(x_i, x_{\mathrm{pa}(i)})$ for the number of samples with a given configuration of a node and its parents.
+
+:::: prop
+[Proposition 3.5 — Maximum likelihood is counting]{.tag} The maximum-likelihood tables are the empirical conditional frequencies:
+$$
+\hat p(x_i \mid x_{\mathrm{pa}(i)}) = \frac{N(x_i, x_{\mathrm{pa}(i)})}{N(x_{\mathrm{pa}(i)})} .
+$$
+
+::: proof
+The log-likelihood is a sum, over nodes and parent configurations $u$, of separate terms
+$$
+\ell(\theta) = \sum_i \sum_u \sum_{a} N(x_i = a, x_{\mathrm{pa}(i)} = u) \log \theta_{i}(a \mid u).
+$$
+
+With $q(a) = N(a, u)/N(u)$, each inner sum equals $N(u) \sum_a q(a) \log \theta_i(a \mid u)$, maximal at $\theta_i(\cdot \mid u) = q$ by Gibbs' inequality. [∎]{.qed}
+:::
+::::
+
+Zero counts forbid events forever. A Dirichlet prior with pseudo-counts $\alpha_a > 0$ on each table gives a Dirichlet posterior, with counts $N(a, u) + \alpha_a$, whose mean replaces the frequencies:
+$$
+\hat p(a \mid u) = \frac{N(a, u) + \alpha_a}{N(u) + \sum_b \alpha_b}.
+$$
+With $\alpha_a = 1$ this is Laplace smoothing. With missing values, EM alternates expected counts and these updates ([semester 1 course](../s1-probabilistic-graphical-models/index.html#ch2)).
+
+### 3.3 Structure learning
+
+Plugging the maximum-likelihood tables into the log-likelihood gives a score for each graph. Writing $\hat I$ and $\hat H$ for empirical mutual information and entropy:
+
+::: key
+[Key result — the likelihood score decomposes]{.tag}
+$$
+\frac{1}{N}\, \ell(\hat\theta_G) = \sum_{i=1}^n \hat I\big(X_i ; X_{\mathrm{pa}(i)}\big) - \sum_{i=1}^n \hat H(X_i).
+$$
+:::
+
+Indeed, with the maximum-likelihood tables, the average log-likelihood of node $i$ is $-\hat H(X_i \mid X_{\mathrm{pa}(i)})$, and $H(X \mid U) = H(X) - I(X; U)$.
+
+The second sum does not depend on the graph. Adding a parent never decreases a mutual information, so the likelihood prefers the complete DAG, and a penalty is needed: the **BIC score** $\ell(\hat\theta_G) - \frac{d_G}{2} \log N$, with $d_G$ free parameters. Both scores are sums of one term per node, so a local search that adds, deletes or reverses one edge rescores one or two nodes per move.
+
+Finding the best graph is NP-hard in general, already for parent sets of size two (Chickering, 1996). One case is easy.
+
+:::: thm
+[Theorem 3.6 — Chow–Liu trees (Chow and Liu, 1968)]{.tag} Among Bayesian networks in which every node has at most one parent, a maximum-likelihood graph is obtained as follows. Compute a maximum-weight spanning tree of the complete graph with weights $\hat I(X_i; X_j)$, then orient it away from any root.
+
+::: proof
+In such a network, every non-root node has one parent, and the key result above reads
+$$
+\frac1N \ell(\hat\theta_G) = \sum_{(i, j) \in \text{tree}} \hat I(X_i ; X_j) - \sum_i \hat H(X_i).
+$$
+
+Mutual information is symmetric, so the score depends only on the undirected tree, not on the root. Adding edges never hurts, since $\hat I \ge 0$, so a spanning tree is optimal. Maximising the first sum over spanning trees is the maximum-weight spanning tree problem. [∎]{.qed}
+:::
+::::
+
+The code samples data from a random tree-structured network over eight binary variables, and counts the true edges that the Chow–Liu tree recovers.
+
+```python
+import numpy as np
+import networkx as nx
+
+rng = np.random.default_rng(0)
+d = 8
+parent = {i: int(rng.integers(0, i)) for i in range(1, d)}     # a random tree, root 0
+flip = {i: rng.uniform(0.05, 0.3) for i in parent}            # P(x_i != x_parent)
+true_edges = {frozenset((i, p)) for i, p in parent.items()}
+
+def sample(N):
+    X = np.zeros((N, d), dtype=int)
+    X[:, 0] = rng.random(N) < 0.5
+    for i in range(1, d):                                      # parents have smaller index
+        X[:, i] = X[:, parent[i]] ^ (rng.random(N) < flip[i])
+    return X
+
+def mutual_information(a, b):
+    mi = 0.0
+    for u in (0, 1):
+        for v in (0, 1):
+            pab = np.mean((a == u) & (b == v))
+            if pab > 0:
+                mi += pab * np.log(pab / (np.mean(a == u) * np.mean(b == v)))
+    return mi
+
+def chow_liu(X):
+    G = nx.Graph()
+    for i in range(d):
+        for j in range(i + 1, d):
+            G.add_edge(i, j, weight=mutual_information(X[:, i], X[:, j]))
+    return {frozenset(e) for e in nx.maximum_spanning_tree(G).edges()}
+
+for N in [30, 100, 300, 1000, 3000]:
+    hits = [len(chow_liu(sample(N)) & true_edges) for _ in range(20)]
+    print(f"N = {N:5d}: correct edges {np.mean(hits):.2f} / {d - 1} (mean of 20 data sets)")
+```
+
+Over 20 data sets, the tree has on average 5.00 of the 7 true edges at $N = 30$, 6.45 at $N = 100$ and 6.95 at $N = 300$, and is always exact from $N = 1000$. Errors come from noisy copies, whose mutual information is close to that of a two-step path.
+
+The alternative to scores tests conditional independences: the PC algorithm, in ch. 9.4.
+
+::: recap
+Key takeaways — chapter 3
+
+-   A Bayesian network multiplies conditional tables along a DAG; d-separation reads its independences, and colliders create dependence when observed (explaining away).
+-   Maximum likelihood counts; Dirichlet priors add pseudo-counts.
+-   The likelihood score is a sum of mutual informations between nodes and parents; it needs a penalty such as BIC, and for trees it is maximised exactly by the Chow–Liu spanning tree.
+:::
+
+## 4. Graph cuts: binary and multi-label energy minimisation {#ch4}
+
+MAP inference is NP-hard in general (Proposition 1.5), yet binary segmentation energies on millions of pixels are minimised exactly by one maximum flow. This chapter identifies why, submodularity, and extends the method to many labels.
+
+### 4.1 Maximum flow and minimum cut
+
+::: def
+[Definition 4.1 — Flow]{.tag} In a directed graph with capacities $c \ge 0$, source $s$ and sink $t$, a **flow** assigns to each edge a value $0 \le f(u, v) \le c(u, v)$.
+
+At every node other than $s$ and $t$, the inflow equals the outflow. The **value** $|f|$ of the flow is the net outflow of $s$.
+:::
+
+:::: thm
+[Theorem 4.2 — Max-flow min-cut (Ford and Fulkerson, 1956)]{.tag} The maximum value of a flow equals the minimum capacity of an s–t cut:
+$$
+\max_f |f| = \min_{(S, T)} c(S, T).
+$$
+
+::: proof
+*Weak inequality.* For any flow and any cut, conservation shows that $|f|$ equals the flow from $S$ to $T$ minus the flow from $T$ to $S$. This is at most $c(S, T)$.
+
+*Equality.* A maximum flow exists: the flows form a compact polytope and $|f|$ is linear.
+
+The **residual graph** of a flow has an edge $u \to v$ whenever $f(u, v) < c(u, v)$ or $f(v, u) > 0$. A path from the source to the sink in it would allow increasing $|f|$.
+
+So, at a maximum flow, the set $S$ of nodes reachable from $s$ in the residual graph does not contain $t$. Every edge leaving $S$ is saturated, and every edge entering $S$ carries no flow, otherwise its other endpoint would be reachable.
+
+Hence $|f| = c(S, T)$. [∎]{.qed}
+:::
+::::
+
+Augmenting along shortest paths (Edmonds and Karp, 1972) costs $O(|V| |E|^2)$; push–relabel (Goldberg and Tarjan, 1988) has better worst-case bounds. On vision grids, the Boykov–Kolmogorov algorithm (2004), which reuses search trees from both terminals, is usually fastest in practice.
+
+### 4.2 Binary energies: submodularity and the graph construction
+
+::: def
+[Definition 4.3 — Submodular pairwise term]{.tag} A pairwise term on binary labels, written as the table $\theta_{ij} = \begin{pmatrix} A & B \\ C & D \end{pmatrix}$ with rows $x_i$ and columns $x_j$, is **submodular** if
+$$
+\theta_{ij}(0, 0) + \theta_{ij}(1, 1) \;\le\; \theta_{ij}(0, 1) + \theta_{ij}(1, 0), \qquad \text{that is, } A + D \le B + C.
+$$
+:::
+
+Potts terms with positive weights are submodular: they pay only for disagreement. The construction rests on an identity, checked on the four entries:
+
+::: key
+[Key result — decomposition of a binary pairwise term]{.tag}
+$$
+\theta_{ij}(x_i, x_j) = A + (C - A)\, x_i + (D - C)\, x_j + (B + C - A - D)\, (1 - x_i)\, x_j .
+$$
+:::
+
+:::: thm
+[Theorem 4.4 — Submodular binary energies are minimised by one cut (Greig, Porteous and Seheult, 1989; Kolmogorov and Zabih, 2004)]{.tag} If every pairwise term of a binary energy is submodular, a global minimiser is obtained from a minimum s–t cut. The graph has $n + 2$ nodes and at most $n + |E|$ edges, and the labelling is $x_i = 1$ exactly when node $i$ is on the sink side.
+
+::: proof
+Apply the key result to every pairwise term. The energy becomes a constant, plus a linear term $\sum_i \ell_i x_i$, plus $\sum_{(i,j)} w_{ij} (1 - x_i) x_j$ with $w_{ij} = B + C - A - D \ge 0$ by submodularity.
+
+Build the graph:
+
+-   for each pairwise term, an edge $i \to j$ with capacity $w_{ij}$, cut exactly when $x_i = 0$ and $x_j = 1$;
+-   if $\ell_i > 0$, an edge $s \to i$ with capacity $\ell_i$, cut exactly when $x_i = 1$;
+-   if $\ell_i < 0$, an edge $i \to t$ with capacity $|\ell_i|$, cut exactly when $x_i = 0$, after writing $\ell_i x_i = \ell_i + |\ell_i| (1 - x_i)$.
+
+Cuts and labellings are in bijection, and each cut capacity is the energy of its labelling minus a constant. [∎]{.qed}
+:::
+::::
+
+Conversely, a sum of pairwise binary terms is representable by a cut only if every term is submodular (Kolmogorov and Zabih, 2004).
+
+::: ex
+[Example 4.5 — Building the graph]{.tag} Two variables with $\theta_1 = (3, 1)$, $\theta_2 = (0, 2)$ and $\theta_{12} = \begin{pmatrix} 0 & 3 \\ 1 & 0 \end{pmatrix}$, which is submodular since $0 + 0 \le 3 + 1$.
+
+1.  The key result gives $\theta_{12} = x_1 - x_2 + 4 (1 - x_1) x_2$.
+2.  With the unary terms, $E = 2 + (1 - x_1) + x_2 + 4 (1 - x_1) x_2$.
+3.  The graph has edges $1 \to t$ of capacity 1, $s \to 2$ of capacity 1 and $1 \to 2$ of capacity 4.
+4.  The four cuts cost 1, 0, 6 and 1 for $x = (0,0), (1,0), (0,1), (1,1)$, so the energies are 3, 2, 8 and 3.
+
+The minimum cut puts node 1 on the sink side and node 2 on the source side:
+$$
+x^\star = (1, 0), \qquad E(x^\star) = 2 .
+$$
+:::
+
+The code implements the construction with NetworkX, checks it against brute force, then denoises the image of the introduction, against thresholding and **ICM**, the coordinate descent of Besag (1986).
+
+```python
+import itertools
+import numpy as np
+import networkx as nx
+
+def mincut_binary(U, edges, P):
+    """Minimise sum_i U[i, x_i] + sum_e P[e][x_i, x_j] over x in {0,1}^n by one s-t min cut.
+    Every 2x2 table P[e] = [[A, B], [C, D]] must be submodular: A + D <= B + C."""
+    n = len(U)
+    lin = U[:, 1] - U[:, 0]                   # cost of label 1 relative to label 0
+    G = nx.DiGraph()
+    G.add_nodes_from(["s", "t"])
+    for (i, j), T in zip(edges, P):
+        (A, B), (C, D) = T
+        assert A + D <= B + C + 1e-12, "pairwise term not submodular"
+        lin[i] += C - A; lin[j] += D - C       # theta = A + (C-A) x_i + (D-C) x_j + (B+C-A-D)(1-x_i) x_j
+        G.add_edge(i, j, capacity=B + C - A - D)   # cut iff x_i = 0 and x_j = 1
+    for i in range(n):                         # x_i = 1 <=> node i on the sink side
+        if lin[i] > 0:
+            G.add_edge("s", i, capacity=lin[i])    # cut iff x_i = 1
+        else:
+            G.add_edge(i, "t", capacity=-lin[i])   # cut iff x_i = 0
+    _, (S, T) = nx.minimum_cut(G, "s", "t")
+    return np.array([1 if i in T else 0 for i in range(n)])
+
+def energy(x, U, edges, P):
+    return U[np.arange(len(x)), x].sum() + sum(T[x[i], x[j]] for (i, j), T in zip(edges, P))
+
+rng = np.random.default_rng(0)
+# 1) exactness on random submodular problems with 10 variables, against brute force
+for trial in range(3):
+    n = 10
+    U = rng.normal(0, 1, (n, 2))
+    edges = [(i, j) for i in range(n) for j in range(i + 1, n) if rng.random() < 0.4]
+    P = []
+    for _ in edges:
+        A, B, C = rng.normal(0, 1, 3)
+        P.append(np.array([[A, B], [C, B + C - A - rng.exponential()]]))  # A + D < B + C
+    X = np.array(list(itertools.product([0, 1], repeat=n)))
+    best = min(energy(x, U, edges, P) for x in X)
+    print(f"trial {trial}: graph cut {energy(mincut_binary(U, edges, P), U, edges, P):.6f}, brute force {best:.6f}")
+
+# 2) denoising a 48x48 binary image: y = x + Gaussian noise, Potts prior
+s, sigma, w = 48, 0.7, 1.0
+r, c = np.mgrid[:s, :s]
+truth = (((r - 20) ** 2 + (c - 18) ** 2 < 120) | ((r > 30) & (c > 26) & (c < 42))).astype(int).ravel()
+y = truth + sigma * rng.normal(size=s * s)
+U = np.stack([(y - 0) ** 2, (y - 1) ** 2], 1) / (2 * sigma ** 2)
+edges = [(i * s + j, i * s + j + 1) for i in range(s) for j in range(s - 1)]
+edges += [(i * s + j, (i + 1) * s + j) for i in range(s - 1) for j in range(s)]
+P = [w * (1 - np.eye(2))] * len(edges)
+
+x_thr = U.argmin(1)
+x_icm = x_thr.copy()                       # ICM (Besag, 1986): coordinate descent
+nbrs = [[] for _ in range(s * s)]
+for i, j in edges:
+    nbrs[i].append(j); nbrs[j].append(i)
+for sweep in range(10):
+    for i in range(s * s):
+        cost = U[i] + w * np.array([sum(x_icm[j] != k for j in nbrs[i]) for k in (0, 1)])
+        x_icm[i] = cost.argmin()
+x_gc = mincut_binary(U, edges, P)
+for name, x in [("threshold", x_thr), ("ICM", x_icm), ("graph cut", x_gc)]:
+    print(f"{name:9s}: energy {energy(x, U, edges, P):8.2f}, pixel error {np.mean(x != truth):.3%}")
+```
+
+On the three random problems, the cut and brute force agree to six decimals. On the image, the energies and the pixel errors are:
+
+| Method | Energy | Pixel error |
+|---|---|---|
+| Thresholding (data term only) | 2353.66 | 24.0 % |
+| ICM, 10 sweeps from thresholding | 1289.52 | 3.6 % |
+| Minimum cut (global minimum) | 1261.21 | 1.6 % |
+
+ICM stops where no single flip helps, though flipping a noisy blob would; the cut changes all pixels at once.
+
+### 4.3 Multi-label energies: move-making algorithms
+
+With $K \ge 3$ labels and a Potts prior, minimisation is NP-hard, by reduction from multiway cut (Boykov, Veksler and Zabih, 2001). Move-making algorithms solve a sequence of binary problems by cuts.
+
+::: def
+[Definition 4.6 — Metrics, expansion and swap moves]{.tag} Consider pairwise terms $w_{ij} V(x_i, x_j)$ with $w_{ij} \ge 0$. The label cost $V$ is a **semimetric** if $V(a, b) = V(b, a) \ge 0$, with equality to 0 if and only if $a = b$. It is a **metric** if moreover
+$$
+V(a, c) \le V(a, b) + V(b, c).
+$$
+
+An **α-expansion** move lets every variable either keep its label or switch to the label $\alpha$. An **α–β swap** lets the variables currently labelled $\alpha$ or $\beta$ exchange these two labels.
+:::
+
+:::: prop
+[Proposition 4.7 — Expansion moves are submodular for metrics]{.tag} If $V$ is a metric, the binary energy of an α-expansion move is submodular, so the best expansion move is found by one cut. For swap moves, a semimetric suffices.
+
+::: proof
+Let $z_i = 1$ mean "switch to $\alpha$" and $z_i = 0$ "keep $x_i$". The pairwise table of the move is
+$$
+\begin{pmatrix} V(x_i, x_j) & V(x_i, \alpha) \\ V(\alpha, x_j) & V(\alpha, \alpha) \end{pmatrix}, \quad \text{times } w_{ij}.
+$$
+
+Since $V(\alpha, \alpha) = 0$, submodularity reads $V(x_i, x_j) \le V(x_i, \alpha) + V(\alpha, x_j)$: the triangle inequality.
+
+For a swap, the table has entries $V(\alpha, \alpha) = V(\beta, \beta) = 0$ on its diagonal and $V(\alpha, \beta) \ge 0$ off it. [∎]{.qed}
+:::
+::::
+
+The **α-expansion algorithm** cycles through the labels, applying the best expansion move whenever it lowers the energy, until none does; it terminates since the energy strictly decreases. Its local minima are good:
+
+:::: thm
+[Theorem 4.8 — Approximation bound of α-expansion (Boykov, Veksler and Zabih, 2001)]{.tag} Let the data terms be non-negative and $V$ a metric, and set
+$$
+c = \frac{\max_{a \ne b} V(a, b)}{\min_{a \ne b} V(a, b)} .
+$$
+If $\hat x$ cannot be improved by any expansion move and $x^\star$ is a global minimiser, then
+$$
+E(\hat x) \;\le\; 2c\, E(x^\star).
+$$
+For the Potts model, $c = 1$ and the factor is 2.
+
+::: proof
+Fix a label $\alpha$ and let $O_\alpha = \{ i : x^\star_i = \alpha \}$.
+
+Let $x^\alpha$ be the expansion of $\hat x$ that puts $\alpha$ exactly on $O_\alpha$; by assumption, $E(\hat x) \le E(x^\alpha)$.
+
+The two labellings agree outside $O_\alpha$. Let $E_\alpha(\cdot)$ collect the data terms of $O_\alpha$ and the pairwise terms with an end in $O_\alpha$; the other terms cancel, and:
+
+-   inside $O_\alpha$, $x^\alpha$ and $x^\star$ coincide, and pairwise terms with both ends in $O_\alpha$ are zero;
+-   on a boundary edge, with $i \in O_\alpha$ and $j \notin O_\alpha$, we have $x^\star_i \ne x^\star_j$, hence
+$$
+V(\alpha, \hat x_j) \le \max V \le c\, V(x^\star_i, x^\star_j).
+$$
+
+Writing $\partial O_\alpha$ for the boundary edges, it follows that
+$$
+E_\alpha(\hat x) \le \sum_{i \in O_\alpha} \theta_i(x^\star_i) + c \sum_{(i,j) \in \partial O_\alpha} w_{ij} V(x^\star_i, x^\star_j).
+$$
+
+Sum over $\alpha$. On the left, every data term appears once and every pairwise term at least once, all non-negative, so the sum is at least $E(\hat x)$. On the right, every boundary edge of $x^\star$ appears twice, once for each of its two labels. So
+$$
+E(\hat x) \le E_{\mathrm{data}}(x^\star) + 2c\, E_{\mathrm{smooth}}(x^\star) \le 2c\, E(x^\star).
+$$
+[∎]{.qed}
+:::
+::::
+
+The bound holds whatever the order of the moves; in practice the energy is often within a few percent of the optimum, which ch. 6 can certify. The code runs α-expansion on a three-label image, with a Potts and a truncated linear prior, both metrics.
+
+```python
+import numpy as np
+import networkx as nx
+
+def mincut_binary(U, edges, P):
+    """Same construction as in the previous block (submodular binary energy)."""
+    lin = U[:, 1] - U[:, 0]
+    G = nx.DiGraph(); G.add_nodes_from(["s", "t"])
+    for (i, j), ((A, B), (C, D)) in zip(edges, P):
+        lin[i] += C - A; lin[j] += D - C
+        G.add_edge(i, j, capacity=B + C - A - D)
+    for i in range(len(U)):
+        G.add_edge(*(("s", i) if lin[i] > 0 else (i, "t")), capacity=abs(lin[i]))
+    _, (S, T) = nx.minimum_cut(G, "s", "t")
+    return np.array([int(i in T) for i in range(len(U))])
+
+def energy(x, U, edges, V):
+    return U[np.arange(len(x)), x].sum() + sum(V[x[i], x[j]] for i, j in edges)
+
+def alpha_expansion(U, edges, V, x, sweeps=5):
+    for _ in range(sweeps):
+        changed = False
+        for a in range(U.shape[1]):
+            Ub = np.stack([U[np.arange(len(x)), x], U[:, a]], 1)      # z_i = 0: keep, 1: switch to a
+            P = [np.array([[V[x[i], x[j]], V[x[i], a]], [V[a, x[j]], V[a, a]]]) for i, j in edges]
+            z = mincut_binary(Ub, edges, P)
+            x_new = np.where(z == 1, a, x)
+            if energy(x_new, U, edges, V) < energy(x, U, edges, V) - 1e-9:
+                x, changed = x_new, True
+        if not changed:
+            break
+    return x
+
+rng = np.random.default_rng(1)
+s, sigma, K = 40, 0.6, 3
+r, c = np.mgrid[:s, :s]
+truth = np.zeros((s, s), int)
+truth[(r - 14) ** 2 + (c - 14) ** 2 < 100] = 1
+truth[(r > 22) & (c > 18)] = 2
+truth = truth.ravel()
+y = truth + sigma * rng.normal(size=s * s)
+U = (y[:, None] - np.arange(K)[None, :]) ** 2 / (2 * sigma ** 2)
+edges = [(i * s + j, i * s + j + 1) for i in range(s) for j in range(s - 1)]
+edges += [(i * s + j, (i + 1) * s + j) for i in range(s - 1) for j in range(s)]
+for name, V in [("Potts", 1.2 * (1 - np.eye(K))),
+                ("truncated linear", np.minimum(np.abs(np.subtract.outer(np.arange(K), np.arange(K))), 1.5))]:
+    x0 = U.argmin(1)
+    x = alpha_expansion(U, edges, V, x0.copy())
+    print(f"{name:16s}: threshold energy {energy(x0, U, edges, V):7.1f} (error {np.mean(x0 != truth):.1%}), "
+          f"alpha-expansion {energy(x, U, edges, V):7.1f} (error {np.mean(x != truth):.1%})")
+```
+
+With the Potts prior, the energy falls from 1877.8 to 935.9 and the pixel error from 22.8 % to 1.3 %; with the truncated linear prior, from 1697.0 to 930.4, with 1.2 % errors.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Maximum flow equals minimum cut; at a maximum flow, the nodes reachable in the residual graph give a minimum cut.
+-   A binary pairwise energy whose terms satisfy $A + D \le B + C$ is minimised exactly by one cut, through the decomposition of each term.
+-   Non-submodular binary energies are NP-hard in general (Proposition 1.5).
+-   For metric priors, α-expansion solves binary submodular moves and reaches a local minimum within a factor $2c$ of the optimum.
+:::
+
+## 5. Linear programming and convex relaxations {#ch5}
+
+MAP inference is a linear program over the intractable marginal polytope (ch. 1.4). A larger polytope with local constraints gives a polynomial-size program and a lower bound. When is it exact, what if it is not, and how does it compare with other convex relaxations?
+
+### 5.1 The local polytope
+
+::: def
+[Definition 5.1 — Local polytope]{.tag} For a pairwise model on $G = (V, E)$, the **local polytope** $\mathcal L$ is the set of vectors $\mu = (\mu_i, \mu_{ij})$ of non-negative node and edge "pseudo-marginals" such that, for all nodes, edges and labels,
+$$
+\sum_{a} \mu_i(a) = 1, \qquad \sum_{b} \mu_{ij}(a, b) = \mu_i(a), \qquad \sum_{a} \mu_{ij}(a, b) = \mu_j(b).
+$$
+The **LP relaxation** of MAP inference minimises $\langle \theta, \mu \rangle$ over $\mathcal L$.
+:::
+
+True marginals satisfy these constraints, so $\mathcal M \subseteq \mathcal L$, and
+$$
+\min_{\mu \in \mathcal L} \langle \theta, \mu \rangle \;\le\; \min_{\mu \in \mathcal M} \langle \theta, \mu \rangle = \min_x E(x).
+$$
+The relaxation has $n K + |E| K^2$ variables. It goes back to Schlesinger's work of the 1970s on the max-sum problem, reviewed by Werner (2007), and Wainwright, Jaakkola and Willsky (2005) connect it to message passing.
+
+The integral points of $\mathcal L$ are the vectors $\phi(x)$; an integral optimal solution is a MAP labelling, and the relaxation is then **tight**.
+
+### 5.2 Trees: the relaxation is exact
+
+:::: thm
+[Theorem 5.2 — On a tree, the local polytope is the marginal polytope]{.tag} If $G$ is a tree, then $\mathcal L = \mathcal M$, and the LP relaxation is exact.
+
+::: proof
+Given $\mu \in \mathcal L$, define, with the convention $0/0 = 0$,
+$$
+q(x) = \prod_{i \in V} \mu_i(x_i) \prod_{(i,j) \in E} \frac{\mu_{ij}(x_i, x_j)}{\mu_i(x_i)\, \mu_j(x_j)} .
+$$
+
+Let $\ell$ be a leaf, attached to $k$. The variable $x_\ell$ appears only in the two factors
+$$
+\mu_\ell(x_\ell) \cdot \frac{\mu_{\ell k}(x_\ell, x_k)}{\mu_\ell(x_\ell)\, \mu_k(x_k)},
+$$
+whose sum over $x_\ell$ is $\mu_k(x_k)/\mu_k(x_k) = 1$ by marginalisation.
+
+Summing out a leaf gives the same formula on the smaller tree. By induction, $q$ sums to one with marginals $\mu_i$ and $\mu_{ij}$, so $\mu = \mathbb E_q[\phi] \in \mathcal M$. [∎]{.qed}
+:::
+::::
+
+With cycles, $\mathcal L$ has fractional vertices, as on a cycle whose couplings cannot all be satisfied.
+
+::: ex
+[Example 5.3 — The frustrated triangle]{.tag} Three binary variables on a triangle, no data terms, and on each edge the antiferromagnetic term $\theta_{ij}(a, b) = [a = b]$, which pays 1 when two neighbours agree.
+
+1.  Two colours cannot alternate around an odd cycle, so some edge always agrees: the minimum energy is 1.
+2.  Set $\mu_i = (\frac12, \frac12)$ for every node, and put mass $\frac12$ on each of the two disagreeing pairs of every edge, $\mu_{ij}(0, 1) = \mu_{ij}(1, 0) = \frac12$.
+3.  This point satisfies the constraints of Definition 5.1, and its cost is 0.
+
+So the relaxation is not tight here:
+$$
+\min_{\mathcal L} \langle \theta, \mu \rangle = 0 \;<\; 1 = \min_x E(x).
+$$
+Each edge is locally happy, but no labelling reproduces these edge marginals.
+:::
+
+### 5.3 Submodular energies: the relaxation is exact
+
+The second tight case is the one solved by graph cuts in ch. 4; the proof gives a rounding scheme.
+
+:::: thm
+[Theorem 5.4 — Tightness for submodular binary energies]{.tag} If every pairwise term of a binary energy is submodular, the LP relaxation is tight. Moreover, for an optimal $\mu$ and almost every threshold $t \in (0, 1)$, the labelling $x^t_i = [\mu_i(1) > t]$ is a global minimiser.
+
+::: proof
+*Step 1: the best edge marginal.* Fix the node values $a = \mu_i(1)$ and $b = \mu_j(1)$. The edge marginals compatible with them form a segment: $\mu_{ij}(1, 1) = u$, with $u$ between $\max(0, a + b - 1)$ and $\min(a, b)$, the other entries following from the constraints.
+
+The cost $\langle \theta_{ij}, \mu_{ij} \rangle$ is affine in $u$, with slope $A + D - B - C \le 0$. So the minimum is at $u = \min(a, b)$, whatever the other edges do.
+
+*Step 2: thresholding.* Draw $t$ uniformly in $(0, 1)$ and set $x^t_i = [\mu_i(1) > t]$. Then $P(x^t_i = 1) = \mu_i(1)$ and $P(x^t_i = x^t_j = 1) = \min(a, b)$.
+
+By step 1, an optimal $\mu$ can be taken with $\mu_{ij}(1,1) = \min(a, b)$ on every edge. Its edge marginals are then exactly those of $(x^t_i, x^t_j)$, hence
+$$
+\langle \theta, \mu \rangle = \mathbb E_t\big[ E(x^t) \big].
+$$
+
+*Step 3.* Every $E(x^t)$ is at least $\min_x E$, which is at least the LP value. The average equals the LP value, so $E(x^t) = \min_x E$ for almost every $t$. [∎]{.qed}
+:::
+::::
+
+For arbitrary binary terms, the relaxation is still **half-integral**, with values in $\{0, \frac12, 1\}$ (ch. 9.2).
+
+The code builds the relaxation and solves it with SciPy's HiGHS solver, on a path, on the triangle of Example 5.3, and on random 3 × 3 grids.
+
+```python
+import itertools
+import numpy as np
+from scipy.optimize import linprog
+from scipy.sparse import lil_matrix
+
+def local_polytope_lp(K, unary, edges, pair):
+    """min <theta, mu> over the local polytope. unary: (n, K), pair: list of (K, K)."""
+    n = len(unary)
+    nv = n * K + len(edges) * K * K
+    ui = lambda i, a: i * K + a
+    pi = lambda e, a, b: n * K + e * K * K + a * K + b
+    rows = n + 2 * len(edges) * K
+    A = lil_matrix((rows, nv)); bvec = np.zeros(rows); r = 0
+    for i in range(n):                                   # sum_a mu_i(a) = 1
+        for a in range(K):
+            A[r, ui(i, a)] = 1
+        bvec[r] = 1; r += 1
+    for e, (i, j) in enumerate(edges):                   # marginalisation constraints
+        for a in range(K):
+            for b in range(K):
+                A[r, pi(e, a, b)] = 1
+            A[r, ui(i, a)] = -1; r += 1
+        for b in range(K):
+            for a in range(K):
+                A[r, pi(e, a, b)] = 1
+            A[r, ui(j, b)] = -1; r += 1
+    cost = np.concatenate([unary.ravel()] + [p.ravel() for p in pair])
+    res = linprog(cost, A_eq=A.tocsr(), b_eq=bvec, bounds=(0, None), method="highs")
+    return res.fun, res.x[: n * K].reshape(n, K)
+
+def brute_force(K, unary, edges, pair):
+    n = len(unary)
+    return min(sum(unary[i, x[i]] for i in range(n)) + sum(p[x[i], x[j]] for (i, j), p in zip(edges, pair))
+               for x in itertools.product(range(K), repeat=n))
+
+anti = np.eye(2)                         # pay 1 when two neighbours agree (antiferromagnetic)
+for name, edges in [("path 0-1-2", [(0, 1), (1, 2)]), ("triangle", [(0, 1), (1, 2), (0, 2)])]:
+    val, mu = local_polytope_lp(2, np.zeros((3, 2)), edges, [anti] * len(edges))
+    print(f"{name:10s}: LP {val:.3f}, MAP {brute_force(2, np.zeros((3, 2)), edges, [anti] * len(edges)):.3f}, "
+          f"mu_i(1) = {np.round(mu[:, 1], 3) + 0.0}")
+
+rng = np.random.default_rng(0)
+s = 3; n = s * s
+grid = [(r * s + c, r * s + c + 1) for r in range(s) for c in range(s - 1)]
+grid += [(r * s + c, (r + 1) * s + c) for r in range(s - 1) for c in range(s)]
+for name, K, make, scale in [("binary submodular", 2, lambda: rng.exponential() * (1 - np.eye(2)), 1.0),
+                             ("binary, mixed signs", 2, lambda: rng.normal(0, 2) * (1 - np.eye(2)), 0.3),
+                             ("Potts, 3 labels", 3, lambda: rng.exponential(2) * (1 - np.eye(3)), 0.5)]:
+    unary = rng.normal(0, scale, (n, K))
+    pair = [make() for _ in grid]
+    val, mu = local_polytope_lp(K, unary, grid, pair)
+    vals = sorted({float(v) for v in np.round(mu.ravel(), 3) + 0.0})
+    print(f"{name:20s}: LP {val:.4f}, MAP {brute_force(K, unary, grid, pair):.4f}, values of mu_i: {vals}")
+```
+
+The output confirms the theory:
+
+| Instance | LP value | MAP energy | Node pseudo-marginals |
+|---|---|---|---|
+| Path, antiferromagnetic | 0.000 | 0.000 | integral (1, 0, 1) |
+| Triangle, antiferromagnetic | 0.000 | 1.000 | all ½ |
+| 3 × 3 grid, submodular | −3.9077 | −3.9077 | integral |
+| 3 × 3 grid, couplings of mixed signs | −10.2094 | −9.5329 | all ½ |
+| 3 × 3 grid, Potts with 3 labels | −0.9998 | −0.9998 | integral |
+
+The mixed-sign grid contains frustrated 4-cycles (an odd number of repulsive edges), and the relaxation answers ½ everywhere: half-integrality in action. The Potts instance is tight, as is common when data terms dominate.
+
+### 5.4 Beyond linear programming: quadratic, conic and semidefinite relaxations
+
+Could a richer convex program give a tighter bound?
+
+*Quadratic relaxation.* Keep node marginals in the simplex and replace $\mu_{ij}(a, b)$ by $\mu_i(a) \mu_j(b)$:
+$$
+\min_{\mu_i \in \Delta_K} \; \sum_i \langle \theta_i, \mu_i \rangle + \sum_{(i,j)} \mu_i^\top \theta_{ij}\, \mu_j
+$$
+is *exact*, since a multilinear function on a product of simplices reaches its minimum at a vertex (Exercise 10), but not convex. Ravikumar and Lafferty (2006) add $\sum_{i,a} d_i(a) (\mu_i(a)^2 - \mu_i(a))$ with $d \ge 0$ large enough, which vanishes at integral points and convexifies the objective: the QP-RL relaxation.
+
+*Second-order cone relaxation.* Pairwise variables constrained by second-order cone inequalities: SOCP-MS, by Muramatsu and Suzuki (2003) for two labels, extended to any number of labels by Kumar, Torr and Zisserman (2006).
+
+*Semidefinite relaxation.* Lifting $x$ to a positive semidefinite matrix gives, for maximum cut, the 0.878-approximation of Goemans and Williamson (1995).
+
+:::: thm
+[Theorem 5.5 — Dominance of the LP relaxation (Kumar, Kolmogorov and Torr, 2009)]{.tag} The SOCP-MS and QP-RL relaxations are equivalent. The LP relaxation over the local polytope strictly dominates both: its lower bound is never worse, and is better on some instances.
+
+More generally, a large class of SOCP relaxations, and the equivalent QP relaxations, is dominated by the LP relaxation. SOCP constraints built on variables that form cycles or cliques of the graph escape this dominance and can be strictly tighter.
+
+::: proof
+See Kumar, Kolmogorov and Torr (2009). For the dominance it suffices to map every point of the local polytope to a feasible point of the conic program with no larger objective: the conic optimum can then never exceed the LP optimum. The paper builds such maps, and exhibits instances where the inequality is strict. [∎]{.qed}
+:::
+::::
+
+Tightness comes from constraining the right sets of variables, cycles in particular, not from a more expressive program. On the triangle of Example 5.3, one constraint on the joint law of its three variables removes the fractional vertex (Exercise 9); adding such constraints where violated is a research direction of ch. 10.
+
+::: recap
+Key takeaways — chapter 5
+
+-   The LP relaxation minimises the energy over locally consistent pseudo-marginals; it is a polynomial-size lower bound on the MAP energy.
+-   It is exact on trees, where locally consistent marginals always come from a distribution (Theorem 5.2).
+-   It is exact for submodular binary energies, and thresholding an optimal solution gives a minimiser (Theorem 5.4).
+-   Frustrated cycles create fractional vertices; for binary problems the relaxation is half-integral.
+-   The LP relaxation dominates the QP and SOCP relaxations of the literature; cycle constraints, not the type of program, are what tighten it.
+:::
+
+## 6. Tree-reweighted message passing and dual decomposition {#ch6}
+
+A generic LP solver handles the relaxation of ch. 5 on a 3 × 3 grid, not on a megapixel image. Its dual maximises a lower bound over *reparametrisations*, or over tree decompositions, and gives solvers that also certify optimality.
+
+### 6.1 Reparametrisation and the dual of the relaxation
+
+::: def
+[Definition 6.1 — Reparametrisation]{.tag} For every edge $(i, j)$, choose vectors $\lambda_{ij \to i} \in \mathbb R^K$ and $\lambda_{ij \to j} \in \mathbb R^K$, and move cost between edges and nodes:
+$$
+\theta^\lambda_i(a) = \theta_i(a) + \sum_{j \in N(i)} \lambda_{ij \to i}(a), \qquad \theta^\lambda_{ij}(a, b) = \theta_{ij}(a, b) - \lambda_{ij \to i}(a) - \lambda_{ij \to j}(b).
+$$
+:::
+
+What is added at a node is subtracted from its edges, so $E_{\theta^\lambda}(x) = E_\theta(x)$ for every $x$: the tables change, not the energy. Min-sum messages are such reparametrisations. Bounding each table by its minimum gives, for every $\lambda$:
+$$
+\mathrm{LB}(\lambda) = \sum_i \min_a \theta^\lambda_i(a) + \sum_{(i,j)} \min_{a, b} \theta^\lambda_{ij}(a, b) \;\le\; \min_x E(x).
+$$
+
+:::: thm
+[Theorem 6.2 — The dual of the LP relaxation]{.tag} The best reparametrisation bound equals the LP relaxation:
+$$
+\max_\lambda \mathrm{LB}(\lambda) = \min_{\mu \in \mathcal L} \langle \theta, \mu \rangle .
+$$
+
+::: proof
+Write $\mathcal L$ as: each $\mu_i$ and each $\mu_{ij}$ in its simplex, plus the marginalisation constraints. The simplex constraint on $\mu_{ij}$ is implied by the others, so adding it changes nothing.
+
+Dualise only the marginalisation constraints, with multiplier $\lambda_{ij \to i}(a)$ for $\mu_i(a) - \sum_b \mu_{ij}(a, b) = 0$, and similarly for $j$. The Lagrangian is
+$$
+\langle \theta, \mu \rangle + \sum_{(i,j), a} \lambda_{ij \to i}(a) \Big( \mu_i(a) - \sum_b \mu_{ij}(a, b) \Big) + (\text{same for } j) = \langle \theta^\lambda, \mu \rangle .
+$$
+
+Minimising a linear function over a simplex picks its smallest coefficient, so the dual function is $\mathrm{LB}(\lambda)$, and strong duality (Theorem 0.4) gives equality. [∎]{.qed}
+:::
+::::
+
+The bound certifies solutions: if a labelling takes a minimising entry of every reparametrised table, its energy equals $\mathrm{LB}(\lambda)$, so it is a global minimiser.
+
+### 6.2 Tree-reweighted bounds
+
+Split the energy into trees, on which minimisation and summation are exact (ch. 2). Let $\rho$ be a probability distribution over spanning trees $T$ of $G$, and $\rho_e > 0$ the probability that a random tree contains the edge $e$.
+
+Choose tree parameters $\theta^T$, supported on the nodes and edges of $T$, with $\sum_T \rho_T \theta^T = \theta$. A natural choice keeps the unary terms and sets $\theta^T_e = \theta_e / \rho_e$ on the edges of $T$.
+
+:::: prop
+[Proposition 6.3 — Tree-reweighted bounds]{.tag} For every such decomposition:
+$$
+\min_x E_\theta(x) \;\ge\; \sum_T \rho_T \min_x E_{\theta^T}(x), \qquad \log Z(\theta) \;\le\; \sum_T \rho_T \log Z(\theta^T).
+$$
+
+::: proof
+The energy is linear in its parameters, so $E_\theta(x) = \sum_T \rho_T E_{\theta^T}(x)$. A minimum of a sum is at least the sum of the minima, which gives the first bound.
+
+The log-partition function $A(\theta) = \log Z(\theta)$ is convex (Proposition 1.6). Jensen's inequality for the convex combination $\theta = \sum_T \rho_T \theta^T$ gives the second. [∎]{.qed}
+:::
+::::
+
+Both right-hand sides are computed exactly on each tree. *Tree-reweighted max-product* maximises the first over decompositions, and *tree-reweighted sum-product* minimises the second, which gives approximate marginals with a guaranteed upper bound on $\log Z$ (Wainwright, Jaakkola and Willsky, 2005).
+
+:::: thm
+[Theorem 6.4 — The optimal tree bound is the LP relaxation (Wainwright, Jaakkola and Willsky, 2005)]{.tag} If every edge has $\rho_e > 0$, the maximum of the first bound of Proposition 6.3, over all decompositions with $\sum_T \rho_T \theta^T = \theta$, equals $\min_{\mu \in \mathcal L} \langle \theta, \mu \rangle$.
+
+::: proof
+*Sketch.* On each tree, the minimum energy equals the LP over the tree's local polytope (Theorem 5.2). Dualising the constraint $\sum_T \rho_T \theta^T = \theta$ gives, as in Theorem 6.2, a linear program over pseudo-marginals that must agree across trees. Agreement across trees covering every edge is exactly membership in $\mathcal L$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 6.5 — The tree bound on the frustrated triangle]{.tag} On the triangle of Example 5.3, use the three paths obtained by deleting one edge, each with $\rho_T = \frac13$. Every edge belongs to two paths, so $\rho_e = \frac23$, and each path carries the tables $\frac32 [a = b]$ on its two edges.
+
+Alternating labels make every path's energy 0, so the bound is
+$$
+\tfrac13 (0 + 0 + 0) = 0 < 1 = \min_x E(x),
+$$
+the LP value of Example 5.3, as Theorem 6.4 predicts. Trees cannot see the odd cycle.
+:::
+
+### 6.3 Sequential tree-reweighted message passing (TRW-S)
+
+The first tree-reweighted algorithms, with parallel updates, could oscillate. Kolmogorov (2006) introduced a sequential schedule with a monotone bound.
+
+Order the nodes, say in raster order, and use as trees the chains monotone in this order. Let $\gamma_{st} = \rho_{st} / \rho_s$, with $\rho_s$ the probability that a tree contains $s$; with row and column chains on a grid, $\gamma_{st} = \frac12$. Visit the nodes in order, then in reverse order, and at each node $s$:
+
+1.  compute the belief $\hat\theta_s = \theta_s + \sum_{u \in N(s)} m_{u \to s}$;
+2.  for every neighbour $t$ later in the current order, update
+$$
+m_{s \to t}(x_t) = \min_{x_s} \big[ \gamma_{st}\, \hat\theta_s(x_s) - m_{t \to s}(x_s) + \theta_{st}(x_s, x_t) \big],
+$$
+then subtract its minimum to keep the numbers bounded.
+
+:::: thm
+[Theorem 6.6 — Properties of TRW-S (Kolmogorov, 2006)]{.tag} The lower bound computed by TRW-S never decreases. Its limit points satisfy **weak tree agreement**: there are non-empty sets of optimal labellings of the trees whose restrictions to every shared node and edge coincide.
+
+For binary pairwise energies, weak tree agreement implies that the bound equals the LP relaxation, and for submodular binary energies TRW-S finds a global minimum (Kolmogorov and Wainwright, 2005).
+
+::: proof
+*Key step.* Each update at node $s$ is a reparametrisation averaging the min-marginals of $s$ over the trees containing it; the bound, a sum of tree minima, cannot decrease. Convergence is proved in Kolmogorov (2006). [∎]{.qed}
+:::
+::::
+
+On multi-label problems TRW-S can stop below the LP value, yet it is among the best methods on vision energies in the benchmarks of Szeliski et al. (2008) and Kappes et al. (2015). MPLP (Globerson and Jaakkola, 2007) is another convergent coordinate ascent on the dual.
+
+### 6.4 Dual decomposition
+
+Dual decomposition (Komodakis, Paragios and Tziritas, 2011; Sontag, Globerson and Jaakkola, 2011) splits the energy into easy **slave** problems, $E = \sum_k E_k$: trees, chains, or submodular pieces. Give each slave its own copy $x^k$ of the labels, and dualise the agreement of the copies with multipliers $\lambda_k$ on the node indicators, constrained by $\sum_k \lambda_k = 0$:
+$$
+g(\lambda) = \sum_k \min_{x^k} \Big[ E_k(x^k) + \sum_{i, a} \lambda_{k, i}(a)\, [x^k_i = a] \Big].
+$$
+
+:::: prop
+[Proposition 6.7 — The decomposition dual]{.tag} For every admissible $\lambda$, $g(\lambda) \le \min_x E(x)$, and $g$ is concave.
+
+If $\hat x^k$ minimises slave $k$ at $\lambda$, the indicators $[\hat x^k_i = a]$, projected onto the constraint $\sum_k \lambda_k = 0$, form a supergradient of $g$.
+
+If all slaves return the same labelling, that labelling is a global minimiser of $E$.
+
+::: proof
+Setting all copies equal to a labelling $x$ makes the multiplier terms sum to zero, since $\sum_k \lambda_k = 0$. So $g(\lambda) \le E(x)$ for every $x$: this is Proposition 0.5.
+
+Each slave minimum is a minimum of affine functions of $\lambda_k$, hence concave, with the indicators of a minimiser as supergradient (Danskin). If the slaves agree on $\hat x$, then $g(\lambda) = E(\hat x)$. [∎]{.qed}
+:::
+::::
+
+When the slaves are trees covering every edge, the optimum of $g$ is again the LP relaxation (Komodakis, Paragios and Tziritas, 2011): the bound of TRW-S, by another route. Projected supergradient ascent $\lambda \leftarrow \lambda + \alpha_t\, g_t$ converges to it when $\alpha_t \to 0$ and $\sum_t \alpha_t = \infty$. A practical choice is Polyak's step, with the best energy found so far:
+$$
+\alpha_t = \frac{E_{\mathrm{best}} - g(\lambda_t)}{\|g_t\|^2}.
+$$
+
+The code splits a 30 × 30 three-label Potts grid into two slaves, the row chains and the column chains, each with half of the data term and solved by Viterbi.
+
+```python
+import numpy as np
+
+def chains_min(U, V):
+    """Exact min-sum (Viterbi) on every row of U (rows, length, K), Potts-like table V (K, K)."""
+    R, L, K = U.shape
+    M = U[:, 0].copy(); back = np.zeros((R, L, K), int)
+    for j in range(1, L):
+        tot = M[:, :, None] + V[None]                 # (R, K_prev, K_next)
+        back[:, j] = tot.argmin(1)
+        M = tot.min(1) + U[:, j]
+    x = np.zeros((R, L), int); x[:, -1] = M.argmin(1)
+    for j in range(L - 1, 0, -1):
+        x[:, j - 1] = back[np.arange(R), j, x[:, j]]
+    return M.min(1).sum(), x
+
+def energy(x, U, V):
+    return (np.take_along_axis(U, x[..., None], 2).sum()
+            + V[x[:, :-1], x[:, 1:]].sum() + V[x[:-1], x[1:]].sum())
+
+rng = np.random.default_rng(0)
+s, K, sigma = 30, 3, 0.8
+r, c = np.mgrid[:s, :s]
+truth = np.zeros((s, s), int); truth[(r - 10) ** 2 + (c - 10) ** 2 < 60] = 1; truth[(r > 16) & (c > 12)] = 2
+y = truth + sigma * rng.normal(size=(s, s))
+U = (y[..., None] - np.arange(K)) ** 2 / (2 * sigma ** 2)
+V = 1.0 * (1 - np.eye(K))                            # Potts pairwise term
+
+lam = np.zeros((s, s, K))                            # multipliers: rows get +lam, columns -lam
+best_primal, history = np.inf, []
+for t in range(300):
+    gH, xH = chains_min(U / 2 + lam, V)                       # slave 1: horizontal chains
+    gV, xVt = chains_min((U / 2 - lam).transpose(1, 0, 2), V)  # slave 2: vertical chains
+    xV = xVt.T
+    dual = gH + gV                                   # a lower bound on min E, for every lam
+    for x in (xH, xV):
+        if energy(x, U, V) < best_primal:
+            best_primal, x_best = energy(x, U, V), x
+    g = np.eye(K)[xH] - np.eye(K)[xV]                # supergradient of the dual
+    if best_primal - dual < 1e-6:                    # lower bound = energy of a labelling
+        print(f"iter {t:3d}: gap closed, the best labelling is a certified global minimum"); break
+    step = (best_primal - dual) / (g ** 2).sum()     # Polyak step with the best energy so far
+    lam += step * g
+    history.append(dual)
+    if t % 10 == 0:
+        print(f"iter {t:3d}: lower bound {dual:8.3f}, best energy {best_primal:8.3f}, "
+              f"disagreeing pixels {int((xH != xV).sum())}")
+print(f"best energy {best_primal:.3f}, best bound {max(history + [dual]):.3f}, pixel error {np.mean(x_best != truth):.1%}")
+```
+
+The run prints:
+
+| Iteration | Lower bound | Best energy | Pixels where the slaves disagree |
+|---|---|---|---|
+| 0 | 472.933 | 605.348 | 161 |
+| 10 | 497.130 | 508.295 | 35 |
+| 17 | 499.652 | 499.652 | gap closed |
+
+After 17 steps, the bound equals the energy of a labelling, a *certified* global minimum, with 3.0 % pixel errors; no heuristic of ch. 4 gives such a certificate. On energies with frustrated cycles, the gap stays positive and measures how far the relaxation is from the truth.
+
+::: recap
+Key takeaways — chapter 6
+
+-   Reparametrisations move cost between nodes and edges without changing the energy; the best bound they give is exactly the LP relaxation (Theorem 6.2).
+-   Decompositions into trees bound the minimum energy from below and $\log Z$ from above; the best tree bound is again the LP relaxation.
+-   TRW-S increases the bound monotonically and stops at weak tree agreement; for submodular binary problems it is exact.
+-   Dual decomposition maximises a concave, non-smooth dual by supergradient steps, solving each slave exactly; agreement of the slaves, or a zero gap, certifies optimality.
+:::
+
+## 7. Causality {#ch7}
+
+A Bayesian network that fits the data perfectly can still mislead about the effect of an action: treated patients may recover less often because the treatment goes to the most severe cases. This chapter defines interventions and when their effect is computable from observational data.
+
+### 7.1 Structural causal models and interventions
+
+::: def
+[Definition 7.1 — Structural causal model]{.tag} A structural causal model (SCM) consists of independent noise variables $U_1, \dots, U_n$ and assignments
+$$
+X_i := f_i\big(X_{\mathrm{pa}(i)}, U_i\big), \qquad i = 1, \dots, n,
+$$
+whose dependency graph, the **causal graph**, is a DAG. The assignments are mechanisms: changing one leaves the others unchanged.
+:::
+
+:::: prop
+[Proposition 7.2 — Causal Markov condition]{.tag} The distribution of $X$ induced by an SCM factorises over its causal graph, with the conditional tables
+$$
+p\big(x_i \mid x_{\mathrm{pa}(i)}\big) = P\big(f_i(x_{\mathrm{pa}(i)}, U_i) = x_i\big).
+$$
+
+::: proof
+Solve the assignments in topological order. Each $X_j$ is then a function of the noises of $j$ and its ancestors.
+
+The parents of $i$ are therefore functions of noises other than $U_i$, which is independent of them. Conditionally on $X_{\mathrm{pa}(i)} = u$, the variable $X_i = f_i(u, U_i)$ has the law of $f_i(u, U_i)$, and the chain rule along the topological order gives the factorisation. [∎]{.qed}
+:::
+::::
+
+An **intervention** $\mathrm{do}(X_j = x'_j)$ replaces the assignment of $X_j$ by the constant $x'_j$. The result is an SCM on the graph without the edges into $j$, and Proposition 7.2 gives the **truncated factorisation**:
+
+::: key
+[Key result — the truncated factorisation]{.tag}
+$$
+p\big(x \mid \mathrm{do}(X_j = x'_j)\big) = \Big[ \prod_{i \ne j} p\big(x_i \mid x_{\mathrm{pa}(i)}\big) \Big]\, [x_j = x'_j] .
+$$
+:::
+
+Conditioning *selects* the units with $X_j = x'_j$; intervening *sets* $X_j$ for all units. They differ when a cause of $X_j$ also affects the outcome.
+
+### 7.2 Identification: back-door adjustment and do-calculus
+
+The effect of $X$ on $Y$ is identifiable if $p(y \mid \mathrm{do}(x))$ is a function of the observational distribution alone.
+
+::: def
+[Definition 7.3 — Back-door criterion (Pearl, 1995)]{.tag} A set $Z$ satisfies the back-door criterion relative to $(X, Y)$ if:
+
+-   no node of $Z$ is a descendant of $X$;
+-   $Z$ blocks (Definition 3.3) every path between $X$ and $Y$ that starts with an arrow into $X$.
+:::
+
+:::: thm
+[Theorem 7.4 — Back-door adjustment]{.tag} If $Z$ satisfies the back-door criterion relative to $(X, Y)$, then
+$$
+p\big(y \mid \mathrm{do}(x)\big) = \sum_z p(y \mid x, z)\, p(z).
+$$
+
+::: proof
+*Case $Z = \mathrm{pa}(X)$, with $Y \notin Z$ and $p(x \mid z) > 0$: complete proof.* Comparing the truncated factorisation with the full one, for every configuration $v$ of all variables with $X = x$:
+$$
+p(v \mid \mathrm{do}(x)) = \frac{p(v)}{p(x \mid z)}, \qquad z = \text{the parents of } X \text{ in } v .
+$$
+
+Summing over all variables except $Y$ and $Z$ gives $p(y, x, z) / p(x \mid z) = p(y \mid x, z)\, p(z)$; then sum over $z$.
+
+*General case.* Any back-door set can replace the parents; Pearl (1995) proves it with the rules of the do-calculus below. [∎]{.qed}
+:::
+::::
+
+With unobserved confounders, the **front-door** criterion uses a mediator carrying the whole effect of $X$ on $Y$. More generally, Pearl's **do-calculus** has three rules rewriting expressions with $\mathrm{do}(\cdot)$, each licensed by a d-separation in a modified graph. They are **complete**: an effect is identifiable if and only if they reduce it to an observational expression (Shpitser and Pearl, 2006; Huang and Valtorta, 2006).
+
+The code simulates an SCM with a confounder $Z$, an effect $X \to Y$ and a collider $W$ caused by both $X$ and $Y$, and compares the naive contrast, two adjustments and the interventional truth.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+N = 200_000
+
+def scm(N, do_x=None):
+    """Z -> X, Z -> Y, X -> Y, and a collider W <- X, W <- Y. All binary."""
+    Z = rng.random(N) < 0.5                                   # severity
+    X = rng.random(N) < np.where(Z, 0.8, 0.2) if do_x is None else np.full(N, bool(do_x))
+    Y = rng.random(N) < 0.7 + 0.1 * X - 0.5 * Z                # recovery
+    W = rng.random(N) < 0.1 + 0.4 * X + 0.4 * Y                # e.g. "stayed in the study"
+    return Z, X, Y, W
+
+Z, X, Y, W = scm(N)
+naive = Y[X].mean() - Y[~X].mean()
+adjust = lambda S: sum((Y[X & (S == s)].mean() - Y[~X & (S == s)].mean()) * np.mean(S == s) for s in (0, 1))
+truth = scm(N, do_x=1)[2].mean() - scm(N, do_x=0)[2].mean()
+print(f"naive P(Y|X=1) - P(Y|X=0)        = {naive:+.3f}")
+print(f"back-door adjustment on Z         = {adjust(Z):+.3f}")
+print(f"adjustment on the collider W      = {adjust(W):+.3f}")
+print(f"interventional truth (simulated)  = {truth:+.3f}")
+```
+
+::: ex
+[Example 7.5 — A treatment that seems harmful]{.tag} The code uses $P(Z = 1) = 0.5$, $P(X = 1 \mid Z) = 0.8$ or $0.2$, and $P(Y = 1 \mid X, Z) = 0.7 + 0.1 X - 0.5 Z$. Exactly:
+
+1.  Among the treated, 80 % are severe cases, so $P(Y = 1 \mid X = 1) = 0.2 \times 0.8 + 0.8 \times 0.3 = 0.40$.
+2.  Among the untreated, 20 % are severe, so $P(Y = 1 \mid X = 0) = 0.8 \times 0.7 + 0.2 \times 0.2 = 0.60$.
+3.  The back-door formula with $Z$ gives $0.5 \times (0.8 + 0.3) - 0.5 \times (0.7 + 0.2) = 0.55 - 0.45$.
+
+The naive contrast and the causal effect have opposite signs:
+$$
+P(Y \mid X = 1) - P(Y \mid X = 0) = -0.20, \qquad P(Y \mid \mathrm{do}(X = 1)) - P(Y \mid \mathrm{do}(X = 0)) = +0.10 .
+$$
+The simulation prints −0.203, +0.098 for the adjustment and +0.099 for the interventional truth. Adjusting on the collider $W$ instead gives −0.338: conditioning on a common effect creates a spurious association, as in Example 3.4.
+:::
+
+The [semester 1 course](../s1-probabilistic-graphical-models/index.html#ch11) develops the potential-outcome language and the estimation of treatment effects. The two languages agree: under the back-door criterion, the potential outcomes are ignorable given $Z$.
+
+::: recap
+Key takeaways — chapter 7
+
+-   A structural causal model adds mechanisms to a Bayesian network; an intervention replaces one mechanism, which gives the truncated factorisation.
+-   The back-door adjustment computes an interventional effect from observational data when a set of non-descendants blocks every confounding path; the do-calculus is complete for identification.
+-   Conditioning on a confounder removes bias, conditioning on a collider creates it.
+:::
+
+## 8. Learning and deep learning in graphical models {#ch8}
+
+In practice, data terms come from a classifier, today a deep network, and pairwise weights must be fitted. This chapter learns conditional random fields by likelihood or margin, with neural potentials, and turns inference into differentiable layers.
+
+### 8.1 Maximum likelihood for conditional random fields
+
+A **conditional random field** (CRF; Lafferty, McCallum and Pereira, 2001) models labels $y$ given an input $x$ with a log-linear Gibbs distribution:
+$$
+p_w(y \mid x) = \frac{\exp \langle w, \Phi(x, y) \rangle}{Z(x; w)}, \qquad \Phi(x, y) = \sum_i \phi_i(x, y_i) + \sum_{(i,j)} \phi_{ij}(x, y_i, y_j).
+$$
+Here $\langle w, \Phi \rangle$ is a *score*, minus an energy. Modelling $p(y \mid x)$ lets the features depend on the whole input without modelling its law.
+
+:::: prop
+[Proposition 8.1 — Gradient of the CRF likelihood]{.tag} The conditional log-likelihood of a training set $(x^{(m)}, y^{(m)})$ is concave in $w$, with gradient
+$$
+\nabla \ell(w) = \sum_m \Big( \Phi\big(x^{(m)}, y^{(m)}\big) - \mathbb E_{p_w(y \mid x^{(m)})}\big[ \Phi(x^{(m)}, y) \big] \Big).
+$$
+At a maximum, the expected features match the observed ones (moment matching).
+
+::: proof
+Each term is $\langle w, \Phi(x, y) \rangle - \log Z(x; w)$. The log-partition function is convex, with gradient the expected features: this is Proposition 1.6, with the sign of the score. A linear function minus a convex function is concave. [∎]{.qed}
+:::
+::::
+
+The expectation only involves node and edge marginals: exact by sum-product on chains and trees (ch. 2), approximated by loopy or tree-reweighted BP on grids, at the price of a biased gradient.
+
+**Pseudo-likelihood** (Besag, 1975) avoids the partition function by maximising the local conditionals,
+$$
+\mathrm{PL}(w) = \sum_m \sum_i \log p_w\big( y^{(m)}_i \mid y^{(m)}_{N(i)}, x^{(m)} \big),
+$$
+each normalised over $K$ labels. For log-linear models it is concave and consistent, but inefficient under strong couplings.
+
+### 8.2 Max-margin learning: the structured SVM
+
+When only the MAP labelling $h_w(x) = \arg\max_y \langle w, \Phi(x, y) \rangle$ is used at test time, one can learn $w$ so that the true labelling wins by a margin, measured by a task loss $\Delta(y, \hat y) \ge 0$ with $\Delta(y, y) = 0$, such as the Hamming distance.
+
+::: def
+[Definition 8.2 — Structured hinge loss (Taskar, Guestrin and Koller, 2003; Tsochantaridis et al., 2005)]{.tag}
+$$
+L(w; x, y) = \max_{\hat y} \Big[ \Delta(y, \hat y) + \langle w, \Phi(x, \hat y) \rangle \Big] - \langle w, \Phi(x, y) \rangle .
+$$
+The **structured SVM** minimises the regularised empirical loss
+$$
+\frac{\lambda}{2} \|w\|^2 + \sum_m L\big(w; x^{(m)}, y^{(m)}\big).
+$$
+:::
+
+:::: prop
+[Proposition 8.3 — A convex upper bound on the task loss]{.tag} $L(w; x, y)$ is convex in $w$ and satisfies
+$$
+L(w; x, y) \;\ge\; \Delta\big(y, h_w(x)\big).
+$$
+A subgradient is $\Phi(x, \bar y) - \Phi(x, y)$, where $\bar y$ attains the maximum.
+
+::: proof
+The loss is a maximum of affine functions of $w$, minus a linear one: convex, with the stated subgradient by Danskin's argument.
+
+Take $\hat y = h_w(x)$ in the maximum:
+$$
+L \ge \Delta(y, h_w(x)) + \langle w, \Phi(x, h_w(x)) \rangle - \langle w, \Phi(x, y) \rangle,
+$$
+and the last difference is non-negative because $h_w(x)$ maximises the score. [∎]{.qed}
+:::
+::::
+
+Each subgradient requires **loss-augmented inference**, the maximisation defining $L$. The Hamming loss adds a unary term $[y_i \ne \hat y_i]$ at each node and leaves the pairwise terms, and their submodularity, unchanged: the solvers of ch. 4 and ch. 6 serve for learning too.
+
+### 8.3 Mean field and CRFs as recurrent networks
+
+Mean field approximates $p$ by a product $q(y) = \prod_i q_i(y_i)$, chosen to minimise $\mathrm{KL}(q \| p)$. By the Gibbs variational principle of ch. 2.4, this maximises a lower bound on $\log Z$:
+$$
+\log Z \;\ge\; -\mathbb E_q[E(y)] + H(q).
+$$
+
+:::: prop
+[Proposition 8.4 — The mean-field update]{.tag} For a pairwise energy, the optimal factor $q_i$, all others fixed, is
+$$
+q_i(a) \;\propto\; \exp\Big( -\theta_i(a) - \sum_{j \in N(i)} \sum_b q_j(b)\, \theta_{ij}(a, b) \Big).
+$$
+Updating the factors one at a time never decreases the bound.
+
+::: proof
+As a function of $q_i$ alone, up to terms independent of $q_i$,
+$$
+\mathbb E_q[E] - H(q) = \sum_a q_i(a)\, c(a) + \sum_a q_i(a) \log q_i(a), \qquad c(a) = \theta_i(a) + \sum_{j \in N(i)} \sum_b q_j(b)\, \theta_{ij}(a, b).
+$$
+
+This is the divergence from $q_i$ to the distribution proportional to $e^{-c}$, up to a constant, and Gibbs' inequality gives the minimiser. [∎]{.qed}
+:::
+::::
+
+Each update is a differentiable message pass with the *expected* neighbour labels, followed by a softmax. Krähenbühl and Koltun (2011) used it on **fully connected CRFs**, with a pairwise term between every two pixels:
+$$
+\theta_{ij}(a, b) = [a \ne b]\, \Big( w_1 \exp\Big( -\frac{\|p_i - p_j\|^2}{2\sigma_\alpha^2} - \frac{\|I_i - I_j\|^2}{2\sigma_\beta^2} \Big) + w_2 \exp\Big( -\frac{\|p_i - p_j\|^2}{2\sigma_\gamma^2} \Big) \Big),
+$$
+where $p_i$ is the position and $I_i$ the colour of pixel $i$. The sum over all $j$ in the update is then a Gaussian filtering, computed in linear time.
+
+On top of a convolutional network, this dense CRF sharpened the object boundaries of DeepLab (Chen et al., 2018). Zheng et al. (2015) unrolled mean-field iterations as recurrent layers (*CRF as RNN*) and trained network and CRF together by back-propagation through inference.
+
+### 8.4 Neural potentials: a chain CRF trained end to end
+
+On sequences, a linear-chain CRF on neural features is a standard tagger (Lample et al., 2016). The network gives the unary scores, a $K \times K$ matrix $W$ of transition scores couples consecutive labels, $\log Z$ is computed exactly by the forward algorithm (sum-product in log space), and prediction is Viterbi.
+
+The code trains a small network on noisy 2-D observations of a sticky three-state Markov chain, alone and with a CRF layer.
+
+```python
+import numpy as np
+import torch
+torch.set_num_threads(1); torch.manual_seed(0)
+rng = np.random.default_rng(0)
+
+# Data: a sticky 3-state hidden Markov chain observed through noisy 2-D points
+K, T, sigma = 3, 30, 1.0
+A = np.full((K, K), 0.05) + 0.85 * np.eye(K)                       # rows sum to 1
+means = np.array([[0.0, 0.0], [1.5, 0.0], [0.0, 1.5]])
+def sample(n):
+    y = np.zeros((n, T), int); y[:, 0] = rng.integers(0, K, n)
+    for t in range(1, T):
+        y[:, t] = [rng.choice(K, p=A[k]) for k in y[:, t - 1]]
+    x = means[y] + sigma * rng.normal(size=(n, T, 2))
+    return torch.tensor(x, dtype=torch.float32), torch.tensor(y)
+xtr, ytr = sample(300); xte, yte = sample(300)
+
+def log_partition(u, W):                       # forward algorithm in log space
+    alpha = u[:, 0]
+    for t in range(1, u.shape[1]):
+        alpha = torch.logsumexp(alpha[:, :, None] + W[None], dim=1) + u[:, t]
+    return torch.logsumexp(alpha, dim=1)
+
+def viterbi(u, W):
+    delta, back = u[:, 0], []
+    for t in range(1, u.shape[1]):
+        s = delta[:, :, None] + W[None]
+        back.append(s.argmax(1)); delta = s.max(1).values + u[:, t]
+    path = [delta.argmax(1)]
+    for b in reversed(back):
+        path.append(b.gather(1, path[-1][:, None])[:, 0])
+    return torch.stack(path[::-1], 1)
+
+def train(use_pairwise, steps=300):
+    net = torch.nn.Sequential(torch.nn.Linear(2, 16), torch.nn.Tanh(), torch.nn.Linear(16, K))
+    W = torch.zeros(K, K, requires_grad=use_pairwise)               # log-potentials of transitions
+    opt = torch.optim.Adam(list(net.parameters()) + ([W] if use_pairwise else []), lr=0.05)
+    for _ in range(steps):
+        u = net(xtr)                                                # unary log-potentials (B, T, K)
+        gold = u.gather(2, ytr[..., None]).sum((1, 2)) + W[ytr[:, :-1], ytr[:, 1:]].sum(1)
+        loss = (log_partition(u, W) - gold).mean()                  # exact negative log-likelihood
+        opt.zero_grad(); loss.backward(); opt.step()
+    with torch.no_grad():
+        pred = viterbi(net(xte), W)
+    return (pred == yte).float().mean().item(), W.detach()
+
+acc_u, _ = train(False)
+acc_c, W = train(True)
+print(f"unary network alone: test accuracy {acc_u:.3f}")
+print(f"chain CRF          : test accuracy {acc_c:.3f}")
+print("learned transition log-potentials:\n", W.numpy().round(2))
+```
+
+Alone, the network labels each point independently: 68.5 % test accuracy. With the CRF layer it reaches 86.6 %, and the learned transition scores, between +1.3 and +1.6 on the diagonal and between −1.7 and −1.1 off it, recover the stickiness of the chain. Back-propagation through `logsumexp` computes exactly the moment-matching gradient of Proposition 8.1.
+
+::: recap
+Key takeaways — chapter 8
+
+-   The CRF log-likelihood is concave, with gradient "observed minus expected features"; the expectation needs the marginals of ch. 2, or pseudo-likelihood avoids them.
+-   The structured hinge loss is a convex upper bound on the task loss; its subgradient needs loss-augmented MAP inference, which keeps submodularity for Hamming losses.
+-   Mean-field updates are differentiable message passes; unrolled, they make a CRF a recurrent layer trained with the network (CRF as RNN, dense CRFs).
+-   A chain CRF on neural features is trained exactly with the forward algorithm and decoded by Viterbi; on the toy data it raises accuracy from 68.5 % to 86.6 %.
+:::
+
+## 9. Complements for self-study {#ch9}
+
+This chapter completes the in-class chapters with six topics: exact inference on general graphs, two further results on graph cuts, the identification of causal graphs from data, counterfactual reasoning, and learned message passing. Sections 9.1 and 9.6 complete ch. 2 and ch. 8, sections 9.2–9.3 complete ch. 4–5, and sections 9.4–9.5 complete ch. 3 and ch. 7.
+
+### 9.1 Junction trees, treewidth and loopy belief propagation
+
+Exact inference on a general graph groups variables into clusters arranged as a tree. The graph is first *triangulated*, by adding edges until every cycle of length four or more has a chord. Its maximal cliques then form a **junction tree**: for every variable, the cliques containing it form a connected subtree.
+
+Sum-product on the junction tree, with cliques as super-variables, is exact (Lauritzen and Spiegelhalter, 1988). Its cost is $O(n K^{w+1})$, where the **treewidth** $w$ is the smallest possible largest clique size minus one, over all triangulations. A tree has treewidth 1. An $s \times s$ grid has treewidth $s$: exact inference on a 100 × 100 binary image would handle tables of $2^{101}$ entries. This is why ch. 4–6 take other routes.
+
+Two exact results on loopy belief propagation complete ch. 2.4. On a graph with a single cycle, BP converges and its error can be analysed exactly (Weiss, 2000); Exercise 6 checks numerically that, for binary variables, the beliefs and the exact marginals are then maximised by the same labels. A max-product fixed point cannot be improved by changing the variables of any subgraph made of trees and single cycles (Weiss and Freeman, 2001).
+
+### 9.2 Non-submodular binary energies: roof duality
+
+When some terms of a binary energy are not submodular, Proposition 1.5 says that exact minimisation is hopeless in general. Partial answers remain. The LP relaxation of ch. 5 is then **half-integral**: it has an optimal solution with every coordinate in $\{0, \frac12, 1\}$.
+
+That relaxation, called *roof duality*, can be solved by a maximum flow on a graph with two nodes per variable, one for $x_i$ and one for $1 - x_i$ (Hammer, Hansen and Simeone, 1984; Boros and Hammer, 2002). The method is known in vision as **QPBO** (Kolmogorov and Rother, 2007).
+
+Its key property is **persistency**. The variables that receive an integral value in the relaxed solution keep that value in some global minimiser. The remaining variables are left to another method, or to exhaustive search when few remain.
+
+For the multi-label Potts model, randomised rounding of the LP solution of ch. 5 is within a factor 2 of the optimum (Kleinberg and Tardos, 2002).
+
+### 9.3 Exact minimisation for convex priors
+
+When the labels are ordered and the prior is a convex function of their difference, $\theta_{ij}(a, b) = g(a - b)$, multi-label minimisation is exact again (Ishikawa, 2003).
+
+Each variable becomes a column of $K - 1$ nodes between $s$ and $t$, and the label is the position where the column is cut. Edges of infinite capacity pointing back up each column forbid cutting a column twice. Edges between neighbouring columns carry the second differences $g(k+1) - 2g(k) + g(k-1)$, which are non-negative exactly because $g$ is convex. A cut then pays $g(x_i - x_j)$, up to terms absorbed into the data costs.
+
+The graph has $n(K-1)$ nodes. Truncated priors such as $\min(|a - b|, \tau)$, which preserve discontinuities, are not convex, and for them α-expansion is the standard tool.
+
+### 9.4 Markov equivalence and causal discovery
+
+Different graphs can encode the same independences. The chain $X \to Z \to Y$, the reverse chain and the fork $X \leftarrow Z \to Y$ all say exactly $X \perp Y \mid Z$.
+
+The collider $X \to Z \leftarrow Y$ says the opposite: $X \perp Y$, but not given $Z$.
+
+:::: thm
+[Theorem 9.1 — Markov equivalence (Verma and Pearl, 1990)]{.tag} Two DAGs encode the same d-separations if and only if they have the same skeleton (undirected version) and the same **v-structures**, the colliders $X \to Z \leftarrow Y$ with $X$ and $Y$ non-adjacent.
+
+::: proof
+*Sketch of necessity.* If the skeletons differ, some pair is adjacent in one graph and not in the other; non-adjacent nodes are d-separated by some set (for instance, the parents of the later one), adjacent ones never are.
+
+If the skeletons agree but a v-structure $X \to Z \leftarrow Y$ exists in one graph only, then some set *excluding* $Z$ separates $X$ from $Y$ in the first graph. No set excluding $Z$ separates them in the second, where $Z$ is a non-collider. Sufficiency is proved in Verma and Pearl (1990). [∎]{.qed}
+:::
+::::
+
+From observational data alone, a graph is therefore identifiable only up to its equivalence class. The class is summarised by a partially directed graph, the CPDAG, whose directed edges are shared by all members.
+
+Learning the causal graph of ch. 7 from observations therefore stops at this class, and even that needs an assumption linking independences to the graph.
+
+::: def
+[Definition 9.2 — Faithfulness]{.tag} A distribution is **faithful** to a DAG if every conditional independence it satisfies is implied by d-separation in that DAG. The causal Markov condition gives the converse inclusion.
+:::
+
+Under faithfulness, the **PC algorithm** (Spirtes, Glymour and Scheines, 2000) recovers the equivalence class from independence tests in three steps.
+
+1.  *Skeleton.* Start from the complete undirected graph. For $\ell = 0, 1, 2, \dots$, remove an edge $X - Y$ as soon as $X \perp Y \mid S$ for a set $S$ of $\ell$ current neighbours of one endpoint; record $S$.
+2.  *V-structures.* For every non-adjacent pair $X, Y$ with a common neighbour $Z$, orient $X \to Z \leftarrow Y$ if $Z$ is not in the recorded separating set.
+3.  *Propagation.* Orient further edges by rules that avoid creating new v-structures or cycles (Meek's rules).
+
+With a perfect independence oracle, the output is the CPDAG of the true graph. With finite data, tests make errors that propagate; consistency in high dimension holds for sparse graphs (Kalisch and Bühlmann, 2007). Score-based search with BIC (ch. 3.3) is the other route.
+
+Interventions break equivalence. Randomising $X$ removes the edges into $X$, so comparing observational and interventional data orients the edges around $X$. This is why experiments are the gold standard of causal inference.
+
+### 9.5 Counterfactuals
+
+Pearl distinguishes three rungs of a ladder: association ($p(y \mid x)$), intervention ($p(y \mid \mathrm{do}(x))$) and counterfactuals: "given what happened, what would have happened had $X$ been different?". Counterfactuals need the mechanisms and the noise, not only the graph. They are computed in three steps:
+
+1.  *abduction*: update the law of the noises $U$ given the observed facts;
+2.  *action*: replace the mechanism of $X$ by the counterfactual value;
+3.  *prediction*: compute $Y$ in the modified model, with the updated noises.
+
+::: ex
+[Example 9.3 — Two models, one interventional law, two counterfactuals]{.tag} Let $X$ be a fair coin, $U \sim \mathrm{Bernoulli}(0.2)$ independent of it, and $Y := X \oplus U$ (exclusive or). We observe $X = 1$ and $Y = 1$.
+
+1.  Abduction: $1 = 1 \oplus U$ forces $U = 0$.
+2.  Action and prediction: had $X$ been 0, then $Y = 0 \oplus 0 = 0$, with probability 1.
+
+The interventional answer is different, $P(Y = 1 \mid \mathrm{do}(X = 0)) = P(U = 1) = 0.2$. Moreover, the model $Y := (1 - X)\, U + X (1 - U')$, with $U, U'$ independent $\mathrm{Bernoulli}(0.2)$, has the same observational and interventional laws, but its counterfactual is $P(Y_{X=0} = 1 \mid X = 1, Y = 1) = 0.2$. Counterfactuals are not determined by the graph and the data.
+:::
+
+### 9.6 Learned message passing and neural Bayesian networks
+
+A message-passing neural network (Gilmer et al., 2017) updates node states by
+$$
+h_i^{t+1} = U\Big( h_i^t, \sum_{j \in N(i)} M(h_i^t, h_j^t, e_{ij}) \Big),
+$$
+with learned functions $M$ and $U$. Belief propagation is the instance in which $h_i$ is a vector of log-messages, $M$ is the log-sum-exp of Definition 2.1 and $U$ adds the unary term.
+
+Learning $M$ and $U$ from data lets the network correct the errors of loopy BP on a family of models, at the price of the guarantees of ch. 2. Ch. 10 lists such hybrids.
+
+The directed side has its own neural version. An autoregressive model $p(x) = \prod_i p(x_i \mid x_{<i})$, with each conditional given by a network, is a Bayesian network on the complete DAG. Language models and PixelCNN are of this kind. The structure is trivial, all the modelling sits in the conditionals, and exact sampling is easy while MAP inference is hard.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Exact inference on a general graph runs sum-product on a junction tree, at a cost exponential in the treewidth.
+-   Roof duality solves the half-integral relaxation of a non-submodular binary energy by one cut and fixes the integral variables with a persistency guarantee; convex priors on ordered labels are minimised exactly by Ishikawa's construction.
+-   Two DAGs are Markov equivalent if and only if they share skeleton and v-structures; under faithfulness, the PC algorithm recovers this class, and interventions orient the rest.
+-   Counterfactuals require the mechanisms themselves: two models with the same interventional laws can disagree on them.
+-   Graph neural networks generalise belief propagation with learned messages; autoregressive models are neural Bayesian networks on a complete DAG.
+:::
+
+## 10. Research directions and open problems {#ch10}
+
+This chapter is for self-study. It points to active lines of work that start from the tools of ch. 2–8, with the papers where they begin; the questions at the end of each section are open.
+
+### 10.1 Tighter relaxations and certified solutions
+
+The local polytope fails on frustrated cycles (Example 5.3). Sontag, Meltzer, Globerson, Jaakkola and Weiss (2008) add constraints on clusters of three or four variables only where the current dual solution shows a violation. They solve the tightened dual by message passing, and on protein-design problems this closed the gap on many instances that the local polytope left open.
+
+On the complexity side, Thapper and Živný (2016) prove a dichotomy for valued constraint satisfaction problems defined by a finite set of finite-valued cost functions. Either the basic LP relaxation, which for pairwise terms is the local polytope of ch. 5, solves every instance exactly, or the problem is NP-hard. For such energies, linear programming is as powerful as any polynomial algorithm, unless P = NP.
+
+Systematic benchmarks of energy minimisation, by Szeliski et al. (2008) for smoothness priors in vision and by Kappes et al. (2015) for a wide range of models, compare move-making, message-passing, dual and integer-programming methods. Their main conclusion is that no method dominates on all model classes.
+
+*Open questions.* Which cycle constraints to add, and when, to close the gap on large vision problems at a cost close to TRW-S? How to obtain anytime algorithms that return both a good labelling and a tight certificate on megapixel energies?
+
+### 10.2 Learning to infer
+
+Instead of designing message updates, one can learn them. Belief propagation neural networks (Kuck et al., 2020) wrap the BP update in learned operators that keep its fixed points, and estimate partition functions of Ising models better than BP. Satorras and Welling (2021) run a graph neural network alongside BP on a factor graph and feed corrections into the messages, for instance to decode error-correcting codes.
+
+*Open questions.* What guarantees, such as exactness on trees or monotone bounds, can a learned message-passing scheme keep? How well does it generalise to graphs larger than those it was trained on?
+
+### 10.3 Differentiating through discrete inference
+
+End-to-end training needs gradients through an $\arg\min$ that is piecewise constant. Several remedies are active.
+
+-   *Unrolling* approximate inference, as in CRF-as-RNN; Domke (2013) studies learning with the marginals of truncated inference procedures.
+-   *Interpolation*: Vlastelica Pogančić et al. (2020) differentiate a black-box combinatorial solver by calling it on a perturbed cost, which defines a piecewise-linear interpolation of the loss.
+-   *Perturbation*: Berthet et al. (2020) smooth the solver by averaging its output under random perturbations of the costs, which gives unbiased gradients by Monte Carlo.
+-   *Sparse structured inference*: Niculae et al. (2018) replace the entropy of marginal inference by a quadratic term (SparseMAP), which returns sparse combinations of a few labellings and has an efficient backward pass.
+
+*Open question.* Which of these estimators keep their benefits for the large discrete energies of segmentation or matching, where one solver call is already expensive?
+
+### 10.4 Structured latent variables in deep generative models
+
+Johnson et al. (2016) combine graphical models with neural networks in structured variational auto-encoders: a latent chain or mixture keeps exact message passing, while neural networks model the observations. Austin et al. (2021) define diffusion models on discrete state spaces, in which each step is a Markov transition on labels. They connect generative modelling to the discrete transition matrices of this course.
+
+*Open question.* How to keep exact or certified inference over the discrete part of such models when the latent graph is loopy?
+
+### 10.5 Causal discovery at scale and causal representation learning
+
+Zheng, Aragam, Ravikumar and Xing (2018) recast DAG learning as continuous optimisation with a smooth acyclicity constraint (NOTEARS), opening structure learning to gradient methods. Reisach, Seiler and Weichwald (2021) show that on common simulated benchmarks, the variance of the variables increases along the causal order. A method that merely sorts by variance then performs well, a warning about evaluation.
+
+Uhler, Raskutti, Bühlmann and Yu (2013) show that faithfulness, in the strong form needed by tests with finite samples, is violated by a large set of parameters. Schölkopf et al. (2021) argue for *causal representation learning*: discovering the causal variables themselves from raw data such as images.
+
+*Open questions.* Under which assumptions are latent causal variables identifiable from high-dimensional observations? How to combine observational and interventional data from many experiments when the targets of the interventions are unknown?
+
+::: recap
+Key takeaways — chapter 10
+
+-   Cycle constraints added where violated close many gaps left by the local polytope; for finite-valued cost functions, the basic LP relaxation solves every tractable case.
+-   Learned message passing and differentiable solvers bring inference into end-to-end training, at the price of guarantees still to be understood.
+-   Structured latent variables and discrete diffusion carry the tools of this course into deep generative models.
+-   Continuous formulations scale causal discovery, but benchmarks and faithfulness assumptions need care.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ open-ended or research-flavoured. Exercises 6, 14, 15 and 16 are computational; their expected results come from runs of the code of the corresponding chapters, which take seconds on a laptop.
+
+1.  **★ Counting parameters.** A pairwise model on a 10 × 10 grid with 4-connectivity has $K = 4$ labels per pixel. Count the entries of the full joint table, the entries of the indicator parameter vector $\theta$ of ch. 1.4, and the free parameters once redundancies are removed. Which variables form the smallest set that makes an interior pixel independent of all the others?
+
+    *Solution*: the grid has $n = 100$ nodes and $|E| = 2 \times 10 \times 9 = 180$ edges. The joint table has $4^{100} \approx 1.6 \times 10^{60}$ entries. The vector $\theta$ has $nK + |E| K^2 = 400 + 2880 = 3280$ entries; removing one label per node and one row and column per edge leaves
+    $$
+    n(K - 1) + |E| (K - 1)^2 = 300 + 1620 = 1920 .
+    $$
+    By the local Markov property (Definition 1.3, Theorem 1.4), the four neighbours of the pixel suffice, and no smaller set does for a generic model.
+
+2.  **★ Min-sum on a chain.** A binary chain $x_1 - x_2 - x_3 - x_4$ has unary costs $\theta_1 = (0, 1.2)$, $\theta_2 = (2, 0)$, $\theta_3 = (0, 0.5)$, $\theta_4 = (1, 0)$ and a Potts penalty 1 on each edge. Compute the left-to-right min-sum messages, the MAP labelling and the min-marginals of $x_2$.
+
+    *Solution*: by Proposition 2.3,
+
+    -   $m_{1 \to 2} = (0, 1)$, then $\theta_2 + m_{1 \to 2} = (2, 1)$ and $m_{2 \to 3} = (2, 1)$;
+    -   $\theta_3 + m_{2 \to 3} = (2, 1.5)$, so $m_{3 \to 4} = (2, 1.5)$, and the min-marginals of $x_4$ are (3, 1.5);
+    -   backtracking gives $x_4 = x_3 = x_2 = 1$, then $x_1 = 0$, at cost 0 + 1 against 1.2:
+    $$
+    x^\star = (0, 1, 1, 1), \qquad E(x^\star) = 1.5 .
+    $$
+    The min-marginals of $x_2$ are 3.0 for label 0 (reached by (0, 0, 0, 0)) and 1.5 for label 1.
+
+3.  **★ Explaining away, the other way.** In Example 3.4, compute $P(E = 1 \mid A = 1)$ and $P(E = 1 \mid A = 1, B = 1)$, and compare them with the prior $P(E = 1) = 0.02$.
+
+    *Solution*: $P(E = 1, A = 1) = 0.00594 + 0.00019 = 0.00613$, so $P(E = 1 \mid A = 1) = 0.00613 / 0.01592 \approx 0.385$. With the burglary known, $P(E = 1 \mid A = 1, B = 1) = 0.00019 / 0.00901 \approx 0.021$. The alarm makes an earthquake 19 times more likely than a priori; the burglary explains the alarm, and brings the probability back to almost its prior value.
+
+4.  **★ Building a graph.** Three binary variables have unary costs $\theta_1 = (2, 0)$, $\theta_2 = (0, 1)$, $\theta_3 = (1, 0)$ and pairwise terms $\theta_{12} = \begin{pmatrix} 0 & 2 \\ 3 & 0 \end{pmatrix}$, $\theta_{23} = \begin{pmatrix} 0 & 2 \\ 2 & 0 \end{pmatrix}$. Check submodularity, build the graph of Theorem 4.4, find a maximum flow and a minimum cut, and deduce the minimiser.
+
+    *Solution*: both terms satisfy $A + D \le B + C$. The key result of ch. 4.2 gives linear coefficients $(1, 0, -3)$ and edges $1 \to 2$ of capacity 5 and $2 \to 3$ of capacity 4. The energy reads
+    $$
+    E(x) = x_1 + 5 (1 - x_1) x_2 + 4 (1 - x_2) x_3 + 3 (1 - x_3),
+    $$
+    so the graph has the edges $s \to 1$ (capacity 1), $1 \to 2$ (5), $2 \to 3$ (4) and $3 \to t$ (3). The path through all of them carries a flow of 1 and saturates the first edge, a cut of capacity 1.
+
+    All three nodes lie on the sink side: $x^\star = (1, 1, 1)$, with $E(x^\star) = 1$, the smallest of the eight energies.
+
+5.  **★ Back-door adjustment by hand.** In the model with edges $Z \to X$, $Z \to Y$ and $X \to Y$, all variables binary, compute the naive contrast and the causal effect of $X$ on $Y$ for the following tables:
+
+    -   $P(Z = 1) = 0.3$;
+    -   $P(X = 1 \mid Z) = 0.4$ if $Z = 0$, and 0.9 if $Z = 1$;
+    -   $P(Y = 1 \mid X, Z) = 0.5, 0.6, 0.1, 0.2$ for $(X, Z)$ = (0, 0), (1, 0), (0, 1), (1, 1).
+
+    *Solution*: $P(X = 1) = 0.55$ and $P(Z = 1 \mid X = 1) = 0.27/0.55 \approx 0.491$, so
+    $$
+    P(Y = 1 \mid X = 1) \approx 0.509 \times 0.6 + 0.491 \times 0.2 \approx 0.404 .
+    $$
+    Similarly $P(Z = 1 \mid X = 0) = 0.03/0.45 \approx 0.067$, so $P(Y = 1 \mid X = 0) \approx 0.473$, and the naive contrast is −0.070. Theorem 7.4 with $Z$ gives
+    $$
+    0.7 \times 0.6 + 0.3 \times 0.2 - (0.7 \times 0.5 + 0.3 \times 0.1) = 0.48 - 0.38 = +0.10 .
+    $$
+
+6.  **★★ Loopy belief propagation on a single cycle.** Reuse the functions of the code of ch. 2.4 on a cycle of 8 binary nodes, with unary log-potentials drawn from $\mathcal N(0, 0.5^2)$ and Potts couplings $w \in \{0.5, 1, 2, 4\}$. Run the experiment twice: with all couplings attractive, and with one edge made repulsive (the potential $e^{-w [x_i = x_j]}$), which frustrates the cycle. Report the largest marginal error, and check whether the label maximising each belief is the label maximising the exact marginal.
+
+    *Hints and expected result*: with damping 0.5 and 500 iterations, the largest error grows from below $10^{-4}$ at $w = 0.5$ to about 0.04 at $w = 2$ and above 0.2 at $w = 4$, in both cases. The decisions remain correct in every run. This agrees with Weiss (2000): on a single cycle of binary variables, the belief and the exact marginal are maximised by the same label, even when their values differ.
+
+7.  **★★ Chow–Liu and BIC.** Prove the key result of ch. 3.3. Then show that, for two binary variables, BIC prefers the graph $X \to Y$ to the empty graph if and only if
+    $$
+    \hat I(X; Y) > \frac{\log N}{2N} .
+    $$
+    Evaluate the threshold for $N = 1000$.
+
+    *Solution*: the identity follows from $\hat p(x_i \mid u) = \hat p(x_i, u) / \hat p(u)$ and $H(X \mid U) = H(X) - I(X; U)$, summed over nodes. Adding the edge raises the likelihood by $N \hat I(X; Y)$ and the number of parameters by one (two conditional Bernoulli parameters instead of one), so the BIC difference is $N \hat I - \frac12 \log N$. For $N = 1000$, the threshold is $6.908/2000 \approx 0.0035$ nats.
+
+8.  **★★ Expansion moves need the triangle inequality.** Take three ordered labels and the quadratic cost $V(a, b) = (a - b)^2$. Show that it is a semimetric but not a metric, and find a pair of current labels and a label $\alpha$ for which the expansion move is not submodular. Which algorithm of ch. 4 minimises this energy exactly? What does Theorem 4.8 guarantee for the truncated linear cost $\min(|a - b|, 1.5)$ on three labels?
+
+    *Solution*: $V(0, 2) = 4 > V(0, 1) + V(1, 2) = 2$. With $x_i = 0$, $x_j = 2$ and $\alpha = 1$, the move table is $\begin{pmatrix} 4 & 1 \\ 1 & 0 \end{pmatrix}$, and 4 + 0 > 1 + 1.
+
+    The cost is convex in $a - b$, so Ishikawa's construction (ch. 9.3) is exact. The truncated linear cost takes the values 1, 1 and 1.5, so $c = 1.5$ and every expansion-local minimum is within a factor 3 of the optimum.
+
+9.  **★★ Frustrated cycles.** Consider a cycle of length $n$ with no data terms and the term $[x_i = x_j]$ on every edge. Show that the LP relaxation has value 0 for every $n$, while the MAP energy is 0 for even $n$ and 1 for odd $n$. Then show that for $n = 3$, every distribution on three binary variables satisfies
+    $$
+    P(x_1 \ne x_2) + P(x_2 \ne x_3) + P(x_1 \ne x_3) \le 2,
+    $$
+    and conclude that this "cycle inequality" cuts off the fractional point of Example 5.3.
+
+    *Solution*: the point of Example 5.3 extends to any cycle and costs 0, and every cost is non-negative. An even cycle can alternate labels; an odd cycle cannot, and one agreement suffices. Among three binary values, at most two pairs differ, so the sum of the three indicators is at most 2 for every labelling, hence in expectation. The fractional point gives each pair probability 1 of differing, a sum of 3.
+
+10. **★★ The multilinear relaxation is exact.** On the product of simplices, let
+    $$
+    f(\mu) = \sum_i \langle \theta_i, \mu_i \rangle + \sum_{(i,j)} \mu_i^\top \theta_{ij}\, \mu_j .
+    $$
+    Prove that $\min f = \min_x E(x)$. Why is $f$ not convex in general?
+
+    *Solution*: $f$ is affine in each $\mu_i$ when the others are fixed, because the graph has no self-loops. Replacing $\mu_i$ by the best vertex of its simplex does not increase $f$. Node by node, this reaches a vertex $\phi(x)$ with $f(\phi(x)) = E(x) \le f(\mu)$.
+
+    The Hessian has zero diagonal blocks and off-diagonal blocks $\theta_{ij}$. A symmetric matrix with zero diagonal and a non-zero entry has a negative eigenvalue, so $f$ is not convex.
+
+11. **★★ A tight reparametrisation.** Two binary variables have $\theta_1 = (0, 3)$, $\theta_2 = (2, 0)$ and $\theta_{12} = \begin{pmatrix} 0 & 2 \\ 2 & 0 \end{pmatrix}$. Compute the minimum energy and the bound $\mathrm{LB}(0)$ of ch. 6.1. Find $\lambda$ with $\mathrm{LB}(\lambda) = \min_x E(x)$, and read the minimiser off the reparametrised tables.
+
+    *Solution*: the energies of (0, 0), (0, 1), (1, 0), (1, 1) are 2, 2, 7 and 3, and $\mathrm{LB}(0) = 0$.
+
+    -   Move $\theta_1$ into the edge with $\lambda_{12 \to 1} = (0, -3)$: the edge table becomes $\begin{pmatrix} 0 & 2 \\ 5 & 3 \end{pmatrix}$.
+    -   Move its column minima (0, 2) to node 2 with $\lambda_{12 \to 2} = (0, 2)$.
+
+    The reparametrised tables and the bound are
+    $$
+    \theta^\lambda_1 = (0, 0), \qquad \theta^\lambda_2 = (2, 2), \qquad \theta^\lambda_{12} = \begin{pmatrix} 0 & 0 \\ 5 & 1 \end{pmatrix}, \qquad \mathrm{LB}(\lambda) = 2 .
+    $$
+    Both (0, 0) and (0, 1) take minimal entries everywhere: two certified minimisers, as in a min-sum pass from node 1 to node 2.
+
+12. **★★ Moment matching in a chain CRF.** In the chain CRF of ch. 8.4, show that the gradient of the log-likelihood with respect to the transition score $W_{ab}$ is the observed number of transitions $a \to b$ minus its expectation under the model, and explain how to compute the expectation with the forward and backward recursions. For an Ising model with a single coupling parameter $\beta$, write the likelihood equation, and the corresponding pseudo-likelihood gradient.
+
+    *Solution*: apply Proposition 8.1 to the feature $\sum_t [y_t = a, y_{t+1} = b]$. Its expectation is a sum over $t$ of pairwise marginals, given by the forward and backward variables:
+    $$
+    p(y_t = a, y_{t+1} = b \mid x) = \frac{1}{Z}\, \alpha_t(a)\, e^{W_{ab} + u_{t+1}(b)}\, \beta_{t+1}(b).
+    $$
+    For the Ising model, the maximum-likelihood $\beta$ makes the expected number of agreeing neighbour pairs equal to the observed number. The pseudo-likelihood gradient replaces this expectation by a sum, over nodes, of expectations under the local conditionals $p(y_i \mid y_{N(i)})$, which only need $K$ terms each.
+
+13. **★★ Mean field breaks symmetry.** Two spins $s_1, s_2 \in \{-1, +1\}$ have $p(s) \propto \exp(J s_1 s_2)$. With $m_i = \mathbb E_q[s_i]$, show that the mean-field equations are
+    $$
+    m_1 = \tanh(J m_2), \qquad m_2 = \tanh(J m_1).
+    $$
+    Find their solutions for $J = 0.5$ and $J = 2$, and compare the bound of ch. 8.3 with the exact $\log Z$.
+
+    *Solution*: Proposition 8.4 gives $q_1(s_1) \propto \exp(J s_1 m_2)$, whose mean is $\tanh(J m_2)$. For $J \le 1$, the only solution is $m = 0$.
+
+    For $J = 2$, there are also two symmetric solutions with $|m| \approx 0.9575$, so $q(s_i = 1) \approx 0.979$, while the true marginals are ½.
+
+    The bound $J m^2 + 2 h((1 + m)/2)$, with $h$ the binary entropy, equals 1.386 at $m = 0$ and 2.039 at $|m| = 0.9575$, against the exact value
+    $$
+    \log Z = \log(2e^2 + 2e^{-2}) \approx 2.711 .
+    $$
+    For $J = 0.5$, the bound is 1.386 against 1.506. The best mean-field approximation is overconfident: it picks one of the two modes.
+
+14. **★★★ Bounds and heuristics on hard grids.** On 20 × 20 grids with 4 labels, unary costs drawn from $\mathcal N(0, 1)$ and Potts weights $w \in \{0.3, 0.6, 1.0\}$, compare ICM, α-expansion and dual decomposition into row and column chains. Report the energies, the best lower bound and the gap. Then implement TRW-S (ch. 6.3) and compare its bound and speed with dual decomposition.
+
+    *Hints and expected result*: combine the code of ch. 4.3 and ch. 6.4. In our runs, with 500 supergradient steps at most:
+    -   at $w = 0.3$, the three methods are within 1 unit of each other, and dual decomposition certifies the optimum;
+    -   at $w = 0.6$, α-expansion and dual decomposition find the same energy (−163.81), with a residual gap of 2.9 units to the bound (−166.73);
+    -   at $w = 1.0$, ICM stops at +19.56, α-expansion at −28.47, and dual decomposition certifies −31.79.
+
+    Strong couplings with uninformative data are where the methods differ. Explain why TRW-S should reach a similar bound faster.
+
+15. **★★★ Learning a Potts weight with a structured SVM.** Generate binary images of random discs observed with Gaussian noise ($\sigma = 0.8$). Learn the weights $(w_u, w_p)$ of the energy $w_u \sum_i \theta_i(y_i) + w_p \sum_{(i,j)} [y_i \ne y_j]$ with the structured hinge loss and the Hamming loss. Use the cut of ch. 4.2 for loss-augmented inference, project $w$ onto $w \ge 0$, and compare with a grid search on the ratio $w_p / w_u$.
+
+    *Hints and expected result*: loss-augmented inference subtracts 1 from the cost of the wrong label at every pixel, which keeps the energy submodular. In our run (four 24 × 24 training images, 40 subgradient steps), the learned ratio is 0.57, with 3.3 % test errors. The grid search gives 26.2 % errors without pairwise term, 3.6 % at ratio 0.5, 2.9 % at 1 and 15.0 % at 2. The hinge loss is a surrogate, so its minimiser need not minimise the test error exactly.
+
+16. **★★★ The PC algorithm and its failures.** Implement the skeleton and v-structure phases of the PC algorithm (ch. 9.4), with a $G^2$ test of conditional independence at level 0.01. Sample data from the binary network $A \to C \leftarrow B$, $C \to D \to E$, with $P(C = 1 \mid A, B) = 0.1 + 0.4 A + 0.4 B$ and copies with probability 0.8 along $C \to D \to E$. Measure how often the skeleton and the v-structure are recovered as $N$ grows. Then build a faithfulness violation, for instance two paths whose effects cancel, and observe the failure.
+
+    *Hints and expected result*: in our runs, over 20 data sets per size, the skeleton is exact in 7 of 20 runs at $N = 100$ and in at least 19 of 20 from $N = 300$. The v-structure at $C$ is never found at $N = 100$ and always from $N = 300$. With exactly cancelling paths, the two variables are truly independent, so the test accepts independence at every sample size and the PC algorithm removes a true edge.
+
+## Projects and assessment {#projects}
+
+The master-mva.com page states the assessment as “project (report + defense)”, with the project defence in March; the Université Paris-Saclay course detail lists “Evaluation Continue non Intégrale”. No weights are displayed. The subjects below are sized for that project, most of them paper studies in the MVA tradition. The written-exam proposal is not an official component: it shows the level of mastery of the course content that a project defence can probe.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: convergent tree-reweighted message passing.** Reproduce the main claims of Kolmogorov (2006) at small scale: does TRW-S increase its lower bound monotonically, and how does it compare with other solvers?
+    -   *Work*: implement TRW-S on 4-connected grids (ch. 6.3); compare with loopy min-sum (ch. 2.4), dual decomposition (ch. 6.4) and α-expansion (ch. 4.3) on synthetic denoising and random-dot stereo energies.
+    -   *Deliverables*: code, 4–6 page report, 10-min talk. *Chapters*: 2, 4, 5, 6.
+    -   *Success*: monotone bound curves; on submodular binary energies, TRW-S reaches the minimum-cut energy; energy and bound against time for the four solvers, with the final gaps.
+
+2.  **[Solo · ≈ 20 h] Paper study: min-cut/max-flow algorithms for vision.** Reproduce the comparison of Boykov and Kolmogorov (2004) on grid graphs.
+    -   *Work*: implement the Boykov–Kolmogorov algorithm with its two search trees; compare it with Edmonds–Karp and with the preflow-push solver of NetworkX on segmentation energies of growing size (64² to 512² pixels) and neighbourhood (4 and 8 neighbours).
+    -   *Deliverables*: code, 4–6 page report, 10-min talk. *Chapters*: 0.2, 4.
+    -   *Success*: identical cut values for all solvers; running-time curves against the number of pixels, with the empirical scaling exponent of each method.
+
+3.  **[Solo · ≈ 15 h] Learning Bayesian network structures: tests or scores?** When does the PC algorithm beat greedy BIC search, and how much does faithfulness matter?
+    -   *Work*: generate random binary networks with 10–20 nodes and known structure; implement PC (ch. 9.4) and hill climbing on BIC (ch. 3.3); add near-cancelling paths to approach faithfulness violations.
+    -   *Deliverables*: code, 4-page report, 10-min talk. *Chapters*: 3, 7, 9.4.
+    -   *Success*: structural Hamming distance between the estimated and true CPDAGs against $N$ (100 to 10 000), over 20 networks, with a clear verdict for each regime.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Paper study: convex relaxations for MAP estimation.** Check numerically the dominance results of Kumar, Kolmogorov and Torr (2009) and their extensions.
+    -   *Split*: member A solves the LP relaxation (ch. 5) and adds cycle constraints where violated; member B implements the convexified quadratic relaxation of Ravikumar and Lafferty (2006); member C implements the SOCP relaxation and runs the evaluation. Any convex solver may be used, for instance CVXPY.
+    -   *Deliverables*: shared code, 8–10 page report, 20-min talk. *Chapters*: 1.4, 5, 6.1.
+    -   *Success*: on several hundred small random MRFs (binary and 3-label, with frustrated cycles), the LP bound is never below the QP and SOCP bounds (Theorem 5.5) and is strictly above on some; the gain brought by cycle constraints is quantified.
+
+2.  **[Group of 2–3 · ≈ 30 h each] Deep structured segmentation: CNN unaries and a CRF layer.** How much does a CRF on top of a convolutional network improve segmentation, and how should it be trained?
+    -   *Data*: the Oxford-IIIT Pet data set (Parkhi et al., 2012), foreground versus background, images resized to 64 × 64 or 128 × 128 for a laptop or a free GPU.
+    -   *Split*: member A trains a small U-Net-style network for the unaries; member B adds a grid CRF solved by graph cuts (ch. 4) and learns its weights by structured SVM (ch. 8.2); member C implements unrolled mean field as recurrent layers, trained end to end (ch. 8.3).
+    -   *Deliverables*: shared code, 8–10 page report, 20-min talk. *Chapters*: 4, 8.
+    -   *Success*: intersection-over-union on the test split for the three variants, also measured in a band around object boundaries, with three seeds and error bars.
+
+### Written exam (proposal) {#projects-exam}
+
+Format (proposal, not an official rule): 3 hours, one handwritten A4 sheet allowed, no electronic device, four exercises.
+
+1.  **Question (5 points).** State Theorem 4.4. Prove the decomposition of a binary pairwise term used in its proof, and explain why the construction fails when $A + D > B + C$. Give an energy that cannot be minimised by a cut and say what roof duality still provides.
+
+    *Expected*: the statement with the $n + 2$ node graph; the four-entry check of the key result of ch. 4.2; a negative capacity $B + C - A - D$ when the term is not submodular; the max-cut energy of Proposition 1.5; half-integrality and persistency (ch. 9.2).
+
+2.  **Question (5 points).** For the binary chain $x_1 - x_2 - x_3$ with $\theta_1 = (0, 2)$, $\theta_2 = (1, 0)$, $\theta_3 = (0, 2)$ and a Potts penalty 1.5 on both edges, run min-sum from left to right, find the MAP labelling and its energy, and compute the min-marginals of $x_2$ with messages from both sides.
+
+    *Expected*: $m_{1 \to 2} = (0, 1.5)$ and $m_{2 \to 3} = (1, 1.5)$; the min-marginals of $x_3$ are (1, 3.5), and the MAP labelling is (0, 0, 0) with energy 1. From the right, $m_{3 \to 2} = (0, 1.5)$, so the min-marginals of $x_2$ are (1, 3); brute force over the eight labellings confirms them.
+
+3.  **Question (4 points).** Prove both inequalities of Proposition 6.3. Evaluate the first one on the frustrated triangle with the three spanning paths, and explain why it equals the LP value rather than the MAP energy.
+
+    *Expected*: linearity of the energy in $\theta$ and "the minimum of a sum is at least the sum of minima"; convexity of $\log Z$ and Jensen's inequality; the computation of Example 6.5 (bound 0, MAP 1); Theorem 6.4.
+
+4.  **Question (6 points).** The DAG has edges $Z \to X$, $Z \to Y$, $X \to Y$, $X \to W$ and $Y \to W$.
+
+    Which of the sets $\emptyset$, $\{Z\}$, $\{W\}$, $\{Z, W\}$ satisfy the back-door criterion relative to $(X, Y)$?
+
+    With binary variables, compute the naive contrast and the causal effect for the tables:
+
+    -   $P(Z = 1) = 0.5$;
+    -   $P(X = 1 \mid Z) = 0.3$ if $Z = 0$, and 0.7 if $Z = 1$;
+    -   $P(Y = 1 \mid X, Z) = 0.2, 0.4, 0.5, 0.7$ for $(X, Z)$ = (0, 0), (1, 0), (0, 1), (1, 1).
+
+    *Expected*: only $\{Z\}$ qualifies: the empty set leaves the path through $Z$ open, and $W$ is a descendant of $X$. The naive contrast is 0.61 − 0.29 = 0.32, while the adjustment gives 0.55 − 0.35 = 0.20. Confounding by $Z$ inflates the effect, and adjusting on the collider $W$ would bias it further.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Mathematical correctness | 25 % | Models, relaxations and guarantees stated precisely; proofs or derivations checked; assumptions such as submodularity or faithfulness named |
+| Implementation and reproducibility | 25 % | Code runs from a clean environment; seeds fixed; every figure regenerated by one script; solvers checked against brute force on small cases |
+| Experimental design | 20 % | Baselines, several instances or seeds, error bars, energies and bounds reported together, a success criterion fixed in advance |
+| Critical analysis | 15 % | Failures explained with the course's tools: frustrated cycles, gaps, local minima, faithfulness violations |
+| Report and defence | 15 % | Clear figures, honest limitations, a defence that fits the time and answers questions on the course content |
+
+## References {#refs}
+
+Official references (master-mva.com):
+
+-   S. Boyd and L. Vandenberghe, *Convex Optimization*, Cambridge University Press, 2004 — ch. 0.3, 5, 6.
+-   J. Nocedal and S. J. Wright, *Numerical Optimization*, 2nd ed., Springer, 2006 — ch. 0.3, 6.
+-   F. S. Hillier and G. J. Lieberman, *Introduction to Operations Research*, 10th ed., McGraw-Hill, 2015 — ch. 0.3, 4.1.
+-   M. P. Kumar, V. Kolmogorov and P. H. S. Torr, “An analysis of convex relaxations for MAP estimation of discrete MRFs”, *Journal of Machine Learning Research* 10, 2009 — ch. 5.4.
+-   V. Kolmogorov, “Convergent tree-reweighted message passing for energy minimization”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 28(10), 2006 — ch. 6.3.
+-   D. Koller and N. Friedman, *Probabilistic Graphical Models: Principles and Techniques*, MIT Press, 2009 — ch. 1–3, 7, 8.
+
+Textbooks and surveys:
+
+-   J. Pearl, *Probabilistic Reasoning in Intelligent Systems*, Morgan Kaufmann, 1988 — ch. 2, 3.
+-   S. L. Lauritzen, *Graphical Models*, Oxford University Press, 1996 — ch. 1, 2.
+-   M. J. Wainwright and M. I. Jordan, “Graphical models, exponential families, and variational inference”, *Foundations and Trends in Machine Learning* 1(1–2), 2008 — ch. 1.4, 2.4, 5, 6.
+-   A. Blake, P. Kohli and C. Rother (eds.), *Markov Random Fields for Vision and Image Processing*, MIT Press, 2011 — ch. 4, 6.
+-   S. Nowozin and C. H. Lampert, “Structured learning and prediction in computer vision”, *Foundations and Trends in Computer Graphics and Vision* 6(3–4), 2011 — ch. 8.
+-   J. Pearl, *Causality: Models, Reasoning, and Inference*, 2nd ed., Cambridge University Press, 2009 — ch. 7, 9.5.
+-   P. Spirtes, C. Glymour and R. Scheines, *Causation, Prediction, and Search*, 2nd ed., MIT Press, 2000 — ch. 9.4.
+-   J. Peters, D. Janzing and B. Schölkopf, *Elements of Causal Inference*, MIT Press, 2017 — ch. 7.
+
+Papers, by chapter:
+
+-   J. Besag, “Spatial interaction and the statistical analysis of lattice systems”, *Journal of the Royal Statistical Society B* 36(2), 1974; J. Moussouris, “Gibbs and Markov random systems with constraints”, *Journal of Statistical Physics* 10(1), 1974; R. M. Karp, “Reducibility among combinatorial problems”, in *Complexity of Computer Computations*, Plenum, 1972; S. Geman and D. Geman, “Stochastic relaxation, Gibbs distributions, and the Bayesian restoration of images”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 6(6), 1984 — ch. 1.
+-   F. R. Kschischang, B. J. Frey and H.-A. Loeliger, “Factor graphs and the sum-product algorithm”, *IEEE Transactions on Information Theory* 47(2), 2001; K. P. Murphy, Y. Weiss and M. I. Jordan, “Loopy belief propagation for approximate inference: an empirical study”, *UAI*, 1999 — ch. 2.
+-   J. S. Yedidia, W. T. Freeman and Y. Weiss, “Constructing free-energy approximations and generalized belief propagation algorithms”, *IEEE Transactions on Information Theory* 51(7), 2005; Y. Weiss, “Correctness of local probability propagation in graphical models with loops”, *Neural Computation* 12(1), 2000; Y. Weiss and W. T. Freeman, “On the optimality of solutions of the max-product belief-propagation algorithm in arbitrary graphs”, *IEEE Transactions on Information Theory* 47(2), 2001 — ch. 2.4.
+-   S. L. Lauritzen and D. J. Spiegelhalter, “Local computations with probabilities on graphical structures and their application to expert systems”, *Journal of the Royal Statistical Society B* 50(2), 1988 — ch. 9.1.
+-   D. Geiger, T. Verma and J. Pearl, “Identifying independence in Bayesian networks”, *Networks* 20(5), 1990; T. Verma and J. Pearl, “Equivalence and synthesis of causal models”, *UAI*, 1990 — ch. 3.1, 9.4.
+-   C. K. Chow and C. N. Liu, “Approximating discrete probability distributions with dependence trees”, *IEEE Transactions on Information Theory* 14(3), 1968; D. Heckerman, D. Geiger and D. M. Chickering, “Learning Bayesian networks: the combination of knowledge and statistical data”, *Machine Learning* 20(3), 1995; D. M. Chickering, “Learning Bayesian networks is NP-complete”, in *Learning from Data: Artificial Intelligence and Statistics V*, Springer, 1996 — ch. 3.2–3.3.
+-   L. R. Ford and D. R. Fulkerson, “Maximal flow through a network”, *Canadian Journal of Mathematics* 8, 1956; J. Edmonds and R. M. Karp, “Theoretical improvements in algorithmic efficiency for network flow problems”, *Journal of the ACM* 19(2), 1972; A. V. Goldberg and R. E. Tarjan, “A new approach to the maximum-flow problem”, *Journal of the ACM* 35(4), 1988 — ch. 4.1.
+-   D. M. Greig, B. T. Porteous and A. H. Seheult, “Exact maximum a posteriori estimation for binary images”, *Journal of the Royal Statistical Society B* 51(2), 1989; V. Kolmogorov and R. Zabih, “What energy functions can be minimized via graph cuts?”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 26(2), 2004; Y. Boykov and V. Kolmogorov, “An experimental comparison of min-cut/max-flow algorithms for energy minimization in vision”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 26(9), 2004 — ch. 4.1–4.2.
+-   Y. Boykov and M.-P. Jolly, “Interactive graph cuts for optimal boundary & region segmentation of objects in N-D images”, *ICCV*, 2001; J. Besag, “On the statistical analysis of dirty pictures”, *Journal of the Royal Statistical Society B* 48(3), 1986 — ch. 1.1, 4.2.
+-   P. L. Hammer, P. Hansen and B. Simeone, “Roof duality, complementation and persistency in quadratic 0–1 optimization”, *Mathematical Programming* 28(2), 1984; E. Boros and P. L. Hammer, “Pseudo-Boolean optimization”, *Discrete Applied Mathematics* 123(1–3), 2002; V. Kolmogorov and C. Rother, “Minimizing nonsubmodular functions with graph cuts — a review”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 29(7), 2007 — ch. 9.2.
+-   Y. Boykov, O. Veksler and R. Zabih, “Fast approximate energy minimization via graph cuts”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 23(11), 2001; H. Ishikawa, “Exact optimization for Markov random fields with convex priors”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 25(10), 2003 — ch. 4.3, 9.3.
+-   T. Werner, “A linear programming approach to max-sum problem: a review”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 29(7), 2007; J. Kleinberg and É. Tardos, “Approximation algorithms for classification problems with pairwise relationships: metric labeling and Markov random fields”, *Journal of the ACM* 49(5), 2002 — ch. 5.1–5.3.
+-   P. Ravikumar and J. Lafferty, “Quadratic programming relaxations for metric labeling and Markov random field MAP estimation”, *ICML*, 2006; M. Muramatsu and T. Suzuki, “A new second-order cone programming relaxation for MAX-CUT problems”, *Journal of the Operations Research Society of Japan* 46(2), 2003; M. P. Kumar, P. H. S. Torr and A. Zisserman, “Solving Markov random fields using second order cone programming relaxations”, *CVPR*, 2006; M. X. Goemans and D. P. Williamson, “Improved approximation algorithms for maximum cut and satisfiability problems using semidefinite programming”, *Journal of the ACM* 42(6), 1995 — ch. 5.4.
+-   M. J. Wainwright, T. S. Jaakkola and A. S. Willsky, “MAP estimation via agreement on trees: message-passing and linear programming”, *IEEE Transactions on Information Theory* 51(11), 2005; M. J. Wainwright, T. S. Jaakkola and A. S. Willsky, “A new class of upper bounds on the log partition function”, *IEEE Transactions on Information Theory* 51(7), 2005 — ch. 6.2.
+-   V. Kolmogorov and M. J. Wainwright, “On the optimality of tree-reweighted max-product message-passing”, *UAI*, 2005; A. Globerson and T. Jaakkola, “Fixing max-product: convergent message passing algorithms for MAP LP-relaxations”, *NeurIPS*, 2007 — ch. 6.3.
+-   N. Komodakis, N. Paragios and G. Tziritas, “MRF energy minimization and beyond via dual decomposition”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 33(3), 2011; D. Sontag, A. Globerson and T. Jaakkola, “Introduction to dual decomposition for inference”, in S. Sra, S. Nowozin and S. J. Wright (eds.), *Optimization for Machine Learning*, MIT Press, 2011 — ch. 6.4.
+-   R. Szeliski, R. Zabih, D. Scharstein, O. Veksler, V. Kolmogorov, A. Agarwala, M. Tappen and C. Rother, “A comparative study of energy minimization methods for Markov random fields with smoothness-based priors”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 30(6), 2008; J. H. Kappes et al., “A comparative study of modern inference techniques for structured discrete energy minimization problems”, *International Journal of Computer Vision* 115(2), 2015 — ch. 6.3, 10.1.
+-   J. Pearl, “Causal diagrams for empirical research”, *Biometrika* 82(4), 1995; I. Shpitser and J. Pearl, “Identification of joint interventional distributions in recursive semi-Markovian causal models”, *AAAI*, 2006; Y. Huang and M. Valtorta, “Pearl's calculus of intervention is complete”, *UAI*, 2006 — ch. 7.1–7.2.
+-   C. Meek, “Causal inference and causal explanation with background knowledge”, *UAI*, 1995; M. Kalisch and P. Bühlmann, “Estimating high-dimensional directed acyclic graphs with the PC-algorithm”, *Journal of Machine Learning Research* 8, 2007 — ch. 9.4.
+-   J. Lafferty, A. McCallum and F. Pereira, “Conditional random fields: probabilistic models for segmenting and labeling sequence data”, *ICML*, 2001; J. Besag, “Statistical analysis of non-lattice data”, *Journal of the Royal Statistical Society D (The Statistician)* 24(3), 1975 — ch. 8.1.
+-   B. Taskar, C. Guestrin and D. Koller, “Max-margin Markov networks”, *NeurIPS*, 2003; I. Tsochantaridis, T. Joachims, T. Hofmann and Y. Altun, “Large margin methods for structured and interdependent output variables”, *Journal of Machine Learning Research* 6, 2005 — ch. 8.2.
+-   P. Krähenbühl and V. Koltun, “Efficient inference in fully connected CRFs with Gaussian edge potentials”, *NeurIPS*, 2011; S. Zheng, S. Jayasumana, B. Romera-Paredes, V. Vineet, Z. Su, D. Du, C. Huang and P. H. S. Torr, “Conditional random fields as recurrent neural networks”, *ICCV*, 2015; L.-C. Chen, G. Papandreou, I. Kokkinos, K. Murphy and A. L. Yuille, “DeepLab: semantic image segmentation with deep convolutional nets, atrous convolution, and fully connected CRFs”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 40(4), 2018 — ch. 8.3.
+-   G. Lample, M. Ballesteros, S. Subramanian, K. Kawakami and C. Dyer, “Neural architectures for named entity recognition”, *NAACL*, 2016; J. Gilmer, S. S. Schoenholz, P. F. Riley, O. Vinyals and G. E. Dahl, “Neural message passing for quantum chemistry”, *ICML*, 2017 — ch. 8.4, 9.6.
+-   O. M. Parkhi, A. Vedaldi, A. Zisserman and C. V. Jawahar, “Cats and dogs”, *CVPR*, 2012 — group project 2.
+
+Research directions (ch. 10):
+
+-   D. Sontag, T. Meltzer, A. Globerson, T. Jaakkola and Y. Weiss, “Tightening LP relaxations for MAP using message passing”, *UAI*, 2008; J. Thapper and S. Živný, “The complexity of finite-valued CSPs”, *Journal of the ACM* 63(4), 2016.
+-   J. Kuck, S. Chakraborty, H. Tang, R. Luo, J. Song, A. Sabharwal and S. Ermon, “Belief propagation neural networks”, *NeurIPS*, 2020; V. Garcia Satorras and M. Welling, “Neural enhanced belief propagation on factor graphs”, *AISTATS*, 2021.
+-   J. Domke, “Learning graphical model parameters with approximate marginal inference”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 35(10), 2013; M. Vlastelica Pogančić, A. Paulus, V. Musil, G. Martius and M. Rolínek, “Differentiation of blackbox combinatorial solvers”, *ICLR*, 2020; Q. Berthet, M. Blondel, O. Teboul, M. Cuturi, J.-P. Vert and F. Bach, “Learning with differentiable perturbed optimizers”, *NeurIPS*, 2020; V. Niculae, A. F. T. Martins, M. Blondel and C. Cardie, “SparseMAP: differentiable sparse structured inference”, *ICML*, 2018.
+-   M. J. Johnson, D. Duvenaud, A. B. Wiltschko, S. R. Datta and R. P. Adams, “Composing graphical models with neural networks for structured representations and fast inference”, *NeurIPS*, 2016; J. Austin, D. D. Johnson, J. Ho, D. Tarlow and R. van den Berg, “Structured denoising diffusion models in discrete state-spaces”, *NeurIPS*, 2021.
+-   X. Zheng, B. Aragam, P. Ravikumar and E. P. Xing, “DAGs with NO TEARS: continuous optimization for structure learning”, *NeurIPS*, 2018; A. G. Reisach, C. Seiler and S. Weichwald, “Beware of the simulated DAG! Causal discovery benchmarks may be easy to game”, *NeurIPS*, 2021; C. Uhler, G. Raskutti, P. Bühlmann and B. Yu, “Geometry of the faithfulness assumption in causal inference”, *Annals of Statistics* 41(2), 2013; B. Schölkopf, F. Locatello, S. Bauer, N. R. Ke, N. Kalchbrenner, A. Goyal and Y. Bengio, “Toward causal representation learning”, *Proceedings of the IEEE* 109(5), 2021.

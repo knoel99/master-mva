@@ -1,0 +1,2254 @@
+---
+title: "Deep Learning for Image Restoration and Synthesis"
+subtitle: "M2 MVA · Semester 2 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: images, Fourier analysis, estimation and network training](#ch0)
+-   [1. Image degradations and classical image models](#ch1)
+-   [2. End-to-end deep learning for denoising and super-resolution](#ch2)
+-   [3. Inverse problems: variational, statistical and hybrid methods](#ch3)
+-   [4. Generative models for texture synthesis](#ch4)
+-   [5. Autoencoders and variational autoencoders](#ch5)
+-   [6. Generative adversarial networks](#ch6)
+-   [7. Perception, distortion and the critical evaluation of restoration](#ch7)
+-   [8. Diffusion models and generative priors for inverse problems](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Deep Learning for Image Restoration and Synthesis
+  Official title       Apprentissage Profond pour la Restauration et la Synthese d’Images
+  Instructors          A. ALMANSA, S. LADJAL, A. NEWSON (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 36 h (lectures 24 h, labs 12 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Image processing
+  Language             English or French, according to the preferences of the audience (master-mva.com)
+  Assessment           Individual lab reports, and an individual project with a report and an oral defence at the end of the course (master-mva.com); “partial continuous assessment” (Université Paris-Saclay); no weights displayed
+  Prerequisites        Applied mathematics (linear algebra, numerical analysis, differential calculus, Fourier analysis) and programming (Python, Matlab); basic notions of image processing, optimisation and deep learning are useful but are introduced in the course (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics, computer science or physics who has met convolution and gradient descent, and wants to understand when a neural network really improves an image and when it only seems to.
+
+**Empirical first**: a network trained to super-resolve images that were downsampled with the bicubic kernel looks excellent on its benchmark, then produces ringing and hallucinated textures on a real camera image, whose blur is different. A denoiser trained with the squared loss returns images that are visibly too smooth, even though its PSNR is the best available.
+
+This course studies image models: the assumptions on natural images that turn an ill-posed restoration problem into a solvable one, and that let a machine synthesise new images. Deep learning is presented as the latest of these models, side by side with the variational and statistical models that preceded it, on denoising, deblurring, super-resolution, texture synthesis and image generation. It builds on [Deep Learning](../s1-deep-learning/index.html), [Image Denoising: the Human–Machine Competition](../s1-image-denoising/index.html) and [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html), and it runs alongside [Generative Models for Images](../s2-generative-models-images/index.html) and [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html).
+
+### What you will be able to do
+
+-   Write a restoration task (denoising, deblurring, super-resolution, inpainting) as a forward model and diagnose its ill-posedness in the Fourier domain.
+-   Derive the Wiener filter, the Tikhonov and total-variation estimators, and wavelet shrinkage, and say which image model each one encodes.
+-   Train a convolutional denoiser or super-resolution network, choose its loss, and predict what that loss does to the output (posterior mean, median, blur).
+-   Prove that training on pairs of noisy images (Noise2Noise) has the same minimiser as training on clean targets.
+-   Solve a linear inverse problem with plug-and-play ADMM, prove its fixed-point convergence under the bounded-denoiser assumption, and relate a denoiser to the score through Tweedie's formula.
+-   Synthesise textures with random phase noise, with Gram-matrix statistics of a convolutional network, and with a spectrum constraint.
+-   Derive the evidence lower bound, implement a variational autoencoder, and explain why its samples are blurry.
+-   Derive the optimal discriminator of a GAN, relate the GAN game to the Jensen–Shannon and Wasserstein distances, and train a WGAN-GP.
+-   State and prove the perception–distortion trade-off, and evaluate a restoration method with distortion and perceptual metrics without falling into their classical traps.
+-   Sample from a posterior with a diffusion model or with Langevin dynamics driven by a denoiser, and say what can go wrong.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com starts from an observation: smaller sensors and larger computing power have made images ubiquitous, but those images need more and more demanding post-processing (filtering, restoration) to reach good quality. At the heart of such processing lie image models, which make efficient algorithms possible, and deep learning is the most recent of a long list of them.
+
+The stated goal is to put recent deep-learning techniques for image quality in perspective with the methods that existed before them. The course explores denoising, super-resolution, deblurring, texture synthesis and the generation of natural images, presents the strengths and limitations of each technique, and analyses the methods critically, sometimes showing the pitfalls into which they fell.
+
+The description lists five themes, each made of a lecture and a lab, and announces 8 sessions of 3 h (lecture and lab), 2 revision sessions and 1 project-presentation session, on Tuesday afternoons at Télécom Paris. The Université Paris-Saclay programme table gives 24 h of lectures and 12 h of labs, under partial continuous assessment. Every item is matched below.
+
+| Official topic | Course section |
+|---|---|
+| 1\. End-to-end deep learning and application to super-resolution (S. Ladjal, 1 lecture + 1 lab) | [ch. 2](#ch2): supervised restoration, losses, DnCNN, Noise2Noise, SRCNN, sub-pixel convolution, pitfalls; sessions 3–4 |
+| 2\. Inverse problems, variational, statistical and hybrid methods (A. Almansa, 1 lecture + 1 lab) | [ch. 1](#ch1) (variational and statistical models) and [ch. 3](#ch3) (MAP and MMSE, ADMM, plug-and-play, Tweedie, RED, unrolled networks); sessions 2, 5–6 |
+| 3\. Generative models for texture synthesis (S. Ladjal, 1 lecture + lab) | [ch. 4](#ch4): random phase noise, Gram matrices (Gatys et al.), spectrum constraint (Liu et al.), feed-forward networks, style transfer; session 7 |
+| 4\. Variational autoencoders (A. Newson, 1 lecture + lab) | [ch. 5](#ch5): autoencoders and PCA, disks as a test case, ELBO, reparameterisation, limitations; session 8 |
+| 5\. Generative adversarial networks (A. Newson, 1 lecture + lab) | [ch. 6](#ch6): the GAN game, Jensen–Shannon, Wasserstein GAN, conditional GANs, evaluation, mixture clustering; sessions 9–10 |
+| “Plus de détails” (end of the list of themes) | not covered — a link to the course website, not a topic |
+| Objective: denoising | ch. 1 (Wiener, total variation, wavelets, non-local means), ch. 2 (DnCNN, Noise2Noise), ch. 3 (denoisers as priors) |
+| Objective: super-resolution | ch. 0 (sampling and aliasing), ch. 2.4–2.6, ch. 6.4 (adversarial super-resolution) |
+| Objective: deblurring | ch. 1 (inverse filter, Tikhonov, Wiener), ch. 3 (plug-and-play deblurring, Example 3.10) |
+| Objective: texture synthesis | ch. 4 |
+| Objective: generation of natural images | ch. 5 (VAEs), ch. 6 (GANs), ch. 8 (diffusion models) |
+| Objective: deep learning in perspective with pre-existing image models | ch. 1.5 (a long list of image models), ch. 3 (hybrid methods), the baselines of every code example |
+| Objective: strengths, limitations, critical analysis and pitfalls | “Pitfalls” of ch. 2.6, Remark 3.9, ch. 4.6, ch. 5.5, ch. 6.2, the whole of [ch. 7](#ch7) |
+| Organisation: 8 sessions of 3 h (lecture + lab) | sessions 1–10 of the [session plan](#sessions) |
+| Organisation: 2 revision sessions | sessions 11–12: ch. 7 and ch. 8 revisit ch. 2–6 through two cross-cutting questions |
+| Organisation: 1 project-presentation session | [Projects and assessment](#projects): oral defence and rubric |
+| Université Paris-Saclay: 24 h of lectures, 12 h of labs, partial continuous assessment | session plan (36 h, a lab in most sessions); lab reports and project in [Projects and assessment](#projects) |
+
+Extensions beyond the syllabus: Noise2Noise and the degradation-mismatch pitfall (ch. 2), the perception–distortion trade-off (ch. 7), diffusion models and Langevin posterior sampling (ch. 8), and a self-study chapter of research directions (ch. 9).
+
+### Where this course fits in the programme
+
+Official prerequisites (master-mva.com): applied mathematics (linear algebra, numerical analysis, differential calculus, Fourier analysis) and programming (Python, Matlab). Basic notions of image processing, optimisation and deep learning are useful, but the course introduces them; ch. 0 reviews what is needed.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, gradients, convexity), [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (conditional expectation, Gaussian vectors, Bayes), [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every lab).
+-   **First-semester courses that prepare it** — [Deep Learning](../s1-deep-learning/index.html), [Image Denoising: the Human–Machine Competition](../s1-image-denoising/index.html), [Convex Optimization](../s1-convex-optimization/index.html) (proximal operators, ADMM), [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (variational inference), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (sampling, aliasing), [Computational Statistics](../s1-computational-statistics/index.html) (Langevin, MCMC), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) (Wasserstein distance), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (diffusion processes).
+-   **Related second-semester courses** — [Generative Models for Images](../s2-generative-models-images/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Diffusion and Multiscale Models in Artificial Intelligence](../s2-diffusion-multiscale/index.html), [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html), [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Remote Sensing Data](../s2-remote-sensing/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html): restoration and generative modelling are frequent internship subjects in imaging laboratories and companies.
+
+### Course outline
+
+-   **Review: images, Fourier analysis, estimation and network training** — the discrete Fourier transform, the convolution theorem, aliasing, the MMSE and MAP estimators, and convolutional layers.
+-   **Image degradations and classical image models** — forward models, quality metrics, Wiener, Tikhonov, total variation, wavelet shrinkage and patch models.
+-   **End-to-end deep learning for denoising and super-resolution** — supervised restoration, what the loss estimates, DnCNN, Noise2Noise, SRCNN, sub-pixel convolution and the pitfalls of synthetic training data.
+-   **Inverse problems: variational, statistical and hybrid methods** — MAP and MMSE, proximal splitting, plug-and-play ADMM and its convergence, Tweedie's formula, RED and unrolled networks.
+-   **Generative models for texture synthesis** — random phase noise, Gram matrices of convolutional features, the spectrum constraint and feed-forward texture networks.
+-   **Autoencoders and variational autoencoders** — linear autoencoders and PCA, the evidence lower bound, the reparameterisation trick and the limits of VAEs.
+-   **Generative adversarial networks** — the minimax game, the Jensen–Shannon and Wasserstein distances, conditional GANs for restoration and the evaluation of generators.
+-   **Perception, distortion and the critical evaluation of restoration** — why no estimator can be both accurate and realistic, and how metrics mislead.
+-   **Diffusion models and generative priors for inverse problems** — denoising score matching, DDPM, and posterior sampling with Langevin dynamics and diffusion guidance.
+-   **Research directions and open problems** — convergent plug-and-play, uncertainty, self-supervision, memorisation (self-study).
+
+### Session plan {#sessions}
+
+**36 h in class = 12 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (24 h of lectures and 12 h of labs); master-mva.com organises the course as 8 sessions of 3 h (lecture and lab), 2 revision sessions and 1 project-presentation session, and the split below into 12 sessions is a proposal that follows the order of the five official themes.
+
+Level 1 = foundations (reviews, definitions, first worked examples), 2 = core methods and their proofs, 3 = advanced material close to current research; the level never goes down from one session to the next. The two revision sessions are used for two cross-cutting chapters that revisit the earlier ones.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: DFT and convolution theorem, sampling and aliasing, MMSE and MAP, convolutional layers and training | Ex. 1, 2 |
+| 2 | 3 h | 1 | ch. 1 Forward models, PSNR and SSIM, inverse filter, Wiener and Tikhonov, total variation, wavelet shrinkage, patch models | Ex. 3, 4; lab: deconvolution (code of ch. 1) |
+| 3 | 3 h | 2 | ch. 2.1–2.3 Supervised restoration, what the L2 and L1 losses estimate, DnCNN and residual learning, Noise2Noise | Ex. 6; lab: train the denoiser of ch. 2 |
+| 4 | 3 h | 2 | ch. 2.4–2.6 Super-resolution: SRCNN, sub-pixel convolution, perceptual losses, pitfalls of synthetic degradations | Ex. 5; lab: super-resolution (official theme 1) |
+| 5 | 3 h | 2 | ch. 3.1–3.3 Bayesian inverse problems, MAP versus MMSE, proximal operators, ADMM, plug-and-play ADMM and its convergence | Ex. 7 |
+| 6 | 3 h | 2 | ch. 3.4–3.5 Tweedie's formula, regularisation by denoising, unrolled networks | lab: plug-and-play deblurring (official theme 2) |
+| 7 | 3 h | 2 | ch. 4 Texture synthesis: random phase noise, Gram matrices, spectrum constraint, feed-forward networks, style transfer | Ex. 8; lab: textures (official theme 3) |
+| 8 | 3 h | 2 | ch. 5 Autoencoders and PCA, latent variable models, ELBO, reparameterisation, limitations of VAEs | Ex. 9, 11; lab: VAE (official theme 4) |
+| 9 | 3 h | 3 | ch. 6.1–6.3 The GAN game, optimal discriminator, Jensen–Shannon, training pathologies, Wasserstein GAN | Ex. 10 |
+| 10 | 3 h | 3 | ch. 6.4–6.5 Conditional GANs for restoration, evaluation (FID), adversarial mixture clustering | lab: GAN against WGAN-GP (official theme 5) |
+| 11 | 3 h | 3 | ch. 7 Perception–distortion trade-off, posterior sampling, metrics and pitfalls (first revision session: revisits ch. 2, 4, 6) | Ex. 12 |
+| 12 | 3 h | 3 | ch. 8 Denoising score matching, DDPM, Langevin and diffusion posterior sampling (second revision session: revisits ch. 3, 5) | Ex. 13 |
+
+**Self-study, outside the 36 h** (about 5 h in total): ch. 9 Research directions and open problems (≈ 3 h, with Ex. 15) · Exercise 14 and the code blocks of the last two chapters, run and modified at home (≈ 2 h).
+
+### How to study this module
+
+-   Read ch. 0 before the first session even if you know the material: the convolution theorem, aliasing and the MMSE estimator are used in every later chapter without warning.
+-   After each session, run the code block of the chapter, change one parameter (noise level, blur width, loss, regularisation weight) and predict the effect before looking.
+-   Do the exercises listed in the *Practice* column right after the session; the ★ ones check the session, the ★★ ones prepare the next.
+-   Keep a lab notebook: the official assessment includes individual lab reports, and the labs of sessions 2–10 are where they come from.
+-   Read ch. 7 twice, once after ch. 2 and once after ch. 6: it is the critical lens the course description asks for.
+-   Environment: Python 3 with NumPy, SciPy, scikit-learn (its two bundled sample images and the digits data set) and PyTorch on CPU; every code block runs in well under a minute on a laptop.
+
+::: note
+[Independent notes]{.tag} These notes reconstruct the official description of the course; they are not the instructors' material. The facts of the fiche come from master-mva.com and the Université Paris-Saclay programme table; the course website announced on master-mva.com is delires.wp.imt.fr.
+:::
+
+## 0. Review: images, Fourier analysis, estimation and network training {#ch0}
+
+Restoration and synthesis keep manipulating three objects: the image as an array of numbers, the convolution that models a blur and builds a network, and the conditional distribution of the clean image given what was observed. This chapter reviews the M1 facts about them that later chapters use without proof.
+
+### 0.1 Discrete images and the Fourier transform
+
+A grey-level image is an array $u \in \mathbb{R}^{n \times n}$. We index it by $x \in \Omega = \{0, \dots, n-1\}^2$ and read indices modulo $n$: the image is extended periodically. This convention makes every formula below exact; real boundaries are handled by symmetric extension or by cropping.
+
+::: def
+[Definition 0.1 — Two-dimensional discrete Fourier transform]{.tag} The DFT of $u$ is
+$$
+\hat u(\omega) = \sum_{x \in \Omega} u(x)\, e^{-2i\pi \langle \omega, x \rangle / n}, \qquad \omega \in \Omega,
+$$
+and it is inverted by
+$$
+u(x) = \frac{1}{n^2} \sum_{\omega \in \Omega} \hat u(\omega)\, e^{2i\pi \langle \omega, x \rangle / n}.
+$$
+
+Parseval's identity reads $\sum_x |u(x)|^2 = n^{-2} \sum_\omega |\hat u(\omega)|^2$. Frequencies are often written in cycles per pixel, $\omega / n \in [-\tfrac12, \tfrac12)^2$.
+:::
+
+The *circular convolution* of a kernel $k$ and an image $u$ is
+$$
+(k * u)(x) = \sum_{y \in \Omega} k(y)\, u(x - y).
+$$
+
+:::: thm
+[Theorem 0.2 — Convolution theorem]{.tag} For all $k, u \in \mathbb{R}^{n \times n}$,
+$$
+\widehat{k * u}(\omega) = \hat k(\omega)\, \hat u(\omega) \quad \text{for every } \omega \in \Omega.
+$$
+
+::: proof
+Write the definition and exchange the sums:
+$$
+\widehat{k * u}(\omega) = \sum_{y} k(y) \sum_{x} u(x - y)\, e^{-2i\pi \langle \omega, x \rangle / n}.
+$$
+
+In the inner sum substitute $z = x - y$, a bijection of $\Omega$ modulo $n$, and split the exponential into a factor in $y$ and a factor in $z$. The inner sum becomes
+$$
+e^{-2i\pi \langle \omega, y \rangle / n}\, \hat u(\omega),
+$$
+and the outer sum then gives $\hat k(\omega)$. [∎]{.qed}
+:::
+::::
+
+A convolution is therefore *diagonal in the Fourier basis*: its eigenvalues are the values of the transfer function $\hat k(\omega)$. It is invertible exactly when $\hat k$ never vanishes, and its condition number is the ratio of the largest to the smallest value of $|\hat k|$. This single fact explains why deblurring is unstable (ch. 1) and why every deconvolution algorithm in this course works in the Fourier domain.
+
+### 0.2 Sampling and aliasing
+
+Super-resolution undoes a subsampling, so we need to know exactly what subsampling does to frequencies. One dimension is enough to see it.
+
+:::: prop
+[Proposition 0.3 — Aliasing]{.tag} Let $u \in \mathbb{R}^n$ with $n$ even, and keep one sample out of two: $v(m) = u(2m)$ for $0 \le m < n/2$. Then, for $0 \le k < n/2$,
+$$
+\hat v(k) = \tfrac12 \big( \hat u(k) + \hat u(k + n/2) \big).
+$$
+
+::: proof
+The quantity $\tfrac12 (1 + (-1)^x)$ equals $1$ when $x$ is even and $0$ otherwise, and $(-1)^x = e^{-2i\pi (n/2) x / n}$. Hence
+$$
+\hat v(k) = \sum_{x} u(x)\, \tfrac12 \big(1 + e^{-2i\pi (n/2) x / n}\big)\, e^{-2i\pi k x / n},
+$$
+which is half the sum of the DFTs of $u$ at $k$ and at $k + n/2$. [∎]{.qed}
+:::
+::::
+
+Frequencies $k$ and $k + n/2$ fold onto each other. A high frequency of $u$ thus masquerades as a low frequency of $v$, unless $u$ was low-pass filtered before sampling, as the Shannon–Nyquist theorem requires.
+
+Single-image super-resolution has to undo this folding. The aliased part of the low-resolution image carries information about high frequencies, which is what makes the problem solvable at all; but each low frequency mixes two unknowns, which is what makes it ill-posed.
+
+::: ex
+[Example 0.4 — A cosine that changes frequency]{.tag} Sample the cosine $\cos(2\pi \cdot 0.4\, m)$ on 250 pixels and keep one sample out of two. In units of the new sampling step its frequency is $0.8$ cycles per sample, above the Nyquist limit $0.5$. The code below finds the peak of the spectrum of the subsampled signal at
+
+$$0.8 \text{ folded to } 1 - 0.8 = 0.2 \text{ cycles per sample.}$$
+:::
+
+### 0.3 Estimators: MMSE and MAP
+
+In restoration the clean image $X$ is unknown and modelled as random; the observation $Y$ is a degraded version of it. An *estimator* is a function $f(Y)$. Two choices recur in every chapter.
+
+:::: thm
+[Theorem 0.5 — The MMSE estimator is the conditional mean]{.tag} If $\mathbb{E}\|X\|^2 < \infty$, then among all measurable functions $f$,
+$$
+\mathbb{E}\, \|X - f(Y)\|^2 \ \ge\ \mathbb{E}\, \|X - m(Y)\|^2, \qquad m(Y) = \mathbb{E}[X \mid Y],
+$$
+with equality if and only if $f(Y) = m(Y)$ almost surely. The minimum value, the *MMSE*, equals $\mathbb{E}\, \mathrm{tr}\, \mathrm{Cov}(X \mid Y)$.
+
+::: proof
+Decompose $X - f(Y) = (X - m(Y)) + (m(Y) - f(Y))$ and expand the square.
+
+The cross term is $2\,\mathbb{E} \langle X - m(Y),\, m(Y) - f(Y) \rangle$. Conditioning on $Y$, the second factor is fixed and the first has conditional mean zero, so the cross term vanishes by the tower property.
+
+What remains is $\mathbb{E}\|X - m(Y)\|^2 + \mathbb{E}\|m(Y) - f(Y)\|^2$, and the second term is non-negative and zero only when $f(Y) = m(Y)$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 0.6 — MAP estimator and the variational form]{.tag} If $X$ has a prior density $p(x) \propto e^{-\varphi(x)}$ and $Y = AX + N$ with $N \sim \mathcal{N}(0, \sigma^2 I)$, the *maximum a posteriori* estimator maximises the posterior density, that is
+
+$$
+\hat x_{\mathrm{MAP}}(y) = \arg\min_x\ \frac{1}{2\sigma^2} \|Ax - y\|^2 + \varphi(x).
+$$
+
+It is a variational problem: a data-fidelity term plus a regulariser. This identity is the bridge between the "variational" and the "statistical" methods of the official theme 2.
+:::
+
+The two estimators coincide for a Gaussian posterior, whose mode is its mean. They differ as soon as the prior is not Gaussian: the MAP picks the most likely image, the MMSE averages all plausible ones. Chapters 3 and 7 return to this difference, which is at the heart of the course.
+
+### 0.4 Convolutional networks and their training
+
+::: def
+[Definition 0.7 — Convolutional layer]{.tag} A layer maps $C_{\mathrm{in}}$ input channels $h_c$ to $C_{\mathrm{out}}$ output channels by
+$$
+h'_{c'} = \sigma\Big( \sum_{c=1}^{C_{\mathrm{in}}} w_{c', c} * h_c + b_{c'} \Big),
+$$
+where each $w_{c',c}$ is an $s \times s$ kernel and $\sigma$ is a pointwise non-linearity such as $\mathrm{ReLU}(t) = \max(t, 0)$. It has $C_{\mathrm{in}} C_{\mathrm{out}} s^2$ weights and $C_{\mathrm{out}}$ biases, whatever the size of the image.
+:::
+
+:::: prop
+[Proposition 0.8 — Translation equivariance]{.tag} Let $\tau_a u(x) = u(x - a)$. With periodic boundary conditions, a convolution satisfies $w * \tau_a u = \tau_a (w * u)$, and a pointwise non-linearity commutes with $\tau_a$. Hence a network $\Phi$ made only of such layers satisfies
+$$
+\Phi(\tau_a u) = \tau_a\, \Phi(u) \quad \text{for every translation } a.
+$$
+
+::: proof
+$(w * \tau_a u)(x) = \sum_y w(y)\, u(x - y - a) = (w * u)(x - a)$. Composition preserves the property. [∎]{.qed}
+:::
+::::
+
+Equivariance is the reason why convolutional networks suit restoration: the same local rule is applied everywhere, and a network trained on small patches can be applied to a whole image. Stacking $L$ layers of $s \times s$ kernels gives a *receptive field* of $(L(s-1) + 1)^2$ pixels; for instance 17 layers of $3 \times 3$ kernels see a $35 \times 35$ neighbourhood.
+
+Training minimises an empirical risk by stochastic gradient methods (Adam in all the labs). Backpropagation computes the gradient by the chain rule in reverse order, for a small multiple of the cost of the forward pass. Two architectural devices make deep networks trainable: residual connections, which let a block learn a correction to the identity, and batch normalisation, which standardises activations over the mini-batch.
+
+```python
+import numpy as np
+from scipy.ndimage import convolve
+
+rng = np.random.default_rng(0)
+x = rng.random((64, 64))                                  # a random 64 x 64 "image"
+box = np.ones((3, 3)) / 9                                 # 3 x 3 box blur
+k = np.zeros((64, 64)); k[:3, :3] = box
+k = np.roll(k, (-1, -1), axis=(0, 1))                     # centre the kernel at pixel (0, 0)
+y_fourier = np.real(np.fft.ifft2(np.fft.fft2(x) * np.fft.fft2(k)))
+y_direct = convolve(x, box, mode="wrap")                  # periodic boundary conditions
+print("max |Fourier - direct| =", np.abs(y_fourier - y_direct).max())
+
+# Aliasing: a cosine at 0.4 cycles/pixel, keep one sample out of two
+n = np.arange(250)
+s = np.cos(2 * np.pi * 0.4 * n)
+sub = s[::2]                                              # 125 samples, new sampling step = 2 pixels
+peak = np.argmax(np.abs(np.fft.rfft(sub))) / len(sub)     # dominant frequency, cycles per new sample
+print("frequency after subsampling:", peak, "cycles/sample (0.8 folds back to 0.2)")
+```
+
+The first line prints an error of order $10^{-16}$ (Theorem 0.2 holds to machine precision); the second prints the folded frequency $0.2$ of Example 0.4.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   Convolutions are diagonal in the Fourier basis; their eigenvalues are the values of the transfer function.
+-   Subsampling folds frequency $k + n/2$ onto $k$: super-resolution must unfold it.
+-   The squared loss is minimised by the conditional mean; the MAP estimator is a variational problem with the negative log-prior as regulariser.
+-   Convolutional networks are translation-equivariant and have a receptive field that grows linearly with depth.
+::::
+
+## 1. Image degradations and classical image models {#ch1}
+
+Before any learning, a restoration problem is a forward model plus an image model. This chapter writes the forward models of the course, shows why inverting them naively fails, and reviews the image models that solved them before deep learning: they remain the baselines, and the building blocks of the hybrid methods of ch. 3.
+
+### 1.1 Forward models and ill-posedness
+
+::: def
+[Definition 1.1 — Linear degradation model]{.tag} The observation is
+$$
+y = A x + n, \qquad n \sim \mathcal{N}(0, \sigma^2 I),
+$$
+with a known linear operator $A$. The four problems of the course are:
+
+-   **denoising**: $A = I$;
+-   **deblurring**: $A x = k * x$ for a blur kernel $k$ (defocus, motion, atmosphere);
+-   **super-resolution** by a factor $s$: $A x = (k * x)\!\downarrow_s$, a blur followed by keeping one pixel out of $s$ in each direction;
+-   **inpainting**: $A$ multiplies by a binary mask of known pixels.
+:::
+
+Real noise is often not Gaussian. Photon counting gives Poisson noise, whose variance grows with the intensity, and the processing chain of a camera (demosaicking, compression) correlates it in space. Gaussian white noise remains the standard model for theory and for synthetic benchmarks; ch. 2.6 discusses the price of that convention.
+
+A problem is *well-posed* in Hadamard's sense when a solution exists, is unique and depends continuously on the data. Super-resolution and inpainting break uniqueness, since $A$ has a large kernel. Deblurring breaks stability, as the next proposition quantifies.
+
+:::: prop
+[Proposition 1.2 — Noise amplification by the inverse filter]{.tag} Let $A$ be a circular convolution whose transfer function $\hat k$ never vanishes, and let $\tilde x = A^{-1} y$. Then $\tilde x - x = A^{-1} n$ and
+$$
+\mathbb{E}\, \|\tilde x - x\|^2 = \sigma^2 \sum_{\omega \in \Omega} \frac{1}{|\hat k(\omega)|^2}.
+$$
+
+::: proof
+By Theorem 0.2, $A = F^{*} \mathrm{diag}(\hat k) F$ with $F$ the unitary DFT (the DFT divided by $n$). Then $A^{-1} n = F^{*} \mathrm{diag}(1/\hat k) F n$.
+
+White Gaussian noise is invariant in law under the unitary $F$, so $Fn$ has independent coordinates of variance $\sigma^2$. Each is multiplied by $1/\hat k(\omega)$, and $F^{*}$ preserves the norm. [∎]{.qed}
+:::
+::::
+
+A Gaussian blur of standard deviation $b$ pixels has transfer function
+$$
+\hat k(\omega) = \exp\!\big(-2\pi^2 b^2 |\xi|^2\big), \qquad \xi = \omega / n \text{ in cycles per pixel}.
+$$
+For $b = 2$, at the corner frequency $\xi = (\tfrac12, \tfrac12)$, this is about $7 \times 10^{-18}$. A noise of standard deviation $0.01$ is multiplied by about $10^{17}$ there: the inverse filter is useless, as Example 1.6 shows.
+
+### 1.2 Measuring quality
+
+::: def
+[Definition 1.3 — PSNR and SSIM]{.tag} For images with values in $[0, 1]$, the *peak signal-to-noise ratio* in decibels is
+$$
+\mathrm{PSNR}(\hat x, x) = 10 \log_{10} \frac{1}{\mathrm{MSE}(\hat x, x)}, \qquad \mathrm{MSE} = \frac{1}{|\Omega|} \|\hat x - x\|^2 .
+$$
+
+The *structural similarity* index (Wang, Bovik, Sheikh and Simoncelli, 2004) compares local means $\mu$, variances $\sigma^2$ and the covariance $\sigma_{uv}$ in a sliding window,
+$$
+\mathrm{SSIM}(u, v) = \frac{(2\mu_u \mu_v + c_1)(2\sigma_{uv} + c_2)}{(\mu_u^2 + \mu_v^2 + c_1)(\sigma_u^2 + \sigma_v^2 + c_2)},
+$$
+averaged over windows, with small constants $c_1, c_2$ for stability.
+:::
+
+Adding Gaussian noise of standard deviation $25/255$ to an image in $[0,1]$ gives an MSE of about $0.0096$, hence
+
+$$\mathrm{PSNR} = 10 \log_{10}(255^2/25^2) \approx 20.17 \text{ dB}.$$
+
+PSNR is a decreasing function of the MSE, so maximising the expected PSNR is close to computing the MMSE estimator of Theorem 0.5. Chapter 7 explains why the image with the best PSNR is rarely the one that looks best.
+
+### 1.3 Linear estimators: Wiener and Tikhonov
+
+The oldest image model is Gaussian: the image is a stationary Gaussian random field, entirely described by its power spectrum. Under this model the best estimator is linear.
+
+:::: thm
+[Theorem 1.4 — Wiener filter]{.tag} Work with the unitary DFT. Let $X$ be a centred, circularly stationary Gaussian field with power spectrum $S(\omega) = \mathbb{E}|\hat X(\omega)|^2$, and let $Y = k * X + N$ with $N$ white, of variance $\sigma^2$, independent of $X$. Then the MMSE estimator is the Fourier multiplier
+$$
+\widehat{\mathbb{E}[X \mid Y]}(\omega) = \frac{\overline{\hat k(\omega)}\, S(\omega)}{|\hat k(\omega)|^2 S(\omega) + \sigma^2}\ \hat Y(\omega).
+$$
+
+::: proof
+Circular stationarity makes the covariance of $X$ a circulant matrix, diagonal in the Fourier basis. The coefficients $\hat X(\omega)$ are therefore uncorrelated across frequencies (up to the Hermitian pairing $\omega \leftrightarrow -\omega$), and so are the $\hat N(\omega)$.
+
+By Theorem 0.2, $\hat Y = \hat k \hat X + \hat N$ frequency by frequency. All variables are jointly Gaussian, so uncorrelated means independent, and $\mathbb{E}[\hat X(\omega) \mid Y]$ only depends on $\hat Y(\omega)$.
+
+For jointly Gaussian centred scalars, the conditional mean is
+$$
+\mathbb{E}[\hat X \mid \hat Y] = \mathrm{Cov}(\hat X, \hat Y)\, \mathrm{Var}(\hat Y)^{-1}\, \hat Y .
+$$
+Here the covariance is $\overline{\hat k} S$ and the variance is $|\hat k|^2 S + \sigma^2$. Theorem 0.5 identifies this conditional mean as the MMSE estimator. [∎]{.qed}
+:::
+::::
+
+The Wiener gain interpolates between two regimes. Where the signal dominates the noise, it is close to the inverse filter $1/\hat k$. Where $|\hat k|^2 S$ is much smaller than $\sigma^2$, it is close to $0$: frequencies drowned in noise are discarded instead of amplified.
+
+::: def
+[Definition 1.5 — Tikhonov regularisation]{.tag} The Tikhonov estimator solves
+$$
+\hat x_\lambda = \arg\min_x\ \|k * x - y\|^2 + \lambda\, \|\nabla x\|^2 .
+$$
+
+With periodic finite differences its solution is the Fourier multiplier
+$$
+\hat x_\lambda(\omega) = \frac{\overline{\hat k(\omega)}\, \hat y(\omega)}{|\hat k(\omega)|^2 + \lambda\, |\hat d(\omega)|^2}, \qquad |\hat d(\omega)|^2 = 4 \sin^2 \tfrac{\pi \omega_1}{n} + 4 \sin^2 \tfrac{\pi \omega_2}{n}.
+$$
+:::
+
+Comparing the two formulas, Tikhonov is the Wiener filter for the power spectrum $S \propto 1/|\hat d|^2$, which decays like $|\xi|^{-2}$. Natural images have power spectra that decay roughly in this way (Field, 1987), which is why this crude model works at all; it is the MAP and the MMSE estimator under that Gaussian prior.
+
+::: ex
+[Example 1.6 — Deconvolving a photograph]{.tag} Take a $256 \times 256$ grey crop of the image `china.jpg` bundled with scikit-learn, blur it with a Gaussian of standard deviation 2 pixels and add noise of standard deviation $0.01$. The code below gives the following PSNRs:
+
+-   blurred image: 19.73 dB;
+-   inverse filter: −266 dB, the noise amplification of Proposition 1.2;
+-   Tikhonov with $\lambda = 10^{-2}$, the best of a grid: 20.74 dB;
+-   Wiener with the *oracle* spectrum of the clean image: 21.04 dB.
+
+Even with an oracle the gain stays near 1.3 dB: a Gaussian model cannot restore edges, which carry most of the detail.
+:::
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+x = load_sample_image("china.jpg").mean(axis=2)[100:356, 200:456] / 255.0   # 256 x 256 grey crop
+n = x.shape[0]
+f = np.fft.fftfreq(n)
+r2 = f[:, None] ** 2 + f[None, :] ** 2
+K = np.exp(-2 * np.pi ** 2 * 2.0 ** 2 * r2)          # transfer function of a Gaussian blur, std 2 px
+sigma = 0.01
+y = np.real(np.fft.ifft2(K * np.fft.fft2(x))) + sigma * rng.standard_normal(x.shape)
+Y = np.fft.fft2(y)
+psnr = lambda u: 10 * np.log10(1.0 / np.mean((u - x) ** 2))
+
+inverse = np.real(np.fft.ifft2(Y / K))                # naive inversion: divides the noise by tiny K
+L = 4 * np.sin(np.pi * f[:, None]) ** 2 + 4 * np.sin(np.pi * f[None, :]) ** 2   # |DFT of the Laplacian|
+tikhonov = lambda lam: np.real(np.fft.ifft2(np.conj(K) * Y / (np.abs(K) ** 2 + lam * L)))
+best_lam = max([1e-4, 1e-3, 1e-2, 1e-1], key=lambda lam: psnr(tikhonov(lam)))
+S = np.abs(np.fft.fft2(x - x.mean())) ** 2 / x.size   # oracle power spectrum (unitary DFT)
+S[0, 0] = 1e6                                         # the mean is known exactly
+wiener = np.real(np.fft.ifft2(np.conj(K) * S * Y / (np.abs(K) ** 2 * S + sigma ** 2)))
+print(f"blurred {psnr(y):.2f} dB | inverse filter {psnr(inverse):.2f} dB | "
+      f"Tikhonov (lambda={best_lam:g}) {psnr(tikhonov(best_lam)):.2f} dB | oracle Wiener {psnr(wiener):.2f} dB")
+```
+
+### 1.4 Edges and sparsity: total variation and wavelets
+
+A linear estimator applies the same gain to a frequency in every image, so it cannot keep an edge sharp while smoothing a flat region. The next models are non-linear.
+
+::: def
+[Definition 1.7 — Total variation and the ROF model]{.tag} The discrete isotropic total variation is
+$$
+\mathrm{TV}(x) = \sum_{p \in \Omega} |\nabla x(p)|, \qquad |\nabla x(p)| = \sqrt{(\partial_1 x)^2 + (\partial_2 x)^2}\,(p),
+$$
+with forward differences. The Rudin–Osher–Fatemi denoiser (1992) is
+$$
+\hat x = \arg\min_x\ \tfrac12 \|x - y\|^2 + \lambda\, \mathrm{TV}(x).
+$$
+:::
+
+The problem is convex but not smooth. Chambolle's algorithm (2004) solves it through its dual, a projected gradient on vector fields of norm at most 1; the primal–dual algorithm of Chambolle and Pock (2011) handles a general operator $A$. TV keeps edges because it penalises a jump by its height, not by its square, but it favours piecewise-constant images: flat "staircases" appear in smooth gradients.
+
+:::: prop
+[Proposition 1.8 — Soft thresholding]{.tag} For $\lambda > 0$ and $y \in \mathbb{R}$,
+$$
+\arg\min_{x \in \mathbb{R}}\ \tfrac12 (x - y)^2 + \lambda |x| = \mathrm{sign}(y)\, \max(|y| - \lambda, 0).
+$$
+If $W$ is an orthonormal transform, the solution of $\min_x \tfrac12 \|x - y\|^2 + \lambda \|W x\|_1$ is $W^\top$ applied to the soft thresholding of $W y$, coordinate by coordinate.
+
+::: proof
+The objective is strictly convex. If $x > 0$ is optimal, the derivative $x - y + \lambda$ vanishes, so $x = y - \lambda$, which requires $y > \lambda$; symmetrically for $x < 0$.
+
+Otherwise $x = 0$, whose optimality condition $0 \in -y + \lambda [-1, 1]$ means $|y| \le \lambda$.
+
+For the second claim, orthonormality gives $\|x - y\| = \|Wx - Wy\|$, so the problem separates into scalar problems on the coefficients $c = Wx$. [∎]{.qed}
+:::
+::::
+
+In a wavelet basis, natural images are *sparse*: few coefficients are large. Thresholding wavelet coefficients, with the universal threshold $\sigma \sqrt{2 \log N}$ of Donoho and Johnstone (1994) for $N$ coefficients, denoises while keeping the large coefficients that encode edges. Proposition 1.8 is also the MAP estimator of Definition 0.6 under a Laplace prior on the coefficients, a first example of a *proximal operator* (ch. 3).
+
+### 1.5 Patches, self-similarity and a long list of image models
+
+Natural images repeat themselves: a patch of an edge or a texture has many similar patches elsewhere in the image. *Non-local means* (Buades, Coll and Morel, 2005) replaces each pixel by an average of pixels whose surrounding patches look alike,
+$$
+\mathrm{NLM}(y)(p) = \frac{\sum_q w(p, q)\, y(q)}{\sum_q w(p, q)}, \qquad w(p, q) = \exp\!\Big(-\frac{\|P_p y - P_q y\|^2}{h^2}\Big),
+$$
+where $P_p y$ is the patch centred at $p$.
+
+BM3D (Dabov, Foi, Katkovnik and Egiazarian, 2007) stacks similar patches into 3-D groups and shrinks them jointly in a transform domain; it was the reference Gaussian denoiser for a decade. EPLL (Zoran and Weiss, 2011) learns a Gaussian mixture model of patches from data and uses it as a prior inside a MAP, already a *learned* image model.
+
+| Image model | Typical estimator | Era |
+|---|---|---|
+| Stationary Gaussian field | Wiener filter | 1940s |
+| Smoothness | Tikhonov regularisation | 1960s |
+| Bounded variation | ROF, TV deblurring | 1990s |
+| Sparsity in a wavelet basis | Soft thresholding | 1990s |
+| Self-similarity of patches | Non-local means, BM3D | 2000s |
+| Learned patch mixtures | EPLL | 2010s |
+| Convolutional networks | DnCNN, SRCNN (ch. 2), plug-and-play (ch. 3) | 2010s |
+| Deep generative models | VAEs, GANs, diffusion (ch. 5, 6, 8) | 2010s–2020s |
+
+The course description calls deep learning "the latest in a long list of image models". The table is that list. Every line has strengths that the next one lacks, which is why the hybrid methods of ch. 3 combine them.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   Restoration problems are $y = Ax + n$; deblurring is unstable, super-resolution and inpainting are non-unique.
+-   PSNR is a monotone function of the MSE; it rewards the conditional mean.
+-   Wiener and Tikhonov are optimal for Gaussian image models and cannot keep edges.
+-   TV and wavelet thresholding are non-linear, edge-preserving, and are MAP estimators under non-Gaussian priors.
+-   Patch-based models (NL-means, BM3D, EPLL) exploit self-similarity and were the state of the art just before deep learning.
+::::
+
+## 2. End-to-end deep learning for denoising and super-resolution {#ch2}
+
+Chapter 1 wrote the image model by hand. The end-to-end approach of the official theme 1 skips the model: it collects pairs of clean and degraded images and trains a network to map one to the other. This chapter says what such a network estimates, how the classical architectures are built, and where the approach breaks.
+
+### 2.1 Supervised restoration and what the loss estimates
+
+::: def
+[Definition 2.1 — Supervised restoration]{.tag} Given pairs $(x_i, y_i)_{i \le N}$, where $y_i$ is a degraded version of $x_i$, a network $f_\theta$ is trained by minimising the empirical risk
+$$
+\widehat{R}(\theta) = \frac{1}{N} \sum_{i=1}^N \ell\big(f_\theta(y_i), x_i\big).
+$$
+The pairs are almost always *synthetic*: clean images degraded by an assumed forward model (Definition 1.1).
+:::
+
+With enough data and capacity, the network approaches the minimiser of the population risk over all functions. That minimiser depends on the loss, and it is not "the clean image".
+
+:::: prop
+[Proposition 2.2 — What the loss estimates]{.tag} Over all measurable functions $f$:
+
+-   with the squared loss, the risk is minimised by the posterior mean, $f^\star(y) = \mathbb{E}[X \mid Y = y]$;
+-   with the absolute loss on each pixel, it is minimised by the pixelwise posterior median: $f^\star(y)_p$ is a median of the law of $X_p$ given $Y = y$.
+
+::: proof
+The first claim is Theorem 0.5. For the second, the risk separates over pixels and, conditionally on $Y = y$, we minimise $c \mapsto \mathbb{E}[|X_p - c| \mid y]$.
+
+This convex function has right derivative $P(X_p \le c \mid y) - P(X_p > c \mid y)$. It is non-negative exactly from the median on, so the minimum is reached at a median. [∎]{.qed}
+:::
+::::
+
+When several clean images are compatible with $y$, both estimators *average* them in some sense. The averaging is invisible on smooth regions and destructive on details whose position or phase is uncertain.
+
+::: ex
+[Example 2.3 — The posterior mean erases an unobservable texture]{.tag} Let the clean signal be $X(p) = \cos(2\pi \xi p + \Phi)$ with $\xi$ above the Nyquist frequency of a low-resolution observation, so that the observation carries no information on the phase $\Phi$, uniform on $[0, 2\pi)$.
+
+Then for every pixel
+
+$$
+\mathbb{E}[X(p) \mid Y] = \mathbb{E}[\cos(2\pi \xi p + \Phi)] = 0 .
+$$
+
+The MMSE super-resolution of a fine texture is a flat region. Every plausible answer is sharp, yet their average is blurred.
+:::
+
+### 2.2 Residual learning: DnCNN
+
+::: def
+[Definition 2.4 — DnCNN (Zhang, Zuo, Chen, Meng and Zhang, 2017)]{.tag} A stack of $D$ convolutional layers of $3 \times 3$ kernels with 64 channels, batch normalisation and ReLU, whose output $R_\theta(y)$ estimates the *noise*. The denoised image is
+$$
+f_\theta(y) = y - R_\theta(y), \qquad \text{trained with } \ \|R_\theta(y) - (y - x)\|^2 .
+$$
+The paper uses $D = 17$ (a $35 \times 35$ receptive field) for a known noise level, and $D = 20$ for a single "blind" model trained over a range of levels.
+:::
+
+Learning the residual instead of the image has two justifications. At initialisation the residual branch is small and the network is close to the identity, a good starting point for a mild degradation. And the noise is a simpler target than the image: it has no structure for Gaussian noise. FFDNet (Zhang, Zuo and Zhang, 2018) adds the noise level as an input map, so one network handles any level, even varying in space.
+
+The code below trains a four-layer version on random patches of one photograph and tests it on another. After less than a minute of training on a CPU it reaches 27.28 dB, against 20.17 dB for the noisy image and 26.50 dB for the best Gaussian filter. Exercise 14 plugs it into the algorithm of ch. 3.
+
+```python
+import numpy as np, torch, torch.nn as nn
+from sklearn.datasets import load_sample_image
+from scipy.ndimage import gaussian_filter
+
+torch.manual_seed(0); rng = np.random.default_rng(0)
+gray = lambda im: im.astype(np.float32).mean(axis=2) / 255.0
+train = gray(load_sample_image("china.jpg"))                     # training image
+test = gray(load_sample_image("flower.jpg"))[100:356, 200:456]   # a different image for testing
+sigma = 25 / 255
+
+body = nn.Sequential(                                            # small DnCNN-like residual network
+    nn.Conv2d(1, 32, 3, padding=1), nn.ReLU(),
+    nn.Conv2d(32, 32, 3, padding=1), nn.ReLU(),
+    nn.Conv2d(32, 32, 3, padding=1), nn.ReLU(),
+    nn.Conv2d(32, 1, 3, padding=1))
+denoise = lambda y: y - body(y)                                  # the network predicts the noise
+opt = torch.optim.Adam(body.parameters(), lr=2e-3)
+for it in range(800):                                            # random 24 x 24 patches, fresh noise
+    i, j = rng.integers(0, train.shape[0] - 24, 16), rng.integers(0, train.shape[1] - 24, 16)
+    x = torch.tensor(np.stack([train[a:a + 24, b:b + 24] for a, b in zip(i, j)]))[:, None]
+    y = x + sigma * torch.randn_like(x)
+    loss = ((denoise(y) - x) ** 2).mean()                        # squared loss: estimates E[X | Y]
+    opt.zero_grad(); loss.backward(); opt.step()
+
+psnr = lambda a, b: 10 * np.log10(1.0 / np.mean((a - b) ** 2))
+y = test + sigma * rng.standard_normal(test.shape).astype(np.float32)
+with torch.no_grad():
+    x_cnn = denoise(torch.tensor(y)[None, None])[0, 0].numpy()
+best = max((psnr(gaussian_filter(y, s), test), s) for s in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
+print(f"noisy {psnr(y, test):.2f} dB | best Gaussian filter {best[0]:.2f} dB (std {best[1]}) "
+      f"| CNN {psnr(x_cnn, test):.2f} dB")
+```
+
+Batch normalisation is left out of this small version: with batches of 16 patches its statistics are noisy and, in our runs, it lowered the test PSNR.
+
+### 2.3 Learning without clean images: Noise2Noise
+
+Clean targets are expensive in microscopy, astronomy or low-light photography. A surprising result shows that they are not needed for the squared loss.
+
+:::: thm
+[Theorem 2.5 — Noise2Noise (Lehtinen et al., 2018)]{.tag} Let $Y = X + N$ and $Y' = X + N'$ be two noisy observations of the same image, with $\mathbb{E}[N' \mid X, Y] = 0$ and $\mathbb{E}\|N'\|^2 < \infty$. Then for every function $f$ with $\mathbb{E}\|f(Y)\|^2 < \infty$,
+$$
+\mathbb{E}\, \|f(Y) - Y'\|^2 = \mathbb{E}\, \|f(Y) - X\|^2 + \mathbb{E}\, \|N'\|^2 .
+$$
+The two risks differ by a constant, so they have the same minimiser, the MMSE denoiser $\mathbb{E}[X \mid Y]$.
+
+::: proof
+Write $f(Y) - Y' = (f(Y) - X) - N'$ and expand the square.
+
+The cross term is $-2\, \mathbb{E} \langle f(Y) - X,\, N' \rangle$. The first factor is a function of $(X, Y)$; conditioning on $(X, Y)$ replaces $N'$ by its conditional mean, which is zero. [∎]{.qed}
+:::
+::::
+
+Two caveats matter in practice. With finite data, noisy targets increase the variance of the gradient, so training needs more samples. And the result needs zero-mean noise: for impulse noise, which is not centred, the absolute loss (a median, Proposition 2.2) is the right choice (Exercise 6). Chapter 9 lists the methods that go further and learn from a *single* noisy image per scene.
+
+### 2.4 Super-resolution networks
+
+Super-resolution by a factor $s$ inverts $y = (k * x)\!\downarrow_s + n$. The operator has a kernel of dimension $(1 - 1/s^2)\, n^2$, so the prior does most of the work.
+
+::: def
+[Definition 2.6 — SRCNN (Dong, Loy, He and Tang, 2016)]{.tag} The low-resolution image is first upsampled to the target size by bicubic interpolation; three convolutional layers then map it to the high-resolution image:
+
+1.  $9 \times 9$ kernels, 64 channels, ReLU: *patch extraction and representation*;
+2.  $1 \times 1$ kernels, 32 channels, ReLU: *non-linear mapping*;
+3.  $5 \times 5$ kernels, 1 channel: *reconstruction*.
+
+It is trained with the squared loss on pairs made by downsampling clean images.
+:::
+
+The authors read the three layers as the three steps of sparse-coding super-resolution: projecting patches on a low-resolution dictionary, mapping the codes to high-resolution codes, and averaging the overlapping high-resolution patches. The difference is that all three are learned jointly. VDSR (Kim, Lee and Lee, 2016) deepened the network to 20 layers and made it predict the residual between the bicubic image and the target, as DnCNN does for noise.
+
+Upsampling first wastes computation: every layer then works on $s^2$ times more pixels than necessary. The sub-pixel convolution keeps all layers at low resolution.
+
+:::: prop
+[Proposition 2.7 — Sub-pixel convolution (Shi et al., 2016)]{.tag} Let the last low-resolution layer output $s^2 C$ channels, and let the *periodic shuffle* $\mathrm{PS}$ rearrange them into $C$ channels at resolution $s$ times higher:
+$$
+\mathrm{PS}(T)_{c,\ s i + a,\ s j + b} = T_{c s^2 + a s + b,\ i,\ j}, \qquad 0 \le a, b < s .
+$$
+
+A convolution at low resolution followed by $\mathrm{PS}$ is a transposed convolution of stride $s$ at high resolution. The $s^2$ polyphase components of its high-resolution kernel are the channel slices of the low-resolution kernel.
+
+::: proof
+*Sketch.* A high-resolution image is the interleaving of its $s^2$ polyphase components, the low-resolution images $z_{a,b}(i,j) = z(si + a, sj + b)$.
+
+A transposed convolution of stride $s$ inserts $s - 1$ zeros between input pixels and convolves with a kernel $K$.
+
+On the phase $(a, b)$, only the taps of $K$ congruent to $(a, b)$ modulo $s$ meet non-zero inputs. This phase is therefore a low-resolution convolution with the sub-kernel $K_{a,b}$.
+
+Computing the $s^2$ phases as $s^2$ output channels, then interleaving them, is exactly convolution followed by $\mathrm{PS}$. [∎]{.qed}
+:::
+::::
+
+ESPCN, the network of Shi and coauthors, applies this idea and runs in real time on video. In PyTorch the shuffle is `torch.nn.PixelShuffle(s)`.
+
+### 2.5 Losses beyond the squared error
+
+By Proposition 2.2, the loss chooses which summary of the posterior the network returns. Three families are used.
+
+-   **Absolute error.** Many super-resolution networks, EDSR (Lim, Son, Kim, Nah and Lee, 2017) among them, train with the $\ell^1$ loss, which converges better and estimates a median.
+-   **Perceptual or feature loss** (Johnson, Alahi and Fei-Fei, 2016). Compare the images through the features $\varphi_j$ of a fixed pretrained classifier, $\|\varphi_j(f_\theta(y)) - \varphi_j(x)\|^2$. Outputs are sharper, with feature-specific artefacts.
+-   **Adversarial loss.** A discriminator judges whether the output looks like a natural image (SRGAN, ch. 6.4).
+
+None of these choices is best for every criterion. Chapter 7 proves that accuracy and realism cannot both be optimal.
+
+### 2.6 Pitfalls of end-to-end restoration
+
+The course description asks for a critical look at the methods. Five pitfalls recur in the literature.
+
+1.  **Degradation mismatch.** Benchmarks build low-resolution images with the bicubic kernel. A camera blurs differently, and a network trained on bicubic data over-sharpens or rings on real images. Efrat, Glasner, Apartsin, Nadler and Levin (2013) showed that an accurate blur model matters more than a sophisticated image prior.
+2.  **Noise mismatch.** A denoiser trained at one level of Gaussian noise fails at another level, and on real camera noise, which is signal-dependent and spatially correlated after demosaicking.
+3.  **Hallucination.** A network trained on faces or textures adds plausible details that were not in the scene. This is acceptable for a photograph and dangerous for a medical or forensic image.
+4.  **Benchmark protocol.** Test sets such as Set5, Set14 or BSD100 are small. Whether the PSNR is computed on the luminance channel and whether borders are cropped change results by tenths of a decibel, the size of many claimed improvements.
+5.  **Internal versus external learning.** ZSSR (Shocher, Cohen and Irani, 2018) trains a small network on the test image itself, using its self-similarity across scales. The Deep Image Prior (Ulyanov, Vedaldi and Lempitsky, 2018) fits an untrained network to the degraded image and stops early: the architecture alone acts as a prior.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   A network trained with the squared loss estimates the posterior mean; with the absolute loss, the posterior median. Both blur what is uncertain.
+-   DnCNN predicts the noise (residual learning); SRCNN and VDSR learn super-resolution from bicubic-upsampled inputs; sub-pixel convolution works at low resolution.
+-   Noise2Noise: noisy targets with zero-mean noise give the same minimiser as clean targets.
+-   The weak point of end-to-end methods is the synthetic degradation used to build the training pairs.
+::::
+
+## 3. Inverse problems: variational, statistical and hybrid methods {#ch3}
+
+End-to-end networks are trained for one forward model; change the blur or the mask and they must be retrained. The methods of the official theme 2 keep the forward model explicit and use a learned component only as a prior. This chapter sets up the Bayesian framework, the proximal algorithms that solve it, and the plug-and-play methods that insert a denoiser into them.
+
+### 3.1 Bayesian formulation: MAP versus MMSE
+
+::: def
+[Definition 3.1 — Bayesian inverse problem]{.tag} The prior is $p(x) \propto e^{-\varphi(x)}$, the likelihood of $y = Ax + n$ with Gaussian noise is $p(y \mid x) \propto e^{-\|Ax - y\|^2 / 2\sigma^2}$, and Bayes' rule gives the posterior
+
+$$
+p(x \mid y) \propto \exp\!\Big( -\frac{1}{2\sigma^2} \|Ax - y\|^2 - \varphi(x) \Big).
+$$
+
+The MAP estimator minimises the exponent (a variational problem, Definition 0.6). The MMSE estimator is the mean of the posterior, an integral in dimension $|\Omega|$ that requires sampling.
+:::
+
+The two are often confused. The next proposition shows they behave differently even in dimension one.
+
+:::: prop
+[Proposition 3.2 — MAP and MMSE under a Laplace prior]{.tag} Let $p(x) \propto e^{-|x|/\beta}$ and $y = x + n$ with $n \sim \mathcal{N}(0, \sigma^2)$. Then:
+
+-   the MAP estimator is the soft thresholding at level $\lambda = \sigma^2 / \beta$: it is *exactly zero* on $[-\lambda, \lambda]$;
+-   the MMSE estimator is a smooth, odd function of $y$ that is non-zero for every $y \neq 0$.
+
+::: proof
+The MAP minimises $\frac{1}{2\sigma^2}(x - y)^2 + |x|/\beta$; multiplying by $\sigma^2$ gives Proposition 1.8 with $\lambda = \sigma^2/\beta$.
+
+For the MMSE, take $y > 0$ and compare the posterior at $x > 0$ and at $-x$. The prior is symmetric, and the likelihood ratio is
+$$
+\frac{p(x \mid y)}{p(-x \mid y)} = \exp\!\Big( \frac{2 x y}{\sigma^2} \Big) > 1 .
+$$
+The posterior puts more mass on positive values, so $\mathbb{E}[X \mid y] > 0$. Oddness follows from symmetry, and smoothness from differentiation under the integral sign. [∎]{.qed}
+:::
+::::
+
+The same gap appears in images. The MAP of the TV prior is piecewise constant, which causes staircasing, whereas its posterior mean is not: Louchet and Moisan (2013) showed that the posterior expectation of the TV model avoids staircasing. Exercise 7 computes both estimators numerically.
+
+### 3.2 Proximal operators and ADMM
+
+::: def
+[Definition 3.3 — Proximal operator]{.tag} For a proper, convex, lower semicontinuous $g$ and $\tau > 0$,
+$$
+\mathrm{prox}_{\tau g}(v) = \arg\min_x\ \tfrac12 \|x - v\|^2 + \tau\, g(x).
+$$
+The minimiser exists and is unique, and $\mathrm{prox}_{\tau g}$ is firmly non-expansive.
+:::
+
+::: prop
+[Proposition 3.4 — A proximal operator is a MAP denoiser]{.tag} If $v = x + \mathcal{N}(0, \sigma^2 I)$ and the prior is $e^{-\varphi}$, the MAP estimate of $x$ is
+$$
+\mathrm{prox}_{\sigma^2 \varphi}(v).
+$$
+
+This is Definition 0.6 with $A = I$, multiplied by $\sigma^2$. Soft thresholding and the ROF model of ch. 1 are examples.
+:::
+
+::: thm
+[Algorithm 3.5 — ADMM in scaled form]{.tag} To minimise $f(x) + g(v)$ under the constraint $x = v$, with a penalty parameter $\rho > 0$, iterate:
+
+1.  $x^{k+1} = \mathrm{prox}_{f/\rho}(v^k - u^k)$;
+2.  $v^{k+1} = \mathrm{prox}_{g/\rho}(x^{k+1} + u^k)$;
+3.  $u^{k+1} = u^k + x^{k+1} - v^{k+1}$.
+
+For closed proper convex $f$ and $g$ whose Lagrangian has a saddle point, the iterates converge to a solution for every $\rho > 0$ (Eckstein and Bertsekas, 1992; Boyd, Parikh, Chu, Peleato and Eckstein, 2011).
+:::
+
+For deblurring, $f(x) = \frac12 \|k * x - y\|^2$ and the first step is a Fourier division:
+$$
+x^{k+1} = \mathcal{F}^{-1}\Big[ \frac{\overline{\hat k}\, \hat y + \rho\, \mathcal{F}(v^k - u^k)}{|\hat k|^2 + \rho} \Big].
+$$
+The second step, with $g = \lambda \varphi$, is a MAP denoising of $x^{k+1} + u^k$ at noise level $\sigma = \sqrt{\lambda / \rho}$, by Proposition 3.4.
+
+### 3.3 Plug-and-play ADMM and its convergence
+
+Venkatakrishnan, Bouman and Wohlberg (2013) observed that the prior only enters ADMM through a denoiser. They replaced step 2 by *any* denoiser: BM3D, non-local means, and later a CNN. The forward model stays explicit, so one denoiser serves deblurring, super-resolution and inpainting alike.
+
+::: thm
+[Algorithm 3.6 — Plug-and-play ADMM with continuation (Chan, Wang and Elgendy, 2017)]{.tag} Let $D_\sigma$ be a denoiser for noise level $\sigma$, and fix $\lambda > 0$, $\rho_0 > 0$, $\gamma > 1$. Iterate:
+
+1.  $x^{k+1} = \mathrm{prox}_{f/\rho_k}(v^k - u^k)$;
+2.  $v^{k+1} = D_{\sigma_k}(x^{k+1} + u^k)$ with $\sigma_k = \sqrt{\lambda / \rho_k}$;
+3.  $u^{k+1} = u^k + x^{k+1} - v^{k+1}$;
+4.  $\rho_{k+1} = \gamma \rho_k$.
+
+Chan and coauthors increase $\rho$ only when the residual has not decreased enough; the geometric version above is the simplest case.
+:::
+
+A denoiser is generally not a proximal operator, so the convex theory of ADMM no longer applies. Chan and coauthors replace it by a weak assumption.
+
+::: def
+[Definition 3.7 — Bounded denoiser]{.tag} A family $(D_\sigma)_{\sigma > 0}$ of maps of $\mathbb{R}^n$ is a *bounded denoiser* if there is a constant $C$, independent of $n$ and $\sigma$, such that
+$$
+\|D_\sigma(v) - v\|^2 \le n\, C\, \sigma^2 \qquad \text{for all } v \in \mathbb{R}^n .
+$$
+A denoiser that moves each pixel by at most a multiple of the noise level satisfies it.
+:::
+
+:::: thm
+[Theorem 3.8 — Fixed-point convergence of PnP-ADMM (Chan, Wang and Elgendy, 2017)]{.tag} Assume $f$ is differentiable with $\|\nabla f(x)\| \le L \sqrt{n}$ for all $x$, and $D$ is a bounded denoiser. Then the iterates of Algorithm 3.6 satisfy
+$$
+x^k \to x^\star, \qquad v^k \to x^\star, \qquad u^k \to 0
+$$
+for some $x^\star \in \mathbb{R}^n$.
+
+::: proof
+Write $\rho_k = \gamma^k \rho_0$. Each step contributes one bound.
+
+1.  *Step 1.* The optimality condition of the proximal step is $\nabla f(x^{k+1}) + \rho_k (x^{k+1} - v^k + u^k) = 0$, so
+    $$
+    \|x^{k+1} - v^k + u^k\| \le L \sqrt{n} / \rho_k .
+    $$
+2.  *Steps 2 and 3.* By step 3, $u^{k+1} = (x^{k+1} + u^k) - v^{k+1}$, the move of the denoiser. Definition 3.7 with $\sigma_k^2 = \lambda / \rho_k$ gives
+    $$
+    \|u^{k+1}\| \le \sqrt{n C \lambda / \rho_k} .
+    $$
+3.  *Increments.* Write $v^{k+1} - v^k = (x^{k+1} - v^k) - (u^{k+1} - u^k)$, and bound $x^{k+1} - v^k$ by bounds 1 and 2. All terms are $O(\rho_{k-1}^{-1/2})$, so $\|v^{k+1} - v^k\| \le M \gamma^{-k/2}$ for a constant $M$.
+4.  *Conclusion.* The series of the $\gamma^{-k/2}$ converges, so $(v^k)$ is a Cauchy sequence with a limit $x^\star$. By bound 2, $u^k \to 0$; then by bound 1, $x^{k+1} - v^k \to 0$, so $x^k \to x^\star$ as well. [∎]{.qed}
+:::
+::::
+
+The gradient bound holds for a quadratic data term on a bounded set of images, such as $[0, 1]^n$, which is how the theorem is applied.
+
+::: note
+[Remark 3.9 — What the theorem does not say]{.tag} The convergence comes from the vanishing steps: as $\rho_k \to \infty$, the denoiser is asked to remove less and less noise and eventually does almost nothing. The limit depends on $\rho_0$ and $\gamma$, and it is not shown to minimise any objective or to be close to the true image.
+
+Stronger guarantees need stronger denoisers. Ryu, Liu, Wang, Chen, Wang and Yin (2019) prove convergence for a fixed $\rho$ when the residual $D - I$ is Lipschitz with a small constant, a property they enforce by spectral normalisation. Hurault, Leclaire and Papadakis (2022) train a *gradient-step denoiser* $D = I - \nabla g_\theta$, which turns plug-and-play into a proximal-gradient method on an explicit, non-convex objective.
+:::
+
+::: ex
+[Example 3.10 — Plug-and-play deblurring]{.tag} On the problem of Example 1.6 (Gaussian blur of standard deviation 2, noise $0.01$), the code below runs Algorithm 3.6 with the TV denoiser of Definition 1.7, solved by Chambolle's algorithm, with $\lambda = 2 \times 10^{-4}$, $\rho_0 = 10^{-3}$ and $\gamma = 1.2$.
+
+After 30 iterations it reaches 21.24 dB, against 20.74 dB for Tikhonov and 21.04 dB for the oracle Wiener filter. The increments $\|v^{k+1} - v^k\|$ are divided by about 5 every 10 iterations, close to the factor $1.2^{10} \approx 6.2$ of the continuation, which is the mechanism of Theorem 3.8.
+:::
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+def grad(u):                                   # forward differences, Neumann boundary
+    gx, gy = np.zeros_like(u), np.zeros_like(u)
+    gx[:-1] = u[1:] - u[:-1]; gy[:, :-1] = u[:, 1:] - u[:, :-1]
+    return gx, gy
+
+def div(px, py):                               # div = -grad^T
+    dx, dy = px.copy(), py.copy()
+    dx[1:] -= px[:-1]; dx[-1] = -px[-2]
+    dy[:, 1:] -= py[:, :-1]; dy[:, -1] = -py[:, -2]
+    return dx + dy
+
+def tv_denoise(f, t, iters=50):                # prox of t*TV, Chambolle (2004) dual projection
+    px, py = np.zeros_like(f), np.zeros_like(f)
+    for _ in range(iters):
+        gx, gy = grad(div(px, py) - f / t)
+        nrm = 1 + 0.125 * np.sqrt(gx ** 2 + gy ** 2)
+        px, py = (px + 0.125 * gx) / nrm, (py + 0.125 * gy) / nrm
+    return f - t * div(px, py)
+
+rng = np.random.default_rng(0)
+x = load_sample_image("china.jpg").mean(axis=2)[100:356, 200:456] / 255.0
+f = np.fft.fftfreq(256)
+K = np.exp(-2 * np.pi ** 2 * 2.0 ** 2 * (f[:, None] ** 2 + f[None, :] ** 2))
+blur = lambda u: np.real(np.fft.ifft2(K * np.fft.fft2(u)))
+y = blur(x) + 0.01 * rng.standard_normal(x.shape)
+psnr = lambda u: 10 * np.log10(1.0 / np.mean((u - x) ** 2))
+
+def pnp_admm(y, denoise, lam=2e-4, rho=1e-3, gamma=1.2, iters=30):
+    """Plug-and-play ADMM for 0.5 * ||k * x - y||^2 + lam * prior, with continuation on rho."""
+    Ky = np.conj(K) * np.fft.fft2(y)
+    v, u = y.copy(), np.zeros_like(y)
+    for it in range(iters):
+        x_k = np.real(np.fft.ifft2((Ky + rho * np.fft.fft2(v - u)) / (np.abs(K) ** 2 + rho)))
+        v_old, v = v, denoise(x_k + u, lam / rho)       # the prior acts only through a denoiser
+        u = u + x_k - v
+        rho *= gamma                                      # continuation (Chan, Wang and Elgendy, 2017)
+        if it % 10 == 9:
+            print(f"iteration {it + 1}: PSNR {psnr(v):.2f} dB, |v - v_old| = {np.linalg.norm(v - v_old):.4f}, "
+                  f"|u| = {np.linalg.norm(u):.4f}")
+    return v
+
+print(f"blurred {psnr(y):.2f} dB")
+x_hat = pnp_admm(y, tv_denoise)
+```
+
+The TV denoiser is called with the parameter $\lambda / \rho_k$, the weight of the TV term, which plays the role of $\sigma_k^2$. Replacing `tv_denoise` by a trained CNN, such as the network of ch. 2, gives the deep plug-and-play methods; DPIR (Zhang, Li, Zuo, Zhang, Van Gool and Timofte, 2022) is a widely used instance.
+
+### 3.4 Denoisers are scores: Tweedie's formula and RED
+
+Plug-and-play uses a denoiser as a black box. Tweedie's formula says what an *optimal* denoiser computes, and it is the key to ch. 8.
+
+:::: thm
+[Theorem 3.11 — Tweedie's formula]{.tag} Let $Y = X + \sigma Z$ with $Z \sim \mathcal{N}(0, I)$ independent of $X$, and let $p_\sigma$ be the density of $Y$. Then
+$$
+\mathbb{E}[X \mid Y = y] = y + \sigma^2\, \nabla \log p_\sigma(y).
+$$
+
+::: proof
+Let $g_\sigma$ be the Gaussian density of $\sigma Z$, so that $p_\sigma(y) = \int p_X(x)\, g_\sigma(y - x)\, dx$. The Gaussian satisfies
+$$
+\nabla_y\, g_\sigma(y - x) = -\frac{y - x}{\sigma^2}\, g_\sigma(y - x).
+$$
+
+Differentiating under the integral sign,
+$$
+\sigma^2\, \nabla p_\sigma(y) = \int (x - y)\, p_X(x)\, g_\sigma(y - x)\, dx = p_\sigma(y)\, \big( \mathbb{E}[X \mid Y = y] - y \big).
+$$
+Divide by $p_\sigma(y)$. [∎]{.qed}
+:::
+::::
+
+The formula goes back to Robbins (1956); Efron (2011) revived it. Read backwards, it turns the residual of an MMSE denoiser $D_\sigma$ into the *score* of the noisy image distribution:
+
+::: key
+[Key result — a denoiser gives the score]{.tag}
+$$
+\nabla \log p_\sigma(y) = \frac{D_\sigma(y) - y}{\sigma^2}
+$$
+:::
+
+The code below checks the formula on a one-dimensional mixture prior, where both sides can be computed independently.
+
+```python
+import numpy as np
+from scipy.stats import norm
+
+w, mu, s = np.array([0.3, 0.7]), np.array([-2.0, 1.0]), np.array([0.5, 0.8])  # prior: 2-Gaussian mixture
+sigma = 0.7                                                                 # noise level
+xs = np.linspace(-8, 8, 20001)
+prior = (w * norm.pdf(xs[:, None], mu, s)).sum(axis=1)
+
+def posterior_mean(y):                                   # E[X | Y=y] by brute-force integration
+    post = prior * norm.pdf(y, xs, sigma)
+    return (xs * post).sum() / post.sum()
+
+def tweedie(y):                                          # y + sigma^2 d/dy log p_Y(y)
+    sd = np.sqrt(s ** 2 + sigma ** 2)                    # p_Y is again a Gaussian mixture
+    p = w * norm.pdf(y, mu, sd)
+    dp = (p * (mu - y) / sd ** 2).sum()
+    return y + sigma ** 2 * dp / p.sum()
+
+for y in [-3.0, -0.5, 0.5, 2.5]:
+    print(f"y = {y:+.1f}:  integration {posterior_mean(y):+.4f}   Tweedie {tweedie(y):+.4f}")
+```
+
+Both columns agree to four decimals: for instance $-2.3345$ at $y = -3$ and $+0.7007$ at $y = 0.5$.
+
+::: def
+[Definition 3.12 — Regularisation by denoising (Romano, Elad and Milanfar, 2017)]{.tag} RED defines the regulariser $\rho(x) = \frac12 x^\top (x - D(x))$ and solves $\min_x f(x) + \lambda \rho(x)$ by gradient steps
+$$
+x \leftarrow x - \mu \big( \nabla f(x) + \lambda (x - D(x)) \big),
+$$
+relying on the identity $\nabla \rho(x) = x - D(x)$.
+:::
+
+That identity needs the denoiser to be locally homogeneous with a symmetric Jacobian. Reehorst and Schniter (2019) showed that practical denoisers violate these conditions, so RED does not minimise the stated objective. Tweedie's formula gives a cleaner reading: if $D = D_\sigma$ is the MMSE denoiser, then $x - D_\sigma(x) = -\sigma^2 \nabla \log p_\sigma(x)$, and RED is a gradient descent on $f - \lambda \sigma^2 \log p_\sigma$, a MAP with the *smoothed* prior.
+
+### 3.5 Unrolled networks and the hybrid spectrum
+
+::: def
+[Definition 3.13 — Algorithm unrolling (Gregor and LeCun, 2010)]{.tag} Fix a number $K$ of iterations of an algorithm, for example ISTA,
+$$
+x^{k+1} = \mathrm{soft}_{\lambda \eta}\big( x^k - \eta A^\top (A x^k - y) \big),
+$$
+and make its step sizes, matrices and thresholds learnable. The result is a $K$-layer network trained end-to-end on pairs; for ISTA it is called LISTA.
+:::
+
+Unrolled networks embed the forward model in their architecture and need few parameters, but they are trained for the operator $A$ used during training. The table summarises the spectrum from ch. 1 to ch. 3.
+
+| Method | Forward model at test time | Training data | Guarantees |
+|---|---|---|---|
+| Variational (ch. 1) | explicit, any $A$ | none | convex: global minimum |
+| Plug-and-play (ch. 3.3) | explicit, any $A$ | clean images for the denoiser | fixed point under assumptions |
+| Unrolled (ch. 3.5) | built into the layers | pairs for one $A$ | few |
+| End-to-end (ch. 2) | implicit, fixed $A$ | pairs for one $A$ | none beyond Proposition 2.2 |
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   MAP is a variational problem; MMSE is a posterior integral. They differ as soon as the prior is non-Gaussian.
+-   A proximal operator is a MAP denoiser; ADMM alternates a data step and a denoising step.
+-   Plug-and-play replaces the denoising step by any denoiser; with continuation and a bounded denoiser, the iterates converge, though not to a characterised point.
+-   Tweedie: an MMSE denoiser gives the score of the noisy distribution. This reinterprets RED and powers ch. 8.
+::::
+
+## 4. Generative models for texture synthesis {#ch4}
+
+Synthesis asks for new images that look like a given one without copying it. Textures are the natural first case, and the subject of the official theme 3: they are stationary, so a model can be estimated from a single exemplar. This chapter goes from Gaussian models to the statistics of convolutional networks, and shows what each one keeps and loses.
+
+### 4.1 Textures as stationary random fields
+
+::: def
+[Definition 4.1 — Stationary random field and texture synthesis]{.tag} A random image $U$ on $\Omega$ (periodic) is *stationary* if $\tau_a U$ has the same law as $U$ for every translation $a$.
+
+*Exemplar-based texture synthesis* estimates a stationary model from one image $u$, then draws samples that should be perceived as the same texture while differing from $u$.
+:::
+
+Two failure modes bound the problem: a model that is too poor produces samples that do not look like $u$, and a model that is too rich reproduces $u$ itself, possibly shifted. Julesz (1962) conjectured that textures with the same second-order statistics are indistinguishable; the conjecture is false, but it started the search for the right statistics.
+
+Heeger and Bergen (1995) matched the histograms of the subbands of a wavelet pyramid. Portilla and Simoncelli (2000) matched a set of joint statistics of complex wavelet coefficients, a model that was the reference for a decade. Efros and Leung (1999) took a non-parametric route: grow the image pixel by pixel, copying a pixel from a place of the exemplar whose neighbourhood matches. It produces striking results but tends to copy whole regions verbatim.
+
+### 4.2 Gaussian textures and random phase noise
+
+::: def
+[Definition 4.2 — Spot noise and random phase noise (Galerne, Gousseau and Morel, 2011)]{.tag} Let $u$ be the exemplar, $m$ its mean, $|\Omega|$ its number of pixels and
+$$
+t = \frac{u - m}{\sqrt{|\Omega|}} .
+$$
+
+-   The *asymptotic discrete spot noise* is $\mathrm{ADSN}(u) = m + t * W$, with $W$ a standard Gaussian white noise on $\Omega$.
+-   The *random phase noise* $\mathrm{RPN}(u)$ keeps the Fourier modulus $|\hat u|$ and replaces the phase by a uniform random phase, symmetrised so that the image is real.
+:::
+
+:::: prop
+[Proposition 4.3 — ADSN reproduces the empirical covariance]{.tag} $\mathrm{ADSN}(u)$ is a stationary Gaussian field with mean $m$ and covariance
+$$
+\mathrm{Cov}\big(V(x), V(y)\big) = \sum_{z \in \Omega} t(z)\, t(z + y - x) ,
+$$
+the empirical autocovariance of $u$ at the shift $y - x$. Equivalently, for $\omega \neq 0$, $\mathbb{E}|\hat V(\omega)|^2 = |\hat u(\omega)|^2$.
+
+::: proof
+$V(x) - m = \sum_z t(z) W(x - z)$ is a linear image of a Gaussian vector, hence Gaussian and centred.
+
+Its covariance is $\sum_{z, z'} t(z) t(z')\, \mathbb{E}[W(x - z) W(y - z')]$. The expectation is $1$ when $x - z = y - z'$, that is $z' = z + y - x$, and $0$ otherwise.
+
+The result only depends on $y - x$, which is stationarity. The spectral form follows from Theorem 0.2: $\hat V(\omega) = \hat t(\omega) \hat W(\omega)$ and $\mathbb{E}|\hat W(\omega)|^2 = |\Omega|$. [∎]{.qed}
+:::
+::::
+
+RPN differs from ADSN only by the random modulus of the noise; both are fast (one FFT) and both are exactly right for *micro-textures* such as sand, plaster or fabric. They fail on textures made of objects, such as bricks, pebbles or leaves, because the geometry of an image is carried by the phase of its Fourier transform. Oppenheim and Lim (1981) illustrated this: swapping the phases of two images swaps what we recognise.
+
+### 4.3 Gram matrices of convolutional features
+
+Gatys, Ecker and Bethge (2015) replaced hand-designed statistics by those of a convolutional network trained for classification.
+
+::: def
+[Definition 4.4 — Gram matrix of a layer]{.tag} Let $F^l(x) \in \mathbb{R}^{C_l \times M_l}$ be the feature maps of layer $l$ of a fixed network ($C_l$ channels, $M_l$ positions). Its *Gram matrix* is
+$$
+G^l(x) = \frac{1}{M_l}\, F^l(x)\, F^l(x)^\top \in \mathbb{R}^{C_l \times C_l} .
+$$
+
+The *texture loss* compares an image $x$ with the exemplar $u$ over a set of layers,
+$$
+\mathcal{L}(x) = \sum_l w_l\, \big\| G^l(x) - G^l(u) \big\|_F^2 .
+$$
+Synthesis starts from white noise and minimises $\mathcal{L}$ by L-BFGS, with gradients obtained by backpropagation.
+:::
+
+The paper uses the layers of VGG-19 at several depths. The deeper the layers included, the larger the structures reproduced.
+
+:::: prop
+[Proposition 4.5 — Gram matrices are stationary statistics]{.tag} If the feature extractor is fully convolutional with periodic padding, then for every translation $a$,
+$$
+G^l(\tau_a x) = G^l(x) .
+$$
+Each entry $G^l_{ij}(x)$ is the spatial average of $F^l_i F^l_j$, an estimator of $\mathbb{E}[F^l_i(U)(p)\, F^l_j(U)(p)]$ when $U$ is stationary.
+
+::: proof
+By Proposition 0.8, $F^l(\tau_a x) = \tau_a F^l(x)$: translating the image translates every feature map. A sum over all positions is invariant under a translation of its terms. [∎]{.qed}
+:::
+::::
+
+The averaging is the strength and the weakness of the model. It makes the statistics independent of position, as a texture model should be, but it also forgets *where* things are relative to each other beyond the receptive field. Long-range regularity, such as the alignment of bricks or a periodic grid, is weakly constrained. Ustyuzhaninov, Brendel, Gatys and Bethge (2017) showed that even random, untrained convolutional filters at several scales give convincing textures: much of the model lies in the Gram statistics rather than in the trained weights.
+
+### 4.4 The spectrum constraint
+
+Liu, Gousseau and Xia (2016) combined the two models of this chapter: Gram matrices for local structure, and the Fourier modulus of random phase noise for long-range regularity.
+
+:::: prop
+[Proposition 4.6 — Projection on a Fourier modulus]{.tag} Let $\mathcal{A}_u$ be the set of images whose Fourier modulus equals $|\hat u|$. For an image $x$ whose DFT never vanishes, the closest point of $\mathcal{A}_u$ to $x$ is
+$$
+P(x) = \mathcal{F}^{-1}\Big( |\hat u|\, \frac{\hat x}{|\hat x|} \Big),
+$$
+the image with the modulus of $u$ and the phase of $x$.
+
+::: proof
+By Parseval,
+$$
+\|x - z\|^2 = |\Omega|^{-1} \sum_\omega |\hat x(\omega) - \hat z(\omega)|^2 ,
+$$
+and the constraint fixes $|\hat z(\omega)| = |\hat u(\omega)|$ frequency by frequency.
+
+For a fixed modulus $r$, the distance $|\hat x(\omega) - r e^{i\psi}|$ is minimal when $\psi$ is the argument of $\hat x(\omega)$. This choice respects the Hermitian symmetry of $\hat x$, so $P(x)$ is real. [∎]{.qed}
+:::
+::::
+
+The synthesis then minimises $\mathcal{L}(x) + \beta\, \|x - P(x)\|^2$. The gradient of $\frac12 \mathrm{dist}(x, \mathcal{A}_u)^2$ is $x - P(x)$ wherever the projection is unique, so in practice $P(x)$ is computed and held fixed during the backward pass.
+
+::: ex
+[Example 4.7 — Gram statistics lose the spectrum]{.tag} The code below synthesises a $64 \times 64$ periodic texture, a grid of blobs plus fine noise, with the Gram matrices of random filters at four scales. Without the spectrum term the Gram loss is driven to about $10^{-6}$, yet the Fourier modulus stays far from the exemplar's, with a relative error of about $1.25$. With $\beta = 1$ the relative error drops to about $0.001$, while the Gram loss stays of order $10^{-6}$: the two constraints are compatible, and the second one is not implied by the first.
+:::
+
+```python
+import numpy as np, torch
+torch.manual_seed(0); rng = np.random.default_rng(0)
+
+# Exemplar: a 64 x 64 periodic texture (a grid of blobs) + fine noise
+n = 64
+i, j = np.mgrid[:n, :n]
+u = sum(np.exp(-((i - a) ** 2 + (j - b) ** 2) / 6.0)
+        for a in range(4, n, 8) for b in range(4, n, 8))
+u = u + 0.1 * rng.standard_normal((n, n))
+
+# 1. Random phase noise (Galerne, Gousseau and Morel, 2011): keep |FFT|, draw the phase
+theta = np.angle(np.fft.fft2(rng.standard_normal((n, n))))       # phase of a white noise (symmetric)
+rpn = np.real(np.fft.ifft2(np.abs(np.fft.fft2(u)) * np.exp(1j * theta)))
+print("RPN: max modulus error", np.abs(np.abs(np.fft.fft2(rpn)) - np.abs(np.fft.fft2(u))).max().round(10))
+
+# 2. Gram-matrix synthesis with random convolutional features (+ optional spectrum term)
+convs = [torch.nn.Conv2d(1, 32, k, padding=k // 2, padding_mode="circular") for k in (3, 5, 7, 11)]
+def grams(x):
+    out = []
+    for c in convs:
+        F = torch.relu(c(x)).flatten(2)[0]                 # 32 x (n*n) feature maps
+        out.append(F @ F.T / F.shape[1])
+    return out
+U = torch.tensor(u, dtype=torch.float32)[None, None]
+with torch.no_grad():
+    G_u, mod_u = grams(U), torch.fft.fft2(U).abs()
+
+def spectrum_projection(x):                               # closest image with the exemplar's modulus
+    X = torch.fft.fft2(x)
+    return torch.real(torch.fft.ifft2(mod_u * X / (X.abs() + 1e-8)))
+
+def synthesize(beta):
+    x = torch.randn(1, 1, n, n).requires_grad_()
+    opt = torch.optim.LBFGS([x], max_iter=150)
+    def closure():
+        opt.zero_grad()
+        loss = sum(((g - h) ** 2).sum() for g, h in zip(grams(x), G_u))
+        if beta > 0:
+            loss = loss + beta * ((x - spectrum_projection(x).detach()) ** 2).mean()
+        loss.backward()
+        return loss
+    opt.step(closure)
+    return x.detach()
+
+for beta in (0.0, 1.0):
+    x = synthesize(beta)
+    gram = sum(((g - h) ** 2).sum() for g, h in zip(grams(x), G_u)).item()
+    spec = ((torch.fft.fft2(x).abs() - mod_u) ** 2).mean().sqrt().item() / mod_u.mean().item()
+    print(f"beta = {beta}: Gram loss {gram:.2e}, relative spectrum error {spec:.3f}")
+```
+
+### 4.5 Feed-forward texture networks and style transfer
+
+Optimising each sample from noise takes many gradient steps per image. Ulyanov, Lebedev, Vedaldi and Lempitsky (2016) and Johnson, Alahi and Fei-Fei (2016) instead train a generator $g_\theta$ to minimise $\mathbb{E}_z\, \mathcal{L}(g_\theta(z))$: once trained, a sample costs a single forward pass.
+
+The catch is diversity. The loss is minimised by one good image, and nothing forces different $z$ to give different textures. Ulyanov, Vedaldi and Lempitsky (2017) added a term that rewards diversity across a batch.
+
+*Style transfer* (Gatys, Ecker and Bethge, 2016) mixes two images: the content $c$ through a deep feature map, the style $s$ through Gram matrices,
+$$
+\min_x\ \alpha\, \|F^{l_0}(x) - F^{l_0}(c)\|^2 + \beta \sum_l w_l\, \|G^l(x) - G^l(s)\|_F^2 .
+$$
+
+### 4.6 A critical look
+
+-   **Copy versus innovation.** The exemplar and all its translates minimise $\mathcal{L}$ exactly. A synthesis may converge to a shifted copy, which a simple nearest-patch distance to the exemplar reveals.
+-   **Stationarity.** Exemplars with a gradient of scale or lighting violate the model; Gram averaging mixes regions that should stay apart.
+-   **Evaluation.** There is no ground truth. Papers rely on visual inspection and user studies, or on statistics computed by yet another network, which favours methods built on the same features.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   A texture is a stationary random field; synthesis samples from a model estimated on one exemplar.
+-   ADSN and RPN reproduce the power spectrum exactly and fail on geometric textures, whose structure is in the phase.
+-   Gatys' Gram matrices are translation-invariant statistics of convolutional features; they capture local structure and lose long-range arrangement.
+-   The spectrum constraint of Liu, Gousseau and Xia projects on the exemplar's Fourier modulus and restores regularity.
+::::
+
+## 5. Autoencoders and variational autoencoders {#ch5}
+
+Texture models describe one stationary image. To generate natural images of a whole class, such as faces or digits, we need a model of a distribution on a high-dimensional space whose samples concentrate near a low-dimensional set. Autoencoders learn such a set; variational autoencoders, the official theme 4, turn it into a probabilistic generative model.
+
+### 5.1 Autoencoders and what they encode
+
+::: def
+[Definition 5.1 — Autoencoder]{.tag} An *encoder* $E : \mathbb{R}^n \to \mathbb{R}^d$ and a *decoder* $G : \mathbb{R}^d \to \mathbb{R}^n$, with $d < n$, are trained to minimise the reconstruction error
+$$
+\mathbb{E}\, \|G(E(X)) - X\|^2 .
+$$
+The code $z = E(x)$ is a compressed representation; the image of $G$ is a $d$-dimensional set that should contain the data.
+:::
+
+:::: thm
+[Theorem 5.2 — Linear autoencoders compute PCA (Baldi and Hornik, 1989)]{.tag} Let $X$ be centred with covariance $\Sigma$, of eigenvalues $\lambda_1 \ge \dots \ge \lambda_n$. Over linear maps $E$ and $G$,
+$$
+\min_{E, G}\ \mathbb{E}\, \|G E X - X\|^2 = \sum_{i > d} \lambda_i ,
+$$
+attained when $G E$ is the orthogonal projection onto the span of the top $d$ eigenvectors.
+
+::: proof
+The product $M = G E$ has rank at most $d$. Once its range $V$ is fixed, the best such map is the orthogonal projection $P_V$, which sends each point to its closest point in the range.
+
+Then
+$$
+\mathbb{E}\|X - P_V X\|^2 = \mathrm{tr}\, \Sigma - \mathrm{tr}(P_V \Sigma).
+$$
+By Ky Fan's maximum principle, $\mathrm{tr}(P_V \Sigma)$ over projections of rank $d$ is at most $\lambda_1 + \dots + \lambda_d$, with equality for the top eigenvectors. Any factorisation $M = G E$ through $\mathbb{R}^d$ realises it. [∎]{.qed}
+:::
+::::
+
+Non-linear autoencoders can do much better when the data lie on a *curved* low-dimensional set. Newson, Almansa, Gousseau and Ladjal (2018) chose the simplest such set to dissect autoencoders: images of centred disks, a family with a single parameter, the radius. They studied how the encoder and the decoder represent this one-dimensional family, and how well the network interpolates to radii absent from the training set.
+
+::: ex
+[Example 5.3 — Disks: one parameter, many principal components]{.tag} The code below builds 400 anti-aliased disks of radius between 2 and 14 pixels on a $32 \times 32$ grid and computes their principal components. The share of the variance explained by the first $k$ components is:
+
+-   $k = 1$: 67.2 %;
+-   $k = 2$: 83.0 %;
+-   $k = 5$: 95.4 %;
+-   $k = 10$: 99.2 %.
+
+Yet a non-linear code of dimension 1 is exact: encode the area $z = \sum_p x(p)$, and decode the disk of area $z$. A linear model needs about ten dimensions for what a curved one does with one.
+:::
+
+```python
+import numpy as np
+
+n = 32
+yy, xx = np.mgrid[:n, :n] - (n - 1) / 2                  # pixel coordinates, centred
+rho = np.sqrt(xx ** 2 + yy ** 2)
+radii = np.linspace(2, 14, 400)                           # a one-parameter family of images
+disks = np.clip(radii[:, None, None] - rho[None] + 0.5, 0, 1).reshape(400, -1)   # anti-aliased disks
+centred = disks - disks.mean(0)
+lam = np.linalg.svd(centred, compute_uv=False) ** 2       # PCA spectrum
+ratio = np.cumsum(lam) / lam.sum()
+for k in (1, 2, 5, 10, 20):
+    print(f"{k:2d} principal components explain {100 * ratio[k - 1]:.1f} % of the variance")
+```
+
+### 5.2 Latent variable models
+
+An autoencoder does not generate: decoding a random code gives garbage if the codes of the data occupy a small, irregular part of $\mathbb{R}^d$. A latent variable model fixes the distribution of the codes in advance.
+
+::: def
+[Definition 5.4 — Deep latent variable model]{.tag} Draw $z \sim p(z) = \mathcal{N}(0, I_d)$, then $x \sim p_\theta(x \mid z)$, for instance $\mathcal{N}(G_\theta(z), \sigma^2 I)$ or independent Bernoulli pixels with means $G_\theta(z)$. The model density is
+$$
+p_\theta(x) = \int p_\theta(x \mid z)\, p(z)\, dz .
+$$
+:::
+
+Maximum likelihood would maximise $\sum_i \log p_\theta(x_i)$, but the integral has no closed form when $G_\theta$ is a network, and neither has the posterior $p_\theta(z \mid x)$. Variational inference replaces the posterior by an approximation $q_\phi(z \mid x)$ computed by an encoder.
+
+### 5.3 The evidence lower bound
+
+:::: thm
+[Theorem 5.5 — Evidence lower bound]{.tag} For every density $q(z \mid x)$ with the same support as the posterior,
+$$
+\log p_\theta(x) = \underbrace{\mathbb{E}_{q}\big[\log p_\theta(x \mid z)\big] - \mathrm{KL}\big(q(z \mid x)\, \|\, p(z)\big)}_{\mathrm{ELBO}(\theta, q;\, x)} + \mathrm{KL}\big(q(z \mid x)\, \|\, p_\theta(z \mid x)\big).
+$$
+Since a Kullback–Leibler divergence is non-negative, $\log p_\theta(x) \ge \mathrm{ELBO}$, with equality if and only if $q$ is the true posterior.
+
+::: proof
+The quantity $\log p_\theta(x)$ does not depend on $z$, so it equals its expectation under $q$. Bayes' rule gives $p_\theta(x) = p_\theta(x, z) / p_\theta(z \mid x)$; multiply and divide by $q(z \mid x)$ inside the logarithm:
+$$
+\log p_\theta(x) = \mathbb{E}_q\Big[\log \frac{p_\theta(x, z)}{q(z \mid x)}\Big] + \mathbb{E}_q\Big[\log \frac{q(z \mid x)}{p_\theta(z \mid x)}\Big].
+$$
+The second term is the KL to the posterior. In the first, write $p_\theta(x, z) = p_\theta(x \mid z) p(z)$ to obtain the two terms of the ELBO. [∎]{.qed}
+:::
+::::
+
+The ELBO has a direct reading: a *reconstruction* term, which asks the decoder to explain $x$ from codes drawn by the encoder, and a *regularisation* term, which keeps the encoder's distribution close to the prior so that random codes decode to plausible images.
+
+### 5.4 The reparameterisation trick and the Gaussian KL
+
+The variational autoencoder (Kingma and Welling, 2014; Rezende, Mohamed and Wierstra, 2014) uses a Gaussian encoder with mean $\mu_\phi(x)$ and diagonal covariance $\mathrm{diag}\, \sigma^2_\phi(x)$, and maximises the ELBO jointly in $\theta$ and $\phi$ by stochastic gradients.
+
+::: prop
+[Proposition 5.6 — Reparameterisation]{.tag} Write $z = \mu_\phi(x) + \sigma_\phi(x) \odot \varepsilon$ with $\varepsilon \sim \mathcal{N}(0, I)$. For a differentiable $h$,
+$$
+\nabla_\phi\, \mathbb{E}_{q_\phi}[h(z)] = \mathbb{E}_{\varepsilon}\big[ \nabla_\phi\, h\big(\mu_\phi(x) + \sigma_\phi(x) \odot \varepsilon\big) \big].
+$$
+
+The law of $\varepsilon$ does not depend on $\phi$, so the gradient passes inside the expectation. A single draw of $\varepsilon$ gives an unbiased estimate, with a much smaller variance in practice than the score-function estimator.
+:::
+
+:::: prop
+[Proposition 5.7 — KL between a diagonal Gaussian and the standard Gaussian]{.tag}
+$$
+\mathrm{KL}\big(\mathcal{N}(\mu, \mathrm{diag}\, \sigma^2)\, \|\, \mathcal{N}(0, I)\big) = \frac12 \sum_{j=1}^d \big( \mu_j^2 + \sigma_j^2 - 1 - \log \sigma_j^2 \big).
+$$
+
+::: proof
+Both densities factorise, so the KL is a sum over coordinates. In one coordinate, with $q = \mathcal{N}(\mu, s^2)$ and $p = \mathcal{N}(0,1)$,
+$$
+\log \frac{q(z)}{p(z)} = -\log s - \frac{(z - \mu)^2}{2 s^2} + \frac{z^2}{2} .
+$$
+Under $q$, $\mathbb{E}(z - \mu)^2 = s^2$ and $\mathbb{E} z^2 = \mu^2 + s^2$. The expectation is therefore $-\log s - \frac12 + \frac12(\mu^2 + s^2)$. [∎]{.qed}
+:::
+::::
+
+The code below trains a VAE with a 4-dimensional latent space on the $8 \times 8$ digits bundled with scikit-learn, with a Bernoulli decoder.
+
+```python
+import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
+from sklearn.datasets import load_digits
+torch.manual_seed(0)
+
+X = torch.tensor(load_digits().data / 16.0, dtype=torch.float32)   # 1797 images 8 x 8, values in [0, 1]
+train, test = X[:1500], X[1500:]
+d = 4                                                               # latent dimension
+
+class VAE(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.enc = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 2 * d))
+        self.dec = nn.Sequential(nn.Linear(d, 128), nn.ReLU(), nn.Linear(128, 64))
+    def forward(self, x):
+        mu, logvar = self.enc(x).chunk(2, dim=1)
+        z = mu + torch.exp(0.5 * logvar) * torch.randn_like(mu)    # reparameterization trick
+        rec = F.binary_cross_entropy_with_logits(self.dec(z), x, reduction="none").sum(1)
+        kl = 0.5 * (mu ** 2 + logvar.exp() - 1 - logvar)            # KL(q(z|x) || N(0, I)), per coordinate
+        return rec, kl
+
+vae = VAE(); opt = torch.optim.Adam(vae.parameters(), lr=1e-3)
+for epoch in range(60):
+    for idx in torch.randperm(1500).split(64):
+        rec, kl = vae(train[idx])
+        loss = (rec + kl.sum(1)).mean()                             # minus the ELBO
+        opt.zero_grad(); loss.backward(); opt.step()
+with torch.no_grad():
+    rec, kl = vae(test)
+print(f"test: reconstruction {rec.mean():.1f} nats, KL {kl.sum(1).mean():.1f} nats, "
+      f"-ELBO {(rec + kl.sum(1)).mean():.1f} nats")
+print("KL per latent coordinate:", kl.mean(0).numpy().round(2))
+with torch.no_grad():
+    samples = torch.sigmoid(vae.dec(torch.randn(5, d)))             # new digits: decode z ~ N(0, I)
+print("samples:", samples.shape, "pixel range", samples.min().item() >= 0, samples.max().item() <= 1)
+```
+
+On the 297 test digits it reaches a reconstruction term of 21.2 nats and a KL of 2.9 nats per image, so the negative ELBO, an upper bound on $-\log p_\theta(x)$, is 24.1 nats. All four latent coordinates carry information: their KL is between 0.5 and 0.9 nats each. New digits are obtained by decoding $z \sim \mathcal{N}(0, I)$.
+
+### 5.5 Limitations of VAEs
+
+-   **Blurry samples.** With a Gaussian decoder of fixed variance, the reconstruction term is a squared error. For a given code, the decoder therefore learns an average of the images the encoder sends near that code (Proposition 2.2), and averages are blurred.
+-   **Posterior collapse.** With a powerful decoder, for example an autoregressive one, the ELBO can be maximised with $q(z \mid x) = p(z)$: the KL vanishes and the decoder ignores $z$. Coordinates with a KL near zero, which the code above prints, are the symptom.
+-   **A trade-off in the objective.** Weighting the KL by $\beta > 1$ (Higgins et al., 2017) gives smoother, sometimes more interpretable latent spaces and blurrier reconstructions. Alemi et al. (2018) read the ELBO as a rate–distortion trade-off, which the single number $\log p_\theta(x)$ does not capture.
+-   **Remedies used today.** VQ-VAE (van den Oord, Vinyals and Kavukcuoglu, 2017) uses discrete codes and a learned prior over them. Latent diffusion (Rombach et al., 2022) trains an autoencoder only to compress, then fits a diffusion model (ch. 8) to the codes.
+
+A trained decoder can also serve as a prior for an inverse problem. Bora, Jalal, Price and Dimakis (2017) solve $\min_z \|A G(z) - y\|^2$ over the latent code, so the solution stays in the range of the generator, whether it comes from a VAE or from the GANs of the next chapter.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   A linear autoencoder is PCA; non-linear autoencoders capture curved sets such as the one-parameter family of disks.
+-   A VAE maximises the ELBO, which is the log-likelihood minus the KL to the true posterior.
+-   Reparameterisation gives low-variance gradients; the Gaussian KL has a closed form.
+-   VAE samples are blurry for the same reason as MMSE restorations: a squared error averages.
+::::
+
+## 6. Generative adversarial networks {#ch6}
+
+VAEs pay for their tractable objective with blurry samples. Generative adversarial networks, the official theme 5, drop the likelihood altogether: a generator is trained to fool a discriminator that tries to tell its samples from real images. This chapter derives what the game optimises, why it is hard to train, and how its Wasserstein variant and its conditional versions are used in restoration.
+
+### 6.1 The adversarial game
+
+::: def
+[Definition 6.1 — GAN (Goodfellow et al., 2014)]{.tag} A generator $G_\theta$ maps a latent $z \sim p_z$ to an image; its samples have law $p_g$. A discriminator $D : \mathcal{X} \to (0, 1)$ estimates the probability that its input is real. The two play
+$$
+\min_G \max_D\ V(D, G) = \mathbb{E}_{x \sim p_{\mathrm{data}}} \log D(x) + \mathbb{E}_{z \sim p_z} \log\big(1 - D(G(z))\big).
+$$
+:::
+
+:::: prop
+[Proposition 6.2 — Optimal discriminator]{.tag} If $p_{\mathrm{data}}$ and $p_g$ have densities, then for a fixed generator the discriminator that maximises $V$ is
+$$
+D^\star(x) = \frac{p_{\mathrm{data}}(x)}{p_{\mathrm{data}}(x) + p_g(x)} .
+$$
+
+::: proof
+Write the value as an integral and maximise the integrand pointwise:
+$$
+V(D, G) = \int \big( p_{\mathrm{data}}(x) \log D(x) + p_g(x) \log(1 - D(x)) \big)\, dx .
+$$
+
+For $a, b \ge 0$ not both zero, the function $t \mapsto a \log t + b \log(1 - t)$ on $(0, 1)$ is concave with derivative $a/t - b/(1-t)$, which vanishes at $t = a/(a+b)$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 6.3 — The GAN game minimises the Jensen–Shannon divergence]{.tag} With the optimal discriminator,
+$$
+V(D^\star, G) = -\log 4 + 2\, \mathrm{JS}(p_{\mathrm{data}}\, \|\, p_g),
+$$
+where, with $m = \frac12(p + q)$,
+$$
+\mathrm{JS}(p \| q) = \tfrac12 \mathrm{KL}(p \| m) + \tfrac12 \mathrm{KL}(q \| m).
+$$
+The minimum over $G$ is $-\log 4$, reached if and only if $p_g = p_{\mathrm{data}}$.
+
+::: proof
+Substitute $D^\star$ and write $p_{\mathrm{data}} + p_g = 2m$:
+$$
+V(D^\star, G) = \mathbb{E}_{p_{\mathrm{data}}} \log \frac{p_{\mathrm{data}}}{2m} + \mathbb{E}_{p_g} \log \frac{p_g}{2m} .
+$$
+Each term is a KL divergence to $m$ minus $\log 2$. The JS divergence is non-negative and vanishes only for equal distributions. [∎]{.qed}
+:::
+::::
+
+### 6.2 Training pathologies
+
+The theorem assumes an optimal discriminator and a minimisation over all distributions. Real training alternates a few gradient steps on each player, and three problems follow.
+
+:::: prop
+[Proposition 6.4 — Saturation and the non-saturating loss]{.tag} Write $D = \mathrm{sigmoid}(h)$ with a logit $h$. Then
+$$
+\frac{\partial}{\partial h} \log\big(1 - \mathrm{sigmoid}(h)\big) = -\mathrm{sigmoid}(h), \qquad \frac{\partial}{\partial h} \log \mathrm{sigmoid}(h) = 1 - \mathrm{sigmoid}(h).
+$$
+When the discriminator confidently rejects a fake ($h \to -\infty$), the gradient of the minimax generator loss vanishes, while that of the *non-saturating* loss $-\log D(G(z))$ tends to $-1$.
+
+::: proof
+Write $\varsigma = \mathrm{sigmoid}$. Differentiate with $\varsigma' = \varsigma\,(1 - \varsigma)$ and use $1 - \varsigma(h) = \varsigma(-h)$. [∎]{.qed}
+:::
+::::
+
+Early in training the fakes are easy to reject, so every practical GAN uses the non-saturating loss for the generator, as the code below does.
+
+-   **Disjoint supports.** Images concentrate near low-dimensional sets. If $p_{\mathrm{data}}$ and $p_g$ live on disjoint such sets, a perfect discriminator exists, $\mathrm{JS} = \log 2$ whatever their distance, and the discriminator gives no useful direction (Arjovsky and Bottou, 2017).
+-   **Mode collapse.** The generator may send many latent codes to a few outputs that currently fool the discriminator. Alternating gradient steps do not solve the minimax problem, and the pair can cycle instead of converging.
+
+::: ex
+[Example 6.5 — Two Diracs]{.tag} Let $p_{\mathrm{data}} = \delta_0$ and $p_g = \delta_\theta$ on the real line. For every $\theta \neq 0$, $\mathrm{JS}(\delta_0 \| \delta_\theta) = \log 2$: the divergence is flat and gives no gradient towards $\theta = 0$. The Wasserstein distance of the next section equals $|\theta|$, which does.
+:::
+
+### 6.3 Wasserstein GAN
+
+::: def
+[Definition 6.6 — Wasserstein-1 distance]{.tag} For distributions $p, q$ with finite first moments,
+$$
+W_1(p, q) = \inf_{\pi \in \Pi(p, q)} \mathbb{E}_{(X, Y) \sim \pi} \|X - Y\|,
+$$
+where $\Pi(p, q)$ is the set of couplings, the joint laws with marginals $p$ and $q$.
+:::
+
+:::: thm
+[Theorem 6.7 — Kantorovich–Rubinstein duality]{.tag}
+$$
+W_1(p, q) = \sup_{\|f\|_{\mathrm{Lip}} \le 1}\ \mathbb{E}_{p} f - \mathbb{E}_{q} f .
+$$
+
+::: proof
+*The easy inequality.* For a coupling $\pi$ and a 1-Lipschitz $f$,
+$$
+\mathbb{E}_p f - \mathbb{E}_q f = \mathbb{E}_\pi\big[f(X) - f(Y)\big] \le \mathbb{E}_\pi \|X - Y\| .
+$$
+Take the supremum over $f$ and the infimum over $\pi$. The reverse inequality is a convex duality argument; see Villani (2009), Theorem 5.10. [∎]{.qed}
+:::
+::::
+
+The WGAN of Arjovsky, Chintala and Bottou (2017) trains a *critic* $f$, a network without sigmoid, to maximise $\mathbb{E}_{\mathrm{data}} f - \mathbb{E}_{g} f$ under a Lipschitz constraint. The generator minimises $-\mathbb{E}_z f(G(z))$. The original paper enforces the constraint by clipping the weights, which limits the capacity of the critic.
+
+::: prop
+[Proposition 6.8 — Gradient norm of an optimal critic (Gulrajani et al., 2017)]{.tag} Let $f^\star$ be an optimal 1-Lipschitz critic, differentiable, and $\pi^\star$ an optimal coupling. For $\pi^\star$-almost every pair $(x, y)$ with $x \neq y$, $f^\star$ has gradient norm 1 on the segment between them.
+
+*Sketch.* Optimality of both forces $f^\star(x) - f^\star(y) = \|x - y\|$ for $\pi^\star$-almost every pair. A 1-Lipschitz function that increases at rate 1 along a segment is affine with slope 1 along it, so its gradient has norm 1 there.
+:::
+
+WGAN-GP therefore replaces clipping by the penalty
+$$
+\lambda\, \mathbb{E}_{\hat x}\big( \|\nabla f(\hat x)\| - 1 \big)^2, \qquad \hat x = t x + (1 - t) G(z),\ \ t \sim \mathcal{U}[0, 1],
+$$
+on random points between real and generated samples, with $\lambda = 10$. Spectral normalisation (Miyato, Kataoka, Koyama and Yoshida, 2018) is the other common way to control the Lipschitz constant: it divides each weight matrix by its largest singular value.
+
+The code below trains both versions on eight Gaussians placed on a circle, a standard test of mode collapse.
+
+```python
+import math, torch, torch.nn as nn
+torch.manual_seed(0)
+
+centers = torch.tensor([[2 * math.cos(2 * math.pi * k / 8), 2 * math.sin(2 * math.pi * k / 8)] for k in range(8)])
+def real_batch(m):                                      # 8 Gaussians on a circle, std 0.05
+    return centers[torch.randint(0, 8, (m,))] + 0.05 * torch.randn(m, 2)
+mlp = lambda i, o: nn.Sequential(nn.Linear(i, 128), nn.ReLU(), nn.Linear(128, 128), nn.ReLU(), nn.Linear(128, o))
+
+def train(kind, steps, lr, n_critic, m=256):
+    G, D = mlp(2, 2), mlp(2, 1)                         # D outputs a logit (GAN) or a critic value (WGAN)
+    oG = torch.optim.Adam(G.parameters(), lr=lr, betas=(0.5, 0.9))
+    oD = torch.optim.Adam(D.parameters(), lr=lr, betas=(0.5, 0.9))
+    for _ in range(steps):
+        for _ in range(n_critic):
+            x, y = real_batch(m), G(torch.randn(m, 2)).detach()
+            if kind == "gan":                          # cross-entropy discriminator, D = sigmoid(logit)
+                lossD = nn.functional.softplus(-D(x)).mean() + nn.functional.softplus(D(y)).mean()
+            else:                                      # Wasserstein critic + gradient penalty
+                t = torch.rand(m, 1)
+                z = (t * x + (1 - t) * y).requires_grad_()
+                g = torch.autograd.grad(D(z).sum(), z, create_graph=True)[0]
+                lossD = D(y).mean() - D(x).mean() + 10 * ((g.norm(dim=1) - 1) ** 2).mean()
+            oD.zero_grad(); lossD.backward(); oD.step()
+        y = G(torch.randn(m, 2))
+        lossG = nn.functional.softplus(-D(y)).mean() if kind == "gan" else -D(y).mean()   # non-saturating / WGAN
+        oG.zero_grad(); lossG.backward(); oG.step()
+    return G
+
+for kind, steps, lr, n_critic in [("gan", 1500, 1e-3, 1), ("wgan-gp", 1000, 2e-4, 5)]:
+    G = train(kind, steps, lr, n_critic)
+    with torch.no_grad():
+        s = G(torch.randn(5000, 2))
+    dist = torch.cdist(s, centers)                     # 5000 x 8 distances to the modes
+    near = dist.min(1).values < 0.25                   # "good" samples: within 5 std of a mode
+    counts = torch.bincount(dist.argmin(1)[near], minlength=8)
+    print(f"{kind:8s}: modes covered {(counts > 100).sum().item()}/8, good samples {near.float().mean():.2f}")
+```
+
+Both runs cover the eight modes. The non-saturating GAN puts 89 % of its samples within $0.25$ of a mode; WGAN-GP, after 1000 generator steps, only 42 %, its samples being spread between the modes. On this toy problem the plain GAN does not collapse, and both outcomes are sensitive to the learning rates and to the width of the networks. Measuring that sensitivity is the lab of session 10.
+
+### 6.4 Architectures and conditional GANs for restoration
+
+DCGAN (Radford, Metz and Chintala, 2016) fixed the convolutional recipe: strided convolutions instead of pooling, batch normalisation and no fully connected hidden layers. StyleGAN (Karras, Laine and Aila, 2019) injects the latent code at every scale through a learned "style" and generates high-resolution faces.
+
+In restoration the generator receives the degraded image $y$, and the discriminator judges pairs or outputs.
+
+-   **pix2pix** (Isola, Zhu, Zhou and Efros, 2017) minimises an adversarial loss plus $\lambda \|x - G(y)\|_1$. Its *PatchGAN* discriminator classifies each $N \times N$ patch as real or fake: it is a learned texture model in the sense of ch. 4, while the $\ell^1$ term handles the low frequencies.
+-   **SRGAN** (Ledig et al., 2017) trains a super-resolution network with a VGG feature loss plus a small adversarial term. Its PSNR is lower than that of the same network trained with the squared loss, yet observers prefer it in a mean-opinion-score study. ESRGAN (Wang et al., 2018) refined the architecture and losses.
+
+The randomness of a conditional generator is often ignored in practice: pix2pix found that the network learns to disregard an input noise, and keeps dropout as its only source of randomness. Such a generator is a deterministic estimator with a new loss, and ch. 7 shows where it sits between accuracy and realism.
+
+### 6.5 Evaluating generators; mixture clustering
+
+::: def
+[Definition 6.9 — Fréchet Inception Distance (Heusel et al., 2017)]{.tag} Embed real and generated images with a fixed Inception network and fit Gaussians $\mathcal{N}(m_r, C_r)$ and $\mathcal{N}(m_g, C_g)$ to the two sets of features. Then
+$$
+\mathrm{FID} = \|m_r - m_g\|^2 + \mathrm{tr}\big( C_r + C_g - 2 (C_r C_g)^{1/2} \big),
+$$
+which is the squared Wasserstein-2 distance between the two Gaussians.
+:::
+
+FID is biased for finite samples, depends on the features of an ImageNet classifier, and mixes two different failures in one number: bad samples and missing modes. Precision and recall for distributions (Sajjadi et al., 2018; Kynkäänniemi et al., 2019) separate them.
+
+Adversarial training is not limited to generation. Harchaoui, Mattei, Bouveyron and Almansa (2018) use it for *clustering*: as the title of their work says, they fit a mixture model with a Wasserstein adversarial criterion, and the components of the mixture define the clusters.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   With an optimal discriminator $D^\star = p_{\mathrm{data}} / (p_{\mathrm{data}} + p_g)$, the GAN game minimises the Jensen–Shannon divergence.
+-   Training is a non-convex game: saturation, disjoint supports and mode collapse are its classical failures.
+-   WGAN uses the Kantorovich–Rubinstein dual of $W_1$; the gradient penalty enforces the Lipschitz constraint where it matters.
+-   Conditional GANs (pix2pix, SRGAN) add an adversarial term to a restoration loss: sharper outputs, lower PSNR.
+::::
+
+## 7. Perception, distortion and the critical evaluation of restoration {#ch7}
+
+Chapters 2 to 6 met the same tension several times: the squared loss gives the best PSNR and blurry images, while adversarial and perceptual losses give sharp images and a worse PSNR. This chapter, the first revision session, shows that the tension is a theorem, not a defect of current methods, and turns it into a checklist for reading restoration papers critically.
+
+### 7.1 Two notions of quality
+
+::: def
+[Definition 7.1 — Distortion and perceptual index]{.tag} Let $\hat X$ be an estimate of $X$ computed from $Y$, possibly randomised, with conditional law $p_{\hat X \mid Y}$.
+
+-   The *distortion* is $\mathbb{E}\, \Delta(X, \hat X)$ for a dissimilarity $\Delta$, such as the squared error.
+-   The *perceptual index* is $d(p_X, p_{\hat X})$ for a divergence $d$ between the law of natural images and the law of the outputs.
+:::
+
+The perceptual index has an operational meaning. An ideal observer sees one image, drawn with probability $\frac12$ from natural images and $\frac12$ from the outputs, and must say which. Its best success rate is
+$$
+\tfrac12 + \tfrac12\, \mathrm{TV}(p_X, p_{\hat X}),
+$$
+where TV is the total variation distance. This is the classical Bayes-optimal test between two hypotheses with equal priors. Outputs that cannot be told apart from real images are those whose law equals $p_X$.
+
+### 7.2 The perception–distortion trade-off
+
+:::: thm
+[Theorem 7.2 — Perception–distortion function (Blau and Michaeli, 2018)]{.tag} Define
+$$
+P(D) = \min_{p_{\hat X \mid Y}}\ d(p_X, p_{\hat X}) \quad \text{subject to} \quad \mathbb{E}\, \Delta(X, \hat X) \le D .
+$$
+
+Then $P$ is non-increasing. If moreover $d(p, q)$ is convex in $q$, then $P$ is convex.
+
+::: proof
+*Monotonicity.* Increasing $D$ enlarges the feasible set, so the minimum cannot increase.
+
+*Convexity.* Take two levels $D_1, D_2$ with near-optimal estimators $p^{(1)}, p^{(2)}$, and $t \in [0, 1]$.
+
+The randomised estimator that uses $p^{(1)}$ with probability $t$ and $p^{(2)}$ otherwise has conditional law $t p^{(1)} + (1-t) p^{(2)}$.
+
+Its distortion is linear in the conditional law, so it is at most $t D_1 + (1-t) D_2$. The law of its output is the mixture $t\, p_{\hat X_1} + (1-t)\, p_{\hat X_2}$, and convexity of $d$ in its second argument bounds its perceptual index by $t P(D_1) + (1-t) P(D_2)$. [∎]{.qed}
+:::
+::::
+
+The MMSE estimator has the smallest possible distortion, but its outputs are averages: their law is more concentrated than $p_X$, so its perceptual index is not zero. Lowering the perceptual index below that value *requires* more distortion. The next result quantifies the price of perfect realism.
+
+:::: prop
+[Proposition 7.3 — Posterior sampling costs at most twice the MMSE]{.tag} Let $\hat X$ be drawn from $p(x \mid Y)$, independently of $X$ given $Y$. Then $p_{\hat X} = p_X$, and
+$$
+\mathbb{E}\, \|X - \hat X\|^2 = 2\, \mathbb{E}\, \mathrm{tr}\, \mathrm{Cov}(X \mid Y) = 2\, \mathrm{MMSE} .
+$$
+
+::: proof
+*Law.* For every event $B$, conditioning on $Y$ gives
+$$
+P(\hat X \in B) = \mathbb{E}\big[P(\hat X \in B \mid Y)\big] = \mathbb{E}\big[P(X \in B \mid Y)\big] = P(X \in B).
+$$
+
+*Error.* Let $m(Y) = \mathbb{E}[X \mid Y]$. Given $Y$, the vectors $X - m(Y)$ and $\hat X - m(Y)$ are independent, centred, each with covariance $\mathrm{Cov}(X \mid Y)$. The squared norm of their difference has conditional expectation $2\, \mathrm{tr}\, \mathrm{Cov}(X \mid Y)$. Take expectations and use Theorem 0.5. [∎]{.qed}
+:::
+::::
+
+So the distortion at perfect perceptual quality lies between the MMSE and twice the MMSE, and posterior sampling attains the upper end. This is the reason why the diffusion samplers of ch. 8 have a lower PSNR than a network trained with the squared loss, and why averaging several posterior samples raises it again.
+
+::: ex
+[Example 7.4 — The scalar Gaussian case]{.tag} Let $X \sim \mathcal{N}(0, 1)$ and $Y = X + N$ with $N \sim \mathcal{N}(0, 1)$. The posterior is $\mathcal{N}(Y/2, 1/2)$. Consider the estimators
+$$
+\hat X_a = \frac{Y}{2} + a \sqrt{\tfrac12}\, Z, \qquad Z \sim \mathcal{N}(0, 1),
+$$
+from the MMSE ($a = 0$) to posterior sampling ($a = 1$). The code below finds:
+
+-   $a = 0$: MSE 0.503, outputs of standard deviation 0.707, Wasserstein distance to the prior 0.293;
+-   $a = 0.5$: MSE 0.626, standard deviation 0.789, distance 0.211;
+-   $a = 1$: MSE 1.004, standard deviation 1.001, distance 0.001.
+
+The MMSE estimator shrinks the outputs towards zero; posterior sampling matches the prior and doubles the error, as Proposition 7.3 predicts.
+:::
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+N, sigma = 200_000, 1.0
+x = rng.standard_normal(N)                          # X ~ N(0, 1)
+y = x + sigma * rng.standard_normal(N)              # Y = X + noise
+m = y / (1 + sigma ** 2)                            # posterior mean E[X | Y]
+v = sigma ** 2 / (1 + sigma ** 2)                   # posterior variance Var(X | Y)
+for a in (0.0, 0.5, 1.0):                           # a = 0: MMSE, a = 1: posterior sampling
+    xhat = m + a * np.sqrt(v) * rng.standard_normal(N)
+    mse = np.mean((xhat - x) ** 2)
+    w2 = abs(1 - xhat.std())                        # W2 distance between N(0, 1) and N(0, std^2)
+    print(f"a = {a:.1f}: MSE {mse:.3f}, std of estimates {xhat.std():.3f}, W2 to the prior {w2:.3f}")
+```
+
+### 7.3 Metrics and what they reward
+
+-   **Full-reference distortion metrics.** PSNR and SSIM (Definition 1.3) compare with the ground truth and reward the posterior mean.
+-   **Learned perceptual distances.** LPIPS (Zhang, Isola, Efros, Shechtman and Wang, 2018) compares deep features of the two images and agrees better with human judgements of similarity. It is still a distortion: it compares an output with *its* ground truth.
+-   **Distribution metrics.** FID (Definition 6.9) compares the laws of outputs and real images: a perceptual index.
+-   **No-reference metrics.** NIQE (Mittal, Soundararajan and Bovik, 2013) scores an image alone against statistics of natural images.
+
+By Theorem 7.2, a method should be reported on *both* axes. A single number can always be improved by sliding along the trade-off curve, without any real progress.
+
+### 7.4 Pitfalls: a checklist for reading papers
+
+1.  **Loss and metric from the same network.** Training with a VGG feature loss and evaluating with a metric built on similar features measures the loss, not the quality.
+2.  **Hallucination.** Cohen, Luck and Honari (2018) showed that image-translation models trained with distribution-matching losses can add or remove tumours in medical images. Realism is not fidelity.
+3.  **Synthetic degradations.** Results on bicubic downsampling or Gaussian noise do not transfer to real sensors (ch. 2.6).
+4.  **Weak baselines and small test sets.** Untuned baselines, a single noise seed, and differences of tenths of a decibel on a few dozen images without confidence intervals.
+5.  **Memorisation.** A generator that reproduces training images scores well on distribution metrics. Carlini et al. (2023) extracted training images from diffusion models, and Somepalli et al. (2023) found replicated content in their samples.
+6.  **Reproducibility.** The journal Image Processing On Line (IPOL) publishes each algorithm with its source code and an online demonstration, a standard against which to judge the claims of a paper.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   Distortion compares an output with its ground truth; perceptual quality compares the law of outputs with the law of natural images.
+-   The perception–distortion function is non-increasing and convex: no estimator is best on both axes.
+-   Posterior sampling has perfect perceptual quality and exactly twice the MMSE.
+-   Report both kinds of metrics, and check every result against the six pitfalls above.
+::::
+
+## 8. Diffusion models and generative priors for inverse problems {#ch8}
+
+Tweedie's formula (Theorem 3.11) says that a good denoiser knows the score of the noisy image distribution. Diffusion models push this observation to its end: a family of denoisers, one per noise level, is enough to *sample* natural images, and, combined with a likelihood, to sample the posterior of an inverse problem. This chapter, the second revision session, connects ch. 3, 5 and 7.
+
+### 8.1 Denoising score matching
+
+The *score* of a density $p$ is $\nabla \log p$. It does not depend on the normalising constant, which is what makes it learnable.
+
+:::: thm
+[Theorem 8.1 — Denoising score matching (Vincent, 2011)]{.tag} Let $\tilde X = X + \sigma Z$ with $X \sim p$, $Z \sim \mathcal{N}(0, I)$, and let $p_\sigma$ be the law of $\tilde X$. For every $s_\theta$ with finite second moments,
+$$
+\mathbb{E}\, \Big\| s_\theta(\tilde X) + \frac{\tilde X - X}{\sigma^2} \Big\|^2 = \mathbb{E}\, \big\| s_\theta(\tilde X) - \nabla \log p_\sigma(\tilde X) \big\|^2 + C,
+$$
+where $C$ does not depend on $\theta$.
+
+::: proof
+Expand both squares. The terms $\mathbb{E}\|s_\theta(\tilde X)\|^2$ coincide, and the terms without $s_\theta$ go into $C$. It remains to compare the cross terms.
+
+Write $q(\tilde x \mid x)$ for the Gaussian density of $\tilde X$ given $X = x$, so that $\nabla_{\tilde x} \log q = -(\tilde x - x)/\sigma^2$ and $p_\sigma(\tilde x) = \int q(\tilde x \mid x)\, p(x)\, dx$. Then
+$$
+\mathbb{E} \langle s_\theta(\tilde X), \nabla \log p_\sigma(\tilde X) \rangle = \int \langle s_\theta, \nabla p_\sigma \rangle\, d\tilde x = \iint \langle s_\theta(\tilde x), \nabla_{\tilde x} q(\tilde x \mid x) \rangle\, p(x)\, dx\, d\tilde x ,
+$$
+which is the cross term of the left-hand side, because $\nabla q = q\, \nabla \log q$. [∎]{.qed}
+:::
+::::
+
+Parameterise the score by a denoiser $D_\theta$:
+$$
+s_\theta(\tilde x) = \frac{D_\theta(\tilde x) - \tilde x}{\sigma^2}.
+$$
+The left-hand side becomes $\sigma^{-4}\, \mathbb{E}\|D_\theta(\tilde X) - X\|^2$: training a denoiser with the squared loss *is* score matching. Its minimiser is the MMSE denoiser, and Tweedie's formula confirms that it gives the exact score.
+
+### 8.2 Denoising diffusion probabilistic models
+
+::: def
+[Definition 8.2 — Forward diffusion]{.tag} Fix a schedule $0 < \beta_1 < \dots < \beta_T < 1$ and $\alpha_t = 1 - \beta_t$. Starting from an image $x_0$,
+$$
+x_t = \sqrt{\alpha_t}\, x_{t-1} + \sqrt{\beta_t}\, \varepsilon_t, \qquad \varepsilon_t \sim \mathcal{N}(0, I) \text{ independent}.
+$$
+:::
+
+:::: prop
+[Proposition 8.3 — Closed-form marginals]{.tag} With $\bar\alpha_t = \alpha_1 \cdots \alpha_t$,
+$$
+x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1 - \bar\alpha_t}\, \varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, I).
+$$
+As $\bar\alpha_T \to 0$, $x_T$ is close to pure noise $\mathcal{N}(0, I)$.
+
+::: proof
+By induction. If the claim holds at $t - 1$, then
+$$
+x_t = \sqrt{\alpha_t \bar\alpha_{t-1}}\, x_0 + \sqrt{\alpha_t (1 - \bar\alpha_{t-1})}\, \varepsilon' + \sqrt{\beta_t}\, \varepsilon_t .
+$$
+
+The two noises are independent Gaussians, so their sum is Gaussian with variance $\alpha_t - \bar\alpha_t + 1 - \alpha_t = 1 - \bar\alpha_t$. [∎]{.qed}
+:::
+::::
+
+Ho, Jain and Abbeel (2020) train a network $\varepsilon_\theta(x_t, t)$ to predict the noise,
+$$
+\min_\theta\ \mathbb{E}_{t, x_0, \varepsilon}\, \big\| \varepsilon - \varepsilon_\theta\big(\sqrt{\bar\alpha_t}\, x_0 + \sqrt{1 - \bar\alpha_t}\, \varepsilon,\ t\big) \big\|^2 ,
+$$
+a denoising problem at every noise level. By Tweedie's formula applied to $x_t$, the optimum is
+$$
+\varepsilon^\star(x_t, t) = -\sqrt{1 - \bar\alpha_t}\, \nabla \log p_t(x_t).
+$$
+Sampling runs the chain backwards from $x_T \sim \mathcal{N}(0, I)$:
+$$
+x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \Big( x_t - \frac{\beta_t}{\sqrt{1 - \bar\alpha_t}}\, \varepsilon_\theta(x_t, t) \Big) + \sqrt{\beta_t}\, z_t .
+$$
+
+In continuous time the forward chain becomes a stochastic differential equation, and sampling integrates the reverse-time equation, whose drift contains the score (Song, Sohl-Dickstein, Kingma, Kumar, Ermon and Poole, 2021). The deterministic DDIM sampler (Song, Meng and Ermon, 2021) needs far fewer steps.
+
+The first part of the code below replaces the network by the *exact* score of a two-dimensional Gaussian mixture, which stays a mixture under the forward process. The sampler recovers the weights of the components: 0.503, 0.296 and 0.202, against 0.5, 0.3 and 0.2.
+
+### 8.3 Posterior sampling for inverse problems
+
+For an observation $y$ with likelihood $p(y \mid x)$, Bayes' rule holds for scores without any normalising constant:
+$$
+\nabla_x \log p(x \mid y) = \nabla_x \log p(y \mid x) + \nabla_x \log p(x).
+$$
+The first term comes from the forward model, the second from a denoiser through Tweedie's formula.
+
+::: thm
+[Algorithm 8.4 — Plug-and-play unadjusted Langevin (Laumont, De Bortoli, Almansa, Delon, Durmus and Pereyra, 2022)]{.tag} With a step $\delta$, a denoiser $D_\varepsilon$ at a small noise level $\varepsilon$, and $Z_k \sim \mathcal{N}(0, I)$, iterate
+$$
+X_{k+1} = X_k + \delta\, \nabla_x \log p(y \mid X_k) + \frac{\delta}{\varepsilon^2} \big( D_\varepsilon(X_k) - X_k \big) + \sqrt{2 \delta}\, Z_{k+1} .
+$$
+
+The chain targets the posterior with the prior smoothed at level $\varepsilon$. The paper adds a term that keeps the iterates in a compact set, and proves convergence under a Lipschitz condition on the denoiser.
+:::
+
+During reverse diffusion, the likelihood of $y$ given a *noisy* $x_t$ is intractable. Diffusion posterior sampling (Chung, Kim, McCann, Klasky and Ye, 2023) approximates it by the likelihood of Tweedie's estimate $\hat x_0(x_t) = \mathbb{E}[x_0 \mid x_t]$ and adds its gradient to each reverse step. DDRM (Kawar, Elad, Ermon and Song, 2022) uses the singular value decomposition of a linear $A$ instead. Kadkhodaie and Simoncelli (2021) drew samples, and solved linear inverse problems, with the prior implicit in a denoiser alone.
+
+::: ex
+[Example 8.5 — Langevin sampling of a bimodal posterior]{.tag} The second part of the code observes $y = x_1 + n$ with $y = 1$ and noise of standard deviation $0.5$, under the mixture prior. Two components remain plausible, with exact posterior weights 0.6 and 0.4, and they differ in $x_2$ (around $1$ and around $-2.5$).
+
+Run for 3000 steps, 2000 Langevin chains find the conditional means within each mode accurately: 1.616 and 0.389, against the exact 1.610 and 0.390. But only 51.8 % of the chains sit in the first mode instead of 60 %. Chains started in one basin rarely cross to the other: Langevin dynamics mixes slowly between separated modes.
+:::
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+w = np.array([0.5, 0.3, 0.2])                              # prior: 2-D Gaussian mixture
+mu = np.array([[-2.0, 0.0], [2.0, 1.0], [0.0, -2.5]])
+s2 = 0.4 ** 2                                              # isotropic variance of each component
+
+def score(x, a=1.0, extra=0.0):
+    """Score of sqrt(a) X + noise of variance (1 - a) + extra, X ~ prior: again a mixture."""
+    v = a * s2 + (1 - a) + extra
+    d = np.sqrt(a) * mu[None] - x[:, None]                 # n x 3 x 2
+    logr = np.log(w) - (d ** 2).sum(-1) / (2 * v)
+    r = np.exp(logr - logr.max(1, keepdims=True)); r /= r.sum(1, keepdims=True)
+    return (r[..., None] * d).sum(1) / v
+
+# 1. DDPM ancestral sampling with the exact score (Ho, Jain and Abbeel, 2020)
+T = 1000
+beta = np.linspace(1e-4, 0.02, T); alpha = 1 - beta; abar = np.cumprod(alpha)
+x = rng.standard_normal((3000, 2))
+for t in range(T - 1, -1, -1):
+    eps_hat = -np.sqrt(1 - abar[t]) * score(x, abar[t])    # noise predictor = -sqrt(1 - abar) * score
+    x = (x - beta[t] / np.sqrt(1 - abar[t]) * eps_hat) / np.sqrt(alpha[t])
+    if t > 0:
+        x += np.sqrt(beta[t]) * rng.standard_normal(x.shape)
+lab = ((x[:, None] - mu[None]) ** 2).sum(-1).argmin(1)
+print("DDPM component frequencies:", np.bincount(lab, minlength=3) / len(x), "(target", w, ")")
+
+# 2. Posterior sampling by Langevin + smoothed prior score (PnP-ULA flavour), y = x_1 + noise
+y, eta2, eps2, delta = 1.0, 0.5 ** 2, 0.05 ** 2, 0.01
+z = rng.standard_normal((2000, 2))
+for k in range(3000):
+    grad = score(z, extra=eps2)                            # prior score, smoothed at level eps
+    grad[:, 0] += (y - z[:, 0]) / eta2                     # + likelihood score
+    z = z + delta * grad + np.sqrt(2 * delta) * rng.standard_normal(z.shape)
+wpost = w * np.exp(-(y - mu[:, 0]) ** 2 / (2 * (s2 + eta2)))   # exact posterior: a mixture again
+wpost /= wpost.sum()
+m1 = (mu[:, 0] / s2 + y / eta2) / (1 / s2 + 1 / eta2)       # exact E[x_1 | y, component k]
+up = z[:, 1] > -0.75                                       # chains in the upper mode (component 2)
+print("upper mode: exact weight", wpost[1].round(3), "| Langevin fraction", up.mean().round(3))
+print("E[x_1 | y, mode]: exact", m1[1:].round(3), "| Langevin", np.array([z[up, 0].mean(), z[~up, 0].mean()]).round(3))
+```
+
+### 8.4 A critical look at diffusion priors
+
+-   **Cost.** A sample needs hundreds to thousands of network evaluations, against one for the end-to-end networks of ch. 2. Distillation and few-step samplers reduce, but do not remove, the gap.
+-   **Approximations.** Diffusion posterior sampling does not sample the true posterior; its uncertainty estimates must be checked before they are trusted, for instance on problems with a known posterior, as in Example 8.5.
+-   **Distortion.** Posterior samples cost twice the MMSE (Proposition 7.3). Averaging several samples moves the estimate towards the MMSE, and their spread is a map of uncertainty.
+-   **Memorisation and generalisation.** A diffusion model trained on few images reproduces them. Kadkhodaie, Guth, Simoncelli and Mallat (2024) showed that with enough data, two networks trained on disjoint sets learn nearly the same score and generate the same images from the same noise. Whether a model generalises depends on the size of its training set.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   Training a denoiser with the squared loss is score matching; the optimal denoiser gives the exact score.
+-   DDPM noises images with a Gaussian chain of closed-form marginals and samples by reversing it with a learned noise predictor.
+-   The posterior score is the likelihood score plus the prior score; PnP-ULA and diffusion posterior sampling exploit this.
+-   Langevin and diffusion samplers mix slowly between modes, are costly, and only approximate the posterior.
+::::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study, after the course. It points to active questions that extend each theme, with the papers where to start. It is a reading map, not a survey: each item names a question, what is known, and what remains open.
+
+### 9.1 Convergent plug-and-play with learned denoisers
+
+Theorem 3.8 guarantees convergence only through vanishing steps. Work by Ryu and coauthors (2019) and by Hurault, Leclaire and Papadakis (2022) obtains genuine fixed-point or objective-decrease guarantees by constraining the denoiser, through a Lipschitz residual or a gradient-step structure. Pesquet, Repetti, Terris and Wiaux (2021) learn denoisers that are resolvents of maximally monotone operators, which places plug-and-play back inside monotone operator theory.
+
+*Open question:* how much denoising quality do these constraints cost, and can the limit point be characterised as the minimiser of an interpretable objective for state-of-the-art denoisers?
+
+### 9.2 Uncertainty quantification in imaging
+
+A restored image without error bars is hard to use in science or medicine. PnP-ULA (Laumont and coauthors, 2022) gives posterior samples with convergence guarantees. Distribution-free methods, such as the conformal approach of Angelopoulos and coauthors (2022) for image-to-image regression, give calibrated pixelwise intervals around any network's output.
+
+*Open question:* which uncertainty is meaningful for an image? Pixelwise intervals ignore correlations, and posterior samples from approximate samplers (ch. 8.3) may be miscalibrated in ways that are hard to detect.
+
+### 9.3 Learning without ground truth
+
+Noise2Noise (Theorem 2.5) needs two noisy views of each scene. Noise2Void (Krull, Buchholz and Jug, 2019) and Noise2Self (Batson and Royer, 2019) learn from single noisy images by hiding the pixel to be predicted from the network, assuming independent noise across pixels. Equivariant imaging (Chen, Tachella and Davies, 2021) learns from measurements alone when the image set is invariant under a group of transformations, such as shifts or rotations, that the operator $A$ does not commute with.
+
+*Open question:* what can be learned when the noise is spatially correlated, as after demosaicking, or when the operator has a large kernel shared by all measurements?
+
+### 9.4 Real-world super-resolution and blind restoration
+
+The degradation mismatch of ch. 2.6 drives research on blind methods. KernelGAN (Bell-Kligler, Shocher and Irani, 2019) estimates the downsampling kernel of an image from its internal statistics. Real-ESRGAN (Wang, Xie, Dong and Shan, 2021) trains on a high-order synthetic degradation pipeline mixing blurs, noises, resizing and compression.
+
+*Open question:* how to evaluate on real data, where no ground truth exists, without falling back on the metrics criticised in ch. 7?
+
+### 9.5 Generalisation, memorisation and the inductive bias of denoisers
+
+Kadkhodaie, Guth, Simoncelli and Mallat (2024) relate the generalisation of diffusion models to the *geometry-adaptive harmonic* representations learned by denoisers. Carlini and coauthors (2023) and Somepalli and coauthors (2023) document the opposite regime, memorisation.
+
+*Open question:* which properties of architectures and data sets decide between the two regimes, and how can a method certify that a restoration or a sample is not a copy of a training image?
+
+### 9.6 Textures and optimal transport
+
+Gram matrices match second-order statistics of features (ch. 4). Rabin, Peyré, Delon and Bernot (2011) used Wasserstein barycenters of feature distributions for texture mixing, and later work matches the full distributions of patches or features by optimal transport, which constrains more than Gram matrices do.
+
+*Open question:* which statistics are sufficient for perceptual equivalence, the modern form of Julesz's conjecture, and how can innovation (not copying the exemplar) be measured?
+
+### 9.7 Faster samplers and new generative models
+
+Flow matching (Lipman, Chen, Ben-Hamu, Nickel and Le, 2023) learns a velocity field transporting noise to data along simple paths. Consistency models (Song, Dhariwal, Chen and Sutskever, 2023) aim at one-step sampling. Both inherit the inverse-problem machinery of ch. 8, and the perception–distortion analysis of ch. 7 applies to them unchanged.
+
+*Open question:* can a few-step sampler sample the *posterior* of an inverse problem faithfully, or only produce plausible images?
+
+::: note
+[Reading strategy]{.tag} Pick one question, read the cited paper with its code, and reproduce one figure on a small data set before reading further. The projects of the next section are built on the same principle.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Plug-and-play convergence, uncertainty, self-supervision, blind degradations, memorisation, texture statistics and fast samplers are the active fronts.
+-   Each front has a theoretical question (a guarantee, a characterisation) and a practical one (an evaluation without ground truth).
+-   The critical habits of ch. 7 are the common thread.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 7, 11, 14 and 15 are computational.
+
+1.  **★ A blur that is not invertible.** On $\mathbb{Z}/4\mathbb{Z}$, let $k = (\tfrac12, \tfrac14, 0, \tfrac14)$, a symmetric three-tap blur. Compute $\hat k(\omega)$ for $\omega = 0, 1, 2, 3$. Is the circular convolution by $k$ invertible? Which signal does it send to zero?
+
+    *Solution*: by Definition 0.1,
+    $$
+    \hat k(\omega) = \tfrac12 + \tfrac14 e^{-i\pi\omega/2} + \tfrac14 e^{i\pi\omega/2} = \tfrac12 + \tfrac12 \cos(\pi\omega/2),
+    $$
+    that is $(1, \tfrac12, 0, \tfrac12)$.
+
+    The value at $\omega = 2$ is zero, so the operator is singular (Theorem 0.2). Its kernel is spanned by the Nyquist signal $(-1)^x = (1, -1, 1, -1)$: at every pixel the output is $\tfrac12 - \tfrac14 - \tfrac14 = 0$ up to sign.
+
+2.  **★ PSNR and folding.** (a) Compute the PSNR of an image in $[0, 1]$ corrupted by Gaussian noise of standard deviation $10/255$, then $50/255$. (b) A cosine at $0.3$ cycles per pixel is subsampled by a factor 3. At which frequency does it appear?
+
+    *Solution*: (a) the MSE is $\sigma^2$, so $\mathrm{PSNR} = 20 \log_{10}(255/\sigma_{255})$, where $\sigma_{255}$ is the standard deviation in grey levels: 28.13 dB for 10 and 14.15 dB for 50.
+
+    (b) In units of the new sampling step the frequency is $0.9$ cycles per sample, above $0.5$; it folds to $1 - 0.9 = 0.1$ cycles per sample (Proposition 0.3, extended to a factor 3).
+
+3.  **★ Wiener denoising of a white signal.** In Theorem 1.4 take $\hat k = 1$ and a flat spectrum $S(\omega) = s^2$. Give the Wiener gain and the MSE per pixel. Evaluate for $s = \sigma = 1$, then explain why a decreasing spectrum $S$ gives a low-pass filter.
+
+    *Solution*: the gain is $s^2 / (s^2 + \sigma^2)$ at every frequency: a mere scaling of the noisy image. The posterior variance per pixel, which is the MSE, is $s^2 \sigma^2 / (s^2 + \sigma^2)$; for $s = \sigma = 1$, the gain is $\tfrac12$ and the MSE $\tfrac12$.
+
+    With $S$ decreasing in $|\omega|$, the gain $S/(S + \sigma^2)$ is close to 1 at low frequencies and close to 0 at high frequencies.
+
+4.  **★ Soft thresholding as a MAP.** Apply the proximal operator of $\lambda |\cdot|$ with $\lambda = 1$ to $y = (3, -0.5, 1.2)$. For which Laplace prior $e^{-|x|/\beta}$ and noise level $\sigma$ is this the MAP estimator?
+
+    *Solution*: by Proposition 1.8 the result is $(2, 0, 0.2)$. By Proposition 3.2, soft thresholding at $\lambda$ is the MAP estimator whenever $\sigma^2 / \beta = 1$, for instance $\sigma = \beta = 1$.
+
+5.  **★ Shapes and costs of a sub-pixel layer.** A super-resolution network for a factor $s = 3$ on grey images ends with a $3 \times 3$ convolution from 64 channels, followed by `PixelShuffle(3)`. The input batch has shape $16 \times 64 \times 32 \times 32$. Give the number of output channels of the convolution, the shape after the shuffle, and the ratio of costs between a $3 \times 3$, 64-to-64 convolution applied at low and at high resolution.
+
+    *Solution*: the convolution outputs $s^2 C = 9$ channels, shape $16 \times 9 \times 32 \times 32$; the shuffle gives $16 \times 1 \times 96 \times 96$ (Proposition 2.7).
+
+    A convolution costs a fixed number of operations per output pixel, so at high resolution it costs $s^2 = 9$ times more. This factor is the saving of ESPCN over SRCNN at equal depth.
+
+6.  **★★ Noise2Noise with the wrong noise.** (a) In Theorem 2.5, assume instead $\mathbb{E}[N' \mid X, Y] = \mu \neq 0$, a constant vector. What does training with the squared loss on noisy targets converge to? (b) Impulse noise replaces each pixel, with probability $p < \tfrac12$, by a value uniform in $[0, 1]$. Show that the median of $Y'_p$ given $X$ is $X_p$, and conclude which loss to use.
+
+    *Solution*: (a) the same expansion, with $X + \mu$ in place of $X$, gives
+    $$
+    \mathbb{E}\|f(Y) - Y'\|^2 = \mathbb{E}\|f(Y) - (X + \mu)\|^2 + \text{const},
+    $$
+    minimised by $\mathbb{E}[X \mid Y] + \mu$: the output is biased by $\mu$.
+
+    (b) Given $X = x$, the law of $Y'_p$ is $(1-p)\, \delta_{x_p} + p\, \mathcal{U}[0, 1]$. Its distribution function jumps by $1 - p > \tfrac12$ at $x_p$, so $x_p$ is its median.
+
+    The noisy targets are right "in median" but not in mean, so the absolute loss is appropriate (Proposition 2.2); the squared loss would learn a mean pulled towards $\tfrac12$.
+
+7.  **★★ MAP and MMSE under a Laplace prior, numerically.** For $\beta = \sigma = 1$ in Proposition 3.2, compute the MMSE estimate by numerical integration at $y = 0.5, 1, 2, 4$ and compare with the MAP estimate. What happens for large $y$?
+
+    *Hints and expected result*: integrate $x\, e^{-|x| - (y - x)^2/2}$ and its normaliser on a fine grid of $[-20, 20]$. The MAP is the soft thresholding at $\lambda = 1$.
+
+    | $y$ | MAP | MMSE |
+    |---|---|---|
+    | 0.5 | 0 | 0.241 |
+    | 1 | 0 | 0.503 |
+    | 2 | 1 | 1.161 |
+    | 4 | 3 | 3.002 |
+
+    The MMSE never vanishes for $y \neq 0$; for large $y$ both behave like $y - 1$, since the posterior becomes a Gaussian centred at $y - \sigma^2/\beta$.
+
+8.  **★★ Random phase noise of a pure frequency.** Let $u(x) = \cos(2\pi \langle \xi, x \rangle / n)$ with $\xi \neq 0$ and $2\xi \neq 0$ modulo $n$. Show that $\mathrm{RPN}(u)$ is a randomly *translated* copy of $u$. Then prove the spectral identity of Proposition 4.3 directly from Theorem 0.2.
+
+    *Solution*: $\hat u$ is supported on $\{\xi, -\xi\}$ with value $n^2/2$. A Hermitian random phase multiplies these two coefficients by $e^{i\theta}$ and $e^{-i\theta}$, which gives
+    $$
+    \cos(2\pi \langle \xi, x \rangle / n + \theta),
+    $$
+    a translate of $u$.
+
+    For ADSN and $\omega \neq 0$, Theorem 0.2 gives $\hat V(\omega) = \hat t(\omega)\, \hat W(\omega)$ with $\hat t = \hat u / \sqrt{|\Omega|}$. White noise has independent unit-variance pixels, so
+    $$
+    \mathbb{E}|\hat W(\omega)|^2 = \sum_x \mathbb{E}\, W(x)^2 = |\Omega| .
+    $$
+    Hence $\mathbb{E}|\hat V(\omega)|^2 = |\hat u(\omega)|^2$.
+
+9.  **★★ A VAE whose ELBO is tight.** Take $z \sim \mathcal{N}(0, 1)$ and $x \mid z \sim \mathcal{N}(w z, \sigma^2)$ in dimension one. Compute $p(x)$ and the posterior $p(z \mid x)$. Show that the ELBO with $q(z \mid x) = p(z \mid x)$ equals $\log p(x)$, using Proposition 5.7.
+
+    *Solution*: $x \sim \mathcal{N}(0, w^2 + \sigma^2)$. By Gaussian conditioning, the posterior is
+    $$
+    p(z \mid x) = \mathcal{N}\Big( \frac{w x}{w^2 + \sigma^2},\ \frac{\sigma^2}{w^2 + \sigma^2} \Big).
+    $$
+
+    With this $q$, the last KL of Theorem 5.5 is zero, so the ELBO equals $\log p(x)$. Computing it explicitly (Gaussian expectation of the reconstruction term, minus Proposition 5.7) gives the log-density of $p(x)$,
+    $$
+    -\tfrac12 \log\big(2\pi(w^2 + \sigma^2)\big) - \frac{x^2}{2(w^2 + \sigma^2)} .
+    $$
+
+10. **★★ An optimal discriminator by hand.** On $\{a, b, c\}$ let $p_{\mathrm{data}} = (\tfrac12, \tfrac12, 0)$ and $p_g = (\tfrac14, \tfrac14, \tfrac12)$. Compute $D^\star$, the JS divergence and $V(D^\star, G)$, and check Theorem 6.3.
+
+    *Solution*: $D^\star = (\tfrac23, \tfrac23, 0)$ by Proposition 6.2. With $m = (\tfrac38, \tfrac38, \tfrac14)$:
+
+    -   $\mathrm{KL}(p_{\mathrm{data}} \| m) = \log \tfrac43$, about 0.2877;
+    -   $\mathrm{KL}(p_g \| m) = \tfrac12 \log \tfrac43$, about 0.1438;
+    -   $\mathrm{JS} \approx 0.2158$.
+
+    Directly, $V = \log \tfrac23 + \tfrac12 \log \tfrac13 \approx -0.9548$, and indeed $-\log 4 + 2 \times 0.2158 \approx -0.9548$.
+
+11. **★★ Disks that move.** Replace the family of Example 5.3 by disks of fixed radius 6 whose centre moves horizontally (periodically) across a $32 \times 32$ image. Compute the PCA spectrum and compare it with the family of radii. Why do the principal components come in pairs?
+
+    *Hints and expected result*: adapt the code of Example 5.3 with 400 positions. The explained variance is 34.1 % for 1 component, 68.3 % for 2, 89.2 % for 5, 96.1 % for 10 and 99.2 % for 20: translations are even worse for a linear model than dilations.
+
+    The covariance of a translation-invariant family is circulant in the horizontal direction, so its eigenvectors are Fourier modes, which come in cosine–sine pairs with equal eigenvalues.
+
+12. **★★ Realism without randomness.** Let $X \sim \mathcal{N}(0, s^2)$ and $Y = X + N$ with independent Gaussian noise of variance $\sigma^2$. Consider the estimators $\hat X = cY + dZ$, with an independent standard Gaussian $Z$, whose variance is $s^2$ (perfect perceptual quality). Find the one with the smallest MSE, and compare it with posterior sampling when both variances equal 1.
+
+    *Solution*: the constraint is $c^2(s^2 + \sigma^2) + d^2 = s^2$. Using it, the MSE simplifies to
+    $$
+    \mathbb{E}(X - \hat X)^2 = 2 s^2 (1 - c),
+    $$
+    so we maximise $c$: $d = 0$ and $c = s / \sqrt{s^2 + \sigma^2}$.
+
+    For $s = \sigma = 1$, the MSE is $2(1 - 1/\sqrt2) \approx 0.586$, against $1 = 2\, \mathrm{MMSE}$ for posterior sampling: the bound of Proposition 7.3 is an upper bound, not the minimum of the trade-off.
+
+13. **★★ DDPM on Gaussian data.** Let $x_0 \sim \mathcal{N}(0, s^2 I)$. Using Proposition 8.3, give the law of $x_t$, its score, and the optimal noise predictor $\varepsilon^\star(x_t, t)$. Check that it tends to $x_t$ when $\bar\alpha_t \to 0$.
+
+    *Solution*: $x_t \sim \mathcal{N}(0, v_t I)$ with $v_t = \bar\alpha_t s^2 + 1 - \bar\alpha_t$, so $\nabla \log p_t(x) = -x / v_t$. By Tweedie,
+    $$
+    \varepsilon^\star(x_t, t) = \frac{\sqrt{1 - \bar\alpha_t}}{v_t}\, x_t .
+    $$
+    When $\bar\alpha_t \to 0$, $v_t \to 1$ and $\varepsilon^\star \to x_t$: at high noise the whole image is noise.
+
+14. **★★★ Plug-and-play with the network of ch. 2.** Train the denoiser of ch. 2 on a range of noise levels, with $\sigma$ drawn uniformly in $[0, 50/255]$ for each batch, and use it as `denoise` in the code of Example 3.10, choosing $\sigma_k = \sqrt{\lambda / \rho_k}$. Compare with the TV denoiser, then run with $\gamma = 1$ (no continuation). Report the PSNR and the increments $\|v^{k+1} - v^k\|$.
+
+    *Hints and expected result*: feed the noise level to the network as a constant extra input channel, as FFDNet does, or train several networks. With continuation, the increments decrease geometrically, as in Theorem 3.8, whatever the denoiser.
+
+    Without continuation, nothing guarantees convergence: monitor the increments and look for oscillations. A PSNR above that of the TV denoiser is the success criterion; report it with the training time.
+
+15. **★★★ Annealing against slow mixing.** In Example 8.5, only 51.8 % of the Langevin chains reach the upper mode, instead of 60 %. Implement an *annealed* Langevin sampler: run the chains successively with smoothing levels $\varepsilon$ decreasing geometrically from $3$ to $0.05$, with a step proportional to $\varepsilon^2$. Measure the fraction of chains in the upper mode, and explain why annealing helps.
+
+    *Hints and expected result*: with 30 levels of 100 steps each and a step $0.01\, (\varepsilon / 0.05)^2$ capped at $0.05$, the fraction is about 0.63, close to the exact 0.6.
+
+    At large $\varepsilon$ the smoothed prior is unimodal, so the chains distribute themselves according to the smoothed posterior before the modes separate. This is the principle of the annealed Langevin dynamics of Song and Ermon (2019) and of diffusion samplers.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) consists of individual lab reports and an individual project, with a report and an oral defence at the end of the course; the Université Paris-Saclay table describes it as partial continuous assessment, and no weights are displayed. The solo subjects below are sized for that individual project, most of them as the study and reimplementation of a named paper. The group subjects are proposals for study groups or for a longer project, and they say how the work divides; the written exam is a proposal for self-assessment, not an official component.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 25 h] Plug-and-play ADMM, reproduced and stressed (paper study).** Reimplement the plug-and-play ADMM of Chan, Wang and Elgendy (2017), with its adaptive update of $\rho$, and apply it to deblurring and super-resolution on a few images of the public BSDS500 data set, with a TV denoiser and a small CNN denoiser. Then test Theorem 3.8 empirically: vary $\rho_0$ and $\gamma$ and measure how the limit moves.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
+    -   *Chapters*: ch. 1, 3.
+    -   *Success criterion*: a PSNR table in which both plug-and-play variants beat Tikhonov, and a figure of the limit PSNR as a function of $(\rho_0, \gamma)$.
+2.  **[Solo · ≈ 20 h] Gram matrices and the spectrum constraint (paper study).** Reimplement the texture synthesis of Gatys, Ecker and Bethge (2015) with a pretrained VGG-19 from torchvision, then add the spectrum term of Liu, Gousseau and Xia (2016). Use exemplars from the Describable Textures Dataset (DTD).
+    -   *Deliverables*: code, a gallery of 10 textures with and without the constraint, a report of 4–6 pages, a talk.
+    -   *Chapters*: ch. 4.
+    -   *Success criterion*: reproduce the qualitative effect on periodic textures, and quantify it by the relative spectrum error of Example 4.7 and by a nearest-patch distance to the exemplar (copy detection).
+3.  **[Solo · ≈ 20 h] What do autoencoders learn about disks? (paper study).** Following Newson, Almansa, Gousseau and Ladjal (2018), train autoencoders with a one-dimensional latent space on images of centred disks. Study the learned code as a function of the radius, and the reconstruction of radii removed from the training set.
+    -   *Deliverables*: code, a report with figures of the latent code against the radius, a talk.
+    -   *Chapters*: ch. 5.
+    -   *Success criterion*: a monotone code on the training radii, a measured reconstruction error on the held-out radii, and a comparison with PCA (Example 5.3).
+4.  **[Solo · ≈ 20 h] Noise2Noise on real-like noise.** Train the denoiser of ch. 2 with clean targets, with noisy targets (Theorem 2.5) and with the absolute loss on impulse noise (Exercise 6), on patches of BSDS500.
+    -   *Deliverables*: code, a report with learning curves, a talk.
+    -   *Chapters*: ch. 2.
+    -   *Success criterion*: noisy-target training within 0.3 dB of clean-target training at equal data, and a demonstration of the bias of the squared loss under non-centred noise.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] The perception–distortion plane of super-resolution.** Train three $\times 4$ super-resolution networks with the same architecture and three losses: squared error, VGG feature loss, and feature plus adversarial loss (SRGAN-style). Use DIV2K for training and Set14 or BSD100 for testing, on a free GPU tier.
+    -   *Measure*: PSNR, SSIM, LPIPS and a no-reference index; plot the networks in the perception–distortion plane (Theorem 7.2), and test on images downsampled with a non-bicubic kernel.
+    -   *Split*: one member per loss; shared evaluation code and a joint report.
+    -   *Chapters*: ch. 2, 6, 7. *Deliverables*: code, an 8-page report, a 20-minute talk.
+    -   *Success criterion*: a monotone trade-off curve and a quantified drop under kernel mismatch.
+2.  **[Group of 2–3 · ≈ 30 h each] Diffusion priors for inverse problems on MNIST.** Train a small DDPM on MNIST (or Fashion-MNIST) and use it for inpainting and deblurring with diffusion posterior sampling (Chung et al., 2023) and with PnP-ULA using the same network as a denoiser (Laumont et al., 2022).
+    -   *Measure*: PSNR of single samples and of the average of 16 samples (Proposition 7.3 predicts the gap), coverage of pixelwise posterior intervals, and run time.
+    -   *Split*: training and sampler; DPS; PnP-ULA and evaluation.
+    -   *Chapters*: ch. 3, 7, 8. *Deliverables*: code, an 8-page report, a talk.
+    -   *Success criterion*: the averaged estimate gains PSNR over single samples, and the coverage of the intervals is reported against its nominal level.
+3.  **[Group of 2 · ≈ 25 h each] VAE against GAN on the same data.** Train a convolutional VAE and a WGAN-GP with comparable generators on CelebA at $64 \times 64$ or on Fashion-MNIST.
+    -   *Measure*: FID with a fixed feature extractor, precision and recall, and nearest-neighbour distances to the training set (memorisation).
+    -   *Split*: one model each; shared evaluation code.
+    -   *Chapters*: ch. 5, 6, 7. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: a reproducible comparison over three seeds, with the variance of each metric.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device; four exercises, 20 points in total.
+
+1.  **Question (5 points).** Course question. Define the MAP and MMSE estimators for $y = Ax + n$. Explain what a network trained with the squared loss estimates, and why its outputs are blurred when the posterior is multimodal. Give one restoration method that computes a MAP and one that targets posterior samples.
+
+    *Expected*: Definition 0.6 and Theorem 0.5; Proposition 2.2 and the averaging argument (Example 2.3); TV or wavelet MAP (ch. 1) and PnP-ULA or a diffusion sampler (ch. 8).
+
+2.  **Question (6 points).** Computation. A one-dimensional circular signal, stationary Gaussian with spectrum $S(\omega) = 1/(1 + \omega^2)$, is blurred by a kernel with transfer function $\hat k(\omega)$ and corrupted by white noise of variance $\sigma^2$. Give the Wiener filter and its limits when the noise vanishes and when the transfer function vanishes.
+
+    Then compute the gain at $\omega = 2$ for $\hat k(2) = 0.5$ and $\sigma^2 = 0.05$.
+
+    *Expected*: Theorem 1.4; inverse filter when $\sigma \to 0$, gain $\to 0$ when $\hat k \to 0$; numerically $S(2) = 0.2$ and the gain is $0.5 \times 0.2 / (0.25 \times 0.2 + 0.05) = 1$.
+
+3.  **Question (5 points).** Short proof. Prove Tweedie's formula, then deduce the score of the noisy distribution from an MMSE denoiser, and explain how it is used in one sampling algorithm.
+
+    *Expected*: the proof of Theorem 3.11 (differentiate the convolution with the Gaussian); the key formula of ch. 3.4; Algorithm 8.4 or the noise predictor of DDPM.
+
+4.  **Question (4 points).** Critical analysis. A paper claims a new $\times 4$ super-resolution GAN is "better than the state of the art" because its LPIPS is lower on Set14 with bicubic downsampling. List three questions you would ask before accepting the claim.
+
+    *Expected*: the position on the perception–distortion plane (PSNR also reported?, Theorem 7.2); degradation mismatch (real images or other kernels, ch. 2.6); metric–loss coupling, hallucinations, test-set size and seeds (ch. 7.4).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of the method and the mathematics | 30 % | Equations and algorithms of the course used correctly; claims proved or cited |
+| Experimental protocol | 25 % | Baselines tuned, seeds and test sets stated, both distortion and perceptual metrics where relevant |
+| Critical analysis | 20 % | Limitations and failure cases shown, not only successes; pitfalls of ch. 7 checked |
+| Reproducibility of the code | 10 % | One command reproduces the main figure; dependencies and data listed |
+| Report and oral defence | 15 % | Clear structure, honest figures, answers to questions show understanding |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   Goodfellow, I., Bengio, Y. and Courville, A. (2016). *Deep Learning*. MIT Press. <http://www.deeplearningbook.org>
+-   Dong, C., Loy, C. C., He, K. and Tang, X. (2016). Image super-resolution using deep convolutional networks. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 38(2), 295–307.
+-   Chan, S. H., Wang, X. and Elgendy, O. A. (2017). Plug-and-play ADMM for image restoration: fixed-point convergence and applications. *IEEE Transactions on Computational Imaging*, 3(1), 84–98.
+-   Gatys, L. A., Ecker, A. S. and Bethge, M. (2015). Texture synthesis using convolutional neural networks. *Advances in Neural Information Processing Systems (NIPS 2015)*.
+-   Liu, G., Gousseau, Y. and Xia, G.-S. (2016). Texture synthesis through convolutional neural networks and spectrum constraints. arXiv:1605.01141.
+-   Newson, A., Almansa, A., Gousseau, Y. and Ladjal, S. (2018). Taking apart autoencoders: how do they encode geometric shapes? HAL preprint hal-01676326.
+-   Harchaoui, W., Mattei, P.-A., Bouveyron, C. and Almansa, A. (2018). Wasserstein adversarial mixture clustering. HAL preprint hal-01827775.
+
+### Classical image models and inverse problems
+
+-   Boyd, S., Parikh, N., Chu, E., Peleato, B. and Eckstein, J. (2011). Distributed optimization and statistical learning via the alternating direction method of multipliers. *Foundations and Trends in Machine Learning*, 3(1), 1–122.
+-   Buades, A., Coll, B. and Morel, J.-M. (2005). A non-local algorithm for image denoising. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Chambolle, A. (2004). An algorithm for total variation minimization and applications. *Journal of Mathematical Imaging and Vision*, 20, 89–97.
+-   Chambolle, A. and Pock, T. (2011). A first-order primal-dual algorithm for convex problems with applications to imaging. *Journal of Mathematical Imaging and Vision*, 40, 120–145.
+-   Dabov, K., Foi, A., Katkovnik, V. and Egiazarian, K. (2007). Image denoising by sparse 3-D transform-domain collaborative filtering. *IEEE Transactions on Image Processing*, 16(8), 2080–2095.
+-   Donoho, D. L. and Johnstone, I. M. (1994). Ideal spatial adaptation by wavelet shrinkage. *Biometrika*, 81(3), 425–455.
+-   Eckstein, J. and Bertsekas, D. P. (1992). On the Douglas–Rachford splitting method and the proximal point algorithm for maximal monotone operators. *Mathematical Programming*, 55, 293–318.
+-   Efron, B. (2011). Tweedie's formula and selection bias. *Journal of the American Statistical Association*, 106(496), 1602–1614.
+-   Field, D. J. (1987). Relations between the statistics of natural images and the response properties of cortical cells. *Journal of the Optical Society of America A*, 4(12), 2379–2394.
+-   Gregor, K. and LeCun, Y. (2010). Learning fast approximations of sparse coding. *International Conference on Machine Learning (ICML)*.
+-   Hurault, S., Leclaire, A. and Papadakis, N. (2022). Gradient step denoiser for convergent plug-and-play. *International Conference on Learning Representations (ICLR)*.
+-   Louchet, C. and Moisan, L. (2013). Posterior expectation of the total variation model: properties and experiments. *SIAM Journal on Imaging Sciences*, 6(4), 2640–2684.
+-   Reehorst, E. T. and Schniter, P. (2019). Regularization by denoising: clarifications and new interpretations. *IEEE Transactions on Computational Imaging*, 5(1), 52–67.
+-   Robbins, H. (1956). An empirical Bayes approach to statistics. *Proceedings of the Third Berkeley Symposium on Mathematical Statistics and Probability*, vol. 1, 157–163.
+-   Romano, Y., Elad, M. and Milanfar, P. (2017). The little engine that could: regularization by denoising (RED). *SIAM Journal on Imaging Sciences*, 10(4), 1804–1844.
+-   Rudin, L. I., Osher, S. and Fatemi, E. (1992). Nonlinear total variation based noise removal algorithms. *Physica D*, 60, 259–268.
+-   Ryu, E. K., Liu, J., Wang, S., Chen, X., Wang, Z. and Yin, W. (2019). Plug-and-play methods provably converge with properly trained denoisers. *International Conference on Machine Learning (ICML)*.
+-   Venkatakrishnan, S. V., Bouman, C. A. and Wohlberg, B. (2013). Plug-and-play priors for model based reconstruction. *IEEE Global Conference on Signal and Information Processing (GlobalSIP)*.
+-   Wang, Z., Bovik, A. C., Sheikh, H. R. and Simoncelli, E. P. (2004). Image quality assessment: from error visibility to structural similarity. *IEEE Transactions on Image Processing*, 13(4), 600–612.
+-   Zoran, D. and Weiss, Y. (2011). From learning models of natural image patches to whole image restoration. *IEEE International Conference on Computer Vision (ICCV)*.
+
+### End-to-end restoration
+
+-   Efrat, N., Glasner, D., Apartsin, A., Nadler, B. and Levin, A. (2013). Accurate blur models vs. image priors in single image super-resolution. *IEEE International Conference on Computer Vision (ICCV)*.
+-   Johnson, J., Alahi, A. and Fei-Fei, L. (2016). Perceptual losses for real-time style transfer and super-resolution. *European Conference on Computer Vision (ECCV)*.
+-   Kim, J., Lee, J. K. and Lee, K. M. (2016). Accurate image super-resolution using very deep convolutional networks. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., Aittala, M. and Aila, T. (2018). Noise2Noise: learning image restoration without clean data. *International Conference on Machine Learning (ICML)*.
+-   Lim, B., Son, S., Kim, H., Nah, S. and Lee, K. M. (2017). Enhanced deep residual networks for single image super-resolution. *CVPR Workshops*.
+-   Shi, W., Caballero, J., Huszár, F., Totz, J., Aitken, A. P., Bishop, R., Rueckert, D. and Wang, Z. (2016). Real-time single image and video super-resolution using an efficient sub-pixel convolutional neural network. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Shocher, A., Cohen, N. and Irani, M. (2018). "Zero-shot" super-resolution using deep internal learning. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Ulyanov, D., Vedaldi, A. and Lempitsky, V. (2018). Deep image prior. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Zhang, K., Zuo, W., Chen, Y., Meng, D. and Zhang, L. (2017). Beyond a Gaussian denoiser: residual learning of deep CNN for image denoising. *IEEE Transactions on Image Processing*, 26(7), 3142–3155.
+-   Zhang, K., Zuo, W. and Zhang, L. (2018). FFDNet: toward a fast and flexible solution for CNN-based image denoising. *IEEE Transactions on Image Processing*, 27(9), 4608–4622.
+-   Zhang, K., Li, Y., Zuo, W., Zhang, L., Van Gool, L. and Timofte, R. (2022). Plug-and-play image restoration with deep denoiser prior. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 44(10), 6360–6376.
+
+### Textures
+
+-   Efros, A. A. and Leung, T. K. (1999). Texture synthesis by non-parametric sampling. *IEEE International Conference on Computer Vision (ICCV)*.
+-   Galerne, B., Gousseau, Y. and Morel, J.-M. (2011). Random phase textures: theory and synthesis. *IEEE Transactions on Image Processing*, 20(1), 257–267.
+-   Gatys, L. A., Ecker, A. S. and Bethge, M. (2016). Image style transfer using convolutional neural networks. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Heeger, D. J. and Bergen, J. R. (1995). Pyramid-based texture analysis/synthesis. *Proceedings of SIGGRAPH*.
+-   Julesz, B. (1962). Visual pattern discrimination. *IRE Transactions on Information Theory*, 8(2), 84–92.
+-   Oppenheim, A. V. and Lim, J. S. (1981). The importance of phase in signals. *Proceedings of the IEEE*, 69(5), 529–541.
+-   Portilla, J. and Simoncelli, E. P. (2000). A parametric texture model based on joint statistics of complex wavelet coefficients. *International Journal of Computer Vision*, 40(1), 49–70.
+-   Rabin, J., Peyré, G., Delon, J. and Bernot, M. (2011). Wasserstein barycenter and its application to texture mixing. *Scale Space and Variational Methods in Computer Vision (SSVM)*.
+-   Ulyanov, D., Lebedev, V., Vedaldi, A. and Lempitsky, V. (2016). Texture networks: feed-forward synthesis of textures and stylized images. *International Conference on Machine Learning (ICML)*.
+-   Ulyanov, D., Vedaldi, A. and Lempitsky, V. (2017). Improved texture networks: maximizing quality and diversity in feed-forward stylization and texture synthesis. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Ustyuzhaninov, I., Brendel, W., Gatys, L. A. and Bethge, M. (2017). What does it take to generate natural textures? *International Conference on Learning Representations (ICLR)*.
+
+### Autoencoders, VAEs and GANs
+
+-   Alemi, A., Poole, B., Fischer, I., Dillon, J., Saurous, R. A. and Murphy, K. (2018). Fixing a broken ELBO. *International Conference on Machine Learning (ICML)*.
+-   Arjovsky, M. and Bottou, L. (2017). Towards principled methods for training generative adversarial networks. *International Conference on Learning Representations (ICLR)*.
+-   Arjovsky, M., Chintala, S. and Bottou, L. (2017). Wasserstein generative adversarial networks. *International Conference on Machine Learning (ICML)*.
+-   Baldi, P. and Hornik, K. (1989). Neural networks and principal component analysis: learning from examples without local minima. *Neural Networks*, 2(1), 53–58.
+-   Bora, A., Jalal, A., Price, E. and Dimakis, A. G. (2017). Compressed sensing using generative models. *International Conference on Machine Learning (ICML)*.
+-   Goodfellow, I., Pouget-Abadie, J., Mirza, M., Xu, B., Warde-Farley, D., Ozair, S., Courville, A. and Bengio, Y. (2014). Generative adversarial nets. *Advances in Neural Information Processing Systems (NIPS)*.
+-   Gulrajani, I., Ahmed, F., Arjovsky, M., Dumoulin, V. and Courville, A. (2017). Improved training of Wasserstein GANs. *Advances in Neural Information Processing Systems (NIPS)*.
+-   Heusel, M., Ramsauer, H., Unterthiner, T., Nessler, B. and Hochreiter, S. (2017). GANs trained by a two time-scale update rule converge to a local Nash equilibrium. *Advances in Neural Information Processing Systems (NIPS)*.
+-   Higgins, I., Matthey, L., Pal, A., Burgess, C., Glorot, X., Botvinick, M., Mohamed, S. and Lerchner, A. (2017). beta-VAE: learning basic visual concepts with a constrained variational framework. *International Conference on Learning Representations (ICLR)*.
+-   Isola, P., Zhu, J.-Y., Zhou, T. and Efros, A. A. (2017). Image-to-image translation with conditional adversarial networks. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Karras, T., Laine, S. and Aila, T. (2019). A style-based generator architecture for generative adversarial networks. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Kingma, D. P. and Welling, M. (2014). Auto-encoding variational Bayes. *International Conference on Learning Representations (ICLR)*.
+-   Kynkäänniemi, T., Karras, T., Laine, S., Lehtinen, J. and Aila, T. (2019). Improved precision and recall metric for assessing generative models. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Ledig, C., Theis, L., Huszár, F., Caballero, J., Cunningham, A., Acosta, A., Aitken, A., Tejani, A., Totz, J., Wang, Z. and Shi, W. (2017). Photo-realistic single image super-resolution using a generative adversarial network. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Miyato, T., Kataoka, T., Koyama, M. and Yoshida, Y. (2018). Spectral normalization for generative adversarial networks. *International Conference on Learning Representations (ICLR)*.
+-   Radford, A., Metz, L. and Chintala, S. (2016). Unsupervised representation learning with deep convolutional generative adversarial networks. *International Conference on Learning Representations (ICLR)*.
+-   Rezende, D. J., Mohamed, S. and Wierstra, D. (2014). Stochastic backpropagation and approximate inference in deep generative models. *International Conference on Machine Learning (ICML)*.
+-   Sajjadi, M. S. M., Bachem, O., Lucic, M., Bousquet, O. and Gelly, S. (2018). Assessing generative models via precision and recall. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   van den Oord, A., Vinyals, O. and Kavukcuoglu, K. (2017). Neural discrete representation learning. *Advances in Neural Information Processing Systems (NIPS)*.
+-   Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
+-   Wang, X., Yu, K., Wu, S., Gu, J., Liu, Y., Dong, C., Qiao, Y. and Loy, C. C. (2018). ESRGAN: enhanced super-resolution generative adversarial networks. *ECCV Workshops*.
+
+### Perception, evaluation and diffusion models
+
+-   Blau, Y. and Michaeli, T. (2018). The perception-distortion tradeoff. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Carlini, N., Hayes, J., Nasr, M., Jagielski, M., Sehwag, V., Tramèr, F., Balle, B., Ippolito, D. and Wallace, E. (2023). Extracting training data from diffusion models. *USENIX Security Symposium*.
+-   Chung, H., Kim, J., McCann, M. T., Klasky, M. L. and Ye, J. C. (2023). Diffusion posterior sampling for general noisy inverse problems. *International Conference on Learning Representations (ICLR)*.
+-   Cohen, J. P., Luck, M. and Honari, S. (2018). Distribution matching losses can hallucinate features in medical image translation. *Medical Image Computing and Computer Assisted Intervention (MICCAI)*.
+-   Ho, J., Jain, A. and Abbeel, P. (2020). Denoising diffusion probabilistic models. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Kadkhodaie, Z. and Simoncelli, E. P. (2021). Stochastic solutions for linear inverse problems using the prior implicit in a denoiser. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Kadkhodaie, Z., Guth, F., Simoncelli, E. P. and Mallat, S. (2024). Generalization in diffusion models arises from geometry-adaptive harmonic representations. *International Conference on Learning Representations (ICLR)*.
+-   Kawar, B., Elad, M., Ermon, S. and Song, J. (2022). Denoising diffusion restoration models. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Laumont, R., De Bortoli, V., Almansa, A., Delon, J., Durmus, A. and Pereyra, M. (2022). Bayesian imaging using plug & play priors: when Langevin meets Tweedie. *SIAM Journal on Imaging Sciences*, 15(2), 701–737.
+-   Mittal, A., Soundararajan, R. and Bovik, A. C. (2013). Making a "completely blind" image quality analyzer. *IEEE Signal Processing Letters*, 20(3), 209–212.
+-   Rombach, R., Blattmann, A., Lorenz, D., Esser, P. and Ommer, B. (2022). High-resolution image synthesis with latent diffusion models. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Somepalli, G., Singla, V., Goldblum, M., Geiping, J. and Goldstein, T. (2023). Diffusion art or digital forgery? Investigating data replication in diffusion models. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Song, J., Meng, C. and Ermon, S. (2021). Denoising diffusion implicit models. *International Conference on Learning Representations (ICLR)*.
+-   Song, Y. and Ermon, S. (2019). Generative modeling by estimating gradients of the data distribution. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S. and Poole, B. (2021). Score-based generative modeling through stochastic differential equations. *International Conference on Learning Representations (ICLR)*.
+-   Vincent, P. (2011). A connection between score matching and denoising autoencoders. *Neural Computation*, 23(7), 1661–1674.
+-   Zhang, R., Isola, P., Efros, A. A., Shechtman, E. and Wang, O. (2018). The unreasonable effectiveness of deep features as a perceptual metric. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+
+### Research directions (ch. 9)
+
+-   Angelopoulos, A. N., Kohli, A. P., Bates, S., Jordan, M. I., Malik, J., Alshaabi, T., Upadhyayula, S. and Romano, Y. (2022). Image-to-image regression with distribution-free uncertainty quantification and applications in imaging. *International Conference on Machine Learning (ICML)*.
+-   Batson, J. and Royer, L. (2019). Noise2Self: blind denoising by self-supervision. *International Conference on Machine Learning (ICML)*.
+-   Bell-Kligler, S., Shocher, A. and Irani, M. (2019). Blind super-resolution kernel estimation using an internal-GAN. *Advances in Neural Information Processing Systems (NeurIPS)*.
+-   Chen, D., Tachella, J. and Davies, M. E. (2021). Equivariant imaging: learning beyond the range space. *IEEE/CVF International Conference on Computer Vision (ICCV)*.
+-   Krull, A., Buchholz, T.-O. and Jug, F. (2019). Noise2Void: learning denoising from single noisy images. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
+-   Lipman, Y., Chen, R. T. Q., Ben-Hamu, H., Nickel, M. and Le, M. (2023). Flow matching for generative modeling. *International Conference on Learning Representations (ICLR)*.
+-   Pesquet, J.-C., Repetti, A., Terris, M. and Wiaux, Y. (2021). Learning maximally monotone operators for image recovery. *SIAM Journal on Imaging Sciences*, 14(3), 1206–1237.
+-   Song, Y., Dhariwal, P., Chen, M. and Sutskever, I. (2023). Consistency models. *International Conference on Machine Learning (ICML)*.
+-   Wang, X., Xie, L., Dong, C. and Shan, Y. (2021). Real-ESRGAN: training real-world blind super-resolution with pure synthetic data. *ICCV Workshops*.
+
+### Data sets used in the projects
+
+-   Agustsson, E. and Timofte, R. (2017). NTIRE 2017 challenge on single image super-resolution: dataset and study. *CVPR Workshops* (DIV2K).
+-   Arbeláez, P., Maire, M., Fowlkes, C. and Malik, J. (2011). Contour detection and hierarchical image segmentation. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 33(5), 898–916 (BSDS500).
+-   Cimpoi, M., Maji, S., Kokkinos, I., Mohamed, S. and Vedaldi, A. (2014). Describing textures in the wild. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)* (DTD).
+-   Liu, Z., Luo, P., Wang, X. and Tang, X. (2015). Deep learning face attributes in the wild. *IEEE International Conference on Computer Vision (ICCV)* (CelebA).
+-   Xiao, H., Rasul, K. and Vollgraf, R. (2017). Fashion-MNIST: a novel image dataset for benchmarking machine learning algorithms. arXiv:1708.07747.

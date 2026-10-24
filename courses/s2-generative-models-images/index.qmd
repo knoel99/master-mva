@@ -1,0 +1,2336 @@
+---
+title: "Generative Models for Images"
+subtitle: "M2 MVA · Semester 2 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: probability, divergences, optimisation and networks](#ch0)
+-   [1. Generative models, Gaussian models and Gaussian mixtures](#ch1)
+-   [2. Patch models and maximum-entropy models](#ch2)
+-   [3. Bayesian imaging: MAP, proximal operators and Langevin sampling](#ch3)
+-   [4. Generative adversarial networks](#ch4)
+-   [5. Optimal transport and Wasserstein GANs](#ch5)
+-   [6. Conditional generation and GANs for imaging inverse problems](#ch6)
+-   [7. Score-based generative models and diffusion](#ch7)
+-   [8. Diffusion models for inverse problems and text-to-image synthesis](#ch8)
+-   [9. Plug-and-play restoration with score-based denoisers](#ch9)
+-   [10. Research directions and open problems](#ch10)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Generative Models for Images
+  Official title       Modèles génératifs pour l’image
+  Instructors          B. GALERNE, A. LECLAIRE (master-mva.com, 2026–2027)
+  Period               Semester 2 · period 2 (04/01/2027 – 02/04/2027)
+  Credits and volume   5 ECTS · 27 h (lectures 18 h, tutorials 9 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Image processing
+  Language             Classes given in French with slides written in English (master-mva.com); English is the language of instruction on the Université Paris-Saclay course detail, with no distance learning
+  Assessment           One short written exam in class and one project with a report and an oral defence (master-mva.com); “9 sessions of 3 h + written exam” and “partial continuous assessment” (Université Paris-Saclay); no weights displayed
+  Prerequisites        The basics of an M1 in applied mathematics in probability, statistics and optimisation; having taken “Introduction to Probabilistic Graphical Models and Deep Generative Models” is advised but not mandatory (master-mva.com)
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in applied mathematics who knows Gaussian vectors, gradient descent and the basics of neural networks, and wants to understand, with proofs, how a machine learns to produce new images and how the same models restore damaged ones.
+
+**Empirical first**: train the original GAN on two point clouds that do not overlap, and the generator receives almost no useful gradient, because the Jensen–Shannon divergence between them is the constant $\log 2$ whatever their distance. Meanwhile, a network trained only to remove Gaussian noise can generate images and deblur photographs once it is placed inside a Langevin or diffusion sampler.
+
+The course studies probabilistic models of images, from the classical ones (Gaussian fields, mixtures of Gaussian patches, maximum-entropy models) to the three families of deep generative models that now dominate imaging: adversarial networks, Wasserstein GANs and diffusion models. Each model is used twice: to sample new images, and as a prior to solve inverse problems such as deblurring, inpainting and super-resolution.
+
+It builds on [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html) and [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html). It runs alongside [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html) and [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html).
+
+### What you will be able to do
+
+-   Distinguish explicit-density models from push-forward samplers, and say which tasks (sampling, likelihood, prior for restoration) each one supports.
+-   Synthesise a stationary Gaussian texture from an exemplar, and denoise image patches in closed form under a Gaussian mixture model.
+-   Derive the Gibbs form of a maximum-entropy model and fit it by moment matching.
+-   Write a restoration problem in Bayesian form, compute a MAP estimate with proximal splitting, and sample the posterior with Langevin algorithms.
+-   Derive the optimal discriminator of a GAN and the Jensen–Shannon criterion, and diagnose vanishing gradients and mode collapse.
+-   State and use Kantorovich duality, explain the Kantorovich–Rubinstein form behind the WGAN critic, and enforce a Lipschitz constraint.
+-   Build conditional generators for image-to-image translation and super-resolution, and recover a signal from few measurements with a pretrained generator.
+-   Prove Tweedie's formula and the denoising score-matching identity, and derive the reverse-time diffusion and the probability-flow ODE.
+-   Implement the DDPM and DDIM samplers, guide them with a class or a text, and sample a posterior with diffusion posterior sampling.
+-   Prove the convergence of plug-and-play restoration with a gradient-step denoiser, and relate denoisers, scores and explicit priors.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com sets the goal of presenting and studying generative models usable for various image-generation tasks. The first part focuses on adversarial models, GANs and Wasserstein GANs, with particular attention to the dual formulations related to optimal transport; applications to conditional image generation and to imaging inverse problems are discussed.
+
+The rest of the course studies diffusion models, also called score-based generative models: their mathematics (time reversal of stochastic processes) and their practice. The description names DDPM and DDIM, their use for imaging inverse problems and text-to-image synthesis, and score-based denoisers for plug-and-play restoration, “with the benefits of both explicit prior and convergence guarantees”.
+
+The Université Paris-Saclay course detail describes a broader panorama of probabilistic models and tools for the restoration and editing of digital images. Its models are Bayesian, Gaussian, Gaussian-mixture, patch and maximum-entropy models; its tools are optimisation and proximal operators, MCMC and Langevin sampling, optimal transport and neural networks. Every item of both sources is matched below.
+
+| Official topic | Course section |
+|---|---|
+| Generative Adversarial Networks | [ch. 4](#ch4): push-forward generators, the minimax game, Jensen–Shannon, training pathologies, DCGAN and StyleGAN, FID; session 4 |
+| Wasserstein Generative Adversarial Networks | [ch. 5](#ch5): Wasserstein distances, WGAN, weight clipping, gradient penalty, spectral normalisation; session 5 |
+| Conditional image generation | [ch. 6](#ch6) (conditional GANs, pix2pix, SRGAN, SinGAN), ch. 7.6 (classifier and classifier-free guidance); sessions 6 and 8 |
+| Plug-and-play algorithms for image restoration | [ch. 9](#ch9): PnP splitting, RED, gradient-step denoiser, PnP-ULA; session 9 |
+| Score-based Generative Modelling | [ch. 7](#ch7): score matching, Tweedie, annealed Langevin, SDEs; sessions 7–8 |
+| Text-to-image synthesis | [ch. 8](#ch8), ch. 8.2–8.3: latent diffusion, cross-attention, Imagen, classifier-free guidance; session 8 |
+| “Plus de détails” (end of the list of themes) | not covered — a link to further details, not a topic |
+| “Les intervenants” (end of the list of themes) | not covered — the heading of the instructors' list, not a topic |
+| Objective: dual formulations related to optimal transport | ch. 5.2–5.3: Kantorovich duality, Kantorovich–Rubinstein, the critic as a dual potential |
+| Objective: applications of adversarial models to imaging inverse problems | ch. 6.3 (adversarial super-resolution) and ch. 6.5 (inverse problems with a pretrained generator) |
+| Objective: time reversal of stochastic processes | ch. 7.3: reverse-time SDE and probability-flow ODE |
+| Objective: practical implementation, DDPM | ch. 7.4: forward chain, noise prediction, ancestral sampler |
+| Objective: DDIM | ch. 7.5: non-Markovian forward processes, deterministic sampler, fewer steps |
+| Objective: diffusion models for imaging inverse problems | ch. 8.1: conditional scores, diffusion posterior sampling and its bias |
+| Objective: score-based denoisers for plug-and-play, explicit prior and convergence guarantees | ch. 9.3 (gradient-step denoiser, Theorem 9.4), ch. 9.4 (PnP-ULA) |
+| Organisation: 9 sessions of 3 h | the 9 sessions of the [session plan](#sessions) |
+| Université Paris-Saclay: Bayesian models | ch. 0.3, ch. 3.1 (likelihood, prior, posterior, MAP and MMSE) |
+| Université Paris-Saclay: Gaussian models | ch. 1.2 (stationary Gaussian textures, ADSN and random phase noise) |
+| Université Paris-Saclay: Gaussian mixture models (GMM) | ch. 1.3 (EM, closed-form MMSE denoising of patches) |
+| Université Paris-Saclay: patch models | ch. 1.3 and ch. 2.1 (non-parametric patch sampling); PatchGAN and SinGAN in ch. 6 |
+| Université Paris-Saclay: maximum-entropy models | ch. 2.2–2.4 (Gibbs form, FRAME, microcanonical models, moment matching) |
+| Université Paris-Saclay: optimisation and proximal operators | ch. 3.2 (proximal operators, forward–backward, half-quadratic splitting), ch. 9 |
+| Université Paris-Saclay: MCMC or Langevin sampling | ch. 3.3–3.4 (ULA, MALA, MYULA), ch. 7.2 (annealed Langevin), ch. 9.4 (PnP-ULA) |
+| Université Paris-Saclay: optimal transport | ch. 5 |
+| Université Paris-Saclay: neural networks | ch. 0.4, then the networks of ch. 4–9 |
+| Université Paris-Saclay objective: a panorama of probabilistic models and tools for image restoration and editing | ch. 1–3 (classical models and tools), ch. 4–9 (deep models used as priors) |
+| Université Paris-Saclay organisation: 9 sessions of 3 h and a written exam | [session plan](#sessions); [written exam proposal](#projects-exam) |
+| Official references (VAEs, StyleGAN, SinGAN, pix2pix, SRGAN, LSGM, latent diffusion, Imagen, RED) | each one is taught: ch. 4.1, 4.4, 6.2–6.4, 8.2–8.3, 9.2 |
+
+Extensions beyond the syllabus: the Moreau–Yosida Langevin algorithm (ch. 3.4), compressed sensing with a generator (ch. 6.5), a closed-form test of the bias of diffusion posterior sampling (ch. 8.1), and a self-study chapter of research directions (ch. 10).
+
+### Where this course fits in the programme
+
+Official prerequisites (master-mva.com): the basics of an M1 in applied mathematics in probability, statistics and optimisation; the course “Introduction to Probabilistic Graphical Models and Deep Generative Models” is advised but not mandatory. Chapter 0 reviews what is used.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, conditional expectation), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (convexity, gradients), [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block).
+-   **First-semester courses that prepare it** — [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (EM, variational autoencoders), [Optimal Transport for Machine Learning](../s1-optimal-transport-ml/index.html), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (SDEs, time reversal), [Computational Statistics](../s1-computational-statistics/index.html) (MCMC), [Convex Optimization](../s1-convex-optimization/index.html) (proximal methods), [Deep Learning](../s1-deep-learning/index.html), [Image Denoising](../s1-image-denoising/index.html).
+-   **Related second-semester courses** — [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Diffusion and Multiscale Models in Artificial Intelligence](../s2-diffusion-multiscale/index.html), [Bayesian Machine Learning](../s2-bayesian-ml/index.html), [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html).
+-   **Afterwards** — the [Research Internship](../s3-research-internship/index.html): generative priors for imaging are a frequent internship subject in academic and industrial laboratories.
+
+### Course outline
+
+-   **Review: probability, divergences, optimisation and networks** — push-forward measures, KL and Jensen–Shannon divergences, Gaussian conditioning, MMSE, stochastic gradient training.
+-   **Generative models, Gaussian models and Gaussian mixtures** — what a generative model is, stationary Gaussian textures, mixtures of Gaussian patches and their closed-form MMSE.
+-   **Patch models and maximum-entropy models** — non-parametric patch sampling, the maximum-entropy principle, FRAME and microcanonical texture models.
+-   **Bayesian imaging: MAP, proximal operators and Langevin sampling** — proximal splitting for the MAP, Langevin algorithms for the posterior.
+-   **Generative adversarial networks** — push-forward generators, the adversarial game, its pathologies, StyleGAN and the FID.
+-   **Optimal transport and Wasserstein GANs** — Kantorovich duality and the 1-Lipschitz critic.
+-   **Conditional generation and GANs for imaging inverse problems** — conditional GANs, pix2pix, SRGAN, SinGAN, compressed sensing with a generator.
+-   **Score-based generative models and diffusion** — score matching, Tweedie, time reversal, DDPM, DDIM and guidance.
+-   **Diffusion models for inverse problems and text-to-image synthesis** — posterior sampling, latent diffusion, text conditioning.
+-   **Plug-and-play restoration with score-based denoisers** — PnP splitting, RED, the gradient-step denoiser and its convergence, PnP-ULA.
+-   **Research directions and open problems** — faster samplers, flow matching, theory of diffusion, memorisation, convergent restoration (self-study).
+
+### Session plan {#sessions}
+
+**27 h in class = 9 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (18 h of lectures and 9 h of tutorials); master-mva.com and the Université Paris-Saclay course detail both announce 9 sessions of 3 h. The content of each session below is a proposal that follows the order of the official objective: classical models and tools, then adversarial models, then diffusion models and plug-and-play.
+
+Level 1 = foundations (reviews, definitions, first worked examples), 2 = core models and their proofs, 3 = advanced material close to current research; the level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: push-forward, divergences, Gaussian conditioning, MMSE, training; ch. 1.1–1.2 generative models, stationary Gaussian textures | Ex. 1, 2 |
+| 2 | 3 h | 1 | ch. 1.3 Gaussian mixtures of patches; ch. 2 patch sampling, maximum entropy, FRAME, moment matching | Ex. 3, 6 |
+| 3 | 3 h | 2 | ch. 3 Bayesian inverse problems, proximal operators, forward–backward and HQS, ULA, MALA, MYULA | Ex. 4, 7 |
+| 4 | 3 h | 2 | ch. 4 Push-forward generators and VAEs, the GAN game, Jensen–Shannon, pathologies, StyleGAN, FID | Ex. 8 |
+| 5 | 3 h | 2 | ch. 5 Wasserstein distances, Kantorovich duality, WGAN, gradient penalty | Ex. 5, 9, 16 |
+| 6 | 3 h | 2 | ch. 6 Conditional GANs, pix2pix, SRGAN, SinGAN, inverse problems with a generator | Ex. 10 |
+| 7 | 3 h | 3 | ch. 7.1–7.4 Score matching and Tweedie, annealed Langevin, time reversal, DDPM | Ex. 11 |
+| 8 | 3 h | 3 | ch. 7.5–7.6 DDIM and guidance; ch. 8 posterior sampling, latent diffusion, text-to-image | Ex. 12, 14 |
+| 9 | 3 h | 3 | ch. 9 Plug-and-play splitting, RED, gradient-step denoiser and its convergence, PnP-ULA | Ex. 13, 15 |
+
+**Self-study, outside the 27 h** (about 5 h in total): ch. 10 Research directions and open problems (≈ 3 h) · the code blocks of the last three chapters, run and modified at home, with Exercise 14 (≈ 2 h).
+
+### How to study this module
+
+-   Read ch. 0 before the first session: the push-forward, the Jensen–Shannon divergence and Gaussian conditioning return in every later chapter.
+-   Follow the thread of the denoiser: the MMSE of ch. 1, the score of ch. 7 and the plug-and-play prior of ch. 9 are the same object seen three times.
+-   After each session, run the code block of the chapter, change one parameter (noise level, number of steps, Lipschitz constant) and predict the effect before looking.
+-   Do the exercises of the *Practice* column right after the session: ★ checks the session, ★★ prepares the next one, ★★★ prepares a project.
+-   Start the project after session 5: most subjects need one adversarial and one diffusion component.
+-   Environment: Python 3 with NumPy, SciPy, scikit-learn (its bundled sample image `china.jpg`) and PyTorch on CPU; every block runs in under 30 seconds on a laptop.
+
+::: note
+[Independent notes]{.tag} These notes reconstruct the official description of the course; they are not the instructors' material. The facts of the fiche come from master-mva.com and from Université Paris-Saclay; the course website announced on master-mva.com is generativemodelingmva.github.io.
+:::
+
+## 0. Review: probability, divergences, optimisation and networks {#ch0}
+
+A generative model is a probability distribution that we can sample, compare with data and use as a prior. This chapter collects the M1 tools that every later chapter uses without proof: push-forward measures, divergences between distributions, Gaussian conditioning, the conditional expectation as best estimator, and the gradient training of networks.
+
+### 0.1 Push-forward measures and change of variables
+
+Most generators of this course transform a simple random variable, usually a standard Gaussian vector, into an image. The distribution of the output is a push-forward.
+
+::: def
+[Definition 0.1 — Push-forward measure]{.tag} Let $Z$ be a random vector of $\mathbb{R}^d$ with law $\nu$, and $g : \mathbb{R}^d \to \mathbb{R}^n$ measurable.
+
+The law of $X = g(Z)$ is the **push-forward** $g_\# \nu$, defined for every Borel set $B$ by
+$$
+g_\# \nu (B) = \nu\big(g^{-1}(B)\big).
+$$
+
+Equivalently, for every bounded measurable test function $\varphi$,
+$$
+\int \varphi \, \mathrm{d}(g_\# \nu) = \mathbb{E}\big[\varphi(g(Z))\big].
+$$
+:::
+
+The second form is the one used in practice: an expectation under the model is an expectation over the latent noise, which can be estimated by sampling $Z$ and differentiated with respect to the parameters of $g$.
+
+:::: prop
+[Proposition 0.2 — Change of variables]{.tag} If $d = n$, $Z$ has a density $p_Z$ and $g$ is a $C^1$ diffeomorphism, then $X = g(Z)$ has the density
+$$
+p_X(x) = p_Z\big(g^{-1}(x)\big)\, \big|\det J_{g^{-1}}(x)\big|.
+$$
+
+If $d < n$, the image $g(\mathbb{R}^d)$ of a $C^1$ map is a Lebesgue-null set of $\mathbb{R}^n$, and $g_\# \nu$ has no density.
+
+::: proof
+For a test function $\varphi$, substitute $z = g^{-1}(x)$ in
+$$
+\mathbb{E}[\varphi(g(Z))] = \int \varphi(g(z))\, p_Z(z)\, \mathrm{d}z ;
+$$
+the Jacobian of the substitution gives the formula.
+
+For $d < n$, extend $g$ to $\mathbb{R}^n$ by $\tilde g(z, w) = g(z)$, a locally Lipschitz map.
+
+Locally Lipschitz maps of $\mathbb{R}^n$ send null sets to null sets, and $g(\mathbb{R}^d)$ is the image of the null set $\mathbb{R}^d \times \{0\}$. [∎]{.qed}
+:::
+::::
+
+The second statement is the reason why low-dimensional generators cannot be trained by maximum likelihood: the model gives probability zero to almost every real image (ch. 4.1).
+
+### 0.2 Divergences between distributions
+
+Training a generative model means making a model distribution $Q$ close to the data distribution $P$. Three ways of measuring closeness appear in the course.
+
+::: def
+[Definition 0.3 — KL, Jensen–Shannon and total variation]{.tag} For distributions $P, Q$ with densities $p, q$:
+
+-   the **Kullback–Leibler divergence** is
+    $$
+    \mathrm{KL}(P \,\|\, Q) = \int p \log \frac{p}{q},
+    $$
+    set to $+\infty$ when $P$ is not absolutely continuous with respect to $Q$;
+-   with the mixture $M = \frac12 (P + Q)$, the **Jensen–Shannon divergence** is
+    $$
+    \mathrm{JS}(P, Q) = \tfrac12 \mathrm{KL}(P \,\|\, M) + \tfrac12 \mathrm{KL}(Q \,\|\, M);
+    $$
+-   the **total variation** is
+    $$
+    \mathrm{TV}(P, Q) = \sup_B |P(B) - Q(B)| = \tfrac12 \int |p - q| .
+    $$
+:::
+
+:::: prop
+[Proposition 0.4 — Basic properties]{.tag} $\mathrm{KL}(P \| Q) \geq 0$ with equality if and only if $P = Q$ (Gibbs' inequality). The Jensen–Shannon divergence is symmetric, always finite, and
+$$
+0 \leq \mathrm{JS}(P, Q) \leq \log 2,
+$$
+with $\mathrm{JS} = \log 2$ exactly when $P$ and $Q$ have disjoint supports.
+
+::: proof
+Jensen's inequality for the concave logarithm gives
+$$
+-\mathrm{KL}(P \| Q) = \int p \log \frac{q}{p} \leq \log \int q = 0,
+$$
+with equality only if $q / p$ is constant $P$-almost everywhere, that is $P = Q$.
+
+For the bound, $p / m \leq 2$ since $m = (p + q)/2$, so $\mathrm{KL}(P \| M) \leq \log 2$, and likewise for $Q$.
+
+If the supports are disjoint, $p / m = 2$ on the support of $P$, and both terms equal $\log 2$. [∎]{.qed}
+:::
+::::
+
+The saturation at $\log 2$ is the root of the vanishing gradients of the original GAN (ch. 4.3) and the motivation for Wasserstein distances (ch. 5).
+
+::: prop
+[Proposition 0.5 — Maximum likelihood minimises a KL divergence]{.tag} For a parametric family $q_\theta$ and data $x_1, \dots, x_N$ drawn from $P$,
+$$
+\mathbb{E}_{X \sim P}\big[\log q_\theta(X)\big] = -\mathrm{KL}(P \,\|\, Q_\theta) + \text{const},
+$$
+where the constant is $\int p \log p$ and does not depend on $\theta$.
+
+The empirical log-likelihood $\frac1N \sum_i \log q_\theta(x_i)$ is an unbiased estimate of the left-hand side. Maximising it is therefore a stochastic version of minimising $\mathrm{KL}(P \| Q_\theta)$, which penalises a model that misses regions where the data live.
+:::
+
+::: ex
+[Example 0.6 — KL between two Gaussians]{.tag} For one-dimensional Gaussians,
+$$
+\mathrm{KL}\big(\mathcal{N}(m_1, s_1^2) \,\|\, \mathcal{N}(m_2, s_2^2)\big) = \log \frac{s_2}{s_1} + \frac{s_1^2 + (m_1 - m_2)^2}{2 s_2^2} - \frac12 .
+$$
+
+With $m_1 = 0$, $s_1 = 1$, $m_2 = 1$, $s_2 = 2$, this is $\log 2 + 2/8 - 1/2$.
+$$
+\mathrm{KL} = 0.4431.
+$$
+
+The divergence is not symmetric: exchanging the two laws gives $-\log 2 + 5/2 - 1/2 = 1.3069$.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+m1, s1, m2, s2 = 0.0, 1.0, 1.0, 2.0
+
+# closed form KL(N(m1, s1^2) || N(m2, s2^2))
+kl = np.log(s2 / s1) + (s1**2 + (m1 - m2)**2) / (2 * s2**2) - 0.5
+
+# Monte Carlo: average of log p(X) - log q(X), X ~ p
+x = rng.normal(m1, s1, size=1_000_000)
+logp = -0.5 * ((x - m1) / s1)**2 - np.log(s1)
+logq = -0.5 * ((x - m2) / s2)**2 - np.log(s2)
+print(f"closed form KL = {kl:.4f}, Monte Carlo = {np.mean(logp - logq):.4f}")
+# closed form KL = 0.4431, Monte Carlo = 0.4424
+```
+
+### 0.3 Gaussian vectors and conditioning
+
+Gaussian models are the only image models in which every computation is explicit, and they serve as test cases for every algorithm of the course.
+
+:::: prop
+[Proposition 0.7 — Conditioning a Gaussian vector]{.tag} Let $(X, Y)$ be a Gaussian vector with means $m_X, m_Y$, covariances $\Sigma_{XX}, \Sigma_{YY}$ (the latter invertible) and cross-covariance $\Sigma_{XY}$. Then the conditional law of $X$ given $Y = y$ is Gaussian:
+$$
+X \mid Y = y \ \sim\ \mathcal{N}\big(m_X + \Sigma_{XY} \Sigma_{YY}^{-1} (y - m_Y),\ \Sigma_{XX} - \Sigma_{XY} \Sigma_{YY}^{-1} \Sigma_{YX}\big).
+$$
+
+::: proof
+Set $K = \Sigma_{XY} \Sigma_{YY}^{-1}$ and $R = X - m_X - K (Y - m_Y)$.
+
+The vector $(R, Y)$ is Gaussian, and $\mathrm{Cov}(R, Y) = \Sigma_{XY} - K \Sigma_{YY} = 0$, so $R$ is independent of $Y$.
+
+Hence, given $Y = y$, $X = m_X + K(y - m_Y) + R$ with $R$ centred, of covariance $\Sigma_{XX} - K \Sigma_{YX}$. [∎]{.qed}
+:::
+::::
+
+In the denoising model $Y = X + \sigma N$ with $X \sim \mathcal{N}(m, \Sigma)$ and $N$ standard, the matrix $K = \Sigma (\Sigma + \sigma^2 I)^{-1}$ is the **Wiener filter**. Chapter 1 applies it component by component of a Gaussian mixture.
+
+### 0.4 Estimators and gradient training
+
+::: thm
+[Theorem 0.8 — The conditional expectation is the MMSE estimator]{.tag} If $\mathbb{E}\|X\|^2 < \infty$, then among all measurable functions $D$ of the observation $Y$,
+$$
+\mathbb{E}[X \mid Y] = \arg\min_{D} \ \mathbb{E}\, \|X - D(Y)\|^2 .
+$$
+:::
+
+::: proof
+Write $D^\star(Y) = \mathbb{E}[X \mid Y]$. For any $D$,
+$$
+\mathbb{E}\|X - D(Y)\|^2 = \mathbb{E}\|X - D^\star(Y)\|^2 + \mathbb{E}\|D^\star(Y) - D(Y)\|^2,
+$$
+because the cross term vanishes: $X - D^\star(Y)$ is orthogonal to every square-integrable function of $Y$, by the tower property. [∎]{.qed}
+:::
+
+Two consequences matter here. A network trained to denoise with the squared loss approximates the posterior mean, the **MMSE denoiser**. The **MAP** estimator, the maximiser of the posterior density, is a different object, computed by optimisation (ch. 3).
+
+Networks are trained by **stochastic gradient descent**: at each step, a mini-batch gives an unbiased estimate of the gradient of the loss, computed by automatic differentiation, and the parameters move against it. Adam rescales each coordinate by running averages of the gradient and of its square. The deterministic version of this step has a guarantee that is reused in ch. 3 and ch. 9.
+
+::: prop
+[Proposition 0.9 — Descent lemma]{.tag} If $\nabla h$ is $L$-Lipschitz, then for all $x, u$,
+$$
+h(u) \leq h(x) + \langle \nabla h(x), u - x \rangle + \frac{L}{2} \|u - x\|^2 .
+$$
+
+With $u = x - \tau \nabla h(x)$ and $0 < \tau < 2/L$, the gradient step decreases $h$ by at least $\tau (1 - L\tau/2) \|\nabla h(x)\|^2$.
+:::
+
+The image networks of the course are convolutional: a convolution layer applies the same small filter at every position, which builds translation equivariance into the model. The U-Net, an encoder–decoder with skip connections between levels of the same resolution, is the standard architecture for denoisers and diffusion models (Ronneberger, Fischer and Brox, 2015).
+
+::: recap
+Key takeaways — chapter 0
+
+-   A generator defines the push-forward $g_\# \nu$; expectations under it are expectations over the latent noise.
+-   A generator with latent dimension below the image dimension has no density: maximum likelihood is not available.
+-   KL is asymmetric and can be infinite; Jensen–Shannon is bounded by $\log 2$ and saturates on disjoint supports.
+-   Gaussian conditioning gives the Wiener filter; the conditional expectation is the MMSE estimator, which a network trained with the squared loss approximates.
+:::
+
+## 1. Generative models, Gaussian models and Gaussian mixtures {#ch1}
+
+This chapter fixes what a generative model of images is, then studies the two families in which everything is explicit: stationary Gaussian fields, which already synthesise convincing micro-textures, and mixtures of Gaussians on small patches, which already denoise photographs in closed form.
+
+### 1.1 What a generative model is
+
+::: def
+[Definition 1.1 — Generative model]{.tag} A **generative model** of images is a family of probability distributions $P_\theta$ on the image space $\mathbb{R}^n$ ($n$ = number of pixels times channels), fitted to a data set, and given in one of two forms:
+
+-   an **explicit density** $p_\theta(x)$, possibly known only up to a normalising constant (Gaussian, mixture, maximum-entropy and energy models);
+-   an **implicit sampler**, usually a push-forward $P_\theta = (g_\theta)_\# \mathcal{N}(0, I_d)$ (GANs, the decoder of a VAE, the deterministic sampler of a diffusion model).
+:::
+
+A model is used in three ways: to **sample** new images (synthesis, editing), to **evaluate** how plausible an image is, and to serve as a **prior** $p(x)$ in Bayes' formula for an inverse problem. The families of the course cover these uses unequally.
+
+| Family | Density | Sampling | Prior for restoration | Chapter |
+|---|---|---|---|---|
+| Stationary Gaussian | explicit | one FFT | Wiener filter | 1.2 |
+| Gaussian mixture of patches | explicit | exact | closed-form MMSE per patch | 1.3 |
+| Maximum entropy (Gibbs) | up to a constant | MCMC | MAP or Langevin | 2 |
+| GAN | none | one network pass | search in the latent space | 4–6 |
+| Diffusion model | through its score | many network passes | posterior sampling, plug-and-play | 7–9 |
+
+### 1.2 Stationary Gaussian models of textures
+
+Images are indexed by the discrete torus $\Omega = \mathbb{Z}_M \times \mathbb{Z}_N$, where $\mathbb{Z}_M = \mathbb{Z}/M\mathbb{Z}$, so that translations and circular convolutions are exact:
+$$
+(f \star g)(x) = \sum_{z \in \Omega} f(x - z)\, g(z) .
+$$
+ A random field $U$ on $\Omega$ is **stationary** if its law is invariant under every translation.
+
+A Gaussian stationary field is characterised by its mean and by its autocovariance $\Gamma(h) = \mathrm{Cov}(U(x + h), U(x))$. The simplest texture model estimates both from one exemplar image.
+
+::: def
+[Definition 1.2 — Asymptotic discrete spot noise (ADSN)]{.tag} Let $u : \Omega \to \mathbb{R}$ be an exemplar with mean $\bar u$. Its normalised **spot** is $t = (u - \bar u) / \sqrt{|\Omega|}$. With $W$ a Gaussian white noise on $\Omega$ (independent standard entries), the ADSN associated with $u$ is
+$$
+U = \bar u + t \star W .
+$$
+:::
+
+The name comes from spot noise: the sum of many randomly translated copies of the spot converges, by the central limit theorem, to this Gaussian field.
+
+:::: prop
+[Proposition 1.3 — ADSN matches the second-order statistics of the exemplar]{.tag} The ADSN $U$ is a stationary Gaussian field with mean $\bar u$ and autocovariance equal to the empirical autocovariance of the exemplar:
+$$
+\mathrm{Cov}\big(U(x + h), U(x)\big) = \Gamma_u(h) = \frac{1}{|\Omega|} \sum_{y \in \Omega} \big(u(y + h) - \bar u\big)\big(u(y) - \bar u\big).
+$$
+
+In the Fourier domain, its power spectrum is $|\hat u(\xi)|^2 / |\Omega|$ for $\xi \neq 0$.
+
+::: proof
+$U$ is a linear image of the Gaussian vector $W$, hence Gaussian. Its covariance is
+$$
+\mathrm{Cov}\big(U(x + h), U(x)\big) = \sum_{z, z'} t(x + h - z)\, t(x - z')\, \mathbb{E}[W(z) W(z')] = \sum_{z} t(x + h - z)\, t(x - z).
+$$
+
+Substituting $y = x - z$ gives $\sum_y t(y + h)\, t(y) = \Gamma_u(h)$, which does not depend on $x$: the field is stationary.
+
+The Fourier transform of an autocorrelation is the squared modulus of the transform, which gives the spectrum. [∎]{.qed}
+:::
+::::
+
+In the Fourier domain, the transform of $t \star W$ is $\hat t\, \hat W$, and the entries of $\hat W$ have uniform random phases. ADSN therefore randomises the phase of $\hat u$ and also multiplies its modulus by random factors. **Random phase noise** (RPN) keeps the modulus of $\hat u$ exactly and draws a uniform random phase, with the Hermitian symmetry that makes the result real. Galerne, Gousseau and Morel (2011) study both models and show that they give visually similar results on micro-textures.
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+rng = np.random.default_rng(0)
+u = load_sample_image("china.jpg").mean(axis=2)[100:228, 300:428] / 255.0  # 128 x 128 grey crop
+m = u.mean()
+t = (u - m) / np.sqrt(u.size)                       # spot of the ADSN model
+
+# ADSN: U = m + t * W (circular convolution with white Gaussian noise)
+W = rng.standard_normal(u.shape)
+adsn = m + np.real(np.fft.ifft2(np.fft.fft2(t) * np.fft.fft2(W)))
+
+# RPN: keep the modulus of the DFT, draw a uniform random phase (Hermitian symmetric)
+phase = np.angle(np.fft.fft2(rng.standard_normal(u.shape)))
+rpn = m + np.real(np.fft.ifft2(np.abs(np.fft.fft2(u - m)) * np.exp(1j * phase)))
+
+def autocorr(v):
+    c = v - v.mean()
+    return np.real(np.fft.ifft2(np.abs(np.fft.fft2(c))**2)) / v.size
+
+for name, v in [("exemplar", u), ("ADSN", adsn), ("RPN", rpn)]:
+    a = autocorr(v)
+    print(f"{name:8s} mean {v.mean():.3f}  std {v.std():.3f}  "
+          f"corr at lag (0,1) {a[0, 1] / a[0, 0]:.3f}  lag (1,0) {a[1, 0] / a[0, 0]:.3f}")
+# exemplar mean 0.846  std 0.154  corr at lag (0,1) 0.867  lag (1,0) 0.919
+# ADSN     mean 0.846  std 0.137  corr at lag (0,1) 0.835  lag (1,0) 0.897
+# RPN      mean 0.846  std 0.154  corr at lag (0,1) 0.867  lag (1,0) 0.919
+```
+
+RPN reproduces the empirical autocorrelation exactly, because it keeps the modulus. ADSN reproduces it only in expectation: one realisation fluctuates around it. Both fail on structured textures such as bricks or text, whose geometry is carried by the phase, which these models discard. Chapter 2 adds higher-order statistics.
+
+### 1.3 Gaussian mixture models of patches
+
+A whole photograph is not stationary, but its small patches, say $8 \times 8$, are well described by a few Gaussian “regimes”: flat regions, edges of various orientations, textures. A mixture captures this.
+
+::: def
+[Definition 1.4 — Gaussian mixture model]{.tag} A GMM on $\mathbb{R}^p$ with $K$ components has the density
+$$
+p(x) = \sum_{k=1}^{K} \pi_k\, \mathcal{N}(x; \mu_k, \Sigma_k), \qquad \pi_k \geq 0, \quad \sum_k \pi_k = 1 .
+$$
+
+Equivalently, draw a label $k$ with probability $\pi_k$, then $x \sim \mathcal{N}(\mu_k, \Sigma_k)$.
+:::
+
+The parameters are fitted by the **EM algorithm** (Dempster, Laird and Rubin, 1977). The E-step computes the responsibilities
+$$
+r_{ik} = \frac{\pi_k\, \mathcal{N}(x_i; \mu_k, \Sigma_k)}{\sum_j \pi_j\, \mathcal{N}(x_i; \mu_j, \Sigma_j)} .
+$$
+
+The M-step sets $\pi_k$, $\mu_k$ and $\Sigma_k$ to the weighted proportion, mean and covariance of the data with weights $r_{ik}$. Each iteration maximises a lower bound of the log-likelihood that touches it at the current parameters, so the likelihood never decreases.
+
+:::: prop
+[Proposition 1.5 — Posterior of a Gaussian mixture under Gaussian noise]{.tag} Let $X$ follow the GMM of Definition 1.4 and $Y = X + \sigma N$, with $N \sim \mathcal{N}(0, I)$ independent. Write $C_k = \Sigma_k + \sigma^2 I$ and $K_k = \Sigma_k C_k^{-1}$. Then $X \mid Y = y$ is again a Gaussian mixture, and the MMSE estimator is
+$$
+\mathbb{E}[X \mid Y = y] = \sum_{k=1}^{K} w_k(y)\, \big(\mu_k + K_k (y - \mu_k)\big), \qquad w_k(y) \propto \pi_k\, \mathcal{N}(y; \mu_k, C_k).
+$$
+
+::: proof
+Condition first on the hidden label. Given label $k$, $(X, Y)$ is Gaussian, and Proposition 0.7 gives
+$$
+X \mid (Y = y, k) \sim \mathcal{N}\big(\mu_k + K_k (y - \mu_k),\ \Sigma_k - K_k \Sigma_k\big).
+$$
+
+By Bayes' formula, the posterior probability of label $k$ is proportional to $\pi_k$ times the density of $Y$ given $k$, which is $\mathcal{N}(y; \mu_k, C_k)$.
+
+Mixing over the labels gives the posterior, and its mean is the weighted sum of the component means. [∎]{.qed}
+:::
+::::
+
+The estimator is a **locally adaptive Wiener filter**: each patch is classified softly into a regime, then filtered by the Wiener filter of that regime. For whole images, patches overlap. Zoran and Weiss (2011) maximise the expected patch log-likelihood (EPLL) of all overlapping patches with half-quadratic splitting (ch. 3.2), and Yu, Sapiro and Mallat (2012) relate such piecewise linear estimators to structured sparsity.
+
+::: ex
+[Example 1.6 — Denoising patches of a photograph]{.tag} We fit GMMs to 8 000 patches of size $8 \times 8$ from the left part of the image `china.jpg`, then denoise 2 000 patches of its right part corrupted by noise of standard deviation $\sigma = 0.1$ (grey levels in $[0, 1]$). The code below prints the PSNR.
+
+-   Noisy patches: 19.99 dB.
+-   A single Gaussian ($K = 1$, a global Wiener filter): 23.90 dB.
+-   A mixture of $K = 8$ Gaussians:
+$$
+\mathrm{PSNR} = 26.09 \text{ dB}.
+$$
+
+The 2.2 dB gained by the mixture over one Gaussian is the value of adaptivity.
+:::
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+from sklearn.feature_extraction.image import extract_patches_2d
+from sklearn.mixture import GaussianMixture
+
+rng = np.random.default_rng(0)
+img = load_sample_image("china.jpg").mean(axis=2) / 255.0
+train = extract_patches_2d(img[:, :320], (8, 8), max_patches=8000, random_state=0).reshape(-1, 64)
+test = extract_patches_2d(img[:, 320:], (8, 8), max_patches=2000, random_state=1).reshape(-1, 64)
+sigma = 0.1
+noisy = test + sigma * rng.standard_normal(test.shape)
+
+def gmm_mmse(y, gmm, sigma):
+    """Closed-form posterior mean E[X | Y = y] for X ~ GMM, Y = X + sigma N (Proposition 1.5)."""
+    d = y.shape[1]
+    logw, means = [], []
+    for pi, mu, S in zip(gmm.weights_, gmm.means_, gmm.covariances_):
+        C = S + sigma**2 * np.eye(d)                      # covariance of Y given the label
+        L = np.linalg.cholesky(C)
+        r = np.linalg.solve(L, (y - mu).T)                # whitened residuals
+        logw.append(np.log(pi) - 0.5 * (r**2).sum(0) - np.log(np.diag(L)).sum())
+        means.append(mu + (S @ np.linalg.solve(C, (y - mu).T)).T)   # Wiener filter of the label
+    logw = np.array(logw)
+    w = np.exp(logw - logw.max(0))
+    w /= w.sum(0)                                         # posterior label probabilities
+    return np.einsum("kn,knd->nd", w, np.array(means))
+
+psnr = lambda a, b: 10 * np.log10(1.0 / np.mean((a - b)**2))
+print(f"noisy patches: PSNR {psnr(noisy, test):.2f} dB")
+for K in (1, 8):   # K = 1 is a single Gaussian model, i.e. a Wiener filter
+    gmm = GaussianMixture(n_components=K, covariance_type="full", reg_covar=1e-5,
+                          max_iter=200, random_state=0).fit(train)
+    print(f"K = {K}: MMSE estimate PSNR {psnr(gmm_mmse(noisy, gmm, sigma), test):.2f} dB")
+# noisy patches: PSNR 19.99 dB
+# K = 1: MMSE estimate PSNR 23.90 dB
+# K = 8: MMSE estimate PSNR 26.09 dB
+```
+
+::: recap
+Key takeaways — chapter 1
+
+-   A generative model is an explicit density or a sampler; it is used to sample, to evaluate and as a prior.
+-   ADSN and random phase noise are the stationary Gaussian models of an exemplar: same mean and autocovariance, random phase.
+-   Under a Gaussian mixture prior and Gaussian noise, the posterior is a mixture and the MMSE estimator is a soft combination of Wiener filters.
+-   Gaussian models fail where geometry lives in the phase: edges, contours, structured textures.
+:::
+
+## 2. Patch models and maximum-entropy models {#ch2}
+
+Gaussian models see only second-order statistics. This chapter presents the two classical ways of going further: sampling patches directly from the exemplar, without any parametric model, and choosing the least committed distribution that reproduces a chosen set of statistics, the maximum-entropy principle.
+
+### 2.1 Non-parametric patch models
+
+Efros and Leung (1999) model a texture as a **Markov random field**: the law of a pixel given all the others depends only on a small neighbourhood. Their synthesis grows the image pixel by pixel. For each new pixel, it finds the exemplar patches whose already-synthesised part is close to the current neighbourhood, and copies the centre of one of them at random.
+
+This is sampling from a non-parametric estimate of the conditional distribution of a pixel given its neighbourhood. It produces striking results on structured textures, but it is sequential and slow, and it tends either to copy large pieces of the exemplar verbatim or to drift into “garbage” regions.
+
+Kwatra and coauthors (2005) recast synthesis as the minimisation of a patch energy over the image $v$, with $P_x v$ the patch of $v$ at position $x$ and $u$ the exemplar:
+$$
+E(v) = \sum_{x} \min_{y} \| P_x v - P_y u \|^2 .
+$$
+
+::: prop
+[Proposition 2.1 — Alternating minimisation of the patch energy]{.tag} Introduce the assignment $\alpha(x) = y$ and minimise $E(v, \alpha) = \sum_x \| P_x v - P_{\alpha(x)} u \|^2$ alternately.
+
+-   For fixed $v$, the best assignment is the nearest-neighbour patch of the exemplar.
+-   For fixed $\alpha$, the best $v$ sets each pixel to the average of the values proposed for it by all the assigned patches that cover it.
+
+Each half-step does not increase $E(v, \alpha)$, so the energy is non-increasing.
+:::
+
+The second half-step is a least-squares problem that separates over pixels, whose solution is an average. The nearest-neighbour assignment is responsible for the copies: nothing forces the synthesised patches to use the exemplar patches in the right proportions.
+
+Galerne, Leclaire and Rabin (2018) replace it by a **semi-discrete optimal transport** assignment between the patch distribution of the synthesis and the empirical patch distribution of the exemplar, which imposes those proportions; the tools are those of ch. 5. Patch models return with the discriminators of ch. 6, which judge realism patch by patch.
+
+### 2.2 The maximum-entropy principle
+
+Suppose we want a distribution whose expectations of chosen statistics $\varphi = (\varphi_1, \dots, \varphi_K)$ equal target values $c$, for instance the moments of an exemplar. Many distributions satisfy these constraints; the principle of Jaynes (1957) selects the one with the largest entropy, the one that assumes nothing else.
+
+::: def
+[Definition 2.2 — Entropy and Gibbs family]{.tag} The (differential) **entropy** of a density $p$ on a domain $\mathcal{X}$ is $H(p) = -\int p \log p$. For a parameter $\lambda \in \mathbb{R}^K$, the **Gibbs density** is
+$$
+p_\lambda(x) = \frac{1}{Z(\lambda)} \exp\big(-\langle \lambda, \varphi(x) \rangle\big), \qquad Z(\lambda) = \int_{\mathcal{X}} e^{-\langle \lambda, \varphi(x) \rangle}\, \mathrm{d}x .
+$$
+:::
+
+:::: thm
+[Theorem 2.3 — Maximum entropy under moment constraints]{.tag} If $p_\lambda$ satisfies the constraints $\mathbb{E}_{p_\lambda}[\varphi] = c$, then for every density $p$ on $\mathcal{X}$ with $\mathbb{E}_p[\varphi] = c$,
+$$
+H(p) = H(p_\lambda) - \mathrm{KL}(p \,\|\, p_\lambda) \leq H(p_\lambda),
+$$
+with equality only for $p = p_\lambda$. The maximum-entropy distribution is the Gibbs density.
+
+::: proof
+Since $\log p_\lambda = -\langle \lambda, \varphi \rangle - \log Z$, and $p$ and $p_\lambda$ give $\varphi$ the same expectation $c$,
+$$
+-\int p \log p_\lambda = \langle \lambda, c \rangle + \log Z(\lambda) = -\int p_\lambda \log p_\lambda = H(p_\lambda).
+$$
+
+Hence
+$$
+H(p) = -\int p \log \frac{p}{p_\lambda} - \int p \log p_\lambda = -\mathrm{KL}(p \| p_\lambda) + H(p_\lambda),
+$$
+and Proposition 0.4 concludes. [∎]{.qed}
+:::
+::::
+
+With $\varphi(x) = (x, x x^\top)$ on $\mathbb{R}^n$, the Gibbs density is the Gaussian with the prescribed mean and covariance (Exercise 6): the stationary Gaussian textures of ch. 1 are maximum-entropy models of second-order statistics.
+
+### 2.3 FRAME and microcanonical models
+
+The FRAME model of Zhu, Wu and Mumford (1998) takes as statistics the **histograms of filter responses**: for a bank of filters $F_1, \dots, F_J$ (Gabor filters, Laplacians of Gaussians), $\varphi_j(u)$ is the histogram of the values $(F_j \star u)(x)$ over the pixels $x$. The maximum-entropy model is then a Gibbs field
+$$
+p(u) \propto \exp\Big(-\sum_{j=1}^{J} \big\langle \lambda_j, \varphi_j(u) \big\rangle\Big),
+$$
+whose potentials $\lambda_j$ are learnt from the exemplar and whose samples are drawn by MCMC. Filters are added greedily, the one whose histogram is worst reproduced first.
+
+The constraint $\mathbb{E}_p[\varphi] = c$ defines a **macrocanonical** model. A **microcanonical** model instead asks each sample to satisfy $\varphi(v) \approx \varphi(u)$, and it is sampled by starting from white noise and descending $\| \varphi(v) - \varphi(u) \|^2$ by gradient.
+
+-   Portilla and Simoncelli (2000) use the marginals and correlations of complex wavelet coefficients.
+-   Gatys, Ecker and Bethge (2015) use the Gram matrices of the feature maps of a pretrained convolutional network.
+-   Bruna and Mallat (2019) study multiscale microcanonical models based on wavelet statistics and their approximation properties.
+
+On large images the two views agree, in the spirit of the equivalence of ensembles of statistical physics, because spatial averages concentrate around their expectations.
+
+### 2.4 Learning a maximum-entropy model
+
+When the targets $c$ are the empirical moments of data, fitting the Gibbs family by maximum likelihood is exactly moment matching.
+
+::: prop
+[Proposition 2.4 — Maximum likelihood equals moment matching]{.tag} Let $c = \frac1N \sum_i \varphi(x_i)$. The mean log-likelihood of the Gibbs family is
+$$
+\ell(\lambda) = -\langle \lambda, c \rangle - \log Z(\lambda), \qquad \nabla \ell(\lambda) = \mathbb{E}_{p_\lambda}[\varphi] - c, \qquad \nabla^2 \ell(\lambda) = -\mathrm{Cov}_{p_\lambda}(\varphi).
+$$
+
+Hence $\ell$ is concave, and its critical points are exactly the parameters whose model moments equal the empirical moments.
+:::
+
+Differentiating under the integral sign gives $\nabla \log Z = -\mathbb{E}_{p_\lambda}[\varphi]$, and once more the covariance. In high dimension the model expectation has no closed form; it is estimated by MCMC samples of $p_\lambda$, which is why maximum-entropy and energy-based models need the Langevin algorithms of ch. 3.
+
+::: ex
+[Example 2.5 — A maximum-entropy model of image differences]{.tag} The horizontal differences $u(x + e_1) - u(x)$ of a photograph lie in $[-1, 1]$ and have heavy tails. We fit the Gibbs model with statistics $\varphi(x) = (|x|, x^2)$ on $[-1, 1]$, by gradient ascent on $\ell$ with moments computed on a grid.
+
+-   The fitted parameters are $\lambda = (24.51, -18.81)$: a Laplace-like core with a negative quadratic weight, i.e. tails heavier than Laplace.
+-   The model moments equal the data moments $(0.0557, 0.0117)$ to four decimals.
+-   The mean log-likelihood of the data is 1.275 under the model against 0.803 under the Gaussian with the same variance.
+:::
+
+```python
+import numpy as np
+from sklearn.datasets import load_sample_image
+
+img = load_sample_image("china.jpg").mean(axis=2) / 255.0
+d = (img[:, 1:] - img[:, :-1]).ravel()          # horizontal differences: a filter response
+grid = np.linspace(-1, 1, 4001)
+dx = grid[1] - grid[0]
+phi = lambda x: np.stack([np.abs(x), x**2])      # constrained statistics phi(x) = (|x|, x^2)
+target = phi(d).mean(axis=1)                     # empirical moments c
+
+def model(lam):                                  # Gibbs density on the grid
+    logp = -lam @ phi(grid)
+    p = np.exp(logp - logp.max())
+    return p / (p.sum() * dx)
+
+lam = np.array([1.0, 1.0])
+for it in range(5000):                           # gradient ascent on the log-likelihood
+    p = model(lam)
+    moments = (phi(grid) * p).sum(axis=1) * dx
+    lam += 20.0 * (moments - target)             # gradient of Proposition 2.4
+
+p = model(lam)
+loglik = np.mean(np.log(np.interp(d, grid, p)))
+s2 = np.mean(d**2)
+loglik_gauss = -0.5 * np.log(2 * np.pi * s2) - 0.5
+print("empirical moments  ", np.round(target, 4))
+print("model moments      ", np.round((phi(grid) * p).sum(axis=1) * dx, 4))
+print("lambda             ", np.round(lam, 2))
+print(f"mean log-likelihood: max-entropy {loglik:.3f}, Gaussian {loglik_gauss:.3f}")
+# empirical moments   [0.0557 0.0117]
+# model moments       [0.0557 0.0117]
+# lambda              [ 24.51 -18.81]
+# mean log-likelihood: max-entropy 1.275, Gaussian 0.803
+```
+
+::: recap
+Key takeaways — chapter 2
+
+-   Non-parametric patch sampling captures structured textures, but nearest-neighbour assignments copy the exemplar; optimal transport assignments fix the proportions of patches.
+-   The maximum-entropy distribution under moment constraints is the Gibbs density $p_\lambda \propto e^{-\langle \lambda, \varphi \rangle}$.
+-   Maximum likelihood in the Gibbs family is a concave problem whose optimality condition is moment matching.
+-   FRAME matches filter histograms in expectation; microcanonical models match statistics on each sample.
+:::
+
+## 3. Bayesian imaging: MAP, proximal operators and Langevin sampling {#ch3}
+
+An inverse problem asks for an image from degraded measurements. The Bayesian answer combines a likelihood with a prior from chapters 1–2 (or, later, from a network). This chapter gives the two computational tools that use such a posterior: proximal splitting, which computes its mode, and Langevin algorithms, which sample it.
+
+### 3.1 Bayesian inverse problems
+
+The observation model is $y = A x + n$, with $A$ a known linear operator (a blur, a mask for inpainting, a subsampling for super-resolution) and $n \sim \mathcal{N}(0, \sigma^2 I)$. With a prior density $p(x) \propto e^{-R(x)}$, Bayes' formula gives the posterior
+$$
+p(x \mid y) \propto \exp\big(-f(x) - R(x)\big), \qquad f(x) = \frac{1}{2\sigma^2} \| A x - y \|^2 .
+$$
+
+-   The **MAP** estimate minimises $F = f + R$: an optimisation problem.
+-   The **MMSE** estimate is the posterior mean (Theorem 0.8): an integral, approximated by averaging posterior samples, which also quantify uncertainty.
+
+The problem is ill-posed when $A$ has a non-trivial kernel or tiny singular values: the likelihood alone does not determine $x$, and the prior decides what is filled in. For a Gaussian prior both estimates coincide with the Wiener filter of ch. 0.3.
+
+### 3.2 Proximal operators and splitting
+
+::: def
+[Definition 3.1 — Proximal operator]{.tag} For a convex, lower semicontinuous, proper function $R$ and $\tau > 0$,
+$$
+\mathrm{prox}_{\tau R}(v) = \arg\min_{x} \ R(x) + \frac{1}{2\tau} \| x - v \|^2 ,
+$$
+which exists and is unique because the objective is strongly convex.
+:::
+
+The proximal operator is a **MAP denoiser**: $\mathrm{prox}_{\sigma^2 R}(v)$ is the MAP estimate of $x$ from $v = x + \sigma N$ under the prior $e^{-R}$. This reading is the starting point of plug-and-play (ch. 9). Two examples are used throughout.
+
+-   For $R = \lambda |\cdot|$ in dimension one, the proximal operator is **soft thresholding**:
+    $$
+    \mathrm{prox}_{\tau R}(v) = \mathrm{sign}(v) \max(|v| - \tau\lambda, 0).
+    $$
+-   For the data term, it is computed by FFT when $A$ is a circular convolution:
+    $$
+    \mathrm{prox}_{\tau f}(v) = \big(I + \tfrac{\tau}{\sigma^2} A^\top A\big)^{-1}\big(v + \tfrac{\tau}{\sigma^2} A^\top y\big).
+    $$
+
+:::: thm
+[Theorem 3.2 — Forward–backward splitting]{.tag} Let $f$ be convex with $L$-Lipschitz gradient, $R$ convex, lower semicontinuous and proper, and $F = f + R$ with a minimiser $x^\star$. The iteration
+$$
+x_{k+1} = \mathrm{prox}_{\tau R}\big(x_k - \tau \nabla f(x_k)\big), \qquad 0 < \tau \leq 1/L,
+$$
+satisfies, for every $k \geq 1$,
+$$
+F(x_k) - F(x^\star) \leq \frac{\| x_0 - x^\star \|^2}{2 \tau k} .
+$$
+
+::: proof
+*Key inequality.* Combining the descent lemma (Proposition 0.9, with $\tau \leq 1/L$), the convexity of $f$ and the optimality condition of the prox gives, for every $z$,
+$$
+F(x_{k+1}) \leq F(z) + \frac{1}{2\tau}\big(\| x_k - z \|^2 - \| x_{k+1} - z \|^2\big).
+$$
+
+*Monotonicity.* With $z = x_k$, $F(x_{k+1}) \leq F(x_k)$.
+
+*Telescoping.* With $z = x^\star$, summing over the first $k$ steps gives
+$$
+\sum_{j=1}^{k} \big(F(x_j) - F(x^\star)\big) \leq \frac{\| x_0 - x^\star \|^2}{2\tau} .
+$$
+
+The left-hand side is at least $k (F(x_k) - F(x^\star))$ by monotonicity. [∎]{.qed}
+:::
+::::
+
+With $R = \lambda \| \cdot \|_1$ the algorithm is ISTA; its accelerated version FISTA reaches the rate $O(1/k^2)$ (Beck and Teboulle, 2009).
+
+**Half-quadratic splitting** (HQS) handles two terms that both have simple proximal operators but no gradient. It introduces an auxiliary variable $z$, minimises $f(x) + R(z) + \frac{\mu}{2} \| x - z \|^2$ alternately in $x$ and $z$, and increases $\mu$ along the iterations:
+$$
+x_{k+1} = \mathrm{prox}_{f/\mu}(z_k), \qquad z_{k+1} = \mathrm{prox}_{R/\mu}(x_{k+1}).
+$$
+
+The $z$-step is a denoising step at noise level $1/\sqrt{\mu}$. EPLL (ch. 1.3) uses exactly this scheme with the GMM patch prior, and plug-and-play replaces the $z$-step by a learnt denoiser (ch. 9).
+
+### 3.3 Langevin dynamics
+
+To sample $\pi(x) \propto e^{-U(x)}$, with $U = f + R$ smooth here, we use a diffusion whose stationary law is $\pi$.
+
+::: def
+[Definition 3.3 — Overdamped Langevin diffusion]{.tag} With $B_t$ a standard Brownian motion,
+$$
+\mathrm{d}X_t = \nabla \log \pi(X_t)\, \mathrm{d}t + \sqrt{2}\, \mathrm{d}B_t .
+$$
+:::
+
+:::: prop
+[Proposition 3.4 — Invariance and contraction]{.tag} The law $\pi$ is invariant for the Langevin diffusion. If moreover $U$ is $m$-strongly convex, then for any initial law $\mu_0$,
+$$
+W_2(\mathrm{Law}(X_t), \pi) \leq e^{-m t}\, W_2(\mu_0, \pi),
+$$
+where $W_2$ is the Wasserstein distance of ch. 5.
+
+::: proof
+*Invariance.* The density $p_t$ of $X_t$ solves the Fokker–Planck equation, which can be written
+$$
+\partial_t p_t = \nabla \cdot \big(p_t \nabla \log (p_t / \pi)\big),
+$$
+and the right-hand side vanishes when $p_t = \pi$.
+
+*Contraction.* Run two solutions $X_t, Y_t$ with the same Brownian motion, $Y_0 \sim \pi$ optimally coupled with $X_0$. The noise cancels in the difference, and strong convexity gives
+$$
+\frac{\mathrm{d}}{\mathrm{d}t} \| X_t - Y_t \|^2 = -2 \langle \nabla U(X_t) - \nabla U(Y_t), X_t - Y_t \rangle \leq -2m \| X_t - Y_t \|^2 .
+$$
+
+Grönwall's lemma gives $\| X_t - Y_t \| \leq e^{-mt} \| X_0 - Y_0 \|$. Since $Y_t \sim \pi$ for all $t$, taking expectations bounds $W_2$. [∎]{.qed}
+:::
+::::
+
+The **unadjusted Langevin algorithm** (ULA) is the Euler–Maruyama discretisation with step $\gamma$:
+$$
+X_{k+1} = X_k + \gamma \nabla \log \pi(X_k) + \sqrt{2\gamma}\, Z_{k+1}, \qquad Z_{k+1} \sim \mathcal{N}(0, I).
+$$
+
+Its stationary law is not exactly $\pi$; the bias vanishes as $\gamma \to 0$, with non-asymptotic bounds for smooth strongly log-concave targets (Durmus and Moulines, 2017). The **Metropolis-adjusted** version MALA accepts the ULA move $x'$ from $x$ with probability $\min(1, \pi(x') q(x \mid x') / (\pi(x) q(x' \mid x)))$, where $q$ is the Gaussian proposal density; it is exactly invariant (Roberts and Tweedie, 1996).
+
+::: ex
+[Example 3.5 — The bias of ULA on a Gaussian]{.tag} For $\pi = \mathcal{N}(0, s^2)$, ULA reads $X_{k+1} = (1 - \gamma / s^2) X_k + \sqrt{2\gamma} Z_{k+1}$, an autoregressive process. Its stationary variance $v$ solves $v = (1 - \gamma/s^2)^2 v + 2\gamma$:
+$$
+v = \frac{s^2}{1 - \gamma / (2 s^2)} .
+$$
+
+For $s = 1$ and $\gamma = 0.5$, $v = 4/3 = 1.333$: a 33 % excess of variance, which MALA removes at the price of rejecting 8 % of the moves.
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+s2 = 1.0                                    # target pi = N(0, s2)
+grad_log_pi = lambda x: -x / s2
+log_pi = lambda x: -0.5 * x**2 / s2
+n_chains, n_steps = 50000, 400
+
+for gamma in (0.05, 0.2, 0.5):
+    x_ula = np.zeros(n_chains)
+    x_mala = np.zeros(n_chains)
+    acc = 0.0
+    for _ in range(n_steps):
+        # ULA: one Euler-Maruyama step of the Langevin diffusion
+        x_ula = x_ula + gamma * grad_log_pi(x_ula) + np.sqrt(2 * gamma) * rng.standard_normal(n_chains)
+        # MALA: same proposal, then a Metropolis-Hastings correction
+        prop = x_mala + gamma * grad_log_pi(x_mala) + np.sqrt(2 * gamma) * rng.standard_normal(n_chains)
+        log_q_fwd = -((prop - x_mala - gamma * grad_log_pi(x_mala))**2) / (4 * gamma)
+        log_q_bwd = -((x_mala - prop - gamma * grad_log_pi(prop))**2) / (4 * gamma)
+        log_a = log_pi(prop) - log_pi(x_mala) + log_q_bwd - log_q_fwd
+        accept = np.log(rng.uniform(size=n_chains)) < log_a
+        x_mala = np.where(accept, prop, x_mala)
+        acc += accept.mean() / n_steps
+    theory = s2 / (1 - gamma / (2 * s2))
+    print(f"gamma {gamma:.2f}: ULA variance {x_ula.var():.3f} (theory {theory:.3f}), "
+          f"MALA variance {x_mala.var():.3f}, acceptance {acc:.2f}")
+# gamma 0.05: ULA variance 1.021 (theory 1.026), MALA variance 1.005, acceptance 1.00
+# gamma 0.20: ULA variance 1.114 (theory 1.111), MALA variance 0.995, acceptance 0.98
+# gamma 0.50: ULA variance 1.337 (theory 1.333), MALA variance 0.989, acceptance 0.92
+```
+
+### 3.4 Non-smooth priors: the Moreau–Yosida Langevin algorithm
+
+Priors such as total variation or the $\ell_1$ norm are not differentiable, so ULA cannot use their gradient. The fix replaces $R$ by a smooth approximation built from its proximal operator.
+
+::: prop
+[Proposition 3.6 — Moreau envelope]{.tag} For $R$ convex, lower semicontinuous and proper, the Moreau envelope
+$$
+R^{\lambda}(x) = \min_{u} \ R(u) + \frac{1}{2\lambda} \| x - u \|^2
+$$
+is convex and differentiable, with $(1/\lambda)$-Lipschitz gradient
+$$
+\nabla R^{\lambda}(x) = \frac{x - \mathrm{prox}_{\lambda R}(x)}{\lambda},
+$$
+and $R^{\lambda}$ increases to $R$ as $\lambda$ decreases to $0$.
+:::
+
+The **MYULA** algorithm of Durmus, Moulines and Pereyra (2018) runs ULA on $e^{-f - R^{\lambda}}$:
+$$
+X_{k+1} = X_k - \gamma \nabla f(X_k) - \frac{\gamma}{\lambda}\big(X_k - \mathrm{prox}_{\lambda R}(X_k)\big) + \sqrt{2\gamma}\, Z_{k+1} .
+$$
+
+The prior enters only through the residual of a denoiser, $x - \mathrm{prox}_{\lambda R}(x)$. Replacing that proximal denoiser by a learnt denoiser gives PnP-ULA (ch. 9.4); Tweedie's formula (ch. 7.1) explains why the residual of an MMSE denoiser is also the gradient of a log-prior.
+
+::: recap
+Key takeaways — chapter 3
+
+-   The posterior of a linear inverse problem with Gaussian noise is $e^{-f - R}$; the MAP minimises $f + R$, the MMSE averages posterior samples.
+-   A proximal operator is a MAP denoiser; forward–backward converges at rate $O(1/k)$ for $\tau \leq 1/L$, and HQS alternates a data step and a denoising step.
+-   The Langevin diffusion leaves $\pi$ invariant and contracts at rate $e^{-mt}$ for $m$-strongly log-concave targets; ULA is biased, MALA is exact.
+-   MYULA handles non-smooth priors through the residual $x - \mathrm{prox}_{\lambda R}(x)$, the bridge to plug-and-play sampling.
+:::
+
+## 4. Generative adversarial networks {#ch4}
+
+Deep generators map a low-dimensional Gaussian vector to an image with a network. Such a model has no density (Proposition 0.2), so it cannot be trained by maximum likelihood. This chapter presents the two answers of 2014: the variational autoencoder, which adds noise and maximises a lower bound, and the generative adversarial network, which compares samples through a learnt discriminator.
+
+### 4.1 Push-forward generators and the variational autoencoder
+
+The **variational autoencoder** (VAE) of Kingma and Welling (2014) turns the generator into a latent-variable model with a density. The prior is $p(z) = \mathcal{N}(0, I_d)$, the decoder is Gaussian around the generator output, and an encoder network gives a Gaussian approximate posterior:
+$$
+p_\theta(x \mid z) = \mathcal{N}\big(g_\theta(z), \sigma^2 I\big), \qquad q_\phi(z \mid x) = \mathcal{N}\big(\mu_\phi(x), \mathrm{diag}\, s_\phi^2(x)\big).
+$$
+
+:::: prop
+[Proposition 4.1 — Evidence lower bound]{.tag} For every $x$,
+$$
+\log p_\theta(x) = \underbrace{\mathbb{E}_{q_\phi(z \mid x)}\big[\log p_\theta(x \mid z)\big] - \mathrm{KL}\big(q_\phi(z \mid x) \,\|\, p(z)\big)}_{\mathrm{ELBO}(x;\, \theta, \phi)} + \mathrm{KL}\big(q_\phi(z \mid x) \,\|\, p_\theta(z \mid x)\big).
+$$
+
+Hence the ELBO is a lower bound of the log-likelihood, tight when the encoder equals the true posterior.
+
+::: proof
+For every $z$,
+$$
+\log p_\theta(x) = \log p_\theta(x, z) - \log p_\theta(z \mid x).
+$$
+
+Take the expectation in $z \sim q_\phi(\cdot \mid x)$, then add and subtract $\mathbb{E}_q[\log q_\phi(z \mid x)]$, and use $p_\theta(x, z) = p_\theta(x \mid z)\, p(z)$. The last term is non-negative by Proposition 0.4. [∎]{.qed}
+:::
+::::
+
+The ELBO is maximised in $(\theta, \phi)$ by stochastic gradient, writing $z = \mu_\phi(x) + s_\phi(x) \odot \varepsilon$ with $\varepsilon \sim \mathcal{N}(0, I)$: the **reparameterisation trick** moves the randomness out of the parameters. VAE samples are typically blurry, because the Gaussian decoder with a squared error averages over the images compatible with a code. Their latent spaces, however, are the stage of the latent diffusion models of ch. 8.2.
+
+### 4.2 The adversarial game
+
+Goodfellow and coauthors (2014) train a generator $G$ and a discriminator $D : \mathbb{R}^n \to (0, 1)$, which outputs the probability that its input is real, on the value
+$$
+V(D, G) = \mathbb{E}_{x \sim p_{\mathrm{data}}}\big[\log D(x)\big] + \mathbb{E}_{z \sim \mathcal{N}(0, I)}\big[\log\big(1 - D(G(z))\big)\big].
+$$
+
+The generator solves $\min_G \max_D V(D, G)$: the discriminator is a classifier trained with the logistic loss, and the generator tries to fool it. Write $p_g = G_\# \mathcal{N}(0, I)$; for the analysis we assume that $p_{\mathrm{data}}$ and $p_g$ have densities.
+
+::: prop
+[Proposition 4.2 — Optimal discriminator]{.tag} For a fixed generator, the discriminator maximising $V$ is
+$$
+D^\star(x) = \frac{p_{\mathrm{data}}(x)}{p_{\mathrm{data}}(x) + p_g(x)} .
+$$
+:::
+
+Indeed, $V$ is the integral of $p_{\mathrm{data}} \log D + p_g \log(1 - D)$, and for $a, b > 0$ the function $t \mapsto a \log t + b \log(1 - t)$ is maximal on $(0, 1)$ at $t = a / (a + b)$.
+
+:::: thm
+[Theorem 4.3 — The GAN criterion is a Jensen–Shannon divergence]{.tag} With the optimal discriminator,
+$$
+C(G) = \max_D V(D, G) = -\log 4 + 2\, \mathrm{JS}(p_{\mathrm{data}}, p_g).
+$$
+
+Its global minimum $-\log 4$ is reached if and only if $p_g = p_{\mathrm{data}}$.
+
+::: proof
+Substitute $D^\star$ and write $m = (p_{\mathrm{data}} + p_g)/2$, so that $D^\star = p_{\mathrm{data}} / (2m)$ and $1 - D^\star = p_g / (2m)$:
+$$
+C(G) = \int p_{\mathrm{data}} \log \frac{p_{\mathrm{data}}}{2m} + \int p_g \log \frac{p_g}{2m} = \mathrm{KL}(p_{\mathrm{data}} \| m) + \mathrm{KL}(p_g \| m) - 2 \log 2 .
+$$
+
+This is $2\,\mathrm{JS} - \log 4$, and Proposition 0.4 gives the equality case. [∎]{.qed}
+:::
+::::
+
+### 4.3 Training and its pathologies
+
+In practice both players are networks trained by alternating stochastic gradient steps, and the generator maximises $\mathbb{E} \log D(G(z))$ instead of minimising $\mathbb{E} \log(1 - D(G(z)))$. This **non-saturating** loss has the same fixed points, but strong gradients early in training, when the discriminator rejects the samples confidently and $\log(1 - D)$ is flat.
+
+Two failure modes follow from the analysis.
+
+-   **Vanishing gradients.** Real images and generated images concentrate near low-dimensional sets that generically do not overlap. Arjovsky and Bottou (2017) show that a perfect discriminator then exists, the Jensen–Shannon divergence is stuck at $\log 2$ (Proposition 0.4), and the gradient of the original generator loss tends to zero as the discriminator improves.
+-   **Mode collapse.** The theory assumes the inner maximisation is solved. If instead the generator is updated against a fixed discriminator, its best response puts all its mass where $D$ is largest; the game can cycle between a few modes instead of covering all of them.
+
+The first failure motivates a distance that varies continuously when supports are disjoint: the Wasserstein distance of ch. 5.
+
+::: ex
+[Example 4.4 — A GAN on a mixture of two Gaussians]{.tag} The data are an equal mixture of $\mathcal{N}(-2, 0.3^2)$ and $\mathcal{N}(2, 0.3^2)$. Two small fully connected networks are trained for 2 000 steps with the non-saturating loss. The trained generator puts 48.4 % of its mass on the left mode and 51.6 % on the right one; the right mode has mean 2.01 and standard deviation 0.36. At the end, the discriminator outputs about one half everywhere:
+$$
+\mathbb{E}[D(x_{\mathrm{real}})] \approx \mathbb{E}[D(x_{\mathrm{fake}})] \approx 0.50,
+$$
+as Proposition 4.2 predicts when $p_g \approx p_{\mathrm{data}}$.
+:::
+
+```python
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+def sample_data(n):                         # mixture 0.5 N(-2, 0.3^2) + 0.5 N(2, 0.3^2)
+    sign = torch.where(torch.rand(n, 1) < 0.5, -1.0, 1.0)
+    return 2.0 * sign + 0.3 * torch.randn(n, 1)
+
+G = nn.Sequential(nn.Linear(1, 32), nn.ReLU(), nn.Linear(32, 32), nn.ReLU(), nn.Linear(32, 1))
+D = nn.Sequential(nn.Linear(1, 32), nn.ReLU(), nn.Linear(32, 32), nn.ReLU(), nn.Linear(32, 1))
+opt_g = torch.optim.Adam(G.parameters(), lr=1e-3, betas=(0.5, 0.999))
+opt_d = torch.optim.Adam(D.parameters(), lr=1e-3, betas=(0.5, 0.999))
+bce = nn.BCEWithLogitsLoss()                # D outputs a logit; sigmoid(logit) is the probability
+
+for step in range(2000):
+    x, z = sample_data(256), torch.randn(256, 1)
+    # discriminator step: maximise E log D(x) + E log(1 - D(G(z)))
+    loss_d = bce(D(x), torch.ones(256, 1)) + bce(D(G(z).detach()), torch.zeros(256, 1))
+    opt_d.zero_grad(); loss_d.backward(); opt_d.step()
+    # generator step, non-saturating loss: maximise E log D(G(z))
+    loss_g = bce(D(G(z)), torch.ones(256, 1))
+    opt_g.zero_grad(); loss_g.backward(); opt_g.step()
+
+with torch.no_grad():
+    y = G(torch.randn(20000, 1))
+    d_real = torch.sigmoid(D(sample_data(20000))).mean().item()
+    d_fake = torch.sigmoid(D(y)).mean().item()
+print(f"mass near -2: {(y < 0).float().mean():.3f}, near +2: {(y > 0).float().mean():.3f}")
+print(f"mean and std of the positive mode: {y[y > 0].mean():.2f}, {y[y > 0].std():.2f}")
+print(f"mean D on real data {d_real:.3f}, on generated data {d_fake:.3f}")
+# mass near -2: 0.484, near +2: 0.516
+# mean and std of the positive mode: 2.01, 0.36
+# mean D on real data 0.502, on generated data 0.501
+```
+
+### 4.4 Architectures: from DCGAN to StyleGAN
+
+DCGAN (Radford, Metz and Chintala, 2016) fixed the first stable recipe for images: transposed convolutions in the generator, strided convolutions in the discriminator, batch normalisation and no pooling. Progressive growing (Karras and coauthors, 2018) trains from $4 \times 4$ upwards, adding layers as the resolution doubles.
+
+StyleGAN (Karras, Laine and Aila, 2019) changes how the latent code enters the generator.
+
+-   A **mapping network**, an 8-layer perceptron, sends $z$ to an intermediate code $w$, whose space is less entangled than that of $z$.
+-   The synthesis network starts from a learnt constant. At each resolution, an affine map of $w$ gives a scale and a bias that modulate the normalised feature maps: **adaptive instance normalisation** (AdaIN).
+-   Per-pixel noise inputs produce the stochastic details (hair, pores), and mixing two codes across resolutions separates coarse attributes (pose) from fine ones (colours).
+
+The $w$-space is the one used to edit images and to invert a generator on a given photograph (ch. 6.5).
+
+### 4.5 Evaluating generators
+
+A generator has no likelihood, so it is evaluated by comparing feature statistics of generated and real images. The **Fréchet Inception distance** (FID) of Heusel and coauthors (2017) fits Gaussians $\mathcal{N}(m_r, \Sigma_r)$ and $\mathcal{N}(m_g, \Sigma_g)$ to Inception-v3 features of real and generated images, and computes
+$$
+\mathrm{FID} = \| m_r - m_g \|^2 + \mathrm{tr}\Big(\Sigma_r + \Sigma_g - 2 \big(\Sigma_r^{1/2} \Sigma_g \Sigma_r^{1/2}\big)^{1/2}\Big),
+$$
+the squared Wasserstein-2 distance between the two Gaussians (ch. 5.1). Lower is better.
+
+The FID is biased for small sample sizes, and it mixes fidelity and diversity in one number. Precision and recall in feature space (Kynkäänniemi and coauthors, 2019) separate the two, and none of these metrics detects a generator that copies its training set.
+
+::: recap
+Key takeaways — chapter 4
+
+-   A VAE maximises the ELBO, a lower bound of the likelihood; a GAN replaces the likelihood by a learnt discriminator.
+-   The optimal discriminator is $p_{\mathrm{data}} / (p_{\mathrm{data}} + p_g)$, and the GAN criterion becomes $2\,\mathrm{JS} - \log 4$.
+-   Disjoint supports make JS constant: vanishing gradients; best responses of the generator cause mode collapse.
+-   StyleGAN controls each resolution through a mapped code $w$ and AdaIN; generators are compared by FID, precision and recall.
+:::
+
+## 5. Optimal transport and Wasserstein GANs {#ch5}
+
+The Jensen–Shannon divergence cannot tell how far apart two distributions with disjoint supports are. Optimal transport measures the cost of moving one distribution onto the other, which changes continuously when the generator moves. Its dual formulation turns the discriminator into a Lipschitz “critic”: this is the Wasserstein GAN.
+
+### 5.1 Couplings and Wasserstein distances
+
+::: def
+[Definition 5.1 — Wasserstein distance]{.tag} Let $\mu, \nu$ be probability measures on $\mathbb{R}^n$ with finite $p$-th moments.
+
+A **coupling** is a law $\pi$ on $\mathbb{R}^n \times \mathbb{R}^n$ with marginals $\mu$ and $\nu$; their set is $\Pi(\mu, \nu)$. The **Wasserstein distance** of order $p \geq 1$ is
+$$
+W_p(\mu, \nu) = \Big( \min_{\pi \in \Pi(\mu, \nu)} \int \| x - y \|^p \, \mathrm{d}\pi(x, y) \Big)^{1/p} .
+$$
+:::
+
+Monge's problem looks for a map $T$ with $T_\# \mu = \nu$ minimising $\int \| x - T(x) \|^p \mathrm{d}\mu$; Kantorovich's relaxation allows mass to split, which guarantees that a minimiser exists. $W_p$ is a distance, and convergence in $W_p$ is weak convergence plus convergence of $p$-th moments.
+
+::: ex
+[Example 5.2 — Parallel segments]{.tag} This example is due to Arjovsky, Chintala and Bottou (2017). Let $Z$ be uniform on $[0, 1]$.
+
+In $\mathbb{R}^2$, let $P_0$ be the law of $(0, Z)$ and $P_\theta$ the law of $(\theta, Z)$, two vertical segments.
+
+For $\theta \neq 0$ the supports are disjoint, so
+$$
+\mathrm{KL}(P_\theta \| P_0) = +\infty, \qquad \mathrm{JS}(P_0, P_\theta) = \log 2, \qquad \mathrm{TV}(P_0, P_\theta) = 1,
+$$
+whereas the coupling $(0, Z) \mapsto (\theta, Z)$ is optimal and
+$$
+W_1(P_0, P_\theta) = |\theta| .
+$$
+
+Only $W_1$ is continuous in $\theta$ and gives a gradient pointing towards $\theta = 0$.
+:::
+
+Two closed forms are useful. In dimension one, the optimal coupling is monotone, and $W_1(\mu, \nu) = \int |F_\mu(t) - F_\nu(t)|\, \mathrm{d}t$ with $F$ the cumulative distribution functions. Between Gaussians, the squared $W_2$ distance is the FID formula of ch. 4.5 (Dowson and Landau, 1982); in dimension one it reduces to $(m_1 - m_2)^2 + (s_1 - s_2)^2$ (Exercise 5).
+
+### 5.2 Kantorovich duality
+
+::: thm
+[Theorem 5.3 — Kantorovich duality]{.tag} For a lower semicontinuous cost $c \geq 0$,
+$$
+\min_{\pi \in \Pi(\mu, \nu)} \int c \, \mathrm{d}\pi = \sup \Big\{ \int \varphi \, \mathrm{d}\mu + \int \psi \, \mathrm{d}\nu \ : \ \varphi(x) + \psi(y) \leq c(x, y) \Big\},
+$$
+and the supremum is unchanged if $\psi$ is replaced by the **c-transform** $\varphi^c(y) = \inf_x \big(c(x, y) - \varphi(x)\big)$.
+:::
+
+The easy inequality ($\geq$) holds because any admissible pair satisfies, for every coupling $\pi$,
+$$
+\int \varphi \, \mathrm{d}\mu + \int \psi \, \mathrm{d}\nu = \int \big(\varphi(x) + \psi(y)\big) \, \mathrm{d}\pi \leq \int c \, \mathrm{d}\pi .
+$$
+
+The converse is a minimax argument (Villani, 2009, Theorem 5.10). For finitely supported measures, both sides are linear programs, and the theorem is linear programming duality.
+
+:::: thm
+[Theorem 5.4 — Kantorovich–Rubinstein]{.tag} For the cost $c(x, y) = \| x - y \|$,
+$$
+W_1(\mu, \nu) = \sup_{\mathrm{Lip}(f) \leq 1} \ \mathbb{E}_{\mu}[f] - \mathbb{E}_{\nu}[f] .
+$$
+
+::: proof
+*Lower bound.* If $f$ is 1-Lipschitz, $f(x) - f(y) \leq \| x - y \|$, so the pair $(f, -f)$ is admissible in Theorem 5.3.
+
+*Upper bound.* Take an admissible pair and replace $\psi$ by $g = \varphi^c$, an infimum of 1-Lipschitz functions of $y$, hence 1-Lipschitz. Then replace $\varphi$ by $g^c \geq \varphi$; neither step decreases the dual value.
+
+For a 1-Lipschitz $g$, $g^c = -g$: taking $y = x$ gives $g^c(x) \leq -g(x)$, and $g(y) - g(x) \leq \| x - y \|$ gives the reverse inequality.
+
+The dual value is thus at most $\mathbb{E}_\mu[f] - \mathbb{E}_\nu[f]$ with $f = -g$, which is 1-Lipschitz. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.5 — Primal and dual on samples]{.tag} For two samples of 30 points each, from $\mathcal{N}(0, 1)$ and $\mathcal{N}(1.5, 0.5^2)$, the code below solves the transport linear program and its dual. Both give the value of the one-dimensional formula,
+$$
+W_1 = 1.7595,
+$$
+and the optimal dual potential has slope exactly 1 on the sample: it is the 1-Lipschitz critic of Theorem 5.4.
+:::
+
+```python
+import numpy as np
+from scipy.optimize import linprog
+from scipy.stats import wasserstein_distance
+
+rng = np.random.default_rng(0)
+n = 30
+x = rng.normal(0.0, 1.0, n)                   # sample of mu (weights 1/n)
+y = rng.normal(1.5, 0.5, n)                   # sample of nu (weights 1/n)
+a = b = np.full(n, 1.0 / n)
+C = np.abs(x[:, None] - y[None, :])           # cost c(x, y) = |x - y|
+
+# primal: min <C, P> over couplings P >= 0 with marginals a and b
+A_eq = np.vstack([np.kron(np.eye(n), np.ones(n)), np.kron(np.ones(n), np.eye(n))])
+primal = linprog(C.ravel(), A_eq=A_eq, b_eq=np.concatenate([a, b]), bounds=(0, None))
+
+# dual: max <a, f> + <b, g> subject to f_i + g_j <= C_ij
+dual = linprog(-np.concatenate([a, b]), A_ub=A_eq.T, b_ub=C.ravel(), bounds=(None, None))
+f = dual.x[:n]                                # optimal potential: a c-transform, hence 1-Lipschitz
+lip = np.max(np.abs(f[:, None] - f[None, :]) / (np.abs(x[:, None] - x[None, :]) + np.eye(n)))
+
+print(f"primal {primal.fun:.4f}, dual {-dual.fun:.4f}, scipy 1D formula {wasserstein_distance(x, y):.4f}")
+print(f"largest slope of the potential on the sample: {lip:.3f}")
+# primal 1.7595, dual 1.7595, scipy 1D formula 1.7595
+# largest slope of the potential on the sample: 1.000
+```
+
+### 5.3 The Wasserstein GAN
+
+Arjovsky, Chintala and Bottou (2017) replace the discriminator by a **critic** $f_w$, a network whose weights are constrained so that it is $K$-Lipschitz, and solve
+$$
+\min_\theta \ \max_{w} \ \mathbb{E}_{x \sim p_{\mathrm{data}}}\big[f_w(x)\big] - \mathbb{E}_{z}\big[f_w(g_\theta(z))\big].
+$$
+
+By Theorem 5.4, the inner maximum is $K$ times $W_1(p_{\mathrm{data}}, p_\theta)$ when the critic class is rich enough. The critic is trained for several steps (five in the paper) per generator step, and its value decreases as samples improve: unlike the GAN losses, it is a meaningful learning curve.
+
+:::: thm
+[Theorem 5.6 — Regularity of the Wasserstein loss]{.tag} Assume $g_\theta(z)$ is locally Lipschitz in $(\theta, z)$, with local constants $L(\theta, z)$ such that $\mathbb{E}_z[L(\theta, z)] < \infty$. Then $\theta \mapsto W_1(p_{\mathrm{data}}, p_\theta)$ is continuous everywhere and differentiable almost everywhere. Where it is differentiable, with $f^\star$ an optimal critic,
+$$
+\nabla_\theta W_1(p_{\mathrm{data}}, p_\theta) = -\mathbb{E}_z\big[\nabla_\theta f^\star(g_\theta(z))\big].
+$$
+
+::: proof
+*Continuity.* By the triangle inequality, then the coupling that uses the same $z$ for both generators,
+$$
+\big| W_1(p_{\mathrm{data}}, p_\theta) - W_1(p_{\mathrm{data}}, p_{\theta'}) \big| \leq W_1(p_\theta, p_{\theta'}) \leq \mathbb{E}_z \| g_\theta(z) - g_{\theta'}(z) \| .
+$$
+
+The right-hand side is at most $\mathbb{E}_z[L(\theta, z)]\, \| \theta - \theta' \|$ near $\theta$: the loss is locally Lipschitz, hence differentiable almost everywhere by Rademacher's theorem.
+
+*Gradient.* This is an envelope argument on the dual of Theorem 5.4; see Arjovsky, Chintala and Bottou (2017, Theorem 3). [∎]{.qed}
+:::
+::::
+
+### 5.4 Enforcing the Lipschitz constraint
+
+The original WGAN clips every weight to $[-0.01, 0.01]$ after each step. Clipping does bound the Lipschitz constant, but it biases the critic towards very simple functions and makes the gradients explode or vanish depending on the clipping range.
+
+:::: prop
+[Proposition 5.7 — Optimal critics have unit gradients on transport segments]{.tag} Let $f^\star$ be a differentiable optimal critic in Theorem 5.4 for $\mu = p_{\mathrm{data}}$ and $\nu = p_g$, and $\pi^\star$ an optimal coupling with $\pi^\star(x = y) = 0$.
+
+For $\pi^\star$-almost every pair $(y, x)$, with $y$ real and $x$ generated, and every point $x_t = t x + (1 - t) y$ with $t \in [0, 1]$,
+$$
+\nabla f^\star(x_t) = \frac{y - x}{\| y - x \|} .
+$$
+
+::: proof
+Optimality of both $\pi^\star$ and $f^\star$ forces $f^\star(y) - f^\star(x) = \| y - x \|$ for $\pi^\star$-almost every pair, since the integrated inequality $f^\star(y) - f^\star(x) \leq \| y - x \|$ is an equality.
+
+A 1-Lipschitz function that increases by $\| y - x \|$ along the segment of that length increases at unit rate everywhere on it. Its directional derivative along the unit vector $e = (y - x)/\| y - x \|$ is then 1. Since $\| \nabla f^\star \| \leq 1$, Cauchy–Schwarz forces $\nabla f^\star(x_t) = e$. [∎]{.qed}
+:::
+::::
+
+The **gradient penalty** of Gulrajani and coauthors (2017) imposes this property softly. The critic minimises
+$$
+\mathbb{E}_{x \sim p_g}[f(x)] - \mathbb{E}_{y \sim p_{\mathrm{data}}}[f(y)] + \lambda\, \mathbb{E}_{\hat x}\big[(\| \nabla f(\hat x) \| - 1)^2\big],
+$$
+where $\hat x$ is uniform on segments between a real and a generated sample, and $\lambda = 10$. **Spectral normalisation** (Miyato and coauthors, 2018) instead divides each weight matrix by its largest singular value, estimated by one power iteration per step; with 1-Lipschitz activations the whole network is then 1-Lipschitz.
+
+::: recap
+Key takeaways — chapter 5
+
+-   $W_p$ minimises a transport cost over couplings; it stays finite and continuous when supports are disjoint, unlike KL and JS.
+-   Kantorovich duality turns $W_1$ into a supremum over 1-Lipschitz functions: the WGAN critic is a dual potential.
+-   If the generator is Lipschitz in its parameters, the Wasserstein loss is continuous and almost everywhere differentiable.
+-   Optimal critics have unit gradient along transport segments, which motivates the gradient penalty; spectral normalisation is the other standard constraint.
+:::
+
+## 6. Conditional generation and GANs for imaging inverse problems {#ch6}
+
+Most imaging tasks are conditional: produce a photograph from a label map, a sharp image from a low-resolution one, a completed image from a masked one. This chapter makes the adversarial game conditional, studies three landmark image models built on it, and shows how an unconditional generator becomes a prior for inverse problems.
+
+### 6.1 Conditional GANs
+
+A **conditional GAN** (Mirza and Osindero, 2014) feeds the condition $c$ (a class, an image, a text embedding) to both players: the generator outputs $G(z, c)$ and the discriminator judges pairs $(x, c)$. The value is
+$$
+V(D, G) = \mathbb{E}_{(x, c) \sim p_{\mathrm{data}}}\big[\log D(x, c)\big] + \mathbb{E}_{c,\, z}\big[\log\big(1 - D(G(z, c), c)\big)\big].
+$$
+
+::: prop
+[Proposition 6.1 — Conditional GANs match conditional laws]{.tag} With the optimal discriminator, the conditional criterion equals
+$$
+-\log 4 + 2\, \mathrm{JS}\big(p(c)\, p_{\mathrm{data}}(x \mid c),\ p(c)\, p_g(x \mid c)\big),
+$$
+and it is minimal if and only if $p_g(\cdot \mid c) = p_{\mathrm{data}}(\cdot \mid c)$ for $p$-almost every condition $c$.
+:::
+
+The first statement is Theorem 4.3 applied on the space of pairs $(x, c)$. The second says that two joint laws with the same marginal on $c$ coincide exactly when their conditionals agree almost everywhere (Exercise 10). A discriminator that ignored $c$ would only match the marginal of $x$, and the generator could ignore the condition.
+
+### 6.2 Image-to-image translation: pix2pix
+
+Isola, Zhu, Zhou and Efros (2017) learn maps between paired image domains (label maps to photographs, edges to objects, day to night, grey to colour) with one recipe:
+
+-   the loss is the conditional GAN loss plus an $\ell_1$ reconstruction term, $\lambda\, \mathbb{E}\| x - G(z, c) \|_1$ with $\lambda = 100$;
+-   the generator is a U-Net, whose skip connections carry the fine structure of the input to the output;
+-   the discriminator is a **PatchGAN**: it classifies each $70 \times 70$ patch as real or fake and averages the answers.
+
+The $\ell_1$ term fixes the low frequencies, and the patch discriminator judges the local texture: it assumes that realism is a property of patches, the Markov assumption of ch. 2.1. The noise $z$ enters only through dropout, and the outputs are nearly deterministic: the conditional distribution is not fully explored.
+
+### 6.3 Adversarial super-resolution and the perception–distortion trade-off
+
+A super-resolution network trained with the squared error returns the posterior mean (Theorem 0.8), the average of all plausible high-resolution images: textures are smoothed out. SRGAN (Ledig and coauthors, 2017) trains a residual network for $\times 4$ upscaling with a **perceptual loss**: a content term, the squared distance between VGG-19 feature maps of the output and of the target, plus $10^{-3}$ times an adversarial term. Its outputs have lower PSNR than the squared-error network, but they are rated far more realistic in mean opinion scores.
+
+::: prop
+[Proposition 6.2 — The price of perfect realism]{.tag} Let $\hat x$ be drawn from the posterior $p(x \mid y)$, independently of $x$ given $y$. Then $\hat x$ has exactly the law of $x$, and
+$$
+\mathbb{E}\| x - \hat x \|^2 = 2\, \mathbb{E}\big\| x - \mathbb{E}[x \mid y] \big\|^2 = 2\, \mathrm{MMSE} .
+$$
+:::
+
+Indeed, given $y$, $x$ and $\hat x$ are independent with the same conditional mean $m(y)$, so the cross term in the expansion of $\| (x - m(y)) - (\hat x - m(y)) \|^2$ vanishes. Blau and Michaeli (2018) prove more generally that the best achievable distortion under a constraint of realism is a non-increasing, convex function of that constraint: **no estimator is both MMSE-optimal and perfectly realistic**.
+
+### 6.4 A generative model from a single image: SinGAN
+
+SinGAN (Shaham, Dekel and Michaeli, 2019) learns a generative model from **one** natural image, from the distribution of its patches at several scales. It trains a pyramid of GANs from coarse to fine. At scale $n$, the generator adds a residual to the upsampled output of the coarser scale:
+$$
+\tilde x_n = \tilde x_{n+1}{\uparrow} + \psi_n\big(z_n + \tilde x_{n+1}{\uparrow}\big).
+$$
+
+The discriminators are patch discriminators with a small receptive field, trained with the WGAN-GP loss of ch. 5.4. A reconstruction term forces a fixed noise map to reproduce the training image. Random samples are new images with the same patch statistics at every scale, a deep descendant of the patch models of ch. 2. The same network performs editing, harmonisation, paint-to-image and super-resolution by injecting an image at an intermediate scale.
+
+### 6.5 Inverse problems with a pretrained generator
+
+A generator $G : \mathbb{R}^d \to \mathbb{R}^n$ trained on a class of images defines a low-dimensional prior: “the image is in the range of $G$”. Bora, Jalal, Price and Dimakis (2017) solve $y = A x^\star + \eta$ with $m \ll n$ measurements by minimising $\| A G(z) - y \|^2$ over the latent code, and returning $\hat x = G(\hat z)$.
+
+:::: prop
+[Proposition 6.3 — Recovery with a generative prior]{.tag} Assume $A$ satisfies the set-restricted eigenvalue condition on the range of $G$: for all $x_1, x_2$ in that range,
+$$
+\| A (x_1 - x_2) \| \geq \gamma \| x_1 - x_2 \| - \delta .
+$$
+
+If $\hat z$ minimises $\| A G(z) - y \|$ up to $\varepsilon$, then for every $\bar z$, with $\| A \|$ the operator norm,
+$$
+\| G(\hat z) - x^\star \| \leq \Big(1 + \frac{2 \| A \|}{\gamma}\Big) \| G(\bar z) - x^\star \| + \frac{2 \| \eta \| + \varepsilon + \delta}{\gamma} .
+$$
+
+::: proof
+Write $\hat x = G(\hat z)$ and $\bar x = G(\bar z)$. By the condition, then by the triangle inequality through $y$,
+$$
+\gamma \| \hat x - \bar x \| - \delta \leq \| A \hat x - y \| + \| A \bar x - y \| \leq 2 \| A \bar x - y \| + \varepsilon .
+$$
+
+Since $y = A x^\star + \eta$, we have $\| A \bar x - y \| \leq \| A \| \, \| \bar x - x^\star \| + \| \eta \|$. Finally, the triangle inequality through $\bar x$ bounds $\| \hat x - x^\star \|$ by $\| \hat x - \bar x \| + \| \bar x - x^\star \|$. [∎]{.qed}
+:::
+::::
+
+The first term is the **representation error**: the distance from $x^\star$ to the range of $G$.
+
+Bora and coauthors show that a Gaussian random matrix satisfies the condition with high probability once $m$ is of order $d \log(L r / \delta)$, for an $L$-Lipschitz generator on a latent ball of radius $r$: the number of measurements scales with $d$, not with $n$.
+
+::: ex
+[Example 6.4 — Compressed sensing with a generator]{.tag} A fixed random two-layer generator maps $\mathbb{R}^5$ to $\mathbb{R}^{200}$, and $x^\star$ is in its range. With $m$ Gaussian measurements and five random restarts of Adam on $z$:
+
+| Measurements $m$ | Relative error, generator prior | Relative error, minimum-norm least squares |
+|---|---|---|
+| 3 | 0.987 | 0.987 |
+| 10 | 0.011 | 0.976 |
+| 40 | 0.005 | 0.914 |
+
+Below the latent dimension ($m = 3 < d = 5$) recovery fails; from $m = 10$ it succeeds, while least squares without a prior is hopeless.
+:::
+
+```python
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+n, d = 200, 5                                       # signal dimension, latent dimension
+G = nn.Sequential(nn.Linear(d, 64), nn.LeakyReLU(0.2), nn.Linear(64, n))   # a fixed "pretrained" generator
+for p in G.parameters():
+    p.requires_grad_(False)
+
+x_true = G(torch.randn(d))                          # a signal in the range of G
+for m in (3, 10, 40):                               # number of random Gaussian measurements
+    A = torch.randn(m, n) / m**0.5
+    y = A @ x_true + 0.01 * torch.randn(m)
+    best = None
+    for restart in range(5):                        # nonconvex in z: a few random restarts
+        z = torch.randn(d, requires_grad=True)
+        opt = torch.optim.Adam([z], lr=0.05)
+        for it in range(600):
+            loss = ((A @ G(z) - y)**2).sum()
+            opt.zero_grad(); loss.backward(); opt.step()
+        if best is None or loss.item() < best[0]:
+            best = (loss.item(), G(z).detach())
+    err = (best[1] - x_true).norm() / x_true.norm()
+    err_ls = (torch.linalg.pinv(A) @ y - x_true).norm() / x_true.norm()   # no prior: minimum-norm solution
+    print(f"m = {m:3d}: relative error with the generator {err:.3f}, minimum-norm least squares {err_ls:.3f}")
+# m =   3: relative error with the generator 0.987, minimum-norm least squares 0.987
+# m =  10: relative error with the generator 0.011, minimum-norm least squares 0.976
+# m =  40: relative error with the generator 0.005, minimum-norm least squares 0.914
+```
+
+On real images the representation error dominates: no generator covers every photograph. Inverting StyleGAN in its $w$-space, or optimising the generator weights as well, reduces it at the price of a weaker prior.
+
+::: recap
+Key takeaways — chapter 6
+
+-   A conditional GAN with a discriminator on pairs matches the conditional laws for almost every condition.
+-   pix2pix combines an $\ell_1$ term for low frequencies with a PatchGAN for local realism; SRGAN replaces the squared error by a perceptual loss.
+-   Perfect realism costs distortion: a posterior sample has twice the minimum mean squared error.
+-   SinGAN learns multiscale patch statistics of one image; a pretrained generator recovers signals from about $d$ measurements, up to its representation error.
+:::
+
+## 7. Score-based generative models and diffusion {#ch7}
+
+Diffusion models generate an image by starting from pure noise and removing noise step by step, with a network trained only to denoise. This chapter shows why this works: a denoiser gives the score of the noisy data distribution (Tweedie), a noising diffusion can be run backwards in time if its score is known (Anderson), and DDPM and DDIM are discretisations of that reversal.
+
+### 7.1 Scores, Tweedie's formula and denoising score matching
+
+The **score** of a density $p$ is $\nabla \log p$. It does not depend on the normalising constant, and it is all that Langevin sampling needs (ch. 3.3).
+
+For a noise level $\sigma$, let $p_\sigma$ be the law of $Y = X + \sigma N$, with $X \sim p$ and $N \sim \mathcal{N}(0, I)$ independent.
+
+:::: thm
+[Theorem 7.1 — Tweedie's formula]{.tag} For every $y$,
+$$
+\nabla \log p_\sigma(y) = \frac{\mathbb{E}[X \mid Y = y] - y}{\sigma^2} .
+$$
+
+::: key
+[Key formula — a denoiser is a score]{.tag}
+$$
+D^\star_\sigma(y) = \mathbb{E}[X \mid Y = y] = y + \sigma^2\, \nabla \log p_\sigma(y)
+$$
+:::
+
+::: proof
+Write $p_\sigma = p \star \phi_\sigma$, with $\phi_\sigma$ the Gaussian density of variance $\sigma^2 I$. This density satisfies
+$$
+\nabla_y \phi_\sigma(y - x) = \phi_\sigma(y - x)\, \frac{x - y}{\sigma^2},
+$$
+so differentiating under the integral sign gives
+$$
+\nabla p_\sigma(y) = \int p(x)\, \phi_\sigma(y - x)\, \frac{x - y}{\sigma^2}\, \mathrm{d}x = p_\sigma(y)\, \frac{\mathbb{E}[X \mid Y = y] - y}{\sigma^2},
+$$
+since $p(x) \phi_\sigma(y - x) / p_\sigma(y)$ is the posterior density of $X$ given $Y = y$. Divide by $p_\sigma(y)$. [∎]{.qed}
+:::
+::::
+
+Efron (2011) traces the formula back to Robbins and Tweedie. It is the bridge of the whole second half of the course: the MMSE denoiser of ch. 0–1 and the score of the noisy distribution are the same object.
+
+:::: thm
+[Theorem 7.2 — Denoising score matching]{.tag} For every function $s$ with finite second moments,
+$$
+\mathbb{E}_{X, Y}\Big\| s(Y) + \frac{Y - X}{\sigma^2} \Big\|^2 = \mathbb{E}_{Y}\big\| s(Y) - \nabla \log p_\sigma(Y) \big\|^2 + C,
+$$
+where $C$ does not depend on $s$. Regressing the noise therefore learns the score of $p_\sigma$.
+
+::: proof
+Expand both squares; the terms $\mathbb{E}\| s(Y) \|^2$ agree. For the cross terms, $-(y - x)/\sigma^2 = \nabla_y \log \phi_\sigma(y - x)$, so
+$$
+\mathbb{E}_{X, Y}\Big\langle s(Y), -\frac{Y - X}{\sigma^2} \Big\rangle = \int \Big\langle s(y), \int p(x) \nabla_y \phi_\sigma(y - x)\, \mathrm{d}x \Big\rangle \mathrm{d}y = \int \langle s(y), \nabla p_\sigma(y) \rangle\, \mathrm{d}y,
+$$
+which is the cross term of the right-hand side, since $p_\sigma \nabla \log p_\sigma = \nabla p_\sigma$. The remaining terms do not involve $s$. [∎]{.qed}
+:::
+::::
+
+Vincent (2011) proved this identity; it replaces the original score matching of Hyvärinen (2005), which needs the trace of the Jacobian of $s$, by a plain regression.
+
+### 7.2 Noise-conditional scores and annealed Langevin
+
+Song and Ermon (2019) observed two obstacles to running Langevin with a learnt score of the data: the score is poorly estimated where there are no data, and Langevin mixes very slowly between separated modes. Their **NCSN** trains one network $s_\theta(x, \sigma)$ for a geometric sequence of noise levels $\sigma_1 > \dots > \sigma_L$, with the denoising score matching loss of each level weighted by $\sigma^2$.
+
+Sampling is **annealed Langevin dynamics**: a few ULA steps at $\sigma_1$, where the noisy distribution is smooth and its modes overlap, then at $\sigma_2$, and so on down to $\sigma_L \approx 0$, with step sizes proportional to $\sigma_i^2$.
+
+### 7.3 Diffusion SDEs and time reversal
+
+Song and coauthors (2021) let the noise level vary continuously. A forward SDE on $[0, T]$ turns data into noise:
+$$
+\mathrm{d}X_t = f(X_t, t)\, \mathrm{d}t + g(t)\, \mathrm{d}W_t, \qquad X_0 \sim p_{\mathrm{data}} .
+$$
+
+The **variance-exploding** SDE ($f = 0$) is the continuous NCSN. The **variance-preserving** SDE, $f = -\frac12 \beta(t) x$ and $g = \sqrt{\beta(t)}$, is an Ornstein–Uhlenbeck process whose law tends to $\mathcal{N}(0, I)$, and its discretisation is DDPM. Write $p_t$ for the law of $X_t$.
+
+:::: thm
+[Theorem 7.3 — Time reversal of a diffusion]{.tag} Under regularity assumptions on $f$, $g$ and $p_t$ (Anderson, 1982; Haussmann and Pardoux, 1986), the reversed process $\bar X_s = X_{T - s}$ is again a diffusion:
+$$
+\mathrm{d}\bar X_s = \big[-f(\bar X_s, T - s) + g(T - s)^2\, \nabla \log p_{T - s}(\bar X_s)\big]\, \mathrm{d}s + g(T - s)\, \mathrm{d}\bar W_s .
+$$
+
+::: proof
+*Sketch, at the level of marginals.* The forward densities solve the Fokker–Planck equation
+$$
+\partial_t p = -\nabla \cdot (f p) + \tfrac12 g^2 \Delta p .
+$$
+
+Set $q_s = p_{T - s}$, so that $\partial_s q_s = -\partial_t p$. Use $\Delta p = \nabla \cdot (p \nabla \log p)$ to split
+$$
+-\tfrac12 g^2 \Delta p = -g^2 \nabla \cdot (p \nabla \log p) + \tfrac12 g^2 \Delta p ,
+$$
+which gives
+$$
+\partial_s q_s = -\nabla \cdot \big( (-f + g^2 \nabla \log p_{T - s})\, q_s \big) + \tfrac12 g^2 \Delta q_s .
+$$
+
+This is the Fokker–Planck equation of the reversed SDE, so its marginals are $p_{T - s}$. Equality of path laws is the content of the cited theorems. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 7.4 — Probability-flow ODE]{.tag} The deterministic flow
+$$
+\frac{\mathrm{d}x}{\mathrm{d}t} = f(x, t) - \tfrac12 g(t)^2\, \nabla \log p_t(x)
+$$
+transports $p_0$ to $p_t$ for every $t$: run backwards from samples of $p_T$, it produces samples of $p_{\mathrm{data}}$.
+:::
+
+The same splitting writes Fokker–Planck as a continuity equation,
+$$
+\partial_t p = -\nabla \cdot \Big(\big(f - \tfrac12 g^2 \nabla \log p\big)\, p\Big),
+$$
+whose solutions are exactly the laws transported by this velocity field. The ODE gives a deterministic encoder and decoder and, through the change-of-variables formula, exact likelihoods.
+
+### 7.4 Denoising diffusion probabilistic models
+
+DDPM (Ho, Jain and Abbeel, 2020) works in discrete time. With a schedule $\beta_1, \dots, \beta_T$ in $(0, 1)$, $\alpha_t = 1 - \beta_t$ and $\bar\alpha_t = \prod_{s \leq t} \alpha_s$, the forward chain is
+$$
+q(x_t \mid x_{t-1}) = \mathcal{N}\big(\sqrt{\alpha_t}\, x_{t-1},\ \beta_t I\big), \qquad t = 1, \dots, T .
+$$
+
+:::: prop
+[Proposition 7.5 — Marginals and posteriors of the forward chain]{.tag} For every $t$,
+$$
+q(x_t \mid x_0) = \mathcal{N}\big(\sqrt{\bar\alpha_t}\, x_0,\ (1 - \bar\alpha_t) I\big),
+$$
+that is,
+$$
+x_t = \sqrt{\bar\alpha_t}\, x_0 + \sqrt{1 - \bar\alpha_t}\, \varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, I).
+$$
+
+The reverse conditionals $q(x_{t-1} \mid x_t, x_0)$ are Gaussian, of mean $\tilde\mu_t$ and covariance $\tilde\beta_t I$, with
+$$
+\tilde\mu_t = \frac{\sqrt{\bar\alpha_{t-1}}\, \beta_t}{1 - \bar\alpha_t}\, x_0 + \frac{\sqrt{\alpha_t}\, (1 - \bar\alpha_{t-1})}{1 - \bar\alpha_t}\, x_t, \qquad \tilde\beta_t = \frac{1 - \bar\alpha_{t-1}}{1 - \bar\alpha_t}\, \beta_t .
+$$
+
+::: proof
+*Marginals, by induction.* If $x_{t-1}$ given $x_0$ has mean $\sqrt{\bar\alpha_{t-1}}\, x_0$ and covariance $(1 - \bar\alpha_{t-1}) I$, then $x_t = \sqrt{\alpha_t}\, x_{t-1} + \sqrt{\beta_t}\, \xi$ is Gaussian with mean $\sqrt{\bar\alpha_t}\, x_0$ and variance
+$$
+\alpha_t (1 - \bar\alpha_{t-1}) + \beta_t = 1 - \bar\alpha_t .
+$$
+
+*Posteriors.* Given $x_0$, the pair $(x_{t-1}, x_t)$ is Gaussian with covariance $\sqrt{\alpha_t}(1 - \bar\alpha_{t-1}) I$ between them; Proposition 0.7 gives $\tilde\mu_t$ and $\tilde\beta_t$. [∎]{.qed}
+:::
+::::
+
+The network $\varepsilon_\theta(x_t, t)$ predicts the noise. It is trained on the simplified loss
+$$
+L_{\mathrm{simple}}(\theta) = \mathbb{E}_{t,\, x_0,\, \varepsilon}\Big\| \varepsilon - \varepsilon_\theta\big(\sqrt{\bar\alpha_t}\, x_0 + \sqrt{1 - \bar\alpha_t}\, \varepsilon,\ t\big) \Big\|^2,
+$$
+a reweighting of the evidence lower bound of the chain. By Theorems 7.1–7.2 its minimiser is
+$$
+\varepsilon^\star(x_t, t) = -\sqrt{1 - \bar\alpha_t}\, \nabla \log p_t(x_t),
+$$
+and the corresponding denoised estimate is the posterior mean
+$$
+\hat x_0(x_t) = \frac{x_t - \sqrt{1 - \bar\alpha_t}\, \varepsilon_\theta(x_t, t)}{\sqrt{\bar\alpha_t}} .
+$$
+
+**Ancestral sampling** starts from $x_T \sim \mathcal{N}(0, I)$ and replaces $x_0$ by $\hat x_0$ in $\tilde\mu_t$, which gives
+$$
+x_{t-1} = \frac{1}{\sqrt{\alpha_t}}\Big(x_t - \frac{\beta_t}{\sqrt{1 - \bar\alpha_t}}\, \varepsilon_\theta(x_t, t)\Big) + \sigma_t z, \qquad z \sim \mathcal{N}(0, I),
+$$
+with $\sigma_t^2 = \beta_t$ or $\tilde\beta_t$. The paper uses $T = 1000$, $\beta_t$ linear from $10^{-4}$ to $0.02$, and a U-Net with self-attention.
+
+### 7.5 Denoising diffusion implicit models
+
+DDPM needs one network evaluation per step, hence 1 000 per image. Song, Meng and Ermon (2021) observe that the training loss only involves the marginals $q(x_t \mid x_0)$, and build a family of non-Markovian forward processes with the same marginals, indexed by $\sigma_t \geq 0$:
+$$
+q_\sigma(x_{t-1} \mid x_t, x_0) = \mathcal{N}\Big(\sqrt{\bar\alpha_{t-1}}\, x_0 + \sqrt{1 - \bar\alpha_{t-1} - \sigma_t^2}\ \frac{x_t - \sqrt{\bar\alpha_t}\, x_0}{\sqrt{1 - \bar\alpha_t}},\ \sigma_t^2 I\Big).
+$$
+
+::: prop
+[Proposition 7.6 — Same marginals for every $\sigma$]{.tag} Start the backward construction from $x_T \mid x_0$ with mean $\sqrt{\bar\alpha_T}\, x_0$ and covariance $(1 - \bar\alpha_T) I$. Then for every $t$ and every choice of $(\sigma_t)$,
+$$
+q_\sigma(x_t \mid x_0) = \mathcal{N}\big(\sqrt{\bar\alpha_t}\, x_0,\ (1 - \bar\alpha_t) I\big).
+$$
+:::
+
+The proof is a backward induction: if $x_t$ has the stated law, the standardised noise $(x_t - \sqrt{\bar\alpha_t} x_0)/\sqrt{1 - \bar\alpha_t}$ is standard Gaussian, and $x_{t-1}$ has variance $(1 - \bar\alpha_{t-1} - \sigma_t^2) + \sigma_t^2$. A network trained for DDPM is therefore valid for every member of the family; the choice $\sigma_t^2 = \tilde\beta_t$ recovers DDPM.
+
+The choice $\sigma_t = 0$ gives the deterministic **DDIM** sampler, run on a subsequence of the time steps:
+$$
+x_{t'} = \sqrt{\bar\alpha_{t'}}\ \hat x_0(x_t) + \sqrt{1 - \bar\alpha_{t'}}\ \varepsilon_\theta(x_t, t), \qquad t' < t .
+$$
+
+It is a discretisation of the probability-flow ODE, gives good samples with 50 steps instead of 1 000, and maps each noise to one image, which allows interpolation and inversion.
+
+::: ex
+[Example 7.7 — DDPM and DDIM with an exact score]{.tag} The data follow the mixture with weight 0.3 on $\mathcal{N}(-2, 0.2^2)$ and 0.7 on $\mathcal{N}(2, 0.2^2)$. Every $p_t$ is a Gaussian mixture, so the optimal noise predictor $\varepsilon^\star$ is known in closed form, and only the samplers are tested.
+
+-   DDPM with 1 000 steps: right-mode weight 0.703, standard deviation inside the mode 0.200.
+-   DDIM with 50 steps: weight 0.701, standard deviation 0.185.
+
+Both recover the weights (target 0.7). DDIM slightly shrinks the modes, a discretisation effect computed exactly in Exercise 12.
+:::
+
+```python
+import numpy as np
+from scipy.stats import norm, wasserstein_distance
+
+rng = np.random.default_rng(0)
+w, mu, s = np.array([0.3, 0.7]), np.array([-2.0, 2.0]), np.array([0.2, 0.2])  # data: 1D mixture
+T = 1000
+beta = np.linspace(1e-4, 0.02, T)
+alpha = 1.0 - beta
+abar = np.cumprod(alpha)
+
+def eps_star(x, t):
+    """Exact noise predictor -sqrt(1 - abar_t) * score of p_t (a Gaussian mixture)."""
+    m, v = np.sqrt(abar[t]) * mu, abar[t] * s**2 + 1.0 - abar[t]
+    dens = w * norm.pdf(x[:, None], m, np.sqrt(v))
+    score = (dens * (m - x[:, None]) / v).sum(1) / dens.sum(1)
+    return -np.sqrt(1.0 - abar[t]) * score
+
+n = 20000
+x = rng.standard_normal(n)                       # DDPM: ancestral sampling, 1000 steps
+for t in range(T - 1, -1, -1):
+    mean = (x - beta[t] / np.sqrt(1.0 - abar[t]) * eps_star(x, t)) / np.sqrt(alpha[t])
+    x = mean + (np.sqrt(beta[t]) * rng.standard_normal(n) if t > 0 else 0.0)
+x_ddpm = x
+
+x = rng.standard_normal(n)                       # DDIM (sigma_t = 0): deterministic, 50 steps
+steps = np.linspace(T - 1, 0, 50).astype(int)
+for t, t_prev in zip(steps[:-1], steps[1:]):
+    e = eps_star(x, t)
+    x0_hat = (x - np.sqrt(1.0 - abar[t]) * e) / np.sqrt(abar[t])
+    x = np.sqrt(abar[t_prev]) * x0_hat + np.sqrt(1.0 - abar[t_prev]) * e
+x_ddim = x
+
+ref = np.where(rng.uniform(size=n) < w[0], mu[0], mu[1]) + 0.2 * rng.standard_normal(n)
+for name, v in [("DDPM, 1000 steps", x_ddpm), ("DDIM, 50 steps", x_ddim)]:
+    print(f"{name}: weight of the right mode {np.mean(v > 0):.3f} (target 0.7), "
+          f"std inside it {v[v > 0].std():.3f} (target 0.2), W1 to data {wasserstein_distance(v, ref):.3f}")
+# DDPM, 1000 steps: weight of the right mode 0.703 (target 0.7), std inside it 0.200 (target 0.2), W1 to data 0.031
+# DDIM, 50 steps: weight of the right mode 0.701 (target 0.7), std inside it 0.185 (target 0.2), W1 to data 0.036
+```
+
+### 7.6 Guidance
+
+Conditional generation needs the score of $p_t(x \mid c)$. By Bayes' formula,
+$$
+\nabla \log p_t(x \mid c) = \nabla \log p_t(x) + \nabla \log p_t(c \mid x).
+$$
+
+**Classifier guidance** (Dhariwal and Nichol, 2021) trains a classifier on noisy images and adds $w$ times its gradient, with $w > 1$ to trade diversity for fidelity. **Classifier-free guidance** (Ho and Salimans, 2022) trains a single network with the condition replaced by a null token for a random fraction of the examples, so that it estimates both scores, and samples with
+$$
+\tilde\varepsilon_\theta(x_t, c) = (1 + w)\, \varepsilon_\theta(x_t, c) - w\, \varepsilon_\theta(x_t, \varnothing).
+$$
+
+This is the noise predictor of the tilted density $p_t(x)\, p_t(c \mid x)^{1 + w}$, with an implicit classifier. It drives the text-to-image models of ch. 8.
+
+::: recap
+Key takeaways — chapter 7
+
+-   Tweedie: the MMSE denoiser at level $\sigma$ equals $y + \sigma^2 \nabla \log p_\sigma(y)$; denoising score matching learns the score by regression.
+-   A diffusion can be reversed in time with the drift corrected by $g^2 \nabla \log p_t$; the probability-flow ODE has the same marginals.
+-   DDPM predicts the noise and samples ancestrally in about 1 000 steps; DDIM keeps the marginals, removes the noise and needs about 50 steps.
+-   Guidance adds the gradient of a log-likelihood of the condition, explicit (classifier) or implicit (classifier-free).
+:::
+
+## 8. Diffusion models for inverse problems and text-to-image synthesis {#ch8}
+
+A trained diffusion model is a prior on images, given through its scores. This chapter uses it in two ways: conditioned on a measurement, to sample the posterior of an inverse problem, and conditioned on a sentence, to synthesise images from text in a compressed latent space.
+
+### 8.1 Posterior sampling with a diffusion prior
+
+For $y = A x_0 + n$, $n \sim \mathcal{N}(0, \sigma_y^2 I)$, the reverse diffusion targeting $p(x_0 \mid y)$ needs the conditional score
+$$
+\nabla \log p_t(x_t \mid y) = \nabla \log p_t(x_t) + \nabla \log p_t(y \mid x_t), \qquad p_t(y \mid x_t) = \int p(y \mid x_0)\, p(x_0 \mid x_t)\, \mathrm{d}x_0 .
+$$
+
+The first term is the trained network; the second is intractable, because it integrates over the unknown posterior $p(x_0 \mid x_t)$. Three families of methods approximate it.
+
+-   **Replacement** (Song and coauthors, 2021; RePaint, Lugmayr and coauthors, 2022) for inpainting: at each step, the observed pixels of $x_t$ are overwritten by a noised version of the observation.
+-   **Diffusion posterior sampling** (DPS, Chung and coauthors, 2023) replaces $p(x_0 \mid x_t)$ by a Dirac mass at Tweedie's estimate $\hat x_0(x_t)$, and backpropagates through the network:
+$$
+\nabla \log p_t(y \mid x_t) \approx -\frac{1}{2\sigma_y^2}\, \nabla_{x_t} \big\| y - A\, \hat x_0(x_t) \big\|^2 .
+$$
+-   **Spectral methods** such as DDRM (Kawar, Elad, Ermon and Song, 2022) diagonalise $A$ by its singular value decomposition and run a diffusion adapted to each singular direction.
+
+:::: prop
+[Proposition 8.1 — What DPS neglects]{.tag} If the prior is Gaussian, then $x_0$ given $x_t$ is Gaussian with mean $\hat x_0(x_t)$ and covariance $\Sigma_{0 \mid t}$, and
+$$
+p_t(y \mid x_t) = \mathcal{N}\big(y;\ A\, \hat x_0(x_t),\ \sigma_y^2 I + A\, \Sigma_{0 \mid t} A^\top\big).
+$$
+
+DPS keeps the mean and drops the posterior covariance $\Sigma_{0 \mid t}$.
+
+::: proof
+Given $x_t$, $y = A x_0 + n$ is an affine image of the Gaussian $x_0 \mid x_t$ plus independent noise, hence Gaussian with mean $A \hat x_0(x_t)$ and covariance $A \Sigma_{0 \mid t} A^\top + \sigma_y^2 I$. [∎]{.qed}
+:::
+::::
+
+At large $t$, $\Sigma_{0 \mid t}$ is close to the prior covariance, so DPS uses an overconfident likelihood exactly when $\hat x_0$ is least reliable. Pseudoinverse-guided diffusion (Song, Vahdat, Mardani and Kautz, 2023) keeps an isotropic approximation of this covariance.
+
+::: ex
+[Example 8.2 — DPS against the exact posterior]{.tag} The prior on $\mathbb{R}^2$ is an equal mixture of two Gaussians with covariance $0.25 I$ and means $(-1, -2)$ and $(1, 2)$.
+
+We observe $y = x_1 + n = 0.3$ with $\sigma_y = 0.5$, and “inpaint” $x_2$. The exact posterior is a Gaussian mixture (Proposition 1.5), so the exact conditional sampler can be run too.
+
+-   Closed form: posterior weight of the upper mode 0.769, posterior mean of $x_1$ equal to 0.419.
+-   Exact conditional DDPM sampler: 0.776 and 0.420.
+-   DPS: 0.898 and 0.493.
+
+DPS overweights the mode favoured by the early, overconfident likelihood.
+:::
+
+```python
+import torch
+
+torch.manual_seed(0)
+torch.set_default_dtype(torch.float64)
+# prior: two-component Gaussian mixture in R^2; observation y = x_1 + noise (x_2 is "inpainted")
+w = torch.tensor([0.5, 0.5])
+mu = torch.tensor([[-1.0, -2.0], [1.0, 2.0]])
+S = 0.25 * torch.eye(2).expand(2, 2, 2)                    # component covariances
+A, sig_y, y = torch.tensor([[1.0, 0.0]]), 0.5, torch.tensor([0.3])
+T = 1000
+beta = torch.linspace(1e-4, 0.02, T)
+alpha, abar = 1.0 - beta, torch.cumprod(1.0 - beta, 0)
+
+def score(x, t, w, mu, S):
+    """Score of a Gaussian mixture after the forward noising q(x_t | x_0)."""
+    m = abar[t].sqrt() * mu                                  # (K, d)
+    C = abar[t] * S + (1 - abar[t]) * torch.eye(2)           # (K, d, d)
+    diff = m[None] - x[:, None]                              # (n, K, d)
+    sol = torch.linalg.solve(C[None], diff.unsqueeze(-1)).squeeze(-1)
+    logp = torch.log(w) - 0.5 * (diff * sol).sum(-1) - 0.5 * torch.logdet(C)
+    r = torch.softmax(logp, dim=1)
+    return (r[..., None] * sol).sum(1)
+
+# exact posterior: again a Gaussian mixture (Bayes in each component, then reweighting)
+K = torch.linalg.solve(A @ S @ A.T + sig_y**2, A @ S).transpose(-1, -2)     # gains (K, 2, 1)
+mu_post = mu + (K @ (y - mu @ A.T)[..., None]).squeeze(-1)
+S_post = S - K @ A @ S
+v = (A @ S @ A.T).squeeze() + sig_y**2
+w_post = torch.softmax(torch.log(w) - 0.5 * (y - mu @ A.T).squeeze()**2 / v - 0.5 * torch.log(v), 0)
+
+def sampler(n, guidance):
+    x = torch.randn(n, 2)
+    for t in range(T - 1, -1, -1):
+        if guidance == "exact":
+            g = score(x, t, w_post, mu_post, S_post)
+        else:                                                # DPS: p_t(y | x_t) ~ p(y | x0_hat(x_t))
+            x = x.detach().requires_grad_(True)
+            s = score(x, t, w, mu, S)
+            x0_hat = (x + (1 - abar[t]) * s) / abar[t].sqrt()                 # Tweedie
+            loglik = -((y - x0_hat @ A.T)**2).sum() / (2 * sig_y**2)
+            g = s + torch.autograd.grad(loglik, x)[0]
+            x = x.detach(); g = g.detach()
+        x = (x + beta[t] * g) / alpha[t].sqrt()             # DDPM step written with the score
+        if t > 0:
+            x = x + beta[t].sqrt() * torch.randn_like(x)
+    return x
+
+for name in ("exact", "DPS"):
+    xs = sampler(4000, name)
+    print(f"{name:5s} sampler: P(upper mode | y) = {(xs[:, 1] > 0).double().mean():.3f}, "
+          f"E[x_1 | y] = {xs[:, 0].mean():.3f}")
+print(f"closed form:   P(upper mode | y) = {w_post[1]:.3f}, "
+      f"E[x_1 | y] = {(w_post[:, None] * mu_post).sum(0)[0]:.3f}")
+# exact sampler: P(upper mode | y) = 0.776, E[x_1 | y] = 0.420
+# DPS   sampler: P(upper mode | y) = 0.898, E[x_1 | y] = 0.493
+# closed form:   P(upper mode | y) = 0.769, E[x_1 | y] = 0.419
+```
+
+### 8.2 Latent diffusion
+
+A diffusion model in pixel space evaluates a large U-Net hundreds of times at full resolution. **Latent diffusion** (Rombach, Blattmann, Lorenz, Esser and Ommer, 2022) first trains an autoencoder that downsamples by a factor $f$ (typically 4 or 8), with a perceptual loss, a patch-adversarial loss and a light KL or vector-quantisation regularisation. The diffusion model then runs on the latent codes, whose spatial size is $f^2$ times smaller, and the decoder maps the final latent to an image.
+
+Conditioning enters through **cross-attention** layers of the U-Net. With $\varphi(z_t)$ the flattened feature map and $\tau(c)$ the token embeddings of the condition,
+$$
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\Big(\frac{Q K^\top}{\sqrt{d}}\Big) V, \qquad Q = W_Q\, \varphi(z_t), \quad K = W_K\, \tau(c), \quad V = W_V\, \tau(c).
+$$
+
+Each pixel of the latent attends to the words that concern it. The score-based generative model in latent space of Vahdat, Kreis and Kautz (2021), LSGM, takes the other route: it trains the variational autoencoder (ch. 4.1) and the latent score model jointly, end to end.
+
+### 8.3 Text-to-image synthesis
+
+A text-to-image system chains three components: a text encoder, a conditional diffusion model, and classifier-free guidance (ch. 7.6). Imagen (Saharia and coauthors, 2022) makes three choices.
+
+-   The text encoder is a large language model, T5-XXL, pretrained on text only and kept frozen. Scaling it improves fidelity and image–text alignment more than scaling the image model.
+-   Generation is a cascade in pixel space: a $64 \times 64$ diffusion model, then two text-conditional super-resolution diffusion models up to $1024 \times 1024$.
+-   Large guidance weights push $\hat x_0$ outside the range of pixel values. **Dynamic thresholding** clips $\hat x_0$ at a high percentile $s$ of its absolute values and divides by $s$ at each step.
+
+Text-to-image models are evaluated by the FID for realism and by the CLIP score for alignment: the cosine similarity between the CLIP embeddings (Radford and coauthors, 2021) of the image and of the prompt, complemented by human preference studies.
+
+::: recap
+Key takeaways — chapter 8
+
+-   Posterior sampling adds $\nabla \log p_t(y \mid x_t)$ to the prior score; this term is intractable and every method approximates it.
+-   DPS evaluates the likelihood at Tweedie's estimate and ignores the posterior covariance, which biases the samples.
+-   Latent diffusion runs the diffusion in the latent space of an autoencoder and conditions it by cross-attention.
+-   Text-to-image systems combine a frozen language encoder, a conditional diffusion model and classifier-free guidance.
+:::
+
+## 9. Plug-and-play restoration with score-based denoisers {#ch9}
+
+The splitting algorithms of ch. 3 touch the prior only through a denoising step. Plug-and-play methods replace that step by the best available denoiser, a trained network. This chapter asks what such an algorithm minimises and whether it converges, and shows that a denoiser built as a gradient step answers both questions: it comes with an explicit prior and a convergence guarantee.
+
+### 9.1 Denoisers inside splitting algorithms
+
+Venkatakrishnan, Bouman and Wohlberg (2013) observed that the $z$-step of HQS or ADMM is a MAP denoiser at noise level $\sigma = 1/\sqrt{\mu}$ (ch. 3.2), and replaced it by any denoiser $D_\sigma$. Two common forms are
+$$
+\text{PnP-HQS:} \quad x_{k+1} = \mathrm{prox}_{\lambda f}\big(D_\sigma(x_k)\big), \qquad \text{PnP-FB:} \quad x_{k+1} = D_\sigma\big(x_k - \tau \nabla f(x_k)\big).
+$$
+
+With a deep denoiser and a noise level decreasing over a few iterations, PnP-HQS gives state-of-the-art deblurring and super-resolution (Zhang and coauthors, 2022). Two questions remain. A network is in general not the proximal operator of any convex function, so it is unclear what is minimised; and without assumptions on $D_\sigma$ the iterations can diverge. Ryu and coauthors (2019) prove convergence when the residual $I - D_\sigma$ is Lipschitz with a small enough constant, enforced during training.
+
+### 9.2 Regularisation by denoising
+
+Romano, Elad and Milanfar (2017) define an explicit regulariser from any denoiser,
+$$
+\rho(x) = \tfrac12 \big\langle x,\ x - D(x) \big\rangle,
+$$
+and minimise $f + \lambda \rho$ by gradient descent with the gradient $x - D(x)$: the denoiser residual.
+
+:::: prop
+[Proposition 9.1 — When the RED gradient is a gradient]{.tag} If $D$ is differentiable, **locally homogeneous** ($D(cx) = c\, D(x)$ for $c$ near 1) and has a **symmetric Jacobian**, then
+$$
+\nabla \rho(x) = x - D(x).
+$$
+
+::: proof
+The product rule gives
+$$
+\nabla \rho(x) = \tfrac12 \big(x - D(x)\big) + \tfrac12 \big(I - J_D(x)\big)^\top x .
+$$
+
+Differentiating $D(cx) = c D(x)$ in $c$ at $c = 1$ gives $J_D(x)\, x = D(x)$; with symmetry, $J_D(x)^\top x = D(x)$ as well. The two halves are then equal to $\frac12 (x - D(x))$. [∎]{.qed}
+:::
+::::
+
+Reehorst and Schniter (2019) show that trained denoisers have markedly non-symmetric Jacobians. The RED iteration then still has fixed points, but they are not stationary points of $f + \lambda \rho$ (Exercise 13): the explicit prior is lost.
+
+### 9.3 The gradient-step denoiser and convergent plug-and-play
+
+Tweedie's formula (Theorem 7.1) says that the ideal denoiser is the gradient step $y + \sigma^2 \nabla \log p_\sigma(y)$ on a log-density. Hurault, Leclaire and Papadakis (2022) build this structure into the network.
+
+::: def
+[Definition 9.2 — Gradient-step denoiser]{.tag} Let $N_\sigma : \mathbb{R}^n \to \mathbb{R}^n$ be a network with smooth activations, and
+$$
+g_\sigma(x) = \tfrac12 \| x - N_\sigma(x) \|^2, \qquad D_\sigma = I - \nabla g_\sigma ,
+$$
+where $\nabla g_\sigma$ is computed by automatic differentiation. $D_\sigma$ is trained as an ordinary denoiser, with the squared loss on noisy images.
+:::
+
+Trained this way, $g_\sigma$ approximates $-\sigma^2 \log p_\sigma$ up to a constant: an **explicit, non-convex prior**, whose denoising performance stays close to that of an unconstrained network. With $D_\sigma$ inside PnP-HQS,
+$$
+x_{k+1} = \mathrm{prox}_{\lambda f}\big(x_k - \nabla g_\sigma(x_k)\big),
+$$
+which is exactly a forward–backward step with unit step size on the objective
+$$
+F = \lambda f + g_\sigma .
+$$
+
+:::: thm
+[Theorem 9.3 — Convergence of plug-and-play with a gradient-step denoiser]{.tag} Let $f$ be convex, lower semicontinuous, proper and bounded below, and $g_\sigma$ bounded below with $L$-Lipschitz gradient, $L < 2$. Let the iterates be
+$$
+x_{k+1} = \mathrm{prox}_{\lambda f}\big(x_k - \nabla g_\sigma(x_k)\big).
+$$
+
+Then:
+
+1.  the objective decreases, with
+    $$
+    F(x_{k+1}) \leq F(x_k) - \Big(1 - \frac{L}{2}\Big) \| x_{k+1} - x_k \|^2 ;
+    $$
+2.  $\sum_k \| x_{k+1} - x_k \|^2 < \infty$, so the residual tends to $0$;
+3.  every cluster point $x^\star$ of the iterates is a critical point of $F$:
+    $$
+    0 \in \nabla g_\sigma(x^\star) + \lambda\, \partial f(x^\star).
+    $$
+
+::: proof
+*Decrease.* The function minimised by the prox,
+$$
+\Psi(u) = \lambda f(u) + \tfrac12 \| u - x_k + \nabla g_\sigma(x_k) \|^2 ,
+$$
+is 1-strongly convex and minimal at $x_{k+1}$, so
+$$
+\Psi(x_k) \geq \Psi(x_{k+1}) + \tfrac12 \| x_k - x_{k+1} \|^2 .
+$$
+
+Expanding both sides gives
+$$
+\lambda f(x_{k+1}) + \langle \nabla g_\sigma(x_k), x_{k+1} - x_k \rangle + \| x_{k+1} - x_k \|^2 \leq \lambda f(x_k).
+$$
+
+The descent lemma (Proposition 0.9) gives
+$$
+g_\sigma(x_{k+1}) \leq g_\sigma(x_k) + \langle \nabla g_\sigma(x_k), x_{k+1} - x_k \rangle + \tfrac{L}{2} \| x_{k+1} - x_k \|^2 .
+$$
+
+Adding the two inequalities gives item 1.
+
+*Summability.* Summing item 1 telescopes, and $F$ is bounded below.
+
+*Critical points.* The optimality condition of the prox reads
+$$
+(x_k - x_{k+1}) + \nabla g_\sigma(x_{k+1}) - \nabla g_\sigma(x_k) \in \nabla g_\sigma(x_{k+1}) + \lambda\, \partial f(x_{k+1}).
+$$
+
+The left-hand side has norm at most $(1 + L) \| x_{k+1} - x_k \| \to 0$, and the graph of the subdifferential is closed. [∎]{.qed}
+:::
+::::
+
+Convergence of the whole sequence follows when $F$ has the Kurdyka–Łojasiewicz property (Attouch, Bolte and Svaiter, 2013), which holds for instance when $f$ is quadratic and the network has real-analytic activations. In practice, Hurault and coauthors control the Lipschitz constant of $\nabla g_\sigma$ during training with a penalty on the spectral norm of its Hessian.
+
+::: ex
+[Example 9.4 — Deblurring with an explicit gradient-step denoiser]{.tag} To see the theorem at work without training, take for $g$ a smoothed total variation, $g(x) = \mu \sum_i \sqrt{(x_{i+1} - x_i)^2 + \epsilon^2}$. Its gradient is Lipschitz with constant at most $4\mu/\epsilon = 0.9$ for $\mu = 0.0045$ and $\epsilon = 0.02$. A piecewise-constant signal of length 256 is blurred by a Gaussian kernel of standard deviation 2 pixels and corrupted by noise of standard deviation 0.02.
+
+-   The observation has PSNR 22.97 dB.
+-   After 3 000 PnP-HQS iterations with $\lambda = 0.45$, the objective has decreased at every step, the last step has norm $2 \times 10^{-15}$, and
+$$
+\mathrm{PSNR} = 33.26 \text{ dB}.
+$$
+:::
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+n = 256
+x_true = np.zeros(n); x_true[40:90] = 1.0; x_true[120:200] = 0.4; x_true[150:170] = 0.8
+k = np.exp(-0.5 * (np.arange(n) - n // 2)**2 / 2.0**2); k = np.roll(k / k.sum(), -n // 2)
+k_hat = np.fft.fft(k)
+blur = lambda v: np.real(np.fft.ifft(k_hat * np.fft.fft(v)))
+y = blur(x_true) + 0.02 * rng.standard_normal(n)
+
+# explicit regulariser g (smoothed total variation) and its gradient-step denoiser D = I - grad g
+eps, mu = 0.02, 0.0045                                  # Lip(grad g) <= 4 mu / eps = 0.9
+Dx = lambda v: np.roll(v, -1) - v
+DTx = lambda p: np.roll(p, 1) - p
+g = lambda v: mu * np.sum(np.sqrt(Dx(v)**2 + eps**2))
+grad_g = lambda v: mu * DTx(Dx(v) / np.sqrt(Dx(v)**2 + eps**2))
+denoiser = lambda v: v - grad_g(v)
+
+lam = 0.45                                              # weight of the data term f = 0.5 ||k * x - y||^2
+f = lambda v: 0.5 * np.sum((blur(v) - y)**2)
+def prox_lam_f(v):                                      # (lam A^T A + I)^{-1} (lam A^T y + v), by FFT
+    return np.real(np.fft.ifft((lam * np.conj(k_hat) * np.fft.fft(y) + np.fft.fft(v))
+                               / (lam * np.abs(k_hat)**2 + 1.0)))
+
+x, F = y.copy(), []
+for it in range(3000):
+    x_new = prox_lam_f(denoiser(x))                     # PnP-HQS step = forward-backward on lam f + g
+    F.append(lam * f(x_new) + g(x_new))
+    step, x = np.linalg.norm(x_new - x), x_new
+
+psnr = lambda v: 10 * np.log10(1.0 / np.mean((v - x_true)**2))
+print(f"PSNR: observation {psnr(y):.2f} dB, PnP with gradient-step denoiser {psnr(x):.2f} dB")
+print(f"objective monotone: {bool(np.all(np.diff(F) <= 1e-12))}, last step size {step:.2e}")
+# PSNR: observation 22.97 dB, PnP with gradient-step denoiser 33.26 dB
+# objective monotone: True, last step size 1.96e-15
+```
+
+### 9.4 Sampling with a denoiser: PnP-ULA
+
+The MAP is one image; the posterior describes all plausible ones. Laumont, De Bortoli, Almansa, Delon, Durmus and Pereyra (2022) plug a denoiser $D_\epsilon$, trained at noise variance $\epsilon$, into the Langevin algorithm:
+$$
+X_{k+1} = X_k + \delta\, \nabla \log p(y \mid X_k) + \frac{\delta}{\epsilon}\big(D_\epsilon(X_k) - X_k\big) + \sqrt{2\delta}\, Z_{k+1} .
+$$
+
+By Tweedie's formula the third term is $\delta\, \nabla \log p_\epsilon(X_k)$: this is ULA on the posterior with the prior smoothed at level $\epsilon$, the learnt analogue of MYULA (ch. 3.4). The authors add a projection onto a large compact set for stability and quantify the distance to the target in terms of $\delta$, $\epsilon$ and the error of the denoiser. The chain needs many thousands of iterations, but averaging its samples gives an MMSE estimate together with pixelwise uncertainty.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Plug-and-play replaces the proximal step of a splitting algorithm by a trained denoiser; RED builds an explicit regulariser whose gradient is the denoiser residual only under symmetry and homogeneity.
+-   A gradient-step denoiser $D_\sigma = I - \nabla g_\sigma$ makes PnP-HQS a forward–backward descent on $\lambda f + g_\sigma$: explicit prior, monotone objective, critical limit points.
+-   PnP-ULA uses Tweedie's formula to sample the posterior with a denoiser, giving MMSE estimates and uncertainty.
+:::
+
+## 10. Research directions and open problems {#ch10}
+
+This chapter is for self-study. It points to active questions that extend the course, with a few entry papers for each; it is a reading guide, not a survey.
+
+### 10.1 Sampling in a few steps
+
+Diffusion models still need tens of network evaluations per image. Three lines of work reduce this number.
+
+-   **Better solvers** of the probability-flow ODE (Proposition 7.4): DPM-Solver (Lu, Zhou, Bao, Chen, Li and Zhu, 2022) exploits its semi-linear structure, and the work of Karras, Aittala, Aila and Laine (2022) on the design space of diffusion models separates the choices of noise schedule, network preconditioning and sampler.
+-   **Distillation**: progressive distillation (Salimans and Ho, 2022) halves the number of steps repeatedly by training a student to match two teacher steps.
+-   **Consistency models** (Song, Dhariwal, Chen and Sutskever, 2023) learn a map from any point of an ODE trajectory to its end point, which allows one-step generation.
+
+The open question is whether one-step generators can reach the diversity of many-step samplers without an adversarial loss, which would bring back the difficulties of ch. 4.
+
+### 10.2 Flow matching and transport paths
+
+Flow matching (Lipman, Chen, Ben-Hamu, Nickel and Le, 2023), rectified flow (Liu, Gong and Liu, 2023) and stochastic interpolants (Albergo and Vanden-Eijnden, 2023) regress directly the velocity field of a chosen path between noise and data. Diffusion is one choice of path among many. The choice of the coupling between noise and data, for instance an optimal transport coupling as in ch. 5, controls how straight the trajectories are and therefore how few steps are needed.
+
+### 10.3 Theory of diffusion models
+
+If the score is learnt with a small $L^2$ error, the law produced by the discretised reverse diffusion is close to the data distribution in total variation, with polynomial dependence on the dimension and without log-concavity (Chen, Chewi, Li, Li, Salim and Zhang, 2023). De Bortoli (2022) gives bounds in Wasserstein distance when the data lie on a low-dimensional manifold, the realistic case for images (Proposition 0.2). Sharp dependence on the intrinsic dimension and statistical rates for score estimation from finite data are open.
+
+### 10.4 Memorisation and generalisation
+
+The exact score of the empirical distribution of the training set generates only copies of training images. Carlini and coauthors (2023) extract near-copies of training images from large text-to-image diffusion models. Kadkhodaie, Guth, Simoncelli and Mallat (2024) show that, when the training set is large enough, two denoisers trained on disjoint halves of the data produce nearly the same samples, and relate this generalisation to geometry-adaptive harmonic bases. When and why trained networks generalise rather than memorise is a central open question; it echoes the copying problem of patch-based texture synthesis (ch. 2.1).
+
+### 10.5 Posterior sampling with guarantees
+
+Example 8.2 shows that diffusion posterior sampling is biased even with an exact prior score. Correcting this bias at a moderate cost, for instance with sequential Monte Carlo or with Langevin corrections in the style of PnP-ULA (ch. 9.4), and certifying the calibration of the resulting uncertainty maps, are open problems with direct consequences for medical and scientific imaging.
+
+### 10.6 Convergent plug-and-play beyond the gradient step
+
+Theorem 9.3 requires a Lipschitz bound on $\nabla g_\sigma$. Hurault, Leclaire and Papadakis (2022, ICML) build a denoiser that is exactly the proximal operator of a non-convex regulariser, which allows other splitting schemes and step sizes. Open questions include convergence with denoisers trained without constraints, non-convex data terms such as phase retrieval, and the link between the stationary points reached and the MMSE or MAP estimates.
+
+### 10.7 Evaluation of generative models
+
+FID and its variants (ch. 4.5) depend on the feature extractor, are biased by sample size and ignore memorisation. Precision and recall (Kynkäänniemi, Karras, Laine, Lehtinen and Aila, 2019) separate fidelity and coverage. Stein and coauthors (2023) show with large human studies that common metrics rank diffusion models unfairly with respect to human judgement. Reliable, memorisation-aware metrics remain open.
+
+### 10.8 Architectures
+
+Diffusion transformers (Peebles and Xie, 2023) replace the U-Net by a transformer on latent patches and scale predictably with compute. Whether convolutional inductive biases, essential for the classical image models of ch. 1–2 and for small data sets, still matter at scale is an open empirical question.
+
+::: recap
+Key takeaways — chapter 10
+
+-   Fast samplers, distillation and consistency models attack the cost of diffusion; flow matching generalises the noising path.
+-   Theory now controls the sampling error by the score error; finite-sample generalisation and memorisation are open.
+-   Posterior sampling, convergent plug-and-play and evaluation metrics all need guarantees that current methods lack.
+:::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended or research-flavoured. Exercises 7, 14, 15 and 16 are computational.
+
+1.  **★ Three divergences between Bernoulli laws.** Let $P$ be Bernoulli($\frac12$) and $Q$ Bernoulli($\frac14$). Compute the two KL divergences, the Jensen–Shannon divergence and the total variation between them. Then let $Q$ tend to the Dirac mass at $0$: which divergences stay finite?
+
+    *Solution*: with natural logarithms, $\mathrm{KL}(P \| Q) = 0.1438$ and $\mathrm{KL}(Q \| P) = 0.1308$: KL is not symmetric. With $M$ = Bernoulli($\frac38$), $\mathrm{JS} = 0.0338$; $\mathrm{TV} = 0.25$.
+
+    When $Q \to \delta_0$, $\mathrm{KL}(P \| Q) \to +\infty$, since $P$ charges $1$ and $Q$ does not.
+
+    The Jensen–Shannon divergence tends to $0.2158 < \log 2$, and the total variation to $\frac12$ (Proposition 0.4).
+
+2.  **★ ADSN and RPN of a stripe pattern.** On $\Omega = \mathbb{Z}/4\mathbb{Z}$, take the exemplar $u = (0, 1, 0, 1)$. Compute the spot $t$, the autocovariance $\Gamma_u$ and the law of the ADSN $U$ (Definition 1.2). What do the RPN realisations look like?
+
+    *Solution*: $\bar u = \frac12$ and $t = \frac14 (-1, 1, -1, 1)$, so $\Gamma_u(h) = \frac14 (-1)^h$ (Proposition 1.3).
+
+    Then $(t \star W)(x) = \frac14 (-1)^{x+1} G$ with $G = \sum_z (-1)^z W(z) \sim \mathcal{N}(0, 4)$. So $U = \frac12 + A (-1)^{x+1}$ with $A \sim \mathcal{N}(0, \frac14)$: stripes with a random Gaussian amplitude.
+
+    The only non-zero frequency of $u - \bar u$ is the Nyquist frequency, where a Hermitian phase must be $0$ or $\pi$. RPN therefore returns $u$ or $1 - u$, each with probability $\frac12$: the exemplar up to a shift.
+
+3.  **★ A Gaussian mixture posterior.** Let $X$ follow the equal mixture of $\mathcal{N}(-1, 0.2^2)$ and $\mathcal{N}(1, 0.2^2)$, and $Y = X + 0.5 N$. Observe $y = 0.2$. Compute the posterior weights, the component posterior means and the MMSE estimate (Proposition 1.5). Is the MMSE estimate a plausible value of $X$?
+
+    *Solution*: $C = 0.04 + 0.25 = 0.29$ and $K = 0.04 / 0.29 = 0.138$. The weights are proportional to $e^{-1.2^2 / 0.58}$ and $e^{-0.8^2 / 0.58}$, which gives $(0.201, 0.799)$.
+
+    The component means are $-1 + 0.138 \times 1.2 = -0.834$ and $1 - 0.138 \times 0.8 = 0.890$. The MMSE estimate is
+    $$
+    0.201 \times (-0.834) + 0.799 \times 0.890 = 0.543 .
+    $$
+
+    It lies between the modes, where the prior density is tiny: the posterior mean is not a typical sample, the reason for the blur of MMSE restorations.
+
+4.  **★ Proximal operators and one forward–backward step.** (a) Compute $\mathrm{prox}_{\tau \lambda \| \cdot \|_1}(v)$ for $v = (3, -0.5, 1.2)$ and $\tau\lambda = 1$. (b) What is the proximal operator of the indicator of the box $[0, 1]^n$?
+
+    (c) For $F(x) = \frac12 (x - 3)^2 + |x|$ on $\mathbb{R}$, perform one forward–backward step from $x_0 = 0$ with $\tau = 1$, and compare with the minimiser.
+
+    *Solution*: (a) soft thresholding gives $(2, 0, 0.2)$. (b) The projection onto the box, i.e. clipping each coordinate to $[0, 1]$.
+
+    (c) The gradient step gives $0 - (0 - 3) = 3$, and soft thresholding at $1$ gives $x_1 = 2$.
+
+    For $x > 0$, $F'(x) = x - 2$, so the minimiser is $2$: since $\tau = 1/L$ here, one step suffices.
+
+5.  **★ Wasserstein distance between one-dimensional Gaussians.** Prove that
+    $$
+    W_2^2\big(\mathcal{N}(m_1, s_1^2), \mathcal{N}(m_2, s_2^2)\big) = (m_1 - m_2)^2 + (s_1 - s_2)^2 .
+    $$
+
+    Evaluate it for $\mathcal{N}(0, 1)$ and $\mathcal{N}(1, 2^2)$ and compare with the KL divergences of Example 0.6.
+
+    *Solution*: for any coupling,
+    $$
+    \mathbb{E}(X - Y)^2 = (m_1 - m_2)^2 + s_1^2 + s_2^2 - 2\, \mathrm{Cov}(X, Y) \geq (m_1 - m_2)^2 + (s_1 - s_2)^2,
+    $$
+    because $\mathrm{Cov}(X, Y) \leq s_1 s_2$ by Cauchy–Schwarz. The coupling $Y = m_2 + (s_2/s_1)(X - m_1)$ attains the bound.
+
+    Numerically $W_2^2 = 1 + 1 = 2$ and $W_2 = 1.414$. Unlike KL ($0.443$ and $1.307$), it is symmetric, and it is the one-dimensional case of the FID formula.
+
+6.  **★★ The Gaussian is the maximum-entropy law of given covariance.** Show that $\mathcal{N}(m, \Sigma)$ is a Gibbs density for the statistics $\varphi(x) = (x, x x^\top)$, and deduce from Theorem 2.3 that it maximises the entropy among densities on $\mathbb{R}^n$ with mean $m$ and covariance $\Sigma$. Compare the entropies of the standard Gaussian and of the Laplace law of variance 1.
+
+    *Solution*: expanding the quadratic form,
+    $$
+    \log \mathcal{N}(x; m, \Sigma) = -\langle \lambda_1, x \rangle - \langle \Lambda_2, x x^\top \rangle + \text{const},
+    $$
+    with $\Lambda_2 = \frac12 \Sigma^{-1}$ and $\lambda_1 = -\Sigma^{-1} m$; it satisfies the constraints by definition.
+
+    Theorem 2.3 applies and gives the maximal entropy $\frac12 \log\big((2\pi e)^n \det \Sigma\big)$. In dimension one, $\frac12 \log(2\pi e) = 1.419$ for the Gaussian, against $1 + \log(2b) = 1.347$ for the Laplace law with $2b^2 = 1$.
+
+7.  **★★ The step size of ULA.** For $\pi = \mathcal{N}(0, s^2)$, prove the stationary variance of Example 3.5, and show that ULA diverges when $\gamma > 2 s^2$. Which step keeps the relative excess of variance below 5 %? Check your answer with the code of ch. 3.3.
+
+    *Solution*: the recursion $X_{k+1} = a X_k + \sqrt{2\gamma} Z_{k+1}$ with $a = 1 - \gamma/s^2$ gives $\mathrm{Var}(X_{k+1}) = a^2 \mathrm{Var}(X_k) + 2\gamma$.
+
+    If $|a| < 1$, i.e. $0 < \gamma < 2s^2$, it converges to $2\gamma / (1 - a^2) = s^2 / (1 - \gamma/(2s^2))$; if $|a| > 1$ it diverges.
+
+    The relative excess is $r / (1 - r)$ with $r = \gamma / (2s^2)$. Requiring it to be at most $0.05$ gives $\gamma \leq 0.095\, s^2$.
+
+8.  **★★ The optimal discriminator between two Gaussians.** Let $p_{\mathrm{data}} = \mathcal{N}(0, 1)$ and $p_g = \mathcal{N}(\theta, 1)$. Compute $D^\star$ (Proposition 4.2) and show that it is a logistic regression. Then show that the Jensen–Shannon divergence is about $\theta^2 / 8$ for small $\theta$, and give the resulting approximation of $C(G)$.
+
+    *Solution*: $\log(p_{\mathrm{data}} / p_g)(x) = \theta^2/2 - \theta x$, so
+    $$
+    D^\star(x) = \frac{1}{1 + e^{\theta x - \theta^2/2}},
+    $$
+    a sigmoid of an affine function of $x$.
+
+    For close laws, $\mathrm{KL}(P \| M) \approx \frac12 \chi^2(P \| M)$, which equals $\frac18 \chi^2(P \| Q)$ to first order, and $\chi^2(P \| Q) = e^{\theta^2} - 1 \approx \theta^2$. Hence $\mathrm{JS} \approx \theta^2/8$ and $C(G) \approx -\log 4 + \theta^2/4$.
+
+    Numerically, for $\theta = 0.5$, $\mathrm{JS} = 0.0303$ against $\theta^2 / 8 = 0.0313$.
+
+9.  **★★ A Kantorovich–Rubinstein potential.** Let $\mu = \delta_0$ and $\nu = \frac12 \delta_1 + \frac12 \delta_3$ on $\mathbb{R}$. Compute $W_1(\mu, \nu)$ by the primal problem, exhibit an optimal 1-Lipschitz $f$, and describe all optimal potentials.
+
+    *Solution*: there is only one coupling, which moves half the mass by 1 and half by 3: $W_1 = 2$. The potential $f(x) = -x$ gives $\mathbb{E}_\mu f - \mathbb{E}_\nu f = 0 + 2 = 2$, which is optimal by Theorem 5.4.
+
+    Any optimal $f$ must satisfy $f(0) - f(1) = 1$ and $f(0) - f(3) = 3$. Being 1-Lipschitz, it decreases at unit rate on $[0, 3]$ (Proposition 5.7); outside $[0, 3]$ it is any 1-Lipschitz extension. The critic is determined only where mass moves.
+
+10. **★★ Conditional GANs and conditional Jensen–Shannon.** For joint laws $p(c)\, p_1(x \mid c)$ and $p(c)\, p_2(x \mid c)$ with the same marginal $p(c)$, prove that
+    $$
+    \mathrm{JS}\big(p(c) p_1(x \mid c),\ p(c) p_2(x \mid c)\big) = \mathbb{E}_{c \sim p}\Big[\mathrm{JS}\big(p_1(\cdot \mid c), p_2(\cdot \mid c)\big)\Big],
+    $$
+    and deduce the equality case of Proposition 6.1.
+
+    *Solution*: the mixture of the joint laws is $p(c)\, m(x \mid c)$ with $m = (p_1 + p_2)/2$. In each KL term, the factor $p(c)$ cancels inside the logarithm, so
+    $$
+    \mathrm{KL}\big(p(c) p_1 \,\|\, p(c) m\big) = \mathbb{E}_c\big[\mathrm{KL}(p_1(\cdot \mid c) \| m(\cdot \mid c))\big],
+    $$
+    and likewise for $p_2$. Averaging gives the identity.
+
+    The integrand is non-negative, so the joint JS vanishes if and only if the conditional JS vanishes for $p$-almost every $c$, that is $p_1(\cdot \mid c) = p_2(\cdot \mid c)$ almost everywhere.
+
+11. **★★ Tweedie's formula for a Gaussian prior.** Let $X \sim \mathcal{N}(m, s^2)$ in dimension one and $Y = X + \sigma N$. (a) Compute the score of $p_\sigma$. (b) Compute $\mathbb{E}[X \mid Y = y]$ with Proposition 0.7. (c) Check Theorem 7.1. (d) Which function $s$ minimises the denoising score matching loss of Theorem 7.2?
+
+    *Solution*: (a) $p_\sigma = \mathcal{N}(m, s^2 + \sigma^2)$, whose score is $-(y - m)/(s^2 + \sigma^2)$. (b) By Proposition 0.7,
+    $$
+    \mathbb{E}[X \mid Y = y] = m + \frac{s^2}{s^2 + \sigma^2}(y - m).
+    $$
+
+    (c) Tweedie's right-hand side is
+    $$
+    y - \sigma^2 \frac{y - m}{s^2 + \sigma^2} = m + (y - m)\Big(1 - \frac{\sigma^2}{s^2 + \sigma^2}\Big),
+    $$
+    which is (b).
+
+    (d) By Theorem 7.2 the minimiser is the score of (a), linear in $y$ with slope $-1/(s^2 + \sigma^2)$.
+
+12. **★★ DDIM shrinks the variance.** Let $x_0 \sim \mathcal{N}(0, s^2)$ in dimension one, with the exact noise predictor. (a) Show that one DDIM step from $t$ to $t' < t$ maps $x_t$ to $c\, x_t$, with
+    $$
+    c = \frac{\sqrt{\bar\alpha_t \bar\alpha_{t'}}\, s^2 + \sqrt{(1 - \bar\alpha_t)(1 - \bar\alpha_{t'})}}{v_t}, \qquad v_t = \bar\alpha_t s^2 + 1 - \bar\alpha_t .
+    $$
+    (b) Prove that the output variance $c^2 v_t$ is at most the correct variance $v_{t'}$, with equality only if $\bar\alpha_t = \bar\alpha_{t'}$. (c) Evaluate for a single step from $\bar\alpha_t = 0.5$ to $t' = 0$ with $s = 0.2$.
+
+    *Solution*: (a) $x_t \sim \mathcal{N}(0, v_t)$, and Gaussian conditioning gives $\varepsilon^\star = \sqrt{1 - \bar\alpha_t}\, x_t / v_t$ and $\hat x_0 = \sqrt{\bar\alpha_t}\, s^2 x_t / v_t$. Substitute in the DDIM update.
+
+    (b) Expanding,
+    $$
+    v_t v_{t'} - c^2 v_t^2 = s^2 \Big(\sqrt{\bar\alpha_t (1 - \bar\alpha_{t'})} - \sqrt{\bar\alpha_{t'} (1 - \bar\alpha_t)}\Big)^2 \geq 0 .
+    $$
+
+    (c) The step returns $\hat x_0$, the posterior mean, with variance $0.0015$, i.e. standard deviation $0.039$ instead of $0.2$. With many small steps each loss is of second order in the step, which explains the mild shrinkage of Example 7.7.
+
+13. **★★ RED with a non-symmetric denoiser.** Let $D(x) = W x$ with
+    $$
+    W = \begin{pmatrix} 0.5 & 0.4 \\ 0 & 0.5 \end{pmatrix},
+    $$
+    $f(x) = \frac12 \| x - y \|^2$ with $y = (1, 1)$, and $\lambda = 1$. Compute the fixed point of the RED iteration (where $\nabla f(x) + x - D(x) = 0$) and the minimiser of $f + \rho$. Conclude.
+
+    *Solution*: $D$ is linear, hence homogeneous, but its Jacobian $W$ is not symmetric, and $\nabla \rho(x) = (I - \frac12 (W + W^\top)) x$.
+
+    The RED fixed point solves $(2I - W) x = y$, which gives $x = (0.844, 0.667)$. The minimiser of $f + \rho$ solves $(2I - \frac12(W + W^\top)) x = y$, which gives $x = (0.769, 0.769)$.
+
+    They differ: the RED fixed point does not minimise the explicit objective (Reehorst and Schniter, 2019).
+
+14. **★★★ Learning the noise predictor.** Train a small perceptron $\varepsilon_\theta(x_t, t/T)$ with the loss $L_{\mathrm{simple}}$ on samples of the mixture of Example 7.7, then sample with DDIM in 10, 50 and 200 steps. Compare with the exact sampler of ch. 7.5, and plot $\varepsilon_\theta - \varepsilon^\star$ as a function of $x$ for a few values of $t$.
+
+    *Hints and expected result*: a network with two hidden layers of 64 units, Adam with learning rate $10^{-3}$ and a few thousand steps of batches of 512 suffice on CPU. The mode weight should be close to 0.7. The error of $\varepsilon_\theta$ is largest at small $t$ between the modes, where there are no data (ch. 7.2), and the shrinkage of the modes decreases with the number of steps (Exercise 12).
+
+15. **★★★ Plug-and-play beyond the Lipschitz bound.** (a) Prove that every fixed point of $x \mapsto \mathrm{prox}_{\lambda f}(x - \nabla g(x))$ is a critical point of $\lambda f + g$, whatever the Lipschitz constant.
+
+    (b) With $f = 0$ and $g(x) = \frac{a}{2} x^2$, show that the iteration diverges for $a > 2$. (c) In Example 9.4, multiply $\mu$ and $\lambda$ by $0.012 / 0.0045$, so that the bound of the Lipschitz constant becomes 2.4, and observe the objective.
+
+    *Hints and expected result*: (a) write the optimality condition of the prox at a fixed point. (b) The iteration is $x_{k+1} = (1 - a) x_k$, although $g$ is convex with minimiser 0: the guarantee of Theorem 9.3 is not an artefact of the proof.
+
+    (c) The objective is no longer monotone: it increases at about half of the 3 000 iterations, and the iterates oscillate with steps of norm about 0.13 instead of converging. The PSNR stays near 33 dB, but convergence is lost.
+
+16. **★★★ WGAN-GP against the original GAN on a ring of Gaussians.** Generate data from a mixture of 8 Gaussians of standard deviation 0.02 placed on a circle of radius 2. Train the non-saturating GAN of Example 4.4 and a WGAN-GP with the same generator. Count the modes covered and the fraction of samples further than 3 standard deviations from every mode, over five seeds.
+
+    *Hints and expected result*: for WGAN-GP use the settings of Gulrajani and coauthors (2017): five critic steps per generator step, $\lambda = 10$, Adam with learning rate $10^{-4}$ and $(\beta_1, \beta_2) = (0, 0.9)$. Expect the original GAN to miss modes or oscillate between them for some seeds, and WGAN-GP to cover all eight modes with a small fraction of samples on the arcs between them. Report means and spreads over seeds, not a single run.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) is one short written exam in class and one project with a report and an oral defence; the Université Paris-Saclay course detail adds “9 sessions of 3 h + written exam” and “partial continuous assessment”, and no weights are displayed. The solo subjects below are sized for the project and follow the MVA tradition of studying and reimplementing a named paper. The group subjects suit study groups or a longer project. The written exam is a proposal for self-assessment, not an official paper.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Random phase textures (paper study).** Reproduce the main experiments of Galerne, Gousseau and Morel (2011): ADSN and RPN synthesis from exemplars, with the periodic-plus-smooth decomposition to remove boundary artefacts, on 20 textures of the public Describable Textures Dataset (DTD).
+    -   *Deliverables*: code, a 4–6 page report with a gallery, a 10-minute talk.
+    -   *Chapters*: ch. 1.2, 2.
+    -   *Success criterion*: the empirical autocovariance of RPN equals that of the exemplar to machine precision, ADSN matches it in expectation over 100 draws, and the report classifies the textures where both fail (structured ones) with a measured criterion.
+2.  **[Solo · ≈ 25 h] Gradient-step plug-and-play (paper study).** Following Hurault, Leclaire and Papadakis (2022), train a small gradient-step denoiser $D_\sigma = I - \nabla g_\sigma$ on grey $64 \times 64$ patches of BSDS500 on a free GPU tier, then use it in PnP-HQS for deblurring.
+    -   *Deliverables*: code, a report, a talk.
+    -   *Chapters*: ch. 3.2, 7.1, 9.
+    -   *Success criterion*: a monotone objective $\lambda f + g_\sigma$ on 10 test images, a PSNR within 1 dB of the same network used without the gradient-step structure, and a measured Lipschitz constant of $\nabla g_\sigma$.
+3.  **[Solo · ≈ 20 h] How few steps does DDIM need? (paper study).** Train a small DDPM on MNIST (Ho, Jain and Abbeel, 2020), then compare ancestral sampling and DDIM (Song, Meng and Ermon, 2021) for 10, 20, 50, 100 and 1 000 steps.
+    -   *Deliverables*: code, a report with curves, a talk.
+    -   *Chapters*: ch. 7.
+    -   *Success criterion*: a curve of a Fréchet distance (computed on the features of a small MNIST classifier trained for the purpose) against the number of steps, the DDIM curve dominating the DDPM curve at 50 steps or fewer, and latent interpolations with DDIM.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] SinGAN, reimplemented and tested (paper study).** Reimplement the multiscale model of Shaham, Dekel and Michaeli (2019) on five natural images and two textures, and use it for random generation and for single-image super-resolution.
+    -   *Measure*: the single-image FID of the paper, a nearest-patch distance to the training image (copy detection, ch. 2.1), and PSNR for super-resolution against bicubic interpolation.
+    -   *Split*: pyramid and training loop; patch discriminators with gradient penalty; applications and evaluation.
+    -   *Chapters*: ch. 2, 5.4, 6.4. *Deliverables*: code, an 8-page report, a 20-minute talk.
+    -   *Success criterion*: samples with a lower single-image FID than a patch-shuffling baseline, and no verbatim copies of patches larger than the receptive field.
+2.  **[Group of 3 · ≈ 30 h each] Posterior sampling for inpainting.** On MNIST or Fashion-MNIST, train one diffusion model and use it to inpaint half-masked images with replacement, with DPS (Chung and coauthors, 2023), and with PnP-ULA (Laumont and coauthors, 2022) using the same network as a denoiser.
+    -   *Measure*: PSNR of single samples and of the mean of 16 samples (Proposition 6.2 predicts the ratio), coverage of pixelwise 90 % intervals on the masked pixels, number of network evaluations.
+    -   *Split*: training and replacement; DPS; PnP-ULA and the common evaluation.
+    -   *Chapters*: ch. 3.3, 6.3, 7, 8.1, 9.4. *Deliverables*: code, an 8-page report, a talk.
+    -   *Success criterion*: one table comparing the three methods at equal cost, and a reproduction of the DPS bias of Example 8.2 in a Gaussian-mixture test case.
+3.  **[Group of 2–3 · ≈ 30 h each] A miniature text-to-image model.** Train an autoencoder on Fashion-MNIST, then a latent diffusion model conditioned on short class captions (“a pair of trousers”) through cross-attention, with classifier-free guidance (Rombach and coauthors, 2022; Ho and Salimans, 2022).
+    -   *Measure*: accuracy of a separately trained classifier on the generated images (alignment) and a Fréchet distance in its feature space (quality), as functions of the guidance weight $w \in \{0, 1, 3, 7\}$.
+    -   *Split*: autoencoder; latent diffusion and cross-attention; guidance and evaluation.
+    -   *Chapters*: ch. 4.1, 7.6, 8.2–8.3. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: alignment increasing with $w$ while diversity decreases, shown on one fidelity–diversity curve.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: short written exam of 1 h 30, one handwritten A4 sheet allowed, no electronic device; four exercises, 20 points in total.
+
+1.  **Question (5 points).** Course question. Define the GAN value function. Derive the optimal discriminator and show that the criterion becomes $2\,\mathrm{JS} - \log 4$. Explain why this criterion gives no useful gradient when the supports of the data and of the generator are disjoint, and what the Wasserstein GAN changes.
+
+    *Expected*: Proposition 4.2 and Theorem 4.3 with the pointwise maximisation; Proposition 0.4 (saturation at $\log 2$); Example 5.2 and Theorem 5.4 (the critic as a 1-Lipschitz dual potential).
+
+2.  **Question (6 points).** Computation. For the forward chain of DDPM with $\beta_1 = 0.1$ and $\beta_2 = 0.2$, compute $\bar\alpha_1$, $\bar\alpha_2$ and the law of $x_2$ given $x_0$.
+
+    Then compute the mean and variance of $q(x_1 \mid x_2, x_0)$ for $x_0 = 1$ and $x_2 = 0.5$ in dimension one.
+
+    *Expected*: $\bar\alpha_1 = 0.9$, $\bar\alpha_2 = 0.72$, $x_2 \mid x_0 \sim \mathcal{N}(0.849\, x_0, 0.28)$ (Proposition 7.5). Then $\tilde\beta_2 = 0.1 \times 0.2 / 0.28 = 0.0714$ and
+    $$
+    \tilde\mu_2 = \frac{\sqrt{0.9} \times 0.2}{0.28} \times 1 + \frac{\sqrt{0.8} \times 0.1}{0.28} \times 0.5 = 0.678 + 0.160 = 0.837 .
+    $$
+
+3.  **Question (5 points).** Short proof. State and prove Tweedie's formula. Deduce what a network trained to predict the noise in DDPM estimates, and how the denoised estimate $\hat x_0(x_t)$ is obtained from it.
+
+    *Expected*: the proof of Theorem 7.1 by differentiating the Gaussian convolution; Theorem 7.2; the minimiser $\varepsilon^\star$ equals $-\sqrt{1 - \bar\alpha_t}$ times the score of $p_t$; the formula for $\hat x_0$ in ch. 7.4.
+
+4.  **Question (4 points).** Plug-and-play. Write PnP-HQS with a gradient-step denoiser as a forward–backward algorithm on an explicit objective, and state the assumptions under which this objective decreases. What goes wrong if the Lipschitz constant of $\nabla g_\sigma$ exceeds 2?
+
+    *Expected*: the PnP-HQS iteration of Theorem 9.3 read as forward–backward with unit step on $\lambda f + g_\sigma$; item 1 of Theorem 9.3 with the constant $1 - L/2$; the scalar counter-example of Exercise 15.
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of the method and the mathematics | 30 % | Models, losses and algorithms of the course used correctly; claims proved or cited |
+| Experimental protocol | 25 % | Baselines, seeds and data stated; metrics chosen for the question (FID, PSNR, coverage); results averaged over runs |
+| Critical analysis | 20 % | Failure cases shown (mode collapse, copies, biased posteriors); limits of the paper and of the metrics discussed |
+| Reproducibility of the code | 10 % | One command reproduces the main figure; dependencies and data listed |
+| Report and oral defence | 15 % | Clear structure, honest figures, answers to questions show understanding of the theory |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   Goodfellow, I., Pouget-Abadie, J., Mirza, M., Xu, B., Warde-Farley, D., Ozair, S., Courville, A. and Bengio, Y. (2014). Generative adversarial nets. *Advances in Neural Information Processing Systems 27 (NIPS 2014)*. Listed on master-mva.com under its arXiv title, “Generative Adversarial Networks”.
+-   Kingma, D. P. and Welling, M. (2014). Auto-encoding variational Bayes. *International Conference on Learning Representations (ICLR 2014)*.
+-   Kingma, D. P. and Welling, M. (2019). An introduction to variational autoencoders. *Foundations and Trends in Machine Learning*, 12(4), 307–392.
+-   Arjovsky, M., Chintala, S. and Bottou, L. (2017). Wasserstein generative adversarial networks. *Proceedings of the 34th International Conference on Machine Learning (ICML 2017)*, PMLR 70. Listed under its arXiv title, “Wasserstein GAN”.
+-   Karras, T., Laine, S. and Aila, T. (2019). A style-based generator architecture for generative adversarial networks. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2019)*.
+-   Rott Shaham, T., Dekel, T. and Michaeli, T. (2019). SinGAN: learning a generative model from a single natural image. *IEEE/CVF International Conference on Computer Vision (ICCV 2019)*.
+-   Isola, P., Zhu, J.-Y., Zhou, T. and Efros, A. A. (2017). Image-to-image translation with conditional adversarial networks. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR 2017)*. Listed with the year 2019 on master-mva.com.
+-   Ledig, C., Theis, L., Huszár, F., Caballero, J., Cunningham, A., Acosta, A., Aitken, A., Tejani, A., Totz, J., Wang, Z. and Shi, W. (2017). Photo-realistic single image super-resolution using a generative adversarial network. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR 2017)*.
+-   Song, Y. and Ermon, S. (2019). Generative modeling by estimating gradients of the data distribution. *Advances in Neural Information Processing Systems 32 (NeurIPS 2019)*.
+-   Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S. and Poole, B. (2021). Score-based generative modeling through stochastic differential equations. *International Conference on Learning Representations (ICLR 2021)*.
+-   Ho, J., Jain, A. and Abbeel, P. (2020). Denoising diffusion probabilistic models. *Advances in Neural Information Processing Systems 33 (NeurIPS 2020)*.
+-   Song, J., Meng, C. and Ermon, S. (2021). Denoising diffusion implicit models. *International Conference on Learning Representations (ICLR 2021)*; arXiv:2010.02502 (2020).
+-   Vahdat, A., Kreis, K. and Kautz, J. (2021). Score-based generative modeling in latent space. *Advances in Neural Information Processing Systems 34 (NeurIPS 2021)*.
+-   Romano, Y., Elad, M. and Milanfar, P. (2017). The little engine that could: regularization by denoising (RED). *SIAM Journal on Imaging Sciences*, 10(4), 1804–1844.
+-   Hurault, S., Leclaire, A. and Papadakis, N. (2022). Gradient step denoiser for convergent plug-and-play. *International Conference on Learning Representations (ICLR 2022)*.
+-   Saharia, C., Chan, W., Saxena, S., Li, L., Whang, J., Denton, E., Ghasemipour, S. K. S., Karagol Ayan, B., Mahdavi, S. S., Gontijo Lopes, R., Salimans, T., Ho, J., Fleet, D. J. and Norouzi, M. (2022). Photorealistic text-to-image diffusion models with deep language understanding. *Advances in Neural Information Processing Systems 35 (NeurIPS 2022)*.
+-   Rombach, R., Blattmann, A., Lorenz, D., Esser, P. and Ommer, B. (2022). High-resolution image synthesis with latent diffusion models. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2022)*.
+
+### Textbooks and surveys
+
+-   Bauschke, H. H. and Combettes, P. L. (2017). *Convex Analysis and Monotone Operator Theory in Hilbert Spaces*, 2nd edition. Springer.
+-   Goodfellow, I., Bengio, Y. and Courville, A. (2016). *Deep Learning*. MIT Press.
+-   Parikh, N. and Boyd, S. (2014). Proximal algorithms. *Foundations and Trends in Optimization*, 1(3), 127–239.
+-   Peyré, G. and Cuturi, M. (2019). Computational optimal transport. *Foundations and Trends in Machine Learning*, 11(5–6), 355–607.
+-   Santambrogio, F. (2015). *Optimal Transport for Applied Mathematicians*. Birkhäuser.
+-   Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
+
+### Classical image models (ch. 1–2)
+
+-   Bruna, J. and Mallat, S. (2019). Multiscale sparse microcanonical models. *Mathematical Statistics and Learning*.
+-   Dempster, A. P., Laird, N. M. and Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society, Series B*, 39(1), 1–38.
+-   Efros, A. A. and Leung, T. K. (1999). Texture synthesis by non-parametric sampling. *IEEE International Conference on Computer Vision (ICCV 1999)*.
+-   Galerne, B., Gousseau, Y. and Morel, J.-M. (2011). Random phase textures: theory and synthesis. *IEEE Transactions on Image Processing*, 20(1), 257–267.
+-   Galerne, B., Leclaire, A. and Rabin, J. (2018). A texture synthesis model based on semi-discrete optimal transport in patch space. *SIAM Journal on Imaging Sciences*, 11(4).
+-   Gatys, L. A., Ecker, A. S. and Bethge, M. (2015). Texture synthesis using convolutional neural networks. *Advances in Neural Information Processing Systems 28 (NIPS 2015)*.
+-   Jaynes, E. T. (1957). Information theory and statistical mechanics. *Physical Review*, 106(4), 620–630.
+-   Kwatra, V., Essa, I., Bobick, A. and Kwatra, N. (2005). Texture optimization for example-based synthesis. *ACM Transactions on Graphics (SIGGRAPH 2005)*, 24(3).
+-   Portilla, J. and Simoncelli, E. P. (2000). A parametric texture model based on joint statistics of complex wavelet coefficients. *International Journal of Computer Vision*, 40(1), 49–70.
+-   Yu, G., Sapiro, G. and Mallat, S. (2012). Solving inverse problems with piecewise linear estimators: from Gaussian mixture models to structured sparsity. *IEEE Transactions on Image Processing*, 21(5), 2481–2499.
+-   Zhu, S. C., Wu, Y. and Mumford, D. (1998). Filters, random fields and maximum entropy (FRAME): towards a unified theory for texture modeling. *International Journal of Computer Vision*, 27(2), 107–126.
+-   Zoran, D. and Weiss, Y. (2011). From learning models of natural image patches to whole image restoration. *IEEE International Conference on Computer Vision (ICCV 2011)*.
+
+### Bayesian imaging and Langevin sampling (ch. 3)
+
+-   Beck, A. and Teboulle, M. (2009). A fast iterative shrinkage-thresholding algorithm for linear inverse problems. *SIAM Journal on Imaging Sciences*, 2(1), 183–202.
+-   Durmus, A. and Moulines, É. (2017). Nonasymptotic convergence analysis for the unadjusted Langevin algorithm. *The Annals of Applied Probability*, 27(3), 1551–1587.
+-   Durmus, A., Moulines, É. and Pereyra, M. (2018). Efficient Bayesian computation by proximal Markov chain Monte Carlo: when Langevin meets Moreau. *SIAM Journal on Imaging Sciences*, 11(1), 473–506.
+-   Roberts, G. O. and Tweedie, R. L. (1996). Exponential convergence of Langevin distributions and their discrete approximations. *Bernoulli*, 2(4), 341–363.
+
+### Adversarial networks and optimal transport (ch. 4–6)
+
+-   Arjovsky, M. and Bottou, L. (2017). Towards principled methods for training generative adversarial networks. *International Conference on Learning Representations (ICLR 2017)*.
+-   Blau, Y. and Michaeli, T. (2018). The perception-distortion tradeoff. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2018)*.
+-   Bora, A., Jalal, A., Price, E. and Dimakis, A. G. (2017). Compressed sensing using generative models. *Proceedings of the 34th International Conference on Machine Learning (ICML 2017)*, PMLR 70.
+-   Dowson, D. C. and Landau, B. V. (1982). The Fréchet distance between multivariate normal distributions. *Journal of Multivariate Analysis*, 12(3), 450–455.
+-   Gulrajani, I., Ahmed, F., Arjovsky, M., Dumoulin, V. and Courville, A. (2017). Improved training of Wasserstein GANs. *Advances in Neural Information Processing Systems 30 (NIPS 2017)*.
+-   Heusel, M., Ramsauer, H., Unterthiner, T., Nessler, B. and Hochreiter, S. (2017). GANs trained by a two time-scale update rule converge to a local Nash equilibrium. *Advances in Neural Information Processing Systems 30 (NIPS 2017)*.
+-   Karras, T., Aila, T., Laine, S. and Lehtinen, J. (2018). Progressive growing of GANs for improved quality, stability, and variation. *International Conference on Learning Representations (ICLR 2018)*.
+-   Kynkäänniemi, T., Karras, T., Laine, S., Lehtinen, J. and Aila, T. (2019). Improved precision and recall metric for assessing generative models. *Advances in Neural Information Processing Systems 32 (NeurIPS 2019)*.
+-   Mirza, M. and Osindero, S. (2014). Conditional generative adversarial nets. arXiv:1411.1784.
+-   Miyato, T., Kataoka, T., Koyama, M. and Yoshida, Y. (2018). Spectral normalization for generative adversarial networks. *International Conference on Learning Representations (ICLR 2018)*.
+-   Radford, A., Metz, L. and Chintala, S. (2016). Unsupervised representation learning with deep convolutional generative adversarial networks. *International Conference on Learning Representations (ICLR 2016)*.
+-   Ronneberger, O., Fischer, P. and Brox, T. (2015). U-Net: convolutional networks for biomedical image segmentation. *Medical Image Computing and Computer-Assisted Intervention (MICCAI 2015)*, LNCS 9351.
+
+### Score-based and diffusion models (ch. 7–8)
+
+-   Anderson, B. D. O. (1982). Reverse-time diffusion equation models. *Stochastic Processes and their Applications*, 12(3), 313–326.
+-   Chung, H., Kim, J., Mccann, M. T., Klasky, M. L. and Ye, J. C. (2023). Diffusion posterior sampling for general noisy inverse problems. *International Conference on Learning Representations (ICLR 2023)*.
+-   Dhariwal, P. and Nichol, A. (2021). Diffusion models beat GANs on image synthesis. *Advances in Neural Information Processing Systems 34 (NeurIPS 2021)*.
+-   Efron, B. (2011). Tweedie's formula and selection bias. *Journal of the American Statistical Association*, 106(496), 1602–1614.
+-   Haussmann, U. G. and Pardoux, É. (1986). Time reversal of diffusions. *The Annals of Probability*, 14(4), 1188–1205.
+-   Ho, J. and Salimans, T. (2022). Classifier-free diffusion guidance. arXiv:2207.12598.
+-   Hyvärinen, A. (2005). Estimation of non-normalized statistical models by score matching. *Journal of Machine Learning Research*, 6, 695–709.
+-   Kawar, B., Elad, M., Ermon, S. and Song, J. (2022). Denoising diffusion restoration models. *Advances in Neural Information Processing Systems 35 (NeurIPS 2022)*.
+-   Lugmayr, A., Danelljan, M., Romero, A., Yu, F., Timofte, R. and Van Gool, L. (2022). RePaint: inpainting using denoising diffusion probabilistic models. *IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2022)*.
+-   Radford, A., Kim, J. W., Hallacy, C., Ramesh, A., Goh, G., Agarwal, S., Sastry, G., Askell, A., Mishkin, P., Clark, J., Krueger, G. and Sutskever, I. (2021). Learning transferable visual models from natural language supervision. *Proceedings of the 38th International Conference on Machine Learning (ICML 2021)*.
+-   Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., Matena, M., Zhou, Y., Li, W. and Liu, P. J. (2020). Exploring the limits of transfer learning with a unified text-to-text transformer. *Journal of Machine Learning Research*, 21(140).
+-   Sohl-Dickstein, J., Weiss, E., Maheswaranathan, N. and Ganguli, S. (2015). Deep unsupervised learning using nonequilibrium thermodynamics. *Proceedings of the 32nd International Conference on Machine Learning (ICML 2015)*.
+-   Song, J., Vahdat, A., Mardani, M. and Kautz, J. (2023). Pseudoinverse-guided diffusion models for inverse problems. *International Conference on Learning Representations (ICLR 2023)*.
+-   Vincent, P. (2011). A connection between score matching and denoising autoencoders. *Neural Computation*, 23(7), 1661–1674.
+
+### Plug-and-play restoration (ch. 9)
+
+-   Attouch, H., Bolte, J. and Svaiter, B. F. (2013). Convergence of descent methods for semi-algebraic and tame problems: proximal algorithms, forward–backward splitting, and regularized Gauss–Seidel methods. *Mathematical Programming*, 137, 91–129.
+-   Laumont, R., De Bortoli, V., Almansa, A., Delon, J., Durmus, A. and Pereyra, M. (2022). Bayesian imaging using Plug & Play priors: when Langevin meets Tweedie. *SIAM Journal on Imaging Sciences*, 15(2), 701–737.
+-   Reehorst, E. T. and Schniter, P. (2019). Regularization by denoising: clarifications and new interpretations. *IEEE Transactions on Computational Imaging*, 5(1), 52–67.
+-   Ryu, E. K., Liu, J., Wang, S., Chen, X., Wang, Z. and Yin, W. (2019). Plug-and-play methods provably converge with properly trained denoisers. *Proceedings of the 36th International Conference on Machine Learning (ICML 2019)*.
+-   Venkatakrishnan, S. V., Bouman, C. A. and Wohlberg, B. (2013). Plug-and-play priors for model based reconstruction. *IEEE Global Conference on Signal and Information Processing (GlobalSIP 2013)*.
+-   Zhang, K., Li, Y., Zuo, W., Zhang, L., Van Gool, L. and Timofte, R. (2022). Plug-and-play image restoration with deep denoiser prior. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 44(10), 6360–6376.
+
+### Research directions (ch. 10)
+
+-   Albergo, M. S. and Vanden-Eijnden, E. (2023). Building normalizing flows with stochastic interpolants. *International Conference on Learning Representations (ICLR 2023)*.
+-   Carlini, N., Hayes, J., Nasr, M., Jagielski, M., Sehwag, V., Tramèr, F., Balle, B., Ippolito, D. and Wallace, E. (2023). Extracting training data from diffusion models. *32nd USENIX Security Symposium*.
+-   Chen, S., Chewi, S., Li, J., Li, Y., Salim, A. and Zhang, A. R. (2023). Sampling is as easy as learning the score: theory for diffusion models with minimal data assumptions. *International Conference on Learning Representations (ICLR 2023)*.
+-   De Bortoli, V. (2022). Convergence of denoising diffusion models under the manifold hypothesis. *Transactions on Machine Learning Research*.
+-   Hurault, S., Leclaire, A. and Papadakis, N. (2022). Proximal denoiser for convergent plug-and-play optimization with nonconvex regularization. *Proceedings of the 39th International Conference on Machine Learning (ICML 2022)*.
+-   Kadkhodaie, Z., Guth, F., Simoncelli, E. P. and Mallat, S. (2024). Generalization in diffusion models arises from geometry-adaptive harmonic representations. *International Conference on Learning Representations (ICLR 2024)*.
+-   Karras, T., Aittala, M., Aila, T. and Laine, S. (2022). Elucidating the design space of diffusion-based generative models. *Advances in Neural Information Processing Systems 35 (NeurIPS 2022)*.
+-   Lipman, Y., Chen, R. T. Q., Ben-Hamu, H., Nickel, M. and Le, M. (2023). Flow matching for generative modeling. *International Conference on Learning Representations (ICLR 2023)*.
+-   Liu, X., Gong, C. and Liu, Q. (2023). Flow straight and fast: learning to generate and transfer data with rectified flow. *International Conference on Learning Representations (ICLR 2023)*.
+-   Lu, C., Zhou, Y., Bao, F., Chen, J., Li, C. and Zhu, J. (2022). DPM-Solver: a fast ODE solver for diffusion probabilistic model sampling in around 10 steps. *Advances in Neural Information Processing Systems 35 (NeurIPS 2022)*.
+-   Peebles, W. and Xie, S. (2023). Scalable diffusion models with transformers. *IEEE/CVF International Conference on Computer Vision (ICCV 2023)*.
+-   Salimans, T. and Ho, J. (2022). Progressive distillation for fast sampling of diffusion models. *International Conference on Learning Representations (ICLR 2022)*.
+-   Song, Y., Dhariwal, P., Chen, M. and Sutskever, I. (2023). Consistency models. *Proceedings of the 40th International Conference on Machine Learning (ICML 2023)*.
+-   Stein, G., Cresswell, J. C., Hosseinzadeh, R., Sui, Y., Ross, B. L., Villecroze, V., Liu, Z., Caterini, A. L., Taylor, J. E. T. and Loaiza-Ganem, G. (2023). Exposing flaws of generative model evaluation metrics and their unfair treatment of diffusion models. *Advances in Neural Information Processing Systems 36 (NeurIPS 2023)*.

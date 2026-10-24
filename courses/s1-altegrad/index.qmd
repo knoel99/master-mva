@@ -1,0 +1,2254 @@
+---
+title: "Advanced Learning for Text and Graph Data (ALTEGRAD)"
+subtitle: "M2 MVA · Semester 1 · Learning · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: probability, linear algebra, optimization and graphs](#ch0)
+-   [1. Text as data: bags of words, n-grams and subwords](#ch1)
+-   [2. Word embeddings: Word2Vec, GloVe and the PMI matrix](#ch2)
+-   [3. Graph-of-words and graph degeneracy for text mining](#ch3)
+-   [4. Recurrent sequence models and attention](#ch4)
+-   [5. Deep discriminative architectures for classification](#ch5)
+-   [6. The Transformer engine](#ch6)
+-   [7. Self-supervised pretraining and transfer](#ch7)
+-   [8. Autoregressive pretraining at scale](#ch8)
+-   [9. Evaluation, compression and multilingual benchmarks](#ch9)
+-   [10. Downstream adaptation and parameter efficiency](#ch10)
+-   [11. Alignment and post-training](#ch11)
+-   [12. Retrieval-augmented and graph-augmented generation](#ch12)
+-   [13. Quantization and efficient inference](#ch13)
+-   [14. Research directions and open problems](#ch14)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Advanced Learning for Text and Graph Data (ALTEGRAD)
+  Official title       Advanced learning for text and graph data ALTEGRAD
+  Instructors          M. VAZIRGIANNIS (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 28 h (lectures 14 h, labs 14 h) per the Université Paris-Saclay programme table
+  Label                [Learning]{.badge .label} · domains on master-mva.com: Natural Language Processing
+  Language             not displayed on the official pages (the master-mva.com description is written in English)
+  Assessment           a final data challenge plus lab-based evaluation, no weights displayed (master-mva.com); non-integral continuous assessment, “Evaluation Continue non Intégrale” (Université Paris-Saclay course detail)
+  Prerequisites        not displayed on the official pages
+  -------------------- ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who has already trained a neural network, and who wants to derive, implement and judge the models behind modern text processing, from word vectors to aligned, retrieval-augmented and quantized large language models.
+
+**Empirical first**: on a synthetic review corpus in which a negation flips the polarity, a bag-of-words logistic regression stays at chance (51 % test accuracy) and a bigram model reaches 100 %. As soon as an intensifier separates the negation from the adjective (“not very good”), the bigram model falls back to chance (48 %), while a one-layer convolution over word vectors scores 100 % (code of [ch. 1](#ch1) and [ch. 5](#ch5)).
+
+Meaning is not additive in words: “not” changes what “good” means. Linear models on counts cannot represent such interactions, n-gram features capture them only between adjacent words, and learned representations of context — the subject of most of this course — capture them in general. The chapters follow the path of natural language processing over the last fifteen years: sparse counts and their graph counterpart, the graph-of-words; learned dense vectors; recurrent and convolutional encoders with attention; the Transformer and self-supervised pretraining; and finally the engineering of large language models, from scaling laws to alignment, retrieval, graph augmentation and quantization.
+
+The Transformer and pretraining chapters share tools with [Foundations of Large Language Models](../s1-foundations-llms/index.html) and [Deep Learning](../s1-deep-learning/index.html). The graph chapters lead to [Graphs in Machine Learning](../s2-graphs-in-ml/index.html) and [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html), and the last chapter prepares [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html).
+
+### What you will be able to do
+
+-   Build bag-of-words, TF-IDF and n-gram representations, estimate smoothed language models and compare them by perplexity.
+-   Train subword tokenizers (BPE, WordPiece, unigram) and word embeddings, and prove that skip-gram with negative sampling factorizes a shifted PMI matrix.
+-   Represent a document as a graph-of-words, extract keywords by k-core decomposition and compare documents with a shortest-path graph kernel.
+-   Derive back-propagation through time, explain vanishing gradients, and implement LSTM and GRU encoders with additive and multiplicative attention.
+-   Design convolutional, bidirectional and hierarchical attention classifiers for sentences and documents.
+-   Implement scaled dot-product and multi-head attention with sinusoidal, rotary or ALiBi positions, and prove their symmetry properties.
+-   Choose a pretraining objective (masked, denoising or autoregressive) and size a model and its data with compute-optimal scaling laws.
+-   Evaluate generated text with n-gram and learned metrics, distil an expensive metric, and design a multilingual benchmark with honest error bars.
+-   Adapt a pretrained model by instruction tuning, LoRA or prefix tuning, and align it by RLHF or DPO.
+-   Build a retrieval-augmented and graph-augmented generation pipeline, and quantize a model for inference.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents ALTEGRAD as a 28-hour overview of state-of-the-art machine learning and AI methods for text and graph data, with a significant focus on applications. Each session combines two hours of lecture with two hours of programming. Grading is based on a final data challenge plus a lab-based evaluation.
+
+The same page states that registration through a form is necessary and points to a course page on the Moodle of IP Paris. The 2026–2027 syllabus has four parts — introduction to NLP and the attention mechanism, deep learning for NLP, LLMs, and advanced LLM topics — and fifteen items. The Université Paris-Saclay course detail adds the volume (14 h of lectures, 14 h of labs) and the nature of the assessment. The table maps every official item to a section of this page.
+
+| Official topic | Course section |
+|---|---|
+| Objective: an overview of state-of-the-art ML and AI methods for text and graph data, with a significant focus on applications | the whole page; applications in the worked examples and in the seven labs of the [session plan](#sessions) |
+| Organisation: 28 hours, each session two hours of lecture followed by two hours of programming | [session plan](#sessions): 7 sessions of 4 h, each ending with a 2 h lab |
+| Part “Introduction to NLP and Attention Mechanism” | [ch. 1](#ch1) to [ch. 4](#ch4) |
+| Foundational text representations: bag-of-words and n-grams | [ch. 1](#ch1): document–term matrix, TF-IDF, n-gram language models, smoothing, perplexity |
+| Foundational text representations: Word2Vec and GloVe (continuous vector spaces) | [ch. 2](#ch2): skip-gram, CBOW, negative sampling, PMI factorization, GloVe |
+| Foundational text representations: subword tokenization schemes | [ch. 1](#ch1): BPE, WordPiece, unigram language model, byte-level BPE; behaviour at scale in [ch. 8](#ch8) |
+| Sequence modelling: RNNs, LSTMs, GRUs and the sequence-to-sequence formulation | [ch. 4](#ch4): back-propagation through time, vanishing gradients, LSTM, GRU, encoder–decoder |
+| Attention: additive and multiplicative attention (Bahdanau and Luong) | [ch. 4](#ch4): Definition 4.6, Definition 4.7, Example 4.8 |
+| Graph-of-Words framework: sliding-window graphs encoding co-occurrence, syntactic closeness and phrase salience | [ch. 3](#ch3): Definition 3.1 and its weighted and directed variants, TW-IDF |
+| Graph degeneracy for text mining: k-core decomposition and shortest-path graph kernels, for keyword extraction, document degeneracy analysis and text similarity | [ch. 3](#ch3): k-cores and the peeling algorithm, main-core and CoreRank keywords, the shortest-path kernel (Definition 3.7), core-based kernels for document degeneracy analysis (Definition 3.9) |
+| Part “Deep Learning for NLP” | [ch. 5](#ch5), [ch. 7](#ch7), [ch. 9](#ch9) |
+| Deep discriminative architectures: 1D CNNs, bidirectional encoders, Hierarchical Attention Networks | [ch. 5](#ch5) |
+| Transfer learning and pretraining: masked language modelling, sequence-to-sequence autoencoding | [ch. 7](#ch7) |
+| French and multilingual language resources (DaSciM group): BARThez | [ch. 7](#ch7): BARThez and French pretrained models; multilingual tokenization in [ch. 8](#ch8) |
+| Efficient NLP evaluation: model compression, learned evaluation metrics, FrugalScore | [ch. 9](#ch9): BLEU, ROUGE, BERTScore, knowledge distillation, FrugalScore |
+| Part “LLMs” | [ch. 6](#ch6), [ch. 8](#ch8), [ch. 9](#ch9), [ch. 10](#ch10) |
+| The Transformer engine: scaled dot-product attention, multi-head self-attention, sinusoidal, RoPE and ALiBi positions | [ch. 6](#ch6) |
+| Autoregressive pretraining and scaling: pretraining dynamics, causal masking, Chinchilla scaling laws, tokenization at scale | causal masking in [ch. 6](#ch6) and [ch. 7](#ch7); [ch. 8](#ch8) |
+| Downstream adaptation and parameter efficiency: instruction fine-tuning, PEFT, LoRA, prefix tuning | [ch. 10](#ch10) |
+| Sovereign and multilingual LLMs: native-sourced multitask benchmarks such as GreekMMLU | [ch. 9](#ch9): benchmark design, native sourcing, error bars, contamination; regional models in [ch. 7](#ch7) and [ch. 8](#ch8) |
+| Part “LLM Advanced Topics” | [ch. 11](#ch11) to [ch. 13](#ch13) |
+| Alignment and post-training: RLHF and RLAIF, PPO, DPO | [ch. 11](#ch11) |
+| Retrieval-augmented generation: dense passage retrieval, context grounding, mitigating hallucination | [ch. 12](#ch12) |
+| Quantization and efficient inference: AWQ, GPTQ, bitsandbytes, KV-cache optimization, pruning | [ch. 13](#ch13) |
+| Graph-augmented LLMs: knowledge graphs and structured relational databases | [ch. 12](#ch12): knowledge-graph retrieval, message passing over retrieved subgraphs, GraphRAG, text-to-SQL with execution checking (Example 12.9) |
+| Grading: final data challenge plus lab-based evaluation; “Evaluation Continue non Intégrale” | fiche; data-challenge and lab-style subjects in [Projects and assessment](#projects) |
+| Registration form, Moodle course page, informative video | not covered: administrative links of the master-mva.com page, not topics |
+
+Beyond the syllabus, this page adds a review of the M1 tools ([ch. 0](#ch0)), complete proofs of the main structural results (shifted PMI, k-core peeling, rotary positions, compute-optimal allocation, DPO), and a chapter of research directions ([ch. 14](#ch14), self-study).
+
+### Where this course fits in the programme
+
+Official prerequisites: not displayed on the official pages. The page assumes the M1 level of the MVA admission: probability, linear algebra, a first course in machine learning, and fluent Python.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (maximum likelihood, entropy, conditional distributions), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (singular value decomposition, gradients, Lagrange multipliers) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block of this page).
+-   **Related courses of the same semester** — [Foundations of Large Language Models](../s1-foundations-llms/index.html), [Deep Learning](../s1-deep-learning/index.html), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Introduction to Statistical Learning](../s1-intro-statistical-learning/index.html), [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html), [Foundations of Distributed and Large-Scale Computing Optimization](../s1-distributed-optimization/index.html) and [Turing Seminar: An Introduction to AGI Safety](../s1-turing-seminar-ai-safety/index.html) (alignment).
+-   **Courses that build on it in semester 2** — [Training and Deploying Large-Scale Models](../s2-training-deploying-large-models/index.html), [Large Language Models for Code and Proof](../s2-llm-code-proof/index.html), [Algorithms for Speech and Natural Language Processing](../s2-speech-nlp/index.html), [Graphs in Machine Learning](../s2-graphs-in-ml/index.html), [Kernel Methods for Machine Learning](../s2-kernel-methods/index.html) (graph kernels), [Reinforcement Learning](../s2-reinforcement-learning/index.html) (policy gradients behind PPO), [Multimodal Explainable AI](../s2-multimodal-xai/index.html), [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Regulating AI](../s2-regulating-ai/index.html).
+
+### Course outline
+
+-   **Review: probability, linear algebra, optimization and graphs** — cross-entropy and softmax, the Eckart–Young theorem, Adam, breadth-first search.
+-   **Text as data** — bags of words, TF-IDF, the limits of linear models on counts, n-gram language models and perplexity, subword tokenization.
+-   **Word embeddings** — skip-gram and CBOW, negative sampling as a shifted PMI factorization, GloVe, analogies, subword vectors.
+-   **Graph-of-words and graph degeneracy** — sliding-window graphs, k-cores, keyword extraction, TW-IDF, the shortest-path and core-based kernels for document similarity.
+-   **Recurrent sequence models and attention** — RNNs, vanishing gradients, LSTM, GRU, encoder–decoder models, Bahdanau and Luong attention.
+-   **Deep discriminative architectures** — 1D convolutions with max-over-time pooling, bidirectional encoders, hierarchical attention networks.
+-   **The Transformer engine** — scaled dot-product and multi-head attention, the block, causal masking, sinusoidal, rotary and ALiBi positions.
+-   **Self-supervised pretraining and transfer** — masked language modelling, denoising sequence-to-sequence pretraining, causal language modelling, BARThez and French models.
+-   **Autoregressive pretraining at scale** — training dynamics, compute accounting, Kaplan and Chinchilla scaling laws, tokenization at scale.
+-   **Evaluation, compression and multilingual benchmarks** — BLEU, ROUGE, BERTScore, knowledge distillation, FrugalScore, native-sourced benchmarks.
+-   **Downstream adaptation and parameter efficiency** — instruction tuning, adapters, LoRA, prefix tuning.
+-   **Alignment and post-training** — Bradley–Terry reward models, the KL-regularized objective, PPO, DPO, AI feedback.
+-   **Retrieval-augmented and graph-augmented generation** — BM25, dense passage retrieval, RAG, hallucination, knowledge graphs, GraphRAG, text-to-SQL.
+-   **Quantization and efficient inference** — uniform quantization, LLM.int8() and NF4, GPTQ, AWQ, the KV cache, pruning.
+-   **Research directions and open problems** — long context, evaluation, alignment, multilingual models, graph and language models (self-study).
+
+### Session plan {#sessions}
+
+**28 h in class = 7 sessions of 4 h.** The volume is that of the Université Paris-Saclay programme table (lectures 14 h, labs 14 h), and master-mva.com organises each session as two hours of lecture followed by two hours of programming; the plan keeps that rhythm. The assignment of topics to sessions is a proposal.
+
+Level 1 = foundations and first examples, 2 = core models and algorithms, 3 = advanced material close to current research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 4 h | 1 | ch. 0 Review (0.1–0.6); ch. 1 bags of words, TF-IDF, the negation experiment, n-gram models, perplexity, BPE, WordPiece, unigram tokenization | Ex. 1, 2; lab: TF-IDF classifier, bigram model, BPE learner (codes 1.4, 1.8, 1.10) |
+| 2 | 4 h | 2 | ch. 2 PMI, skip-gram, negative sampling, GloVe, analogies; ch. 3 graph-of-words, k-cores, keyword extraction, TW-IDF, shortest-path and core-based kernels | Ex. 3, 7, 14; lab: PPMI–SVD vectors, k-core keywords (codes 2.7, 3.5) |
+| 3 | 4 h | 2 | ch. 4 RNNs, back-propagation through time, LSTM, GRU, encoder–decoder, Bahdanau and Luong attention; ch. 5 text CNNs, bidirectional encoders, HAN | Ex. 8; lab: gradient decay, CNN on the negation corpus (codes 4.9, 5.5) |
+| 4 | 4 h | 2 | ch. 6 scaled dot-product and multi-head attention, the block, causal mask, sinusoidal, rotary and ALiBi positions; ch. 7 masked, denoising and causal pretraining, BARThez | Ex. 4, 9, 10; lab: attention and RoPE from scratch, corruption functions (codes 6.10, 7.6) |
+| 5 | 4 h | 2 | ch. 8 compute accounting, scaling laws, Chinchilla, tokenization at scale; ch. 9 BLEU, ROUGE, BERTScore, distillation, FrugalScore, native-sourced benchmarks | Ex. 6, 11; lab: compute-optimal allocation, distilling a metric (codes 8.6, 9.7) |
+| 6 | 4 h | 3 | ch. 10 instruction tuning, adapters, LoRA, prefix tuning; ch. 11 reward models, KL-regularized RL, PPO, DPO, AI feedback | Ex. 5 (a), 12; lab: LoRA layer, DPO on a toy policy (codes 10.7, 11.8) |
+| 7 | 4 h | 3 | ch. 12 BM25, dense retrieval, RAG, hallucination, knowledge graphs, GraphRAG, text-to-SQL and execution accuracy; ch. 13 quantization, LLM.int8(), NF4, GPTQ, AWQ, KV cache, pruning | Ex. 5 (b), 13, 15; lab: BM25, graph retrieval and text-to-SQL, RTN versus GPTQ (codes 12.7, 12.9, 13.8); data-challenge kick-off |
+
+**Self-study, outside the 28 h** (about 3 h in total, plus the data challenge): ch. 14 Research directions and open problems (≈ 3 h, with Ex. 16).
+
+### How to study this module
+
+-   Read [ch. 0](#ch0) before session 1: the softmax gradient (Proposition 0.2) and the Eckart–Young theorem (Theorem 0.3) return in ch. 2, 7, 9, 10 and 12.
+-   Each session has the official rhythm: two hours of lecture, then two hours of programming on the codes listed in the *Practice* column. Do the listed exercises before the next session.
+-   Keep one notebook per lab; the official grade includes a lab-based evaluation, so record observations and numbers as you go.
+-   Start the data challenge early (see [Projects and assessment](#projects)): the group subjects reuse the labs of sessions 2, 5 and 7.
+-   Python environment: NumPy, SciPy, scikit-learn, NetworkX and PyTorch (CPU). Every block runs in a few seconds on a laptop, with synthetic data and fixed seeds; no pretrained model is downloaded.
+
+## 0. Review: probability, linear algebra, optimization and graphs {#ch0}
+
+Four M1 tools carry the course: the cross-entropy of a softmax model, the best low-rank approximation of a matrix, stochastic first-order optimization, and breadth-first search on a graph. This chapter states them in the form used later.
+
+::: def
+[Definition 0.1 — Entropy, cross-entropy, Kullback–Leibler divergence]{.tag} For two distributions $p, q$ on a finite set,
+$$
+H(p) = -\sum_i p_i \log p_i, \qquad H(p, q) = -\sum_i p_i \log q_i, \qquad \mathrm{KL}(p \,\|\, q) = H(p, q) - H(p).
+$$
+By Jensen's inequality, the divergence is non-negative and vanishes only when $q = p$.
+:::
+
+:::: prop
+[Proposition 0.2 — Maximum likelihood and the softmax gradient]{.tag} A classifier with logits $z \in \mathbb{R}^K$ predicts $q = \mathrm{softmax}(z)$, with $q_k = e^{z_k} / \sum_j e^{z_j}$. The negative log-likelihood of the label $y$ is the cross-entropy with the one-hot vector $e_y$, and its gradient is
+$$
+\ell(z) = -\log q_y, \qquad \nabla_z \ell = q - e_y.
+$$
+Averaged over data from a distribution $p(y \mid x)$, the expected loss is minimised by $q = p(\cdot \mid x)$.
+
+::: proof
+Write $\ell = -z_y + \log \sum_j e^{z_j}$; the derivative of the log-sum-exp in $z_k$ is $q_k$. For the second claim, the expected loss equals $H(p, q) = H(p) + \mathrm{KL}(p \,\|\, q)$, minimal when the divergence vanishes. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 0.3 — Eckart–Young]{.tag} Let $M = \sum_i \sigma_i u_i v_i^\top$ be a singular value decomposition with $\sigma_1 \geq \sigma_2 \geq \dots \geq 0$. Among all matrices of rank at most $r$, the truncated sum $M_r = \sum_{i \leq r} \sigma_i u_i v_i^\top$ minimises the Frobenius error, and
+$$
+\min_{\mathrm{rank}(X) \leq r} \|M - X\|_F^2 = \sum_{i > r} \sigma_i^2.
+$$
+
+::: proof
+*Sketch.* Weyl's inequality for singular values gives $\sigma_{i+r}(M) \leq \sigma_i(M - X) + \sigma_{r+1}(X)$, and the last term is zero when the rank of $X$ is at most $r$. Summing the squares over $i$ gives $\|M - X\|_F^2 \geq \sum_{i > r} \sigma_i^2$, and $M_r$ attains the bound. [∎]{.qed}
+:::
+
+It is used for word vectors (ch. 2), metric compression (ch. 9) and LoRA (ch. 10).
+::::
+
+::: def
+[Definition 0.4 — Mini-batch SGD and Adam]{.tag} With a stochastic gradient $g_t$ computed on a mini-batch, SGD updates $\theta_{t+1} = \theta_t - \eta g_t$. Adam (Kingma and Ba, 2015) keeps moving averages of the gradient and of its square:
+$$
+m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t, \qquad v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2,
+$$
+$$
+\theta_{t+1} = \theta_t - \eta\, \frac{m_t / (1 - \beta_1^t)}{\sqrt{v_t / (1 - \beta_2^t)} + \epsilon}.
+$$
+Every network of this page is trained this way, usually with $\beta_1 = 0.9$ and $\beta_2 = 0.999$.
+:::
+
+::: def
+[Definition 0.5 — Graphs, degrees and breadth-first search]{.tag} An undirected graph $G = (V, E)$ has $n = |V|$ nodes, $m = |E|$ edges and adjacency matrix $A$; the degree of $v$ is $d_v = \sum_u A_{uv}$.
+
+The subgraph induced by $S \subseteq V$ keeps the edges with both ends in $S$. Breadth-first search from a source visits nodes in order of their distance (number of edges of a shortest path) and computes all distances in $O(n + m)$ time. Chapters 3 and 12 use these objects.
+:::
+
+::: ex
+[Example 0.6 — A softmax by hand]{.tag} For logits $z = (2, 1, 0)$ and label $y = 1$ (the first class):
+
+-   $e^z = (7.389, 2.718, 1)$, whose sum is $11.107$;
+-   $q = (0.665, 0.245, 0.090)$ and the loss is $-\log 0.665 = 0.408$;
+-   the gradient $q - e_1$ is
+
+$$
+\nabla_z \ell = (-0.335,\ 0.245,\ 0.090).
+$$
+
+A gradient step raises the correct logit and lowers the others, in proportion to their predicted probability.
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   Training a softmax model by maximum likelihood minimises a cross-entropy, whose gradient in the logits is “prediction minus target”.
+-   The truncated SVD is the best low-rank approximation in Frobenius norm; the error is the tail of the squared singular values.
+-   Adam rescales each coordinate of the gradient by a running estimate of its magnitude.
+-   Breadth-first search gives all shortest-path distances of an unweighted graph in linear time.
+:::
+
+## 1. Text as data: bags of words, n-grams and subwords {#ch1}
+
+A learning algorithm needs vectors, and a text is a sequence of symbols. This chapter builds the first representations — counts of words and of short word sequences — measures what they lose, and explains how modern systems cut text into subword units.
+
+::: def
+[Definition 1.1 — Corpus, vocabulary, bag of words]{.tag} A corpus is a collection of $N$ documents, each a sequence of tokens from a vocabulary $\mathcal{V}$. The bag-of-words vector of document $d$ counts its tokens:
+$$
+x_d \in \mathbb{N}^{|\mathcal{V}|}, \qquad (x_d)_t = \mathrm{tf}(t, d) = \text{number of occurrences of } t \text{ in } d.
+$$
+Stacking the vectors gives the document–term matrix, of size $N \times |\mathcal{V}|$ and very sparse. An n-gram bag counts the sequences of $n$ consecutive tokens instead of single tokens.
+:::
+
+::: def
+[Definition 1.2 — TF-IDF and cosine similarity]{.tag} Rare terms are more informative than frequent ones. With $\mathrm{df}(t)$ the number of documents containing $t$, the TF-IDF weight (Salton and Buckley, 1988) is
+$$
+w(t, d) = \mathrm{tf}(t, d) \cdot \log \frac{N}{\mathrm{df}(t)}.
+$$
+Two documents are compared by the cosine of their weight vectors, which ignores document length:
+$$
+\cos(d, d') = \frac{\langle w_d, w_{d'} \rangle}{\|w_d\| \, \|w_{d'}\|}.
+$$
+:::
+
+:::: prop
+[Proposition 1.3 — Counts cannot express negation linearly]{.tag} Consider the four reviews “good”, “not bad” (positive) and “bad”, “not good” (negative). No linear classifier on unigram counts separates them.
+
+::: proof
+Let the score of a review be
+$$
+s = w_{\text{good}} x_{\text{good}} + w_{\text{bad}} x_{\text{bad}} + w_{\text{not}} x_{\text{not}} + b.
+$$
+Separation would require:
+
+-   $w_{\text{good}} + b > 0$ and $w_{\text{not}} + w_{\text{bad}} + b > 0$ (positive reviews);
+-   $w_{\text{bad}} + b < 0$ and $w_{\text{not}} + w_{\text{good}} + b < 0$ (negative reviews).
+
+Summing each pair gives the same quantity $w_{\text{good}} + w_{\text{bad}} + w_{\text{not}} + 2b$, which would be both positive and negative. [∎]{.qed}
+:::
+
+The label is an exclusive or of two features. Bigram counts contain the feature “not good” and repair this case, but only for adjacent words.
+::::
+
+::: ex
+[Example 1.4 — The negation experiment]{.tag} Each review has seven filler words around a core “(not) (very) good/bad”; the negation flips the label.
+
+```python
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.linear_model import LogisticRegression
+
+rng = np.random.default_rng(0)
+fillers = ["the", "movie", "plot", "was", "really", "and", "acting", "honestly"]
+
+def review(intensifier):
+    pol, neg = rng.integers(2), rng.integers(2)     # polarity, negation
+    core = (["not"] if neg else []) + (["very"] if intensifier else [])
+    core += ["good" if pol else "bad"]
+    words = list(rng.choice(fillers, 4)) + core + list(rng.choice(fillers, 3))
+    return " ".join(words), int(pol != neg)          # negation flips the label
+
+def data(n, intensifier):
+    pairs = [review(intensifier) for _ in range(n)]
+    return [p[0] for p in pairs], np.array([p[1] for p in pairs])
+
+for ngram in [(1, 1), (1, 2)]:
+    for inten in [False, True]:
+        Xtr, ytr = data(2000, inten); Xte, yte = data(1000, inten)
+        vec = CountVectorizer(ngram_range=ngram, token_pattern=r"\S+")
+        clf = LogisticRegression(max_iter=2000).fit(vec.fit_transform(Xtr), ytr)
+        print(ngram, "not very good" if inten else "not good",
+              "test accuracy %.3f" % clf.score(vec.transform(Xte), yte))
+```
+
+The printed accuracies are 0.514 and 0.525 for unigrams, then 1.000 and 0.484 for bigrams. Unigrams fail for the reason of Proposition 1.3; bigrams fail once the pattern spans three words, and trigrams would multiply the vocabulary again.
+:::
+
+::: def
+[Definition 1.5 — n-gram language model and add-k smoothing]{.tag} A language model assigns a probability to every sequence. The chain rule and an order-$(n-1)$ Markov assumption give
+$$
+p(w_1, \dots, w_T) = \prod_{t=1}^{T} p(w_t \mid w_{t-n+1}, \dots, w_{t-1}).
+$$
+The maximum-likelihood estimate divides n-gram counts by the counts of their history. It gives probability zero to every unseen n-gram, so it is smoothed. With $V$ possible next tokens, add-$k$ smoothing for bigrams reads
+$$
+\hat p(w \mid u) = \frac{c(u, w) + k}{c(u) + kV}.
+$$
+Better schemes (Kneser–Ney, interpolation) are surveyed by Chen and Goodman (1996).
+:::
+
+::: prop
+[Proposition 1.6 — Perplexity]{.tag} The perplexity of a model $q$ on a held-out sequence of $T$ predicted tokens is the exponential of the per-token cross-entropy:
+$$
+\mathrm{PP} = \exp\Big(-\frac{1}{T} \sum_{t=1}^{T} \log q(w_t \mid w_{<t})\Big).
+$$
+A model that is uniform over $V$ tokens has perplexity exactly $V$, so perplexity reads as an effective branching factor. Proof: each term of the sum equals $-\log V$.
+:::
+
+::: ex
+[Example 1.7 — A bigram model by hand]{.tag} Train on three sentences: “⟨s⟩ the cat sat ⟨/s⟩”, “⟨s⟩ the dog sat ⟨/s⟩”, “⟨s⟩ the cat ran ⟨/s⟩”. The test sentence “⟨s⟩ the dog ran ⟨/s⟩” contains the unseen bigram “dog ran”, so its maximum-likelihood probability is zero.
+
+With add-one smoothing and $V = 6$ possible next tokens:
+
+-   the four factors are $4/9$, $2/9$, $1/7$ and $2/7$;
+-   their product is $16/3969 \approx 0.00403$;
+-   the perplexity over the four predicted tokens is
+
+$$
+\mathrm{PP} = (3969/16)^{1/4} \approx 3.97.
+$$
+:::
+
+::: ex
+[Example 1.8 — The same computation in code]{.tag}
+
+```python
+import numpy as np
+from collections import Counter
+
+train = ["<s> the cat sat </s>", "<s> the dog sat </s>", "<s> the cat ran </s>"]
+pairs, hist = Counter(), Counter()
+for s in train:
+    w = s.split()
+    hist.update(w[:-1])
+    pairs.update(zip(w[:-1], w[1:]))
+V = len({x for s in train for x in s.split()} - {"<s>"})   # 6 possible next tokens
+
+def p_add_k(prev, nxt, k=1.0):
+    return (pairs[prev, nxt] + k) / (hist[prev] + k * V)
+
+test = "<s> the dog ran </s>".split()
+logp = sum(np.log(p_add_k(a, b)) for a, b in zip(test[:-1], test[1:]))
+print("add-one perplexity: %.3f" % np.exp(-logp / (len(test) - 1)))   # 3.969
+```
+:::
+
+Word-level vocabularies have two defects: they are huge, and they still meet unknown words. Subword tokenizers fix both by learning a vocabulary of frequent character sequences.
+
+::: def
+[Definition 1.9 — Subword tokenization: BPE, WordPiece, unigram]{.tag}
+
+-   **Byte-pair encoding** (Sennrich, Haddow and Birch, 2016) starts from characters and repeatedly merges the most frequent adjacent pair of symbols in the training corpus, until the vocabulary reaches a target size. A new word is segmented by replaying the merges in order.
+-   **WordPiece** (Schuster and Nakajima, 2012) merges instead the pair $(a, b)$ that most increases the likelihood of a unigram model of the corpus, which amounts to the largest score $c(ab) / (c(a)\, c(b))$.
+-   **Unigram language model** (Kudo, 2018) starts from a large candidate vocabulary, fits token probabilities by EM, and prunes the tokens whose removal costs least likelihood. A word is segmented by the Viterbi algorithm.
+
+Byte-level BPE runs the same algorithm on bytes, so that no input is ever out of vocabulary.
+:::
+
+::: ex
+[Example 1.10 — Learning BPE merges]{.tag} On the word counts “hug” 10, “pug” 5, “pun” 12, “bun” 4, “hugs” 5, the first merges are “u g” (count 20), “u n” (16) and “h ug” (15).
+
+```python
+from collections import Counter
+
+def learn_bpe(word_freqs, n_merges):
+    """Byte-pair encoding (Sennrich et al., 2016) on a {word: count} dictionary."""
+    corpus = {tuple(w): c for w, c in word_freqs.items()}   # words as symbol tuples
+    merges = []
+    for _ in range(n_merges):
+        pairs = Counter()
+        for symbols, c in corpus.items():
+            for a, b in zip(symbols, symbols[1:]):
+                pairs[a, b] += c
+        (a, b), count = pairs.most_common(1)[0]
+        merges.append((a + b, count))
+        new = {}
+        for symbols, c in corpus.items():
+            out, i = [], 0
+            while i < len(symbols):
+                if i + 1 < len(symbols) and (symbols[i], symbols[i + 1]) == (a, b):
+                    out.append(a + b); i += 2
+                else:
+                    out.append(symbols[i]); i += 1
+            new[tuple(out)] = c
+        corpus = new
+    return merges, corpus
+
+merges, corpus = learn_bpe({"hug": 10, "pug": 5, "pun": 12, "bun": 4, "hugs": 5}, 3)
+print(merges)          # [('ug', 20), ('un', 16), ('hug', 15)]
+print(list(corpus))    # hug | p ug | p un | b un | hug s
+```
+
+An unseen word such as “bugs” is segmented as “b ug s”: no token is unknown.
+:::
+
+::: recap
+Key takeaways — chapter 1
+
+-   Bags of words and TF-IDF give sparse vectors that ignore order; linear models on them cannot express negation (Proposition 1.3).
+-   n-gram models estimate next-token probabilities from counts; smoothing removes zero probabilities, and perplexity is the exponential of the per-token cross-entropy.
+-   BPE, WordPiece and unigram tokenizers learn a vocabulary of subwords, so that frequent words stay whole and rare words are split.
+:::
+
+## 2. Word embeddings: Word2Vec, GloVe and the PMI matrix {#ch2}
+
+A bag of words treats “cat” and “dog” as orthogonal coordinates. Word embeddings place words in a space of a few hundred dimensions in which words used in similar contexts are close — the distributional hypothesis of Harris (1954) made geometric.
+
+::: def
+[Definition 2.1 — Co-occurrence counts and PMI]{.tag} Slide a window of $L$ tokens on each side of every token. Let $\#(w, c)$ count the times context word $c$ appears in the window of word $w$.
+
+Let $|D|$ be the total number of pairs, and let $\#(w)$, $\#(c)$ be the marginal counts. The pointwise mutual information compares the observed pairs with independence:
+$$
+\mathrm{PMI}(w, c) = \log \frac{\#(w, c)\, |D|}{\#(w)\, \#(c)}, \qquad \mathrm{PPMI}(w, c) = \max\big(\mathrm{PMI}(w, c), 0\big).
+$$
+:::
+
+::: def
+[Definition 2.2 — Skip-gram and CBOW]{.tag} Word2Vec (Mikolov and coauthors, 2013) gives each word an input vector $v_w$ and an output vector $u_c$ in $\mathbb{R}^d$. Skip-gram models the context given the word by a softmax over the vocabulary,
+$$
+p(c \mid w) = \frac{\exp(u_c^\top v_w)}{\sum_{c'} \exp(u_{c'}^\top v_w)},
+$$
+and maximises the log-likelihood of all observed pairs. CBOW predicts the centre word from the average of its context vectors. The normaliser costs $O(|\mathcal{V}|)$ per pair, which motivates the next definition.
+:::
+
+::: def
+[Definition 2.3 — Skip-gram with negative sampling (SGNS)]{.tag} For each observed pair $(w, c)$, draw $k$ negative contexts from a noise distribution $P_n(c) \propto \#(c)^{3/4}$ and maximise
+$$
+\ell(w, c) = \log \sigma(u_c^\top v_w) + \sum_{i=1}^{k} \mathbb{E}_{c_i \sim P_n} \log \sigma(-u_{c_i}^\top v_w),
+$$
+where $\sigma$ is the logistic function. The task becomes binary — real pair or noise — and costs $O(kd)$ per pair.
+:::
+
+:::: thm
+[Theorem 2.4 — SGNS factorizes a shifted PMI matrix (Levy and Goldberg, 2014)]{.tag} Assume that every inner product $x_{wc} = u_c^\top v_w$ can be chosen freely (large dimension) and that negatives follow the unigram law $P_n(c) = \#(c)/|D|$. Then the maximiser of the corpus objective satisfies, for every pair with $\#(w, c) > 0$,
+$$
+u_c^\top v_w = \mathrm{PMI}(w, c) - \log k.
+$$
+
+::: proof
+Summing $\ell$ over the corpus and expanding the expectation, the objective separates into one term per pair $(w, c)$:
+$$
+f(x) = \#(w, c) \log \sigma(x) + k\, \frac{\#(w)\, \#(c)}{|D|} \log \sigma(-x).
+$$
+Each $f$ is concave. With $\sigma'(x) = \sigma(x) \sigma(-x)$, the derivative is
+$$
+f'(x) = \#(w, c)\, \sigma(-x) - k\, \frac{\#(w)\, \#(c)}{|D|}\, \sigma(x).
+$$
+It vanishes when $\sigma(x) / \sigma(-x) = e^x$ equals $\#(w, c)\, |D| / (k\, \#(w)\, \#(c))$. Taking logarithms gives the claim. [∎]{.qed}
+:::
+
+Pairs never observed are pushed to $-\infty$. With a finite dimension, SGNS therefore computes a weighted low-rank approximation of the shifted PMI matrix.
+::::
+
+::: prop
+[Proposition 2.5 — Explicit factorization]{.tag} Theorem 2.4 suggests computing embeddings directly. By Theorem 0.3, the best rank-$r$ approximation of the PPMI matrix is its truncated SVD $U_r \Sigma_r V_r^\top$, and one takes word vectors $W = U_r \Sigma_r^{1/2}$. With tuned hyperparameters, this count-based method is competitive with SGNS on similarity benchmarks (Levy, Goldberg and Dagan, 2015).
+:::
+
+::: def
+[Definition 2.6 — GloVe (Pennington, Socher and Manning, 2014)]{.tag} Ratios of co-occurrence probabilities $P(k \mid i) / P(k \mid j)$ discriminate between words $i$ and $j$. Asking vector differences to encode the logarithm of such ratios through inner products leads to $w_i^\top \tilde w_k + b_i + \tilde b_k \approx \log X_{ik}$, with $X$ the co-occurrence matrix. GloVe solves the weighted least-squares problem
+$$
+J = \sum_{i, j:\, X_{ij} > 0} f(X_{ij}) \big(w_i^\top \tilde w_j + b_i + \tilde b_j - \log X_{ij}\big)^2, \qquad f(x) = \min\big(1, (x / x_{\max})^{3/4}\big).
+$$
+The weight $f$ damps rare, noisy pairs and caps very frequent ones; the paper uses $x_{\max} = 100$.
+:::
+
+::: ex
+[Example 2.7 — PPMI and SVD on a synthetic corpus]{.tag} Sentences draw their content words from one of two topics.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+topics = {"animals": ["cat", "dog", "horse", "cow", "fur", "farm", "pet", "eats"],
+          "computers": ["cpu", "gpu", "ram", "disk", "chip", "fast", "memory", "data"]}
+shared = ["the", "a", "is", "very"]
+vocab = sorted({w for ws in topics.values() for w in ws} | set(shared))
+idx = {w: i for i, w in enumerate(vocab)}
+
+sents = []
+for _ in range(3000):
+    t = topics["animals" if rng.random() < 0.5 else "computers"]
+    words = list(rng.choice(t, 4)) + list(rng.choice(shared, 2))
+    rng.shuffle(words)
+    sents.append(words)
+
+C = np.zeros((len(vocab), len(vocab)))           # window of 2 on each side
+for s in sents:
+    for i, w in enumerate(s):
+        for j in range(max(0, i - 2), min(len(s), i + 3)):
+            if j != i:
+                C[idx[w], idx[s[j]]] += 1
+
+total = C.sum()
+pmi = np.log((C * total) / (C.sum(1, keepdims=True) * C.sum(0, keepdims=True)) + 1e-12)
+U, S, _ = np.linalg.svd(np.maximum(pmi, 0))
+W = U[:, :2] * np.sqrt(S[:2])                     # 2-dimensional word vectors
+
+def cos(a, b):
+    u, v = W[idx[a]], W[idx[b]]
+    return u @ v / (np.linalg.norm(u) * np.linalg.norm(v))
+
+print("cos(cat, dog) = %.2f" % cos("cat", "dog"))   # 1.00
+print("cos(cat, gpu) = %.2f" % cos("cat", "gpu"))   # -0.01
+```
+
+Two dimensions suffice here because the corpus has two topics; real corpora need a few hundred.
+:::
+
+::: note
+[Remark 2.8 — Analogies, subwords and the limits of static vectors]{.tag} Analogies “$a$ is to $a^*$ as $b$ is to ?” are answered by the word whose vector is most cosine-similar to $v_{a^*} - v_a + v_b$, excluding the three query words.
+
+fastText (Bojanowski and coauthors, 2017) writes a word vector as the sum of the vectors of its character n-grams ($3 \leq n \leq 6$), so that unseen words get a vector. All these embeddings are static: “bank” has one vector for both of its senses. Contextual encoders (ch. 4 to 7) remove this limit.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   Skip-gram with negative sampling turns language modelling into binary classification of real versus noise pairs.
+-   At the optimum, it factorizes the PMI matrix shifted by $\log k$ (Theorem 2.4); a truncated SVD of the PPMI matrix is the explicit counterpart.
+-   GloVe fits log co-occurrence counts by weighted least squares.
+-   Character n-grams give vectors to unseen words; static vectors cannot separate the senses of a word.
+:::
+
+## 3. Graph-of-words and graph degeneracy for text mining {#ch3}
+
+A bag of words assumes that terms are independent. The graph-of-words keeps which terms occur near each other, and graph degeneracy turns that structure into keyword scores, retrieval weights and document similarities. This line of work was developed largely in the DaSciM group by Rousseau, Tixier, Nikolentzos, Vazirgiannis and coauthors.
+
+::: def
+[Definition 3.1 — Graph-of-words (Rousseau and Vazirgiannis, 2013)]{.tag} After tokenization and stop-word removal, the nodes are the distinct terms of a document, and an edge links two terms that co-occur within a sliding window of $w$ consecutive terms, typically $w \in \{2, \dots, 5\}$.
+
+Variants weight each edge by its number of co-occurrences, or direct it in reading order. The window encodes co-occurrence and approximates syntactic closeness; terms that sit in dense, cohesive regions of the graph are salient phrase material.
+:::
+
+::: def
+[Definition 3.2 — k-core, core number, degeneracy (Seidman, 1983)]{.tag} The $k$-core of $G$ is the maximal induced subgraph in which every node has degree at least $k$.
+
+The core number of $v$ is the largest $k$ such that $v$ belongs to the $k$-core, and the degeneracy of $G$ is the largest core number:
+$$
+\mathrm{core}(v) = \max\{k : v \in k\text{-core}\}, \qquad \delta(G) = \max_v \mathrm{core}(v).
+$$
+The cores are nested, and the $\delta$-core is called the main core.
+:::
+
+:::: thm
+[Theorem 3.3 — Peeling computes all core numbers in linear time]{.tag} Repeatedly remove a node of minimum degree in the remaining graph. Let $v_1, \dots, v_n$ be the removal order and $d_i$ the degree of $v_i$ when it is removed. Then
+$$
+\mathrm{core}(v_i) = \kappa_i := \max_{j \leq i} d_j,
+$$
+and a bucket queue on degrees gives an $O(n + m)$ algorithm (Batagelj and Zaversnik, 2003).
+
+::: proof
+*The $k$-core is well defined.* The union of two induced subgraphs of minimum degree at least $k$ again has minimum degree at least $k$, so a maximal one exists and is unique.
+
+*Lower bound.* Let $j \leq i$ be a step where $d_j = \kappa_i$. Just before step $j$, the remaining graph has minimum degree $d_j$, since $v_j$ had the minimum degree.
+
+This graph contains $v_i$, so $\mathrm{core}(v_i) \geq \kappa_i$.
+
+*Upper bound.* Let $k = \mathrm{core}(v_i)$ and let $v_j$ be the first node of the $k$-core to be removed, so $j \leq i$.
+
+At that moment the whole $k$-core remains, hence $d_j \geq k$ and $\kappa_i \geq k$.
+
+*Cost.* Each removal decrements the degrees of the neighbours, one bucket move per edge. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 3.4 — Keyword extraction by degeneracy]{.tag} Main-core retention (Rousseau and Vazirgiannis, 2015) returns the terms of the main core of the weighted graph-of-words, where degrees are replaced by sums of edge weights.
+
+Tixier, Malliaros and Vazirgiannis (2016) refine the selection: CoreRank scores a term by the sum of the core numbers of its neighbours, which separates terms of the same core, and heuristics on the core hierarchy choose how many terms to keep. Unlike TF-IDF, these scores need no corpus statistics: one document suffices.
+$$
+\mathrm{CoreRank}(v) = \sum_{u \in \mathcal{N}(v)} \mathrm{core}(u).
+$$
+:::
+
+::: ex
+[Example 3.5 — Keywords of a paragraph]{.tag}
+
+```python
+import re
+import networkx as nx
+
+text = ("Graph degeneracy offers a simple view of a document. The graph of words links "
+        "two terms when they co-occur in a sliding window. The k-core decomposition of "
+        "the graph of words keeps the dense and cohesive part of the graph, and the "
+        "terms of the main core are good keyword candidates for the document.")
+stop = {"a", "of", "the", "two", "when", "they", "in", "and", "are", "for", "offers", "keeps"}
+terms = [t for t in re.findall(r"[a-z]+(?:-[a-z]+)?", text.lower()) if t not in stop]
+
+def graph_of_words(terms, window=3):
+    G = nx.Graph()
+    for i, t in enumerate(terms):
+        for u in terms[i + 1:i + window]:             # the next window-1 terms
+            if u != t:
+                w = G.get_edge_data(t, u, {"weight": 0})["weight"]
+                G.add_edge(t, u, weight=w + 1)
+    return G
+
+G = graph_of_words(terms)
+core = nx.core_number(G)
+k_max = max(core.values())
+print("terms:", G.number_of_nodes(), "edges:", G.number_of_edges(), "degeneracy:", k_max)
+print("main core:", sorted(t for t in core if core[t] == k_max))
+corerank = {t: sum(core[u] for u in G[t]) for t in G}
+print("top-5 CoreRank:", sorted(corerank, key=corerank.get, reverse=True)[:5])
+```
+
+The cores here are unweighted, since `nx.core_number` ignores edge weights. The graph has 21 terms, 50 edges and degeneracy 4. The main core keeps 12 terms, and CoreRank ranks “graph”, “terms”, “words” and “document” first. On a short text the main core is coarse; CoreRank orders the terms inside it.
+:::
+
+::: def
+[Definition 3.6 — TW-IDF (Rousseau and Vazirgiannis, 2013)]{.tag} For ad hoc retrieval, the term frequency is replaced by a term weight $\mathrm{tw}(t, d)$, the (in-)degree of $t$ in the graph-of-words of $d$, with pivoted length normalisation, in the form
+$$
+\text{TW-IDF}(t, d) = \frac{\mathrm{tw}(t, d)}{1 - b + b\, |d| / \mathrm{avdl}} \cdot \log \frac{N + 1}{\mathrm{df}(t)}.
+$$
+The degree counts how many distinct contexts a term has, not how often it is repeated. The paper reports results competitive with BM25 (ch. 12) on standard TREC collections.
+:::
+
+::: def
+[Definition 3.7 — Shortest-path kernel for documents]{.tag} For graphs with node labels, the shortest-path kernel of Borgwardt and Kriegel (2005) counts pairs of nodes with the same labels at the same distance. Nikolentzos and coauthors (2017) adapt it to graphs-of-words, where labels are terms and distances are cut at $d_{\max}$. In a simplified form, the feature map and the normalised kernel are
+$$
+\phi(G)_{(a, b, \ell)} = \mathbf{1}\big[\mathrm{dist}_G(a, b) = \ell\big], \quad \ell \leq d_{\max}, \qquad \tilde k(G, G') = \frac{\langle \phi(G), \phi(G') \rangle}{\sqrt{\langle \phi(G), \phi(G) \rangle \langle \phi(G'), \phi(G') \rangle}}.
+$$
+Two documents are similar when many pairs of terms appear at the same distance in both — a soft count of shared phrases.
+:::
+
+::: prop
+[Proposition 3.8 — The kernel is positive semi-definite]{.tag} For any documents $G_1, \dots, G_N$ whose feature vectors are non-zero, the Gram matrix of $\tilde k$ is positive semi-definite, so the kernel can be used in a support vector machine.
+
+Proof: the unnormalised Gram matrix is $K = \Phi \Phi^\top$, with the $\phi(G_i)$ as rows; its diagonal $D$ is positive. Normalising gives $D^{-1/2} K D^{-1/2}$, a congruence that preserves semi-definiteness.
+:::
+
+::: def
+[Definition 3.9 — Document degeneracy and core-based kernels]{.tag} The nested cores of a graph-of-words describe how cohesive a document is: a focused text has a deep core hierarchy, a list of loosely related terms a shallow one. The degeneracy framework of Nikolentzos and coauthors (2018) compares two graphs level by level of cohesion.
+
+Let $C_i(G)$ be the $i$-core of a graph $G$; the $0$-core is the whole graph, and the cores beyond the degeneracy $\delta(G)$ are empty. For a base kernel $k$, such as the unnormalised shortest-path kernel,
+$$
+k_{\mathrm{core}}(G, G') = \sum_{i=0}^{\min(\delta(G), \delta(G'))} k\big(C_i(G), C_i(G')\big).
+$$
+Pairs of terms that stay together in deep cores are counted at every level, so the cohesive part of a document weighs more.
+:::
+
+::: prop
+[Proposition 3.10 — Core-based kernels are positive semi-definite]{.tag} If the base kernel is positive semi-definite and vanishes when one of its two graphs is empty, then $k_{\mathrm{core}}$ is positive semi-definite.
+
+Proof: the extra terms vanish, so the sum can run over all $i \geq 0$. Each term is the base kernel composed with the map $G \mapsto C_i(G)$, hence positive semi-definite, and a sum of positive semi-definite kernels is positive semi-definite.
+:::
+
+Graphs-of-words also feed neural models: MPAD (Nikolentzos, Tixier and Vazirgiannis, 2020) runs message passing, defined in ch. 12, on them for document classification.
+
+::: recap
+Key takeaways — chapter 3
+
+-   The graph-of-words links terms that co-occur in a sliding window; it keeps local order that a bag of words discards.
+-   Peeling minimum-degree nodes computes every core number in linear time (Theorem 3.3).
+-   Main-core retention and CoreRank extract keywords from a single document; TW-IDF uses degrees as term weights for retrieval.
+-   The shortest-path kernel compares documents through pairs of terms at equal distances; core-based kernels repeat a base kernel on every level of the core hierarchy. Both are positive semi-definite.
+:::
+
+## 4. Recurrent sequence models and attention {#ch4}
+
+Bags of words and graphs-of-words look at a whole text at once. Recurrent networks read it in order and carry a state; attention then lets a decoder look back at every position of the input instead of a single summary vector.
+
+::: def
+[Definition 4.1 — Recurrent neural network]{.tag} An Elman RNN reads inputs $x_1, \dots, x_T$ and updates a hidden state with shared parameters:
+$$
+h_t = \tanh(W h_{t-1} + U x_t + b), \qquad \hat y_t = \mathrm{softmax}(V h_t).
+$$
+As a language model, $\hat y_t$ predicts $x_{t+1}$. Training unrolls the network over time and back-propagates through the unrolled graph (back-propagation through time).
+:::
+
+:::: prop
+[Proposition 4.2 — Vanishing and exploding gradients]{.tag} The Jacobian of a late state with respect to an early one is a product of $T - t$ factors (Bengio, Simard and Frasconi, 1994; Pascanu, Mikolov and Bengio, 2013):
+$$
+\frac{\partial h_T}{\partial h_t} = \prod_{s=t+1}^{T} \mathrm{diag}\big(1 - h_s^2\big)\, W, \qquad \Big\|\frac{\partial h_T}{\partial h_t}\Big\| \leq \|W\|^{T-t}.
+$$
+If the spectral norm of $W$ is below 1, the signal from step $t$ decays exponentially; if $W$ has singular values above 1, gradients can explode.
+
+::: proof
+By the chain rule, each factor is the Jacobian of one step, $\mathrm{diag}(\tanh'(a_s))\, W$ with $\tanh' = 1 - \tanh^2 \in (0, 1]$. The operator norm is submultiplicative and the diagonal factors have norm at most 1. [∎]{.qed}
+:::
+
+Clipping the gradient norm controls explosion, not vanishing. Vanishing needs a change of architecture.
+::::
+
+::: def
+[Definition 4.3 — Long short-term memory (Hochreiter and Schmidhuber, 1997)]{.tag} With $z_t = [h_{t-1}; x_t]$, the input, forget and output gates and the candidate are
+$$
+i_t, f_t, o_t = \sigma(W_{i,f,o}\, z_t + b_{i,f,o}), \qquad g_t = \tanh(W_g z_t + b_g),
+$$
+and the memory cell and the state are updated by
+$$
+c_t = f_t \odot c_{t-1} + i_t \odot g_t, \qquad h_t = o_t \odot \tanh(c_t).
+$$
+The forget gate was added by Gers, Schmidhuber and Cummins (2000).
+:::
+
+::: prop
+[Proposition 4.4 — The cell path carries the gradient]{.tag} Keeping only the direct dependence of $c_t$ on $c_{t-1}$,
+$$
+\frac{\partial c_T}{\partial c_t} = \prod_{s=t+1}^{T} \mathrm{diag}(f_s).
+$$
+When the forget gates stay close to 1, the gradient crosses many steps without decay; there is no squashing derivative and no weight matrix on this path. This is why the forget-gate bias is often initialised to 1 (Jozefowicz, Zaremba and Sutskever, 2015). Proof: differentiate the additive update of Definition 4.3.
+:::
+
+::: def
+[Definition 4.5 — GRU and encoder–decoder models]{.tag} The gated recurrent unit (Cho and coauthors, 2014) merges the cell and the state:
+$$
+h_t = (1 - u_t) \odot h_{t-1} + u_t \odot \tanh\big(W [r_t \odot h_{t-1}; x_t]\big),
+$$
+where the update gate $u_t$ and the reset gate $r_t$ are sigmoids of $[h_{t-1}; x_t]$.
+
+A sequence-to-sequence model (Sutskever, Vinyals and Le, 2014) encodes the source $x_{1:S}$ with one RNN and decodes the target with another, modelling $p(y_t \mid y_{<t}, x)$. It is trained with teacher forcing and decoded greedily or by beam search. Its weakness is the bottleneck: a single vector must carry the whole source.
+:::
+
+::: def
+[Definition 4.6 — Attention; additive scores (Bahdanau, Cho and Bengio, 2015)]{.tag} Let $h_1, \dots, h_S$ be the encoder states (forward and backward states concatenated). At decoder step $t$, a score $e_{tj}$ compares the decoder state with each $h_j$, and
+$$
+\alpha_{tj} = \frac{\exp(e_{tj})}{\sum_{j'} \exp(e_{tj'})}, \qquad c_t = \sum_{j=1}^{S} \alpha_{tj} h_j.
+$$
+The context $c_t$ enters the computation of the next state and output. Bahdanau attention uses the previous decoder state and a one-layer network:
+$$
+e_{tj} = v^\top \tanh(W_a s_{t-1} + U_a h_j).
+$$
+:::
+
+::: def
+[Definition 4.7 — Multiplicative scores (Luong, Pham and Manning, 2015)]{.tag} Luong attention scores the current decoder state $s_t$ by a dot product or a bilinear form, then combines context and state:
+$$
+e_{tj} = s_t^\top h_j \ \text{(dot)}, \qquad e_{tj} = s_t^\top W_a h_j \ \text{(general)}, \qquad \tilde h_t = \tanh(W_c [c_t; s_t]).
+$$
+The output is $\mathrm{softmax}(W_s \tilde h_t)$. Multiplicative scores for all positions are one matrix product, which makes them faster than additive ones; they are the ancestor of the dot-product attention of ch. 6.
+:::
+
+::: ex
+[Example 4.8 — Dot attention by hand]{.tag} Take $s_t = (1, 0)$ and encoder states $h_1 = (1, 1)$, $h_2 = (0, 1)$, $h_3 = (2, 0)$.
+
+-   Scores: $e = (1, 0, 2)$.
+-   Weights: $\alpha = \mathrm{softmax}(e) = (0.245, 0.090, 0.665)$, as in Example 0.6 up to the order.
+-   Context: $0.245\, h_1 + 0.090\, h_2 + 0.665\, h_3$, that is
+
+$$
+c_t = (1.575,\ 0.335).
+$$
+
+The decoder reads mostly $h_3$, the state most aligned with its query.
+:::
+
+::: ex
+[Example 4.9 — Measuring the vanishing gradient]{.tag} The gradient of a loss read at the last step, with respect to earlier inputs, for a random RNN and a random LSTM.
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+T, d = 60, 32
+x = torch.randn(1, T, d, requires_grad=True)
+for name, net in [("RNN (tanh)", torch.nn.RNN(d, d, batch_first=True)),
+                  ("LSTM", torch.nn.LSTM(d, d, batch_first=True))]:
+    if name == "LSTM":                               # forget-gate bias set to 1
+        with torch.no_grad():
+            net.bias_ih_l0[d:2 * d].fill_(1.0)
+    out, _ = net(x)
+    out[0, -1].sum().backward()                      # loss read at the last step
+    g = x.grad[0].norm(dim=1)                        # sensitivity to the input x_t
+    print(f"{name:10s} |dL/dx_t| at t = T-1, T-10, T-30: "
+          f"{g[-1]:.2e} {g[-10]:.2e} {g[-30]:.2e}")
+    x.grad = None
+```
+
+The RNN gradient falls from about 2 at the last step to $5 \times 10^{-4}$ at $t = T - 10$ and to $3.5 \times 10^{-11}$ at $t = T - 30$. At the same steps, the LSTM keeps $5 \times 10^{-2}$ and $2 \times 10^{-4}$: the decay is much slower.
+:::
+
+::: recap
+Key takeaways — chapter 4
+
+-   An RNN shares its weights over time; its gradients are products of Jacobians and vanish or explode exponentially (Proposition 4.2).
+-   The additive cell update of the LSTM, and the interpolation of the GRU, open a path on which gradients survive.
+-   Encoder–decoder models compress the source into one vector; attention replaces it by a weighted average of all encoder states.
+-   Bahdanau attention scores with a small network, Luong attention with a dot or bilinear product.
+:::
+
+## 5. Deep discriminative architectures for classification {#ch5}
+
+Classifying a sentence or a document needs a fixed-size vector built from a variable-length sequence. This chapter covers three designs: convolutions that detect n-grams anywhere, bidirectional encoders that read both ways, and hierarchical attention for long documents.
+
+::: def
+[Definition 5.1 — Convolutional sentence classifier (Kim, 2014)]{.tag} Stack the word vectors of a sentence into $E = [e_1, \dots, e_T] \in \mathbb{R}^{d \times T}$. A filter of width $h$ is a matrix $F \in \mathbb{R}^{d \times h}$; it produces one feature per position, and max-over-time pooling keeps the largest:
+$$
+c_i = \mathrm{ReLU}\big(\langle F, E_{:, i:i+h-1} \rangle + b\big), \qquad \hat c = \max_{1 \leq i \leq T-h+1} c_i.
+$$
+Kim uses 100 filters of each width 3, 4 and 5, dropout, and a softmax layer on the pooled features.
+:::
+
+::: prop
+[Proposition 5.2 — Filters are position-free n-gram detectors]{.tag} Suppose the word vectors are orthonormal (one-hot). For an $h$-gram $(a_1, \dots, a_h)$, take $F = [e_{a_1}, \dots, e_{a_h}]$ and $b = -(h - 1)$. Then $\hat c = 1$ if the h-gram occurs somewhere in the sentence, and $\hat c = 0$ otherwise.
+
+Proof: the inner product with a window counts the positions $k$ at which the window holds $a_k$, an integer between 0 and $h$. After the bias and the ReLU, only a full match gives a positive value, namely 1. The maximum over positions removes the dependence on where the match occurs.
+:::
+
+A single width-3 filter therefore detects “not very good” anywhere, a pattern that defeats bigram counts. Max pooling is itself a non-linearity: on presence features it computes an *or*, so even width-1 filters can represent the exclusive or of Proposition 1.3 (Exercise 8). Wider filters are needed when the label depends on order, for example “good bad” against “bad good”.
+
+::: def
+[Definition 5.3 — Bidirectional encoders]{.tag} A forward RNN reads the sentence left to right and a backward RNN reads it right to left (Schuster and Paliwal, 1997). The representation of token $t$ concatenates both states,
+$$
+h_t = [\overrightarrow{h}_t ; \overleftarrow{h}_t],
+$$
+and therefore depends on the whole sentence. A sentence vector is obtained by pooling or by concatenating the two final states. A bidirectional encoder cannot serve as a left-to-right language model, since each state has seen the future; ch. 7 shows how masked language modelling trains it anyway.
+:::
+
+::: def
+[Definition 5.4 — Hierarchical attention network (Yang and coauthors, 2016)]{.tag} A document is a sequence of sentences, each a sequence of words. At the word level, a bidirectional GRU gives states $h_{it}$ for word $t$ of sentence $i$, and a learned query vector $u_w$ pools them:
+$$
+u_{it} = \tanh(W_w h_{it} + b_w), \qquad \alpha_{it} = \frac{\exp(u_{it}^\top u_w)}{\sum_{t'} \exp(u_{it'}^\top u_w)}, \qquad s_i = \sum_t \alpha_{it} h_{it}.
+$$
+At the sentence level, the same construction with a second bidirectional GRU and a query $u_s$ pools the $s_i$ into a document vector, followed by a softmax classifier.
+:::
+
+The weights show which words and sentences drive a decision, a useful diagnostic. They are not a faithful explanation in general: Jain and Wallace (2019) and Wiegreffe and Pinter (2019) discuss when they are.
+
+::: ex
+[Example 5.5 — A text CNN on the negation corpus]{.tag} Same generator as Example 1.4, with the intensifier “very” in every review.
+
+```python
+import numpy as np, torch, torch.nn as nn
+
+rng = np.random.default_rng(0); torch.manual_seed(0); torch.set_num_threads(1)
+fillers = ["the", "movie", "plot", "was", "really", "and", "acting", "honestly"]
+vocab = {w: i for i, w in enumerate(fillers + ["not", "very", "good", "bad"])}
+
+def data(n):
+    X, y = [], []
+    for _ in range(n):
+        pol, neg = rng.integers(2), rng.integers(2)
+        core = (["not"] if neg else []) + ["very", "good" if pol else "bad"]
+        words = list(rng.choice(fillers, 4)) + core + list(rng.choice(fillers, 3))
+        words += ["the"] * (10 - len(words))                       # pad to length 10
+        X.append([vocab[w] for w in words]); y.append(int(pol != neg))
+    return torch.tensor(X), torch.tensor(y)
+
+class TextCNN(nn.Module):
+    def __init__(self, V, d=16, n_filters=16, width=3):
+        super().__init__()
+        self.emb = nn.Embedding(V, d)
+        self.conv = nn.Conv1d(d, n_filters, width)
+        self.out = nn.Linear(n_filters, 2)
+    def forward(self, x):
+        h = torch.relu(self.conv(self.emb(x).transpose(1, 2)))   # (batch, filters, positions)
+        return self.out(h.max(dim=2).values)                     # max-over-time pooling
+
+Xtr, ytr = data(2000); Xte, yte = data(1000)
+model = TextCNN(len(vocab))
+opt = torch.optim.Adam(model.parameters(), lr=1e-2)
+for epoch in range(10):
+    for b in range(0, 2000, 100):
+        loss = nn.functional.cross_entropy(model(Xtr[b:b + 100]), ytr[b:b + 100])
+        opt.zero_grad(); loss.backward(); opt.step()
+acc = (model(Xte).argmax(1) == yte).float().mean().item()
+print("CNN test accuracy on 'not very good': %.3f" % acc)       # 1.000
+```
+
+The bigram model of Example 1.4 scored 0.484 on the same task.
+:::
+
+::: recap
+Key takeaways — chapter 5
+
+-   A convolution with max-over-time pooling detects n-grams wherever they occur (Proposition 5.2), which bigram counts cannot do for longer patterns.
+-   Bidirectional encoders give each token a representation that depends on the whole sentence.
+-   Hierarchical attention networks pool words into sentences and sentences into documents with learned query vectors; their weights are a diagnostic, not a proof of causality.
+:::
+
+## 6. The Transformer engine {#ch6}
+
+The Transformer (Vaswani and coauthors, 2017) drops recurrence. Every position attends to every other in one step, so a layer runs in parallel over the sequence and any two tokens are one step apart. This chapter builds the layer and the three ways of telling it where tokens are.
+
+::: def
+[Definition 6.1 — Scaled dot-product attention]{.tag} For an input $X \in \mathbb{R}^{n \times d}$, queries, keys and values are linear maps $Q = X W_Q$, $K = X W_K$, $V = X W_V$, with $d_k$ columns for queries and keys. Then
+$$
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\Big(\frac{Q K^\top}{\sqrt{d_k}}\Big) V,
+$$
+with the softmax taken row by row: each output row is a convex combination of value rows.
+:::
+
+::: prop
+[Proposition 6.2 — Why divide by the square root of the dimension]{.tag} Let $q, k \in \mathbb{R}^{d_k}$ be random vectors whose $2 d_k$ coordinates are independent, with mean 0 and variance 1. Then
+$$
+\mathbb{E}[q^\top k] = 0, \qquad \mathrm{Var}(q^\top k) = d_k.
+$$
+Dividing by $\sqrt{d_k}$ keeps unit-variance scores. Without it, scores grow with the dimension, the softmax saturates to a one-hot vector and its gradient vanishes. Proof: the products $q_i k_i$ are independent, centred, with variance $\mathbb{E}[q_i^2]\, \mathbb{E}[k_i^2] = 1$.
+:::
+
+::: def
+[Definition 6.3 — Multi-head attention]{.tag} With $H$ heads of width $d_k = d / H$, each head attends with its own projections, and the results are concatenated and mixed:
+$$
+\mathrm{MHA}(X) = [\mathrm{head}_1, \dots, \mathrm{head}_H]\, W_O, \qquad \mathrm{head}_h = \mathrm{Attention}(X W_Q^h, X W_K^h, X W_V^h).
+$$
+The layer has $4d^2$ weights, as many as one full-width head, but the heads can track different relations.
+:::
+
+:::: prop
+[Proposition 6.4 — Self-attention is permutation-equivariant]{.tag} For every permutation matrix $P$, self-attention without positional information satisfies
+$$
+\mathrm{SA}(P X) = P\, \mathrm{SA}(X).
+$$
+
+::: proof
+Queries, keys and values become $PQ$, $PK$ and $PV$. A row-wise softmax commutes with permuting rows and columns, so the attention matrix becomes $P\, \mathrm{softmax}(QK^\top / \sqrt{d_k})\, P^\top$. Multiplying by $PV$ and using $P^\top P = I$ gives the claim. [∎]{.qed}
+:::
+
+Without positions, a Transformer is a sophisticated bag of words. Positions must be injected.
+::::
+
+::: def
+[Definition 6.5 — The Transformer block and the causal mask]{.tag} A pre-normalised block applies attention and a position-wise feed-forward network, each inside a residual connection. Each sublayer first applies a layer normalisation $\mathrm{LN}$, which centres every token vector, divides it by its standard deviation and applies a learned scale and shift:
+$$
+X' = X + \mathrm{MHA}(\mathrm{LN}(X)), \qquad Y = X' + W_2\, \phi\big(W_1\, \mathrm{LN}(X')\big),
+$$
+with a non-linearity $\phi$ such as ReLU or GELU and a hidden width of about $4d$. A layer costs $O(n^2 d)$ for the scores and $O(n d^2)$ for the projections.
+
+A decoder adds a causal mask before the softmax, with $M_{ij} = 0$ if $j \leq i$ and $-\infty$ otherwise. Position $i$ then sees only positions up to $i$, while the whole sequence is still processed in one pass.
+:::
+
+::: def
+[Definition 6.6 — Sinusoidal positions]{.tag} The original Transformer adds to each token embedding the vector
+$$
+\mathrm{PE}(p, 2i) = \sin(p\, \omega_i), \qquad \mathrm{PE}(p, 2i + 1) = \cos(p\, \omega_i), \qquad \omega_i = 10000^{-2i/d}.
+$$
+For each frequency, shifting the position by $k$ rotates the pair $(\sin, \cos)$ by the angle $k \omega_i$, whatever $p$. A relative offset is therefore a fixed linear map that a layer can learn.
+:::
+
+::: def
+[Definition 6.7 — Rotary position embedding, RoPE (Su and coauthors, 2021)]{.tag} Instead of adding a vector, RoPE rotates queries and keys. Split $q \in \mathbb{R}^{d_k}$ into pairs of coordinates, and rotate pair $i$ of a query at position $m$ by the angle $m \theta_i$, with $\theta_i = 10000^{-2(i-1)/d_k}$ for $i = 1, \dots, d_k/2$:
+$$
+\tilde q_m = R_m\, q, \qquad R_m = \mathrm{diag}\big(\rho(m \theta_1), \dots, \rho(m \theta_{d_k/2})\big), \qquad \rho(a) = \begin{pmatrix} \cos a & -\sin a \\ \sin a & \cos a \end{pmatrix}.
+$$
+Keys at position $n$ are rotated by $R_n$; values are not rotated.
+:::
+
+:::: thm
+[Theorem 6.8 — Rotary scores depend only on the offset]{.tag} For all queries $q$, keys $k$ and positions $m, n$,
+$$
+(R_m q)^\top (R_n k) = q^\top R_{n - m}\, k.
+$$
+
+::: proof
+Each block of $R_m$ is a rotation of a plane. Rotations of the same plane compose by adding angles and their transposes are their inverses, so $\rho(a)^\top \rho(b) = \rho(b - a)$. Block by block, this gives $R_m^\top R_n = R_{n - m}$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 6.9 — ALiBi (Press, Smith and Lewis, 2022)]{.tag} ALiBi adds no positional vector at all. Each head $h$ subtracts from the causal scores a penalty proportional to the distance:
+$$
+e_{ij} = \frac{q_i^\top k_j}{\sqrt{d_k}} - m_h\, (i - j), \qquad j \leq i.
+$$
+The slopes form a geometric sequence; for 8 heads, $m_h = 2^{-h}$, from $1/2$ to $1/256$. The paper shows that models trained on short sequences extrapolate to longer ones at inference.
+:::
+
+::: ex
+[Example 6.10 — Checking the three properties numerically]{.tag}
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+def sdpa(Q, K, V, causal=False):
+    S = Q @ K.transpose(-2, -1) / K.shape[-1] ** 0.5
+    if causal:                                    # position i only sees j <= i
+        n = S.shape[-1]
+        S = S.masked_fill(torch.triu(torch.ones(n, n, dtype=torch.bool), 1), float("-inf"))
+    return torch.softmax(S, dim=-1) @ V
+
+def rope(x, base=10000.0):
+    """Rotate each pair (x_2i, x_2i+1) of row m by the angle m * theta_i."""
+    n, d = x.shape
+    theta = base ** (-torch.arange(0, d, 2) / d)
+    ang = torch.arange(n)[:, None] * theta[None, :]
+    cos, sin = torch.cos(ang), torch.sin(ang)
+    x1, x2 = x[:, 0::2], x[:, 1::2]
+    out = torch.empty_like(x)
+    out[:, 0::2], out[:, 1::2] = x1 * cos - x2 * sin, x1 * sin + x2 * cos
+    return out
+
+n, d = 6, 8
+X = torch.randn(n, d)
+P = torch.eye(n)[torch.randperm(n)]
+print("permutation-equivariant:",
+      torch.allclose(sdpa(P @ X, P @ X, P @ X), P @ sdpa(X, X, X), atol=1e-6))
+q, k = torch.randn(d), torch.randn(d)
+Qr, Kr = rope(q.repeat(n, 1)), rope(k.repeat(n, 1))   # same vectors at every position
+print("RoPE score depends on m - n only:", torch.allclose(Qr[3] @ Kr[1], Qr[5] @ Kr[3], atol=1e-5))
+out = sdpa(X, X, X, causal=True)
+print("first causal output = first value:", torch.allclose(out[0], X[0]))
+```
+
+All three lines print `True`: Proposition 6.4, Theorem 6.8, and the causal mask of Definition 6.5.
+:::
+
+::: recap
+Key takeaways — chapter 6
+
+-   Scaled dot-product attention mixes value rows with softmax weights; the factor $1/\sqrt{d_k}$ keeps scores at unit variance.
+-   Self-attention is permutation-equivariant, so positions must be injected: added sinusoids, rotated queries and keys (RoPE), or distance penalties (ALiBi).
+-   With RoPE, scores depend only on relative offsets (Theorem 6.8).
+-   The causal mask lets a decoder train on a whole sequence in one pass without seeing the future.
+:::
+
+## 7. Self-supervised pretraining and transfer {#ch7}
+
+Labelled data are scarce; raw text is not. Self-supervised pretraining learns from raw text by predicting parts of it from the rest, and the pretrained network is then fine-tuned on the task. Around 2018 this replaced task-specific feature engineering in most of NLP.
+
+::: def
+[Definition 7.1 — Pretraining and fine-tuning]{.tag} Pretraining minimises a self-supervised loss on an unlabelled corpus and returns parameters $\theta_0$. Fine-tuning adds a small task head and minimises the supervised loss starting from $\theta_0$, usually with a small learning rate and all parameters free. The feature-based alternative freezes the network and trains only the head, as with the static vectors of ch. 2.
+:::
+
+::: def
+[Definition 7.2 — Masked language modelling (Devlin and coauthors, 2019)]{.tag} BERT selects a random set $M$ of 15 % of the positions of a sequence $x$. A selected token is replaced by `[MASK]` with probability 0.8, by a random token with probability 0.1, and left unchanged otherwise, which gives a corrupted input $\tilde x$. A bidirectional Transformer encoder minimises
+$$
+\mathcal{L}_{\mathrm{MLM}} = -\sum_{i \in M} \log p_\theta(x_i \mid \tilde x).
+$$
+The random and unchanged replacements keep the representations of real tokens useful, since `[MASK]` never appears at fine-tuning time.
+:::
+
+::: prop
+[Proposition 7.3 — What a masked model learns]{.tag} With unlimited capacity, the minimiser of the expected MLM loss predicts, at each masked position, the conditional law of the hidden token given the corrupted context. Proof: apply Proposition 0.2 position by position.
+
+The objective is therefore a pseudo-likelihood. It trains excellent bidirectional encoders, but it does not define a probability for whole sentences and does not generate text left to right.
+:::
+
+::: def
+[Definition 7.4 — Denoising sequence-to-sequence pretraining]{.tag} BART (Lewis and coauthors, 2020) corrupts a text $x$ with a noising function $g$, encodes $g(x)$ bidirectionally and decodes $x$ autoregressively:
+$$
+\mathcal{L} = -\log p_\theta\big(x \mid g(x)\big).
+$$
+Its noising functions include token masking, token deletion, sentence permutation, document rotation and text infilling, in which spans with Poisson(3) lengths are each replaced by a single `[MASK]`. T5 (Raffel and coauthors, 2020) uses span corruption: 15 % of the tokens are dropped in spans of mean length 3, and the target lists only the dropped spans.
+:::
+
+::: def
+[Definition 7.5 — Causal language modelling]{.tag} A decoder-only Transformer with the causal mask of Definition 6.5 minimises
+$$
+\mathcal{L}_{\mathrm{CLM}} = -\sum_{t=1}^{T} \log p_\theta(x_t \mid x_{<t}).
+$$
+One forward pass gives the $T$ predictions of a sequence (teacher forcing). This is the objective of the GPT family (Radford and coauthors, 2019; Brown and coauthors, 2020) and of today's large language models. Text is generated token by token, greedily or by sampling.
+:::
+
+| Family | Pretraining objective | Typical uses |
+|---|---|---|
+| Encoder (BERT, CamemBERT) | masked language modelling | classification, tagging, retrieval |
+| Encoder–decoder (BART, T5, BARThez) | denoising sequence-to-sequence | summarisation, translation, generation conditioned on a text |
+| Decoder (GPT family) | causal language modelling | open generation, in-context learning, chat |
+
+::: ex
+[Example 7.6 — The two corruption functions]{.tag}
+
+```python
+import numpy as np
+rng = np.random.default_rng(1)
+
+def mlm_corrupt(tokens, vocab, p=0.15):
+    """BERT: select 15 % of positions; 80 % -> [MASK], 10 % -> random, 10 % kept."""
+    x, targets = list(tokens), {}
+    for i in np.flatnonzero(rng.random(len(tokens)) < p):
+        targets[int(i)] = tokens[i]                 # the loss is computed here only
+        u = rng.random()
+        x[i] = "[MASK]" if u < 0.8 else (rng.choice(vocab) if u < 0.9 else tokens[i])
+    return x, targets
+
+def text_infilling(tokens, mask_ratio=0.3, lam=3.0):
+    """BART: spans with Poisson(3) lengths, each replaced by ONE [MASK]."""
+    x, budget = list(tokens), int(round(mask_ratio * len(tokens)))
+    while budget > 0:
+        L = min(rng.poisson(lam), budget)
+        start = rng.integers(0, len(x))
+        if "[MASK]" in x[start:start + L]:
+            continue                                # avoid nesting spans
+        x[start:start + L] = ["[MASK]"]              # L = 0 inserts a mask
+        budget -= max(L, 1)
+    return x
+
+sent = "the graph of words links two terms when they co-occur in a window".split()
+print(mlm_corrupt(sent, vocab=sent))
+print(" ".join(text_infilling(sent)))
+```
+
+In text infilling the model must also predict how many tokens each mask hides, which teaches it to generate spans of the right length.
+:::
+
+::: note
+[Remark 7.7 — French and multilingual resources]{.tag} Pretraining corpora are dominated by English. BARThez (Kamal Eddine, Tixier and Vazirgiannis, 2021), from the DaSciM group, is a BART model pretrained for French; the same paper introduces OrangeSum, a French summarisation data set, and mBARThez, obtained by continuing the pretraining of multilingual BART (Liu and coauthors, 2020) on French. CamemBERT (Martin and coauthors, 2020) and FlauBERT (Le and coauthors, 2020) are French encoders.
+
+Dedicated models often beat multilingual models of the same size on their language, partly because their tokenizer splits the language into fewer pieces (ch. 8).
+:::
+
+::: recap
+Key takeaways — chapter 7
+
+-   Pretraining learns from raw text by predicting hidden parts; fine-tuning adapts the pretrained network with few labels.
+-   Masked language modelling trains bidirectional encoders and estimates conditionals, not a sentence likelihood (Proposition 7.3).
+-   Denoising sequence-to-sequence pretraining (BART, T5, BARThez) suits conditional generation; causal language modelling suits open generation.
+:::
+
+## 8. Autoregressive pretraining at scale {#ch8}
+
+Large language models are decoder-only Transformers trained with the causal loss of Definition 7.5 on trillions of tokens. At this scale the questions become quantitative: how much compute a run needs, how to split it between parameters and data, and how the tokenizer changes the bill.
+
+::: note
+[Remark 8.1 — Pretraining dynamics]{.tag} A typical run uses AdamW (Loshchilov and Hutter, 2019), the Adam update of Definition 0.4 with a decoupled weight decay, a learning rate that rises linearly during a warm-up and then decays (often a cosine down to about a tenth of its peak), and batches of millions of tokens.
+
+The loss decreases smoothly, roughly as a power of the number of steps, with occasional spikes handled by skipping data or restarting from a checkpoint. Deduplicating the corpus and choosing the mixture of sources (web, code, books, languages) matter as much as the architecture.
+:::
+
+::: prop
+[Proposition 8.2 — Compute accounting]{.tag} Training a dense Transformer with $N$ parameters on $D$ tokens costs about
+$$
+C \approx 6 N D \ \text{floating-point operations.}
+$$
+Sketch (Kaplan and coauthors, 2020): in the forward pass each weight takes part in one multiply–add per token, that is $2ND$ operations. The backward pass computes gradients with respect to activations and to weights, about twice the forward cost. Attention scores add a term proportional to the context length, small unless contexts are very long.
+:::
+
+::: def
+[Definition 8.3 — Scaling laws (Kaplan and coauthors, 2020)]{.tag} When the other factors do not limit training, the test loss follows power laws in the number of parameters and of tokens, over several orders of magnitude:
+$$
+L(N) = (N_c / N)^{\alpha_N}, \qquad L(D) = (D_c / D)^{\alpha_D}, \qquad \alpha_N \approx 0.076, \quad \alpha_D \approx 0.095.
+$$
+:::
+
+:::: thm
+[Theorem 8.4 — Compute-optimal allocation (Hoffmann and coauthors, 2022)]{.tag} Model the loss as $L(N, D) = E + A N^{-\alpha} + B D^{-\beta}$. Under the budget $C = 6ND$, the loss is minimised by
+$$
+N^* = G \Big(\frac{C}{6}\Big)^{\frac{\beta}{\alpha + \beta}}, \qquad D^* = G^{-1} \Big(\frac{C}{6}\Big)^{\frac{\alpha}{\alpha + \beta}}, \qquad G = \Big(\frac{\alpha A}{\beta B}\Big)^{\frac{1}{\alpha + \beta}}.
+$$
+
+::: proof
+Substitute $D = C / (6N)$: the loss becomes $E + A N^{-\alpha} + B (C/6)^{-\beta} N^{\beta}$, a convex function of $\log N$. Setting the derivative in $N$ to zero gives
+$$
+\alpha A N^{-\alpha - 1} = \beta B\, (C/6)^{-\beta} N^{\beta - 1}, \qquad N^{\alpha + \beta} = \frac{\alpha A}{\beta B} \Big(\frac{C}{6}\Big)^{\beta},
+$$
+and $D^* = C / (6 N^*)$. [∎]{.qed}
+:::
+
+With the fitted exponents $\alpha \approx 0.34$ and $\beta \approx 0.28$, the two exponents are about 0.45 and 0.55: parameters and data should grow at nearly the same rate. The paper's other two estimation methods give exponents close to 0.5 and the rule of thumb of about 20 training tokens per parameter.
+::::
+
+::: ex
+[Example 8.5 — Gopher versus Chinchilla]{.tag} Gopher has 280 billion parameters trained on 300 billion tokens; Chinchilla has 70 billion parameters trained on 1.4 trillion tokens (20 tokens per parameter). Their budgets are close:
+$$
+C_{\text{Gopher}} \approx 5.0 \times 10^{23}, \qquad C_{\text{Chinchilla}} \approx 5.9 \times 10^{23}.
+$$
+Hoffmann and coauthors report that Chinchilla outperforms Gopher on a large range of evaluation tasks, while being four times smaller and therefore cheaper to run.
+:::
+
+::: ex
+[Example 8.6 — Computing the allocation]{.tag}
+
+```python
+E, A, B, alpha, beta = 1.69, 406.4, 410.7, 0.34, 0.28   # fit of Hoffmann et al. (2022)
+
+def optimum(C):
+    G = (alpha * A / (beta * B)) ** (1 / (alpha + beta))
+    N = G * (C / 6) ** (beta / (alpha + beta))
+    D = (C / 6) / N
+    return N, D, E + A / N**alpha + B / D**beta
+
+for C in [1e21, 1e23, 1e25]:
+    N, D, L = optimum(C)
+    print(f"C = {C:.0e}: N* = {N:.1e}, D* = {D:.1e}, D*/N* = {D / N:5.1f}, loss {L:.3f}")
+
+for name, N, D in [("Gopher", 280e9, 300e9), ("Chinchilla", 70e9, 1.4e12)]:
+    print(f"{name:10s} C = {6 * N * D:.1e}, predicted loss {E + A / N**alpha + B / D**beta:.3f}")
+```
+
+The fit predicts a lower loss for Chinchilla (1.937) than for Gopher (1.993). With this fit, the optimal ratio $D^*/N^*$ grows from about 50 to about 120 between $10^{21}$ and $10^{25}$ operations, above the 20 of the other two methods; Besiroglu and coauthors (2024) re-fitted the published data and found estimates consistent with those methods.
+:::
+
+::: def
+[Definition 8.7 — Tokenization at scale]{.tag} The fertility of a tokenizer on a language is its mean number of tokens per word. A larger vocabulary lowers fertility, so sequences are shorter and attention cheaper, but it enlarges the embedding and output matrices, with $|\mathcal{V}| d$ weights each.
+
+Tokenizers trained mostly on English split other languages and scripts into many more pieces. Petrov and coauthors (2023) report that the same text translated into different languages can need up to 15 times more tokens, which raises cost and uses up the context window.
+:::
+
+::: prop
+[Proposition 8.8 — Bits per byte]{.tag} Per-token perplexities of models with different tokenizers are not comparable, since the tokens differ. If a text of $B$ bytes is cut into $T$ tokens with mean cross-entropy $\mathrm{CE}$ in nats per token, the total code length in bits divided by the bytes is
+$$
+\mathrm{BPB} = \frac{T}{B} \cdot \frac{\mathrm{CE}}{\ln 2},
+$$
+which depends only on the probability given to the text. Proof: $-\log_2 p(\text{text}) = T\, \mathrm{CE} / \ln 2$.
+:::
+
+::: recap
+Key takeaways — chapter 8
+
+-   Training costs about $6ND$ operations; the loss falls as a power law of parameters, data and compute.
+-   Under a fixed budget, parameters and tokens should grow together (Theorem 8.4); Chinchilla used about 20 tokens per parameter.
+-   Tokenizer fertility varies widely across languages; compare models across tokenizers in bits per byte.
+:::
+
+## 9. Evaluation, compression and multilingual benchmarks {#ch9}
+
+A generation model is only as good as the way it is measured. This chapter covers surface and learned metrics for generated text, knowledge distillation as the common tool to make models — and metrics — cheaper, and the design of benchmarks for languages other than English.
+
+::: def
+[Definition 9.1 — BLEU and ROUGE]{.tag} For a candidate $c$ and a reference $r$, the clipped n-gram precision divides the n-grams of $c$ found in $r$ (each counted at most as often as in $r$) by the n-grams of $c$. BLEU (Papineni and coauthors, 2002) combines orders 1 to 4 with a brevity penalty:
+$$
+\mathrm{BLEU} = \min\big(1, e^{1 - |r|/|c|}\big) \exp\Big(\sum_{n=1}^{4} \tfrac{1}{4} \log p_n\Big).
+$$
+ROUGE-N (Lin, 2004) is the corresponding n-gram recall, standard for summarisation.
+:::
+
+::: ex
+[Example 9.2 — Precision by hand]{.tag} Reference “the cat is on the mat”, candidate “the cat sat on the mat”.
+
+-   Unigrams: “the” (twice), “cat”, “on”, “mat” match, “sat” does not, so $p_1 = 5/6$.
+-   Bigrams: “the cat”, “on the”, “the mat” match among five, so $p_2 = 3/5$.
+-   With orders 1–2 only and equal lengths, the score is
+
+$$
+\mathrm{BLEU}_2 = \sqrt{\tfrac{5}{6} \cdot \tfrac{3}{5}} = \sqrt{0.5} \approx 0.707.
+$$
+
+The candidate “the cat sits on the mat” would get exactly the same score: a near-synonym counts as an error.
+:::
+
+::: def
+[Definition 9.3 — BERTScore (Zhang and coauthors, 2020)]{.tag} Encode candidate and reference with a pretrained encoder and normalise the token vectors $x_i$ and $y_j$. Greedy matching gives
+$$
+P = \frac{1}{|x|} \sum_i \max_j x_i^\top y_j, \qquad R = \frac{1}{|y|} \sum_j \max_i x_i^\top y_j, \qquad F = \frac{2PR}{P + R}.
+$$
+Paraphrases score high, but every evaluated pair costs forward passes of a large encoder.
+:::
+
+::: def
+[Definition 9.4 — Meta-evaluation]{.tag} A metric is judged by its agreement with human judgements over a set of outputs, measured by Pearson, Spearman or Kendall correlation. Kendall's tau counts concordant minus discordant pairs of outputs, divided by the number of pairs.
+:::
+
+::: prop
+[Proposition 9.5 — Knowledge distillation (Hinton, Vinyals and Dean, 2015)]{.tag} A small student with logits $z^S$ learns from a large teacher with logits $z^T$ through softened distributions at temperature $\tau$:
+$$
+\mathcal{L} = (1 - \lambda)\, \mathrm{CE}\big(y, \mathrm{softmax}(z^S)\big) + \lambda\, \tau^2\, \mathrm{KL}\big(\mathrm{softmax}(z^T/\tau) \,\|\, \mathrm{softmax}(z^S/\tau)\big).
+$$
+The gradient of the KL term in $z^S_k$ is $(q_k - p_k)/\tau$, with $q$ and $p$ the softened student and teacher distributions. Proof: Proposition 0.2 applied to the logits $z^S / \tau$.
+
+For large $\tau$ the difference $q - p$ itself shrinks like $1/\tau$, so the gradient scales like $1/\tau^2$; the factor $\tau^2$ keeps the soft-target term at the same scale whatever the temperature.
+
+DistilBERT (Sanh and coauthors, 2019) compresses BERT this way.
+:::
+
+::: note
+[Remark 9.6 — FrugalScore (Kamal Eddine, Shang, Tixier and Vazirgiannis, 2022)]{.tag} Learned metrics such as BERTScore and MoverScore are accurate but slow. FrugalScore distils them: it scores a large set of synthetic candidate–reference pairs with the expensive metrics, then trains miniature pretrained BERT models to regress those scores. The students keep most of the agreement with human judgements at a small fraction of the cost. Efficient evaluation combines the two ideas of this chapter: a learned metric, compressed by distillation.
+:::
+
+::: ex
+[Example 9.7 — Distilling a metric]{.tag} The teacher is a BERTScore-like greedy matching with 32-dimensional word vectors and synonym classes. The student uses 8-dimensional vectors, initialised by a truncated SVD of the teacher's (Theorem 0.3), plus a three-weight head, trained to regress the teacher's scores.
+
+```python
+import numpy as np, torch, torch.nn as nn
+from scipy.stats import kendalltau
+rng = np.random.default_rng(0); torch.manual_seed(0); torch.set_num_threads(1)
+
+V, n_syn, d, L = 200, 40, 32, 10
+syn = rng.integers(n_syn, size=V)                          # synonym classes
+E = rng.normal(size=(n_syn, d))[syn] + 0.3 * rng.normal(size=(V, d))
+E /= np.linalg.norm(E, axis=1, keepdims=True)              # the teacher's word vectors
+
+def teacher(c, r):          # expensive metric: greedy matching F1
+    S = E[c] @ E[r].T
+    P, R = S.max(1).mean(), S.max(0).mean()
+    return 2 * P * R / (P + R)
+
+def unigram_f1(c, r):       # cheap surface metric, a ROUGE-1 proxy
+    m = len(set(c) & set(r))
+    return 2 * m / (len(set(c)) + len(set(r)))
+
+def make_pair():            # a reference and a corrupted candidate
+    r = rng.integers(V, size=L); c = r.copy()
+    for i in range(L):
+        u = rng.random()
+        if u < 0.4:   c[i] = rng.choice(np.flatnonzero(syn == syn[r[i]]))   # synonym
+        elif u < 0.6: c[i] = rng.integers(V)                                # error
+    return c, r
+
+pairs = [make_pair() for _ in range(6000)]
+Y = torch.tensor([teacher(c, r) for c, r in pairs], dtype=torch.float32)
+C = torch.tensor(np.array([p[0] for p in pairs])); R = torch.tensor(np.array([p[1] for p in pairs]))
+
+class Student(nn.Module):
+    def __init__(self, k=8):
+        super().__init__()
+        U, S, _ = np.linalg.svd(E - E.mean(0), full_matrices=False)
+        self.emb = nn.Embedding.from_pretrained(
+            torch.tensor(U[:, :k] * S[:k], dtype=torch.float32), freeze=False)
+        self.head = nn.Linear(3, 1)
+    def forward(self, c, r):
+        a = nn.functional.normalize(self.emb(c), dim=-1)
+        b = nn.functional.normalize(self.emb(r), dim=-1)
+        S = a @ b.transpose(1, 2)
+        P, R = S.max(2).values.mean(1), S.max(1).values.mean(1)
+        return self.head(torch.stack([P, R, P * R], 1)).squeeze(1)
+
+student = Student()
+opt = torch.optim.Adam(student.parameters(), lr=1e-2)
+for epoch in range(5):                                   # distillation = regression on Y
+    for b in range(0, 5000, 250):
+        loss = ((student(C[b:b + 250], R[b:b + 250]) - Y[b:b + 250]) ** 2).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+
+with torch.no_grad():
+    pred = student(C[5000:], R[5000:]).numpy()
+surface = [unigram_f1(c, r) for c, r in pairs[5000:]]
+print("Kendall tau with the teacher: unigram F1 %.2f, student %.2f"
+      % (kendalltau(surface, Y[5000:])[0], kendalltau(pred, Y[5000:])[0]))
+```
+
+On held-out pairs, the unigram F1 reaches a Kendall tau of 0.40 with the teacher, the distilled student 0.72, with a quarter of the vector dimension.
+:::
+
+::: def
+[Definition 9.8 — Multitask benchmarks and native sourcing]{.tag} MMLU (Hendrycks and coauthors, 2021) asks multiple-choice questions with four options over 57 subjects and reports accuracy overall and per subject; chance is 25 %.
+
+A translated benchmark carries translation artefacts and the culture of its source, for example United States law and history. A native-sourced benchmark collects questions written in the target language, from its own exams and curricula; the syllabus cites GreekMMLU for Greek. Its design covers sourcing and licences, deduplication, balanced subjects, human validation, and checks that the items do not appear in pretraining data.
+:::
+
+::: prop
+[Proposition 9.9 — Error bars of an accuracy]{.tag} An accuracy measured on $n$ independent questions has standard error
+$$
+\mathrm{SE} = \sqrt{p(1 - p) / n}.
+$$
+For $n = 1000$ and $p = 0.6$, the 95 % interval is about $\pm 3.0$ points; for a subject of 100 questions, it is about $\pm 9.6$ points. Two models evaluated on the same questions should be compared by a paired test on the questions where they disagree (McNemar's test).
+:::
+
+::: note
+[Remark 9.10 — Sovereign and multilingual models]{.tag} A sovereign model keeps data, tokenizer, training and evaluation for a language or a region under local control. A common recipe continues the pretraining of an open model on regional text (domain-adaptive pretraining, Gururangan and coauthors, 2020), possibly with an extended tokenizer, and measures the gain on native benchmarks rather than on translations.
+:::
+
+::: recap
+Key takeaways — chapter 9
+
+-   BLEU and ROUGE count n-gram overlap and miss paraphrases; BERTScore matches contextual vectors but is expensive.
+-   Distillation trains a small student on a teacher's soft outputs; FrugalScore applies it to evaluation metrics themselves.
+-   Native-sourced benchmarks, with error bars and contamination checks, are needed to evaluate non-dominant languages.
+:::
+
+## 10. Downstream adaptation and parameter efficiency {#ch10}
+
+A pretrained language model continues text; an assistant must follow instructions, and a domain system needs specialised behaviour. Fine-tuning all the weights of a large model is costly to train and to store, one copy per task. This chapter covers instruction tuning and the methods that train a tiny fraction of the weights.
+
+::: def
+[Definition 10.1 — Instruction fine-tuning]{.tag} Supervised fine-tuning on pairs (instruction $u$, response $y$) minimises the causal loss on the response tokens only:
+$$
+\mathcal{L}_{\mathrm{SFT}} = -\sum_{t} \log p_\theta(y_t \mid u, y_{<t}).
+$$
+FLAN (Wei and coauthors, 2022) fine-tuned a model on many tasks phrased as instructions and found gains in zero-shot performance on task types held out from fine-tuning.
+:::
+
+::: def
+[Definition 10.2 — Adapters and LoRA]{.tag} Adapters (Houlsby and coauthors, 2019) insert small bottleneck networks $h \mapsto h + W_{\uparrow} \phi(W_{\downarrow} h)$ after each sublayer and train only them.
+
+LoRA (Hu and coauthors, 2022) freezes a weight matrix $W_0 \in \mathbb{R}^{d \times k}$ and learns a low-rank update, with $B \in \mathbb{R}^{d \times r}$ initialised at zero and $A \in \mathbb{R}^{r \times k}$ random:
+$$
+h = W_0 x + \frac{\alpha}{r} B A x.
+$$
+:::
+
+::: prop
+[Proposition 10.3 — Three properties of LoRA]{.tag}
+
+1.  It trains $r(d + k)$ parameters instead of $dk$. For $d = k = 4096$ and $r = 8$, that is 65,536 instead of 16.8 million, or 0.39 %.
+2.  After training, $W_0 + (\alpha / r) BA$ is merged into one matrix: inference has no extra latency, and switching tasks swaps small matrices.
+3.  At initialisation the model is exactly the pretrained one. With $g$ the gradient of the loss with respect to $h$, the gradients are
+
+$$
+\nabla_A \mathcal{L} = \frac{\alpha}{r} B^\top g\, x^\top = 0, \qquad \nabla_B \mathcal{L} = \frac{\alpha}{r}\, g\, (Ax)^\top,
+$$
+
+so $B$ moves first and $A$ follows. On GPT-3, Hu and coauthors report 10,000 times fewer trainable parameters and 3 times less GPU memory than full fine-tuning, at comparable quality.
+:::
+
+::: thm
+[Theorem 10.4 — Which rank suffices]{.tag} Suppose full fine-tuning would change $W_0$ by $\Delta W^*$, with singular values $\sigma_1 \geq \sigma_2 \geq \dots$. The closest LoRA update of rank $r$ in Frobenius norm is the truncated SVD of $\Delta W^*$, with error
+$$
+\min_{B, A} \Big\| \Delta W^* - \frac{\alpha}{r} BA \Big\|_F = \Big(\sum_{i > r} \sigma_i^2\Big)^{1/2}.
+$$
+Proof: the products $BA$ are exactly the matrices of rank at most $r$; apply Theorem 0.3. LoRA works when task updates have a low intrinsic rank, in line with the finding of Aghajanyan, Zettlemoyer and Gupta (2021) that fine-tuning can be carried out in a low-dimensional subspace.
+:::
+
+::: def
+[Definition 10.5 — Prefix tuning (Li and Liang, 2021)]{.tag} Prefix tuning freezes the model and prepends $l$ trainable key and value vectors to every attention layer, $P_K, P_V \in \mathbb{R}^{l \times d}$. The tokens attend to $[P_K; K]$ and $[P_V; V]$. Prompt tuning (Lester, Al-Rfou and Constant, 2021) prepends trainable vectors to the input embeddings only.
+:::
+
+::: prop
+[Proposition 10.6 — Prefix tuning is a gated correction (He and coauthors, 2022)]{.tag} For one query $q$, attention over the prefix and the context splits as
+$$
+\mathrm{head}(q) = (1 - \lambda(q))\, \mathrm{Attn}(q, K, V) + \lambda(q)\, \mathrm{Attn}(q, P_K, P_V),
+$$
+$$
+\lambda(q) = \frac{\sum_i e^{q^\top P_{K,i}}}{\sum_i e^{q^\top P_{K,i}} + \sum_j e^{q^\top k_j}}
+$$
+(the $1/\sqrt{d_k}$ scaling is omitted). Proof: split the normaliser of the softmax into its prefix and context parts. Prefix tuning thus adds a learned, query-dependent correction to every head, close in form to an adapter.
+:::
+
+::: ex
+[Example 10.7 — A LoRA layer]{.tag} The target is a frozen layer plus a rank-4 change.
+
+```python
+import torch, torch.nn as nn
+torch.manual_seed(0); torch.set_num_threads(1)
+
+class LoRALinear(nn.Module):
+    """h = W0 x + (alpha / r) B A x, with W0 frozen (Hu et al., 2022)."""
+    def __init__(self, base: nn.Linear, r=4, alpha=8):
+        super().__init__()
+        self.base, self.scale = base, alpha / r
+        for p in self.base.parameters():
+            p.requires_grad_(False)
+        self.A = nn.Parameter(torch.randn(r, base.in_features) / base.in_features ** 0.5)
+        self.B = nn.Parameter(torch.zeros(base.out_features, r))     # BA = 0 at start
+    def forward(self, x):
+        return self.base(x) + self.scale * (x @ self.A.T) @ self.B.T
+
+d = 128
+base = nn.Linear(d, d)                                   # the "pretrained" layer
+delta = torch.randn(d, 4) @ torch.randn(4, d) / d        # the task needs a rank-4 change
+X = torch.randn(1024, d)
+Y = base(X).detach() + X @ delta.T
+
+for r in [1, 4, 16]:
+    layer = LoRALinear(base, r=r)
+    opt = torch.optim.Adam([layer.A, layer.B], lr=1e-2)
+    for step in range(200):
+        loss = ((layer(X) - Y) ** 2).mean()
+        opt.zero_grad(); loss.backward(); opt.step()
+    n_train = layer.A.numel() + layer.B.numel()
+    print(f"r = {r:2d}: {n_train:5d} trainable parameters "
+          f"({100 * n_train / (d * d):.1f} % of W0), final MSE {loss.item():.1e}")
+```
+
+Rank 1 stalls at a mean squared error of $2 \times 10^{-2}$; ranks 4 and 16 fit the change to about $10^{-6}$ and $10^{-7}$, as Theorem 10.4 predicts.
+:::
+
+::: recap
+Key takeaways — chapter 10
+
+-   Instruction tuning is supervised fine-tuning on instruction–response pairs, with the loss on the response.
+-   LoRA learns a low-rank update that merges into the frozen weights; it suffices when the task update has a small numerical rank (Theorem 10.4).
+-   Prefix tuning prepends trainable keys and values, which acts as a gated correction of each attention head.
+:::
+
+## 11. Alignment and post-training {#ch11}
+
+Instruction tuning teaches a model the format of helpful answers; it does not say which of two plausible answers people prefer. Post-training on preferences does, with reinforcement learning (RLHF, PPO) or without it (DPO). This chapter derives both from one objective.
+
+::: def
+[Definition 11.1 — Preferences and the Bradley–Terry model]{.tag} Preference data are triples $(x, y_w, y_l)$: for prompt $x$, response $y_w$ was preferred to $y_l$. The Bradley–Terry model (1952) assumes a reward $r$ with
+$$
+P(y_w \succ y_l \mid x) = \sigma\big(r(x, y_w) - r(x, y_l)\big).
+$$
+A reward model $r_\phi$, a language model with a scalar head, is fitted by maximum likelihood:
+$$
+\mathcal{L}_{\mathrm{RM}}(\phi) = -\mathbb{E} \log \sigma\big(r_\phi(x, y_w) - r_\phi(x, y_l)\big).
+$$
+:::
+
+::: def
+[Definition 11.2 — The KL-regularized objective]{.tag} Starting from a reference policy $\pi_{\mathrm{ref}}$ (the instruction-tuned model), post-training seeks
+$$
+\max_{\pi}\ \mathbb{E}_{x}\Big[\mathbb{E}_{y \sim \pi(\cdot \mid x)}\, r(x, y) - \beta\, \mathrm{KL}\big(\pi(\cdot \mid x) \,\|\, \pi_{\mathrm{ref}}(\cdot \mid x)\big)\Big].
+$$
+The divergence keeps the policy where the reward model was trained and is reliable; $\beta$ sets the trade-off.
+:::
+
+:::: thm
+[Theorem 11.3 — The optimal policy is a tilted reference]{.tag} For each prompt, the objective of Definition 11.2 is maximised by
+$$
+\pi^*(y \mid x) = \frac{1}{Z(x)}\, \pi_{\mathrm{ref}}(y \mid x)\, \exp\big(r(x, y) / \beta\big).
+$$
+
+::: proof
+Fix $x$ and write the objective as
+$$
+J(\pi) = \sum_y \pi(y) \big[r(y) - \beta \log (\pi(y) / \pi_{\mathrm{ref}}(y))\big].
+$$
+Since $r = \beta \log (\pi^* Z / \pi_{\mathrm{ref}})$,
+$$
+J(\pi) = -\beta \sum_y \pi(y) \log \frac{\pi(y)}{\pi^*(y)} + \beta \log Z = -\beta\, \mathrm{KL}(\pi \,\|\, \pi^*) + \beta \log Z,
+$$
+which is maximal exactly when $\pi = \pi^*$. [∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 11.4 — RLHF with PPO]{.tag} InstructGPT (Ouyang and coauthors, 2022), following Christiano and coauthors (2017), samples responses from the policy, scores them with $r_\phi$ minus a per-token KL penalty, and updates the policy by PPO (Schulman and coauthors, 2017). States are the prompt plus the tokens so far, and actions are next tokens. The advantage $A_t$ estimates how much better the chosen token is than the policy's average choice in state $s_t$; it is computed with a value network that predicts the expected future reward.
+
+With the probability ratio $\rho_t$, PPO maximises
+$$
+\rho_t = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\mathrm{old}}(a_t \mid s_t)}, \qquad L^{\mathrm{CLIP}} = \mathbb{E}_t \big[\min\big(\rho_t A_t,\ \mathrm{clip}(\rho_t, 1 - \epsilon, 1 + \epsilon)\, A_t\big)\big], \qquad \epsilon \approx 0.2.
+$$
+:::
+
+::: prop
+[Proposition 11.5 — What clipping does]{.tag} If $A_t > 0$, the surrogate is constant in $\rho_t$ beyond $1 + \epsilon$; if $A_t < 0$, it is constant below $1 - \epsilon$. In both cases the gradient vanishes there, so one update has no incentive to move the policy far from the one that sampled the data. Proof: compare the two terms of the minimum in each case.
+:::
+
+:::: thm
+[Theorem 11.6 — Direct preference optimization (Rafailov and coauthors, 2023)]{.tag} Inverting Theorem 11.3 writes the reward through the optimal policy:
+$$
+r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} + \beta \log Z(x).
+$$
+In the Bradley–Terry model the term $\log Z(x)$ cancels, which suggests fitting the policy directly:
+$$
+\mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E} \log \sigma\Big(\beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)}\Big).
+$$
+Assume that preferences follow the Bradley–Terry model with reward $r$, that every pair of responses is compared with positive probability, and that $\pi_{\mathrm{ref}}$ gives positive probability to every response. Then the minimiser of the expected loss over policies is $\pi^*$.
+
+::: proof
+The DPO loss is the reward-model loss of Definition 11.1 for the implicit reward
+$$
+\hat r_\theta(x, y) = \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}.
+$$
+Every reward equals such an implicit reward up to a function of $x$, which cancels in the loss, so minimising over policies is minimising over rewards. With full coverage, the maximum-likelihood reward is the true $r$ up to a function of $x$. Theorem 11.3 then identifies the policy as $\pi^*$. [∎]{.qed}
+:::
+::::
+
+::: prop
+[Proposition 11.7 — The DPO gradient]{.tag} With $\hat r_\theta$ as above,
+$$
+\nabla_\theta \mathcal{L}_{\mathrm{DPO}} = -\beta\, \mathbb{E}\Big[\sigma\big(\hat r_\theta(y_l) - \hat r_\theta(y_w)\big) \big(\nabla_\theta \log \pi_\theta(y_w \mid x) - \nabla_\theta \log \pi_\theta(y_l \mid x)\big)\Big].
+$$
+It raises the preferred response and lowers the other, more strongly when the implicit reward orders them wrongly. Proof: the derivative of $-\log \sigma(z)$ is $-\sigma(-z)$.
+:::
+
+::: ex
+[Example 11.8 — DPO recovers the tilted policy]{.tag} One prompt, five candidate answers, preferences drawn from a Bradley–Terry model.
+
+```python
+import torch
+torch.manual_seed(0); torch.set_num_threads(1)
+
+K, beta = 5, 0.5
+r_true = torch.tensor([1.0, 0.5, 0.0, -0.5, -1.0])               # hidden rewards
+log_ref = torch.log(torch.tensor([0.1, 0.2, 0.4, 0.2, 0.1]))     # reference policy
+
+i, j = torch.randint(K, (20000,)), torch.randint(K, (20000,))
+keep = i != j
+i, j = i[keep], j[keep]
+i_wins = torch.rand(len(i)) < torch.sigmoid(r_true[i] - r_true[j])
+yw, yl = torch.where(i_wins, i, j), torch.where(i_wins, j, i)
+
+logits = log_ref.clone().requires_grad_(True)                     # start at the reference
+opt = torch.optim.Adam([logits], lr=0.05)
+for step in range(500):
+    logp = torch.log_softmax(logits, 0)
+    margin = beta * ((logp[yw] - log_ref[yw]) - (logp[yl] - log_ref[yl]))
+    loss = -torch.nn.functional.logsigmoid(margin).mean()        # DPO loss
+    opt.zero_grad(); loss.backward(); opt.step()
+
+print("DPO policy:     ", [round(p, 3) for p in torch.softmax(logits, 0).tolist()])
+print("closed form pi*:", [round(p, 3) for p in torch.softmax(log_ref + r_true / beta, 0).tolist()])
+```
+
+The two lines agree to about 0.01: $(0.409, 0.302, 0.239, 0.042, 0.008)$ against $(0.418, 0.307, 0.226, 0.042, 0.008)$. No reward model and no sampling were needed.
+:::
+
+::: note
+[Remark 11.9 — AI feedback and over-optimisation]{.tag} RLAIF replaces human labels by preferences produced by a model; Constitutional AI (Bai and coauthors, 2022) guides that model with a list of written principles. A reward model is only a proxy: optimising it too hard eventually lowers the true quality (Gao, Schulman and Hilton, 2023), which the KL term and early stopping limit.
+:::
+
+::: recap
+Key takeaways — chapter 11
+
+-   Preferences are modelled by Bradley–Terry; a reward model is fitted by logistic loss on pairs.
+-   The KL-regularized objective has a closed-form optimum, the reference tilted by $\exp(r/\beta)$ (Theorem 11.3).
+-   PPO optimises it by sampling, with a clipped surrogate; DPO fits it directly by a logistic loss on log-ratio differences (Theorem 11.6).
+:::
+
+## 12. Retrieval-augmented and graph-augmented generation {#ch12}
+
+The knowledge of a language model is frozen in its weights at the end of pretraining, cannot be cited, and is sometimes reconstructed wrongly when it is missing. Retrieval-augmented generation fetches evidence at query time and conditions the answer on it; graph-augmented generation fetches structured evidence that supports multi-step reasoning.
+
+::: def
+[Definition 12.1 — BM25]{.tag} The standard sparse retrieval score (Robertson and Zaragoza, 2009) of a document $d$ for a query $q$ is, with the non-negative idf of common implementations,
+$$
+\mathrm{BM25}(q, d) = \sum_{t \in q} \mathrm{idf}(t)\, \frac{\mathrm{tf}(t, d)\, (k_1 + 1)}{\mathrm{tf}(t, d) + k_1 \big(1 - b + b\, |d| / \mathrm{avdl}\big)}, \qquad \mathrm{idf}(t) = \log\Big(1 + \frac{N - \mathrm{df}(t) + 0.5}{\mathrm{df}(t) + 0.5}\Big),
+$$
+with $k_1 \in [1.2, 2]$ and $b = 0.75$ as usual values. Repeated terms saturate at $k_1 + 1$, and long documents are penalised.
+:::
+
+::: def
+[Definition 12.2 — Dense passage retrieval (Karpukhin and coauthors, 2020)]{.tag} Two encoders map questions and passages to vectors, and the score is their inner product $s(q, p) = E_Q(q)^\top E_P(p)$. On a batch of $B$ question–passage pairs, the other passages of the batch serve as negatives:
+$$
+\mathcal{L} = -\frac{1}{B} \sum_{i=1}^{B} \log \frac{\exp s(q_i, p_i)}{\sum_{j=1}^{B} \exp s(q_i, p_j)}.
+$$
+This is a $B$-way softmax classification (Proposition 0.2) with $B - 1$ negatives for free. Passages are encoded offline, and retrieval is an approximate maximum inner-product search, for example with FAISS (Johnson, Douze and Jégou, 2019).
+:::
+
+::: def
+[Definition 12.3 — Retrieval-augmented generation (Lewis and coauthors, 2020)]{.tag} A retriever gives a distribution $p_\eta(z \mid x)$ over the top-$K$ passages and a generator models $p_\theta(y \mid x, z)$. RAG-sequence marginalises over passages:
+$$
+p(y \mid x) \approx \sum_{z \in \text{top-}K} p_\eta(z \mid x) \prod_t p_\theta(y_t \mid x, z, y_{<t}).
+$$
+With today's large language models, the retrieved passages are usually placed in the prompt of a frozen generator, and at most the retriever is tuned.
+:::
+
+::: note
+[Remark 12.4 — Grounding and hallucination]{.tag} A hallucination is fluent content that is not supported by the source or by facts (survey by Ji and coauthors, 2023). Retrieval reduces it when the answer is asked to rely on the retrieved passages, to cite them, and to abstain when retrieval scores are low; claims can then be checked against the evidence.
+
+Retrieval quality (recall at $k$, mean reciprocal rank) and faithfulness of the answer should be measured separately. Long contexts are no full substitute: Liu and coauthors (2024) find that models use information placed in the middle of a long context less well.
+:::
+
+::: def
+[Definition 12.5 — Knowledge graphs and multi-hop questions]{.tag} A knowledge graph is a set of triples $(h, r, t)$: head entity, relation, tail entity. A multi-hop question needs a chain of triples. A passage retriever scores each passage against the question separately, so it finds the first hop and misses the next ones, whose passages share no words with the question.
+:::
+
+::: def
+[Definition 12.6 — Message passing and graph-augmented pipelines]{.tag} A message-passing layer (Gilmer and coauthors, 2017) updates each node from its neighbours:
+$$
+h_v^{(\ell + 1)} = \phi\Big(h_v^{(\ell)}, \sum_{u \in \mathcal{N}(v)} \psi\big(h_u^{(\ell)}, h_v^{(\ell)}, e_{uv}\big)\Big).
+$$
+A graph-augmented LLM links the entities of the question to the graph and retrieves a subgraph: a $k$-hop neighbourhood, paths, or a relevant connected subgraph. G-Retriever (He and coauthors, 2024) selects it as a prize-collecting Steiner tree. The subgraph reaches the LLM as verbalised triples, or as a soft prompt computed by message passing.
+:::
+
+::: ex
+[Example 12.7 — Where BM25 stops and the graph continues]{.tag}
+
+```python
+import math, re
+from collections import Counter
+import networkx as nx
+
+docs = ["BARThez is a French sequence-to-sequence model pretrained like BART.",
+        "BART was introduced by Lewis and coauthors at Facebook AI.",
+        "FrugalScore distils expensive evaluation metrics into small models.",
+        "The k-core of a graph of words keeps its densest terms.",
+        "Facebook AI Research has a laboratory in Paris."]
+tok = lambda s: re.findall(r"[a-z0-9\-]+", s.lower())
+D = [tok(d) for d in docs]
+avgdl, N = sum(map(len, D)) / len(D), len(D)
+df = Counter(t for d in D for t in set(d))
+
+def bm25(query, k1=1.5, b=0.75):
+    scores = []
+    for d in D:
+        tf, s = Counter(d), 0.0
+        for t in tok(query):
+            if t in tf:
+                idf = math.log(1 + (N - df[t] + 0.5) / (df[t] + 0.5))
+                s += idf * tf[t] * (k1 + 1) / (tf[t] + k1 * (1 - b + b * len(d) / avgdl))
+        scores.append(s)
+    return sorted(range(N), key=lambda i: -scores[i])
+
+q = "In which city does the lab behind the model that BARThez imitates work?"
+print("BM25 top-2:", bm25(q)[:2])            # [0, 3]: first hop only
+
+KG = nx.DiGraph()                            # triples extracted from the documents
+for h, r, t in [("BARThez", "pretrained_like", "BART"), ("BART", "introduced_by", "Facebook AI"),
+                ("Facebook AI", "has_lab_in", "Paris"), ("FrugalScore", "distils", "metrics")]:
+    KG.add_edge(h, t, rel=r)
+linked = [e for e in KG if e.lower() in tok(q)]             # naive linking: exact token match
+sub = nx.compose_all([nx.ego_graph(KG, e, radius=3) for e in linked])
+context = [f"{u} {KG[u][v]['rel']} {v}." for u, v in nx.bfs_edges(sub, linked[0])]
+print("graph context for the LLM:", " ".join(context))
+```
+
+BM25 returns the BARThez document and an irrelevant one; the 3-hop subgraph around the linked entity contains the whole chain BARThez → BART → Facebook AI → Paris.
+:::
+
+::: note
+[Remark 12.8 — GraphRAG and relational databases]{.tag} GraphRAG (Edge and coauthors, 2024) builds the graph from the corpus itself. An LLM extracts entities and relations, Leiden community detection (Traag, Waltman and van Eck, 2019) groups them, the LLM summarises each community, and a global question is answered by combining the summaries. It targets questions about a whole corpus that no single passage answers.
+
+For relational databases, the LLM writes an SQL query from the question and the schema (text-to-SQL); running it returns exact evidence that can be checked.
+:::
+
+::: ex
+[Example 12.9 — Text-to-SQL with an execution check]{.tag} The LLM receives the schema and the question and writes a query; below, a hand-written query stands in for its output. Two different queries can be equally right, so text-to-SQL systems are scored by execution accuracy: the fraction of questions whose query returns the same rows as a reference query, as on the Spider benchmark (Yu and coauthors, 2018).
+
+```python
+import sqlite3
+
+db = sqlite3.connect(":memory:")
+db.executescript("""
+CREATE TABLE model(name TEXT, base TEXT, language TEXT);
+INSERT INTO model VALUES ('BART', NULL, 'English'), ('BARThez', 'BART', 'French'),
+    ('mBART', 'BART', 'multilingual'), ('CamemBERT', 'RoBERTa', 'French');
+""")
+schema = "model(name, base, language)"                        # shown to the LLM
+question = "Which French models are derived from BART?"
+generated = "SELECT name FROM model WHERE base = 'BART' AND language = 'French'"
+reference = "SELECT m.name FROM model AS m WHERE m.language = 'French' AND m.base = 'BART'"
+rows = db.execute(generated).fetchall()
+print(rows, "| exact string match:", generated == reference,
+      "| execution match:", set(rows) == set(db.execute(reference).fetchall()))
+```
+
+The two queries differ as strings but return the same single row, BARThez, so the generated query counts as correct. Unlike a generated sentence, this answer can be traced back to rows of the database.
+:::
+
+::: recap
+Key takeaways — chapter 12
+
+-   BM25 and dense dual encoders retrieve passages; dense retrievers are trained with in-batch negatives.
+-   RAG conditions generation on retrieved evidence, which allows citations and reduces hallucination; retrieval and faithfulness are evaluated separately.
+-   Graph augmentation retrieves chains of triples, verbalised or encoded by message passing; GraphRAG summarises communities of an extracted graph; text-to-SQL queries databases and is scored by execution accuracy.
+:::
+
+## 13. Quantization and efficient inference {#ch13}
+
+A 7-billion-parameter model stored in 16-bit floats needs 14 GB for its weights alone, and decoding reads all of them for every generated token. Quantization stores weights, and sometimes activations, on 8 or 4 bits; the key–value cache and pruning address the other costs of inference.
+
+::: def
+[Definition 13.1 — Uniform quantization]{.tag} With $b$ bits and $q_{\max} = 2^{b-1} - 1$, symmetric absmax quantization of a group of weights $w$ uses the scale $s = \max_i |w_i| / q_{\max}$ and
+$$
+Q(w) = s \cdot \mathrm{clamp}\big(\mathrm{round}(w / s),\, -q_{\max},\, q_{\max}\big).
+$$
+The scale is stored in 16 bits per tensor, per output channel, or per group of $g$ consecutive weights ($g = 64$ or $128$ are common). Asymmetric schemes add a zero point.
+:::
+
+::: prop
+[Proposition 13.2 — Rounding error and outliers]{.tag} Every weight satisfies $|Q(w_i) - w_i| \leq s/2$, and if rounding errors are uniformly spread the mean squared error is $s^2 / 12$. Since $s$ is proportional to the largest weight of the group, one outlier enlarges the error of every weight that shares its scale. Small groups confine the damage of an outlier to a few weights, at a storage cost of
+$$
+b + 16 / g \ \text{bits per weight}, \qquad \text{for example } 4.125 \text{ bits for } b = 4,\ g = 128.
+$$
+:::
+
+::: def
+[Definition 13.3 — LLM.int8(), NF4 and bitsandbytes]{.tag} Dettmers and coauthors (2022) observe that, beyond a few billion parameters, a few hidden dimensions carry activations of very large magnitude. LLM.int8() multiplies matrices in 8 bits with vector-wise scales, and computes these outlier dimensions in 16 bits.
+
+NF4 (QLoRA, Dettmers and coauthors, 2023) places its 16 levels at quantiles of a standard normal law, which suits normally distributed weights, and also quantizes the scales. QLoRA trains LoRA adapters (ch. 10) on a frozen 4-bit model. Both are implemented in the bitsandbytes library.
+:::
+
+::: def
+[Definition 13.4 — Layer-wise post-training quantization]{.tag} Given calibration inputs $X \in \mathbb{R}^{k \times n}$ of a linear layer $W \in \mathbb{R}^{d \times k}$, find a quantized $\hat W$ minimising the output error:
+$$
+\min_{\hat W} \|W X - \hat W X\|_F^2.
+$$
+Rows are independent. For one row, a change $\delta$ costs $\frac12 \delta^\top H \delta$ with Hessian $H = 2 X X^\top$.
+:::
+
+:::: thm
+[Theorem 13.5 — Optimal compensation (Hassibi and Stork, 1993; Frantar and coauthors, 2023)]{.tag} Fix coordinate $q$ of a row $w$ to its quantized value. The other coordinates are best updated by $\delta$, and the error then grows by $\Delta E$:
+$$
+\delta = -\frac{w_q - Q(w_q)}{[H^{-1}]_{qq}}\, H^{-1} e_q, \qquad \Delta E = \frac{\big(w_q - Q(w_q)\big)^2}{2\, [H^{-1}]_{qq}}.
+$$
+
+::: proof
+Minimise $\frac12 \delta^\top H \delta$ under the constraint $e_q^\top \delta = Q(w_q) - w_q$. The Lagrange condition $H \delta = \lambda e_q$ gives $\delta = \lambda H^{-1} e_q$. The constraint gives $\lambda = (Q(w_q) - w_q) / [H^{-1}]_{qq}$, and the cost is $\frac12 \lambda^2 [H^{-1}]_{qq}$. [∎]{.qed}
+:::
+
+GPTQ quantizes the columns in a fixed order shared by all rows, applies this update to the columns not yet quantized, and removes column $q$ from $H^{-1}$ by Gaussian elimination. With lazy batched updates and a Cholesky form, the authors quantize 175-billion-parameter models in about four GPU hours.
+::::
+
+::: def
+[Definition 13.6 — Activation-aware weight quantization, AWQ (Lin and coauthors, 2024)]{.tag} A small fraction of weight channels matters most, and it is identified by the magnitude of the activations, not of the weights. Rather than keep them in 16 bits, AWQ scales input channel $j$ by $s_j > 1$ before quantizing and divides the activation:
+$$
+y = Q\big(W\, \mathrm{diag}(s)\big)\, \mathrm{diag}(s)^{-1} x.
+$$
+If the group scale is unchanged, the rounding error carried by channel $j$ is divided by $s_j$. AWQ sets $s_j = \bar{x}_j^{\,\alpha}$ from the mean activation magnitude, with $\alpha \in [0, 1]$ chosen on calibration data, without back-propagation.
+:::
+
+::: prop
+[Proposition 13.7 — Size of the KV cache]{.tag} Decoding stores the keys and values of all past tokens, for every layer and key–value head:
+$$
+\text{memory} = 2 \times n_{\text{layers}} \times n_{\text{kv heads}} \times d_{\text{head}} \times T \times \text{batch} \times \text{bytes}.
+$$
+With 32 layers, 32 heads of dimension 128 and 16-bit values, that is 0.5 MiB per token, or 2 GiB for one sequence of 4096 tokens.
+
+Multi-query attention (Shazeer, 2019) and grouped-query attention (Ainslie and coauthors, 2023) share key–value heads and divide this memory. PagedAttention (Kwon and coauthors, 2023) allocates it in blocks to avoid fragmentation, and the cache itself can be quantized.
+:::
+
+::: ex
+[Example 13.8 — Round-to-nearest versus GPTQ]{.tag} A layer with two outlier input channels and strongly correlated calibration inputs, quantized on 4 bits.
+
+```python
+import numpy as np
+rng = np.random.default_rng(0)
+
+def quant(w, scale, bits=4):
+    qmax = 2 ** (bits - 1) - 1
+    return scale * np.clip(np.round(w / scale), -qmax, qmax)
+
+d_in, d_out, n = 128, 64, 2048
+W = rng.normal(size=(d_out, d_in)) / np.sqrt(d_in)
+W[:, :2] *= 8                                              # two outlier input channels
+mix = rng.normal(size=(d_in, d_in)) * np.logspace(0, -2, d_in)
+X = mix @ rng.normal(size=(d_in, n))                       # correlated calibration inputs
+err = lambda Wq: np.linalg.norm((W - Wq) @ X) ** 2 / np.linalg.norm(W @ X) ** 2
+
+def scales(W, group):                                      # one scale per row and group
+    s = np.abs(W.reshape(len(W), -1, group)).max(axis=2) / 7
+    return np.repeat(s, group, axis=1)
+
+def gptq(W, X, S, damp=0.01):
+    W = W.copy()
+    H = 2 * X @ X.T
+    H += damp * np.mean(np.diag(H)) * np.eye(len(H))       # dampening
+    Hinv = np.linalg.inv(H)
+    for q in range(W.shape[1]):
+        wq = quant(W[:, q], S[:, q])
+        e = (W[:, q] - wq) / Hinv[q, q]
+        W[:, q:] -= np.outer(e, Hinv[q, q:])               # Theorem 13.5
+        W[:, q] = wq
+        Hinv -= np.outer(Hinv[:, q], Hinv[q, :]) / Hinv[q, q]   # eliminate column q
+    return W
+
+for group in [d_in, 32]:
+    S = scales(W, group)
+    print(f"group size {group:3d}: RTN error {err(quant(W, S)):.4f}, "
+          f"GPTQ error {err(gptq(W, X, S)):.4f}")
+```
+
+Per-row scales give a relative output error of 0.076 for round-to-nearest and 0.013 for GPTQ; groups of 32 give 0.020 and 0.001. Smaller groups (Proposition 13.2) and error compensation (Theorem 13.5) each help, and they combine.
+:::
+
+::: note
+[Remark 13.9 — Pruning]{.tag} Magnitude pruning removes the smallest weights. Wanda (Sun and coauthors, 2024) scores a weight by its magnitude times the norm of its input activation, and SparseGPT (Frantar and Alistarh, 2023) applies the compensation of Theorem 13.5 to removed weights. The 2:4 pattern, two zeros in every group of four weights, is accelerated by recent GPUs; unstructured sparsity saves memory but rarely time.
+:::
+
+::: recap
+Key takeaways — chapter 13
+
+-   Uniform quantization has error at most half a step; outliers inflate the step of their whole group.
+-   LLM.int8() isolates outlier dimensions, NF4 matches normal weights, GPTQ compensates rounding errors with the inverse Hessian, AWQ rescales salient channels.
+-   The KV cache grows linearly with context and batch; sharing key–value heads and paging control it.
+:::
+
+## 14. Research directions and open problems {#ch14}
+
+This chapter is for self-study. It points to active questions that extend each part of the course, with entry papers; it is a map, not a survey.
+
+::: note
+[Remark 14.1 — Graphs and text, beyond bags of words]{.tag} Graph-of-words methods (ch. 3) keep finding uses where data are scarce and interpretability matters. Work by Shang and coauthors (2018) builds word graphs of meeting transcripts and compresses them into abstractive summaries without supervision; message passing on graphs-of-words (Nikolentzos, Tixier and Vazirgiannis, 2020) brings the same structure into neural classifiers.
+
+Open questions: how to combine degeneracy-based scores with contextual embeddings, and whether graph-based keyword extraction still adds value as a retrieval signal for RAG pipelines (ch. 12).
+:::
+
+::: note
+[Remark 14.2 — Long contexts and efficient attention]{.tag} The quadratic cost of attention (Definition 6.5) drives two lines of work. FlashAttention (Dao and coauthors, 2022) computes exact attention in tiles that stay in fast GPU memory, cutting memory traffic. Selective state-space models such as Mamba (Gu and Dao, 2023) replace attention by a recurrence with input-dependent parameters, linear in the length — a return of the RNNs of ch. 4 in a parallelisable form. Whether such models match Transformers on retrieval-heavy tasks, and how positional schemes such as RoPE and ALiBi extrapolate far beyond the training length, are open.
+:::
+
+::: note
+[Remark 14.3 — Alignment, reasoning and their theory]{.tag} DPO (Theorem 11.6) assumes the Bradley–Terry model; Azar and coauthors (2024) show that it can overfit when preferences are nearly deterministic and propose a regularised variant (IPO). Reward over-optimisation (Gao, Schulman and Hilton, 2023) remains poorly understood.
+
+Reinforcement learning from verifiable rewards — checking a final answer in mathematics or code — has become central to training models that reason step by step; GRPO (Shao and coauthors, 2024) removes the value network of PPO by normalising rewards within a group of samples. What these methods teach, beyond eliciting abilities already present after pretraining, is debated.
+:::
+
+::: note
+[Remark 14.4 — Evaluation that keeps up]{.tag} Benchmarks saturate and leak into pretraining corpora. LLM-as-a-judge evaluation (Zheng and coauthors, 2023) scales human-like judgements but inherits position and verbosity biases; learned metrics such as FrugalScore (ch. 9) raise the same question of what exactly is distilled. Open problems: contamination detection without access to the training data, error bars for judge-based scores (Proposition 9.9), and native-sourced benchmarks for the many languages that still have none.
+:::
+
+::: note
+[Remark 14.5 — Multilingual and sovereign models]{.tag} Tokenizers trained mostly on English penalise other languages in cost and context length (Petrov and coauthors, 2023; Rust and coauthors, 2021). Research asks how much a dedicated tokenizer, continued pretraining (Remark 9.10) or vocabulary transfer recovers, how to evaluate cultural knowledge rather than translated knowledge, and how small, well-trained regional models compare with large multilingual ones under the compute accounting of ch. 8.
+:::
+
+::: note
+[Remark 14.6 — Graphs and language models together]{.tag} The pipelines of ch. 12 raise several open problems: building reliable knowledge graphs from text with LLMs, retrieving the right subgraph for a question (He and coauthors, 2024), evaluating global, corpus-level answers (Edge and coauthors, 2024), and giving LLMs a faithful view of graph structure, through verbalisation or message-passing encoders. A unifying roadmap is proposed by Pan and coauthors (2024).
+:::
+
+::: note
+[Remark 14.7 — Extreme compression]{.tag} Below 4 bits, round-to-nearest collapses and methods rely on incoherence processing, vector quantization or quantization-aware training; QuIP (Chee and coauthors, 2023) obtains 2-bit weights with guarantees under an incoherence assumption. How quantization interacts with scaling laws, long contexts (quantized KV caches) and fine-tuning (QLoRA) is an active area.
+:::
+
+::: recap
+Key takeaways — chapter 14
+
+-   Graph-of-words ideas live on in summarisation, neural classifiers and, potentially, retrieval.
+-   Efficient attention and state-space models attack the quadratic cost; length extrapolation remains open.
+-   Preference optimisation, verifiable rewards and evaluation methodology are moving fast and lack theory.
+-   Multilingual fairness, graph–LLM integration and sub-4-bit compression are open engineering and research fronts.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ open-ended or research-flavoured. The *Practice* column of the [session plan](#sessions) says when to do each one.
+
+1.  **★ TF-IDF, cosine and perplexity by hand.** Three documents: $d_1$ = “graph graph kernel”, $d_2$ = “graph words”, $d_3$ = “words vectors”.
+
+    (a) Compute the TF-IDF vectors with natural logarithms and $N = 3$. (b) Compute the cosine of $d_1$ with $d_2$ and with $d_3$. (c) A model gives probabilities 0.5, 0.25, 0.125 and 0.125 to the four tokens of a test sentence; what is its perplexity?
+
+    *Solution*: (a) “graph” has $\mathrm{df} = 2$ and “kernel” $\mathrm{df} = 1$, so $d_1$ has weights $2 \log 1.5 = 0.811$ and $\log 3 = 1.099$.
+
+    The document $d_2$ has $\log 1.5 = 0.405$ for “graph” and for “words”; $d_3$ has 1.099 for “vectors” and 0.405 for “words”.
+
+    (b) The norms are 1.365 and 0.573, and only “graph” is shared, so
+    $$
+    \cos(d_1, d_2) = \frac{0.811 \times 0.405}{1.365 \times 0.573} \approx 0.42, \qquad \cos(d_1, d_3) = 0.
+    $$
+
+    (c) The product of the probabilities is $1/512$, so the perplexity is $512^{1/4} = 2^{9/4} \approx 4.76$.
+
+2.  **★ BPE by hand.** Run four BPE merges on the word counts “low” 5, “lowest” 2, “newer” 6, “wider” 3, “new” 2 (break ties by first occurrence). Segment “lower” and “newest” with the learned merges, and check with the code of Example 1.10.
+
+    *Solution*: the initial pair counts are 9 for “e r”, 8 for “w e”, “n e” and “e w”, and 7 for “l o” and “o w”. The merges are “er” (9), “ne” (8), “new” (8) and “lo” (7); after “er”, the pair “w e” only remains in “lowest” (count 2).
+
+    “lower” becomes “lo w er” and “newest” becomes “new e s t”. The code prints the merges `[('er', 9), ('ne', 8), ('new', 8), ('lo', 7)]`.
+
+3.  **★ Cores by hand.** A graph-of-words has the edges A–B, A–C, B–C, A–D, B–D and D–E. Run the peeling algorithm of Theorem 3.3, give every core number, the degeneracy, the main core and the CoreRank scores.
+
+    *Solution*: remove E (degree 1, so $\kappa = 1$); then C and D have degree 2. Remove C ($\kappa = 2$), then D (degree 2), then A and B (degrees 1 and 0, $\kappa$ stays 2).
+
+    Core numbers: E 1, and A, B, C, D 2. The degeneracy is 2 and the main core is $\{A, B, C, D\}$. CoreRank: A 6, B 6, D 5, C 4, E 2, which orders the terms of the main core.
+
+4.  **★ Additive, dot and scaled attention.** Take the data of Example 4.8.
+
+    Compute the weights and the context for additive attention with $W_a = U_a = I$ and $v = (1, 1)$, and for scaled dot-product attention with $d_k = 2$. Compare with Example 4.8.
+
+    *Solution*: additive scores $v^\top \tanh(s + h_j)$ are 1.726, 1.523 and 0.995, so the weights are $(0.435, 0.355, 0.210)$ and the context is $(0.854, 0.790)$.
+
+    Scaled scores are $(0.707, 0, 1.414)$, with weights $(0.284, 0.140, 0.576)$ and context $(1.436, 0.424)$.
+
+    The additive score ranks $h_1$ first: the tanh saturates the large coordinate of $s + h_3$, so it rewards keys active in both coordinates. The $\sqrt{d_k}$ scaling keeps the ranking of Example 4.8 and only softens it (0.576 instead of 0.665 on $h_3$).
+
+5.  **★ LoRA and KV-cache budgets.** A decoder has 32 layers, model width 4096 and heads of dimension 128. (a) How many parameters does LoRA of rank 16 on $W_Q$ and $W_V$ of every layer train, and how many megabytes do they take in 16 bits? (b) What is the KV-cache memory for a batch of 8 sequences of 2048 tokens in 16 bits, with 32 key–value heads, and with grouped-query attention using 8?
+
+    *Solution*: (a) Each matrix gets $16 \times (4096 + 4096) = 131{,}072$ parameters, so $2 \times 32 \times 131{,}072 \approx 8.4$ million in total, about 16.8 MB (Proposition 10.3).
+
+    (b) By Proposition 13.7, $2 \times 32 \times 32 \times 128 \times 2048 \times 8 \times 2$ bytes $= 8$ GiB with 32 heads, and 2 GiB with 8 key–value heads.
+
+6.  **★ A compute budget.** You may spend $10^{22}$ operations. (a) With the rule of 20 tokens per parameter and $C = 6ND$, what model size and how many tokens? (b) How long does training take on 256 accelerators sustaining $4 \times 10^{14}$ operations per second each? (c) Using the code of Example 8.6, what does the fitted law of Theorem 8.4 recommend instead?
+
+    *Solution*: (a) $C = 6 N \cdot 20 N = 120 N^2$, so $N \approx 9.1 \times 10^9$ parameters and $D \approx 1.8 \times 10^{11}$ tokens. (b) The 256 accelerators deliver about $10^{17}$ operations per second, so training takes about $9.8 \times 10^4$ seconds, a little more than a day.
+
+    (c) The fitted law gives $N^* \approx 5.2 \times 10^9$ parameters and $D^* \approx 3.2 \times 10^{11}$ tokens, a smaller model trained on more data (about 63 tokens per parameter): the two estimation methods disagree, which is why Example 8.6 discusses the replication.
+
+7.  **★★ SGNS with a smoothed noise law.** Redo the proof of Theorem 2.4 with negatives drawn from $P_n(c) = \#(c)^{3/4} / Z$. Show that the optimum is a PMI computed with a smoothed context distribution, shifted by $\log k$. Explain why rare contexts get smaller PMI values than with the unigram law, and what a finite dimension changes.
+
+    *Solution*: the term of the pair $(w, c)$ becomes
+    $$
+    f(x) = \#(w, c) \log \sigma(x) + k\, \#(w)\, P_n(c) \log \sigma(-x),
+    $$
+    concave in $x$, with maximum at
+    $$
+    x^* = \log \frac{\#(w, c)}{\#(w)\, P_n(c)} - \log k.
+    $$
+    Raising counts to the power $3/4$ increases the probability of rare contexts, which lowers their PMI and damps the known bias of PMI towards rare pairs.
+
+    With a finite dimension, the inner products cannot reach all the targets: SGNS then computes a weighted low-rank approximation, with weights given by the counts, unlike the unweighted SVD of Proposition 2.5.
+
+8.  **★★ Max pooling, exclusive or, and order (computational).** (a) Show that a width-1 convolution with max pooling and a linear output can represent the label of Example 1.4: positive when exactly one of “not” and “good” occurs. (b) Run Example 5.5 with `width=1`. (c) Change the generator so that the core is “good bad” (label 1) or “bad good” (label 0), and compare widths 1 and 2.
+
+    *Solution*: (a) With one-hot vectors, a filter that responds 1 to “not” and to “good” gives, after max pooling, the *or* of the two presences $A$ and $B$; two more filters give $A$ and $B$. The output $2\,\mathrm{OR} - A - B$ equals the exclusive or.
+
+    (b) The width-1 network also reaches 1.000: the task depends only on which words occur, and the non-linearity of max pooling suffices. (c) Both classes now have the same bag of words: width 1 stays at chance (0.458 in our run), width 2 reaches 1.000.
+
+9.  **★★ Positions: sinusoids versus rotations.** (a) Show that, for each frequency, the pair $(\sin, \cos)$ of Definition 6.6 at position $p + k$ is the pair at $p$ rotated by the angle $k \omega_i$.
+
+    (b) For $d_k = 2$, write the RoPE score of Theorem 6.8 with the angles $\varphi_q$, $\varphi_k$ of $q$ and $k$. (c) Show that adding sinusoidal codes to the inputs does not make attention scores depend on the offset only.
+
+    *Solution*: (a) The addition formulas give
+    $$
+    \sin((p + k)\omega) = \sin(p\omega)\cos(k\omega) + \cos(p\omega)\sin(k\omega),
+    $$
+    and similarly for the cosine: a rotation matrix that does not depend on $p$.
+
+    (b) The score is
+    $$
+    \|q\|\, \|k\| \cos\big(\varphi_k - \varphi_q + (n - m)\theta\big).
+    $$
+    For $q = k = (1, 0)$, $\theta = \pi/6$, $m = 1$ and $n = 3$, it is $\cos(\pi/3) = 0.5$.
+
+    (c) With $x_m + p_m$ as input, the score $(x_m + p_m)^\top W_Q^\top W_K (x_n + p_n)$ contains the cross terms $x_m^\top W_Q^\top W_K\, p_n$, which depend on the absolute position $n$.
+
+10. **★★ Pretraining objectives compared.** (a) How many supervised predictions does a 512-token sequence give under masked language modelling with a 15 % rate, and under causal language modelling? (b) Why can a decoder generate with a cache of past keys and values, while a bidirectional encoder must recompute everything when a token is appended? (c) Why does BART text infilling sometimes insert a mask that hides zero tokens?
+
+    *Solution*: (a) About $0.15 \times 512 \approx 77$ predictions against 511: causal pretraining extracts more signal per token, one reason why it dominates at scale.
+
+    (b) Under the causal mask, the states of past positions do not depend on later tokens, so they can be cached and reused. In an encoder, every state depends on every token, so appending one changes all of them.
+
+    (c) Since a mask may hide zero, one or several tokens, the model must predict the length of each span, not only its content; this prepares it for generation of variable-length text.
+
+11. **★★ Metrics and distillation (computational).** (a) Compute $\mathrm{BLEU}_2$ of “the cat sits on the mat” against “the cat is on the mat”. (b) Prove the gradient formula of Proposition 9.5. (c) Run Example 9.7 with student dimensions $k = 2, 4, 8, 16$ and plot Kendall's tau against $k$.
+
+    *Solution*: (a) As in Example 9.2, $p_1 = 5/6$ and $p_2 = 3/5$, so $\mathrm{BLEU}_2 \approx 0.707$: the near-synonym is treated as an error.
+
+    (b) The KL term equals a cross-entropy with soft targets $p$ minus a constant; by Proposition 0.2 applied to the logits $z^S / \tau$, its gradient in $z^S$ is $(q - p)/\tau$.
+
+    (c) With the seeds of the example, tau is 0.28, 0.51, 0.72 and 0.86 for $k = 2, 4, 8, 16$. The unigram F1 (0.40) is beaten from $k = 4$ on: a small learned model captures the synonym structure that exact matching misses.
+
+12. **★★ DPO at initialisation and in the deterministic limit.** (a) Show that adding any function $f(x)$ to the reward changes neither $\pi^*$ nor the preference probabilities. (b) At $\pi_\theta = \pi_{\mathrm{ref}}$, give the value of the DPO loss and its gradient. (c) In Example 11.8, suppose the better answer always wins. What happens to the DPO solution?
+
+    *Solution*: (a) $\exp(f(x)/\beta)$ cancels in the normalisation of Theorem 11.3, and $f(x)$ cancels in the reward difference of Definition 11.1.
+
+    (b) The margin is 0, the loss is $\log 2 \approx 0.693$, and every pair weighs the same in the gradient:
+    $$
+    \nabla_\theta \mathcal{L}_{\mathrm{DPO}} = -\frac{\beta}{2}\, \mathbb{E}\big[\nabla \log \pi_\theta(y_w) - \nabla \log \pi_\theta(y_l)\big].
+    $$
+
+    (c) The Bradley–Terry likelihood is then maximised only by infinite reward gaps, so the logits diverge and the policy collapses on the best answer, whatever $\beta$. The KL regularisation is lost; this overfitting motivates the IPO variant of Azar and coauthors (2024).
+
+13. **★★ Quantization error and outliers (computational).** Draw 4096 weights from a standard normal law, set the first one to 20, and quantize on 4 bits with absmax scales per tensor, per group of 128 and per group of 32. Compare the mean squared error with the prediction $s^2/12$ of Proposition 13.2, and give the storage cost in bits per weight.
+
+    *Solution*: with `numpy.random.default_rng(0)`, the errors are 0.612, 0.034 and 0.013, against mean predictions 0.680, 0.034 and 0.015; the costs are 4.004, 4.125 and 4.5 bits per weight.
+
+    Per tensor, the step is $20/7 \approx 2.9$, so almost every weight rounds to zero and the error is close to the variance of the weights. The prediction fails there because errors are not uniform when the step exceeds the spread of the data.
+
+14. **★★★ The shortest-path kernel for documents.** Implement Definition 3.7 with windows of 3 and $d_{\max} = 2$, compute the normalised Gram matrix of “the cat sat on the mat”, “on the mat the cat sat” and “the dog chased the cat”, check its eigenvalues, and discuss the cost and the roles of the window and of $d_{\max}$.
+
+    *Hints and expected result*: one implementation uses breadth-first search from every node, as below.
+
+    ```python
+    import numpy as np, networkx as nx
+    from collections import Counter
+
+    def gow(text, window=3):
+        t = text.lower().split()
+        G = nx.Graph(); G.add_nodes_from(t)
+        G.add_edges_from((t[i], u) for i in range(len(t)) for u in t[i + 1:i + window] if u != t[i])
+        return G
+
+    def sp_features(G, d_max=2):
+        phi = Counter()
+        for a, dist in nx.all_pairs_shortest_path_length(G, cutoff=d_max):
+            for b, l in dist.items():
+                if a < b:
+                    phi[a, b, l] += 1
+        return phi
+
+    def sp_kernel(G1, G2):
+        f1, f2 = sp_features(G1), sp_features(G2)
+        k = lambda f, g: sum(v * g[key] for key, v in f.items())
+        return k(f1, f2) / np.sqrt(k(f1, f1) * k(f2, f2))
+
+    docs = ["the cat sat on the mat", "on the mat the cat sat", "the dog chased the cat"]
+    G = [gow(d) for d in docs]
+    K = np.array([[sp_kernel(a, b) for b in G] for a in G])
+    print(np.round(K, 3), np.round(np.linalg.eigvalsh(K), 3))
+    ```
+
+    The off-diagonal values are 0.700 for the two permuted sentences and 0.129 for the third. The eigenvalues 0.300, 0.955 and 1.745 are non-negative, as Proposition 3.8 guarantees.
+
+    Breadth-first search from every node costs $O(n(n + m))$ per document. A larger window adds edges and shortens distances; a larger $d_{\max}$ adds features and makes the kernel closer to a bag of term pairs.
+
+15. **★★★ A multi-hop retrieval benchmark.** Generate a synthetic knowledge graph of about 200 entities and 5 relations, turn every triple into a one-sentence passage, and generate two-hop questions whose answer needs two triples. Compare BM25 over passages (Definition 12.1) with entity linking plus $k$-hop expansion (Example 12.7), by recall at $k$ of the two supporting passages.
+
+    *Hints and expected result*: BM25 retrieves the first-hop passage, which shares the entity name with the question, but rarely the second, which shares no word with it. Graph expansion retrieves both when entity linking succeeds, at the price of many distractors when nodes have high degree.
+
+    A good report shows recall at $k$ against $k$ for both methods, and a hybrid — BM25 for the first hop, the graph for the next — that combines their strengths. This is the motivation of the pipelines of Definition 12.6.
+
+16. **★★★ Tokenizer fertility across languages.** Build two synthetic languages with different syllable inventories and word-length distributions, train BPE (Example 1.10) on a mixture that contains 90 % of language A, and measure the fertility (Definition 8.7) on each language. Vary the mixture and the vocabulary size, and relate the results to Petrov and coauthors (2023).
+
+    *Hints and expected result*: fertility on the minority language is clearly higher, and the gap shrinks as its share or the vocabulary size grows. Express the cost of a fixed text in tokens and in context-window usage for both languages, and discuss what a sovereign model gains by training its own tokenizer (Remark 9.10).
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) is a final data challenge plus a lab-based evaluation; the Université Paris-Saclay course detail describes it as non-integral continuous assessment (“Evaluation Continue non Intégrale”). No weights and no written exam are displayed. The group subjects below are shaped like a data challenge, the solo subjects are paper studies and lab extensions, and the written exam is only a self-assessment proposal.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: keyword extraction by graph degeneracy (Rousseau and Vazirgiannis, 2015; Tixier, Malliaros and Vazirgiannis, 2016).** Question: do main-core retention and CoreRank beat TF-IDF and TextRank (Mihalcea and Tarau, 2004) on single-document keyword extraction?
+    -   Implement the weighted graph-of-words, main-core retention, CoreRank with a rule for the number of keywords, TextRank (PageRank on the same graph) and a TF-IDF baseline (ch. 1, 3).
+    -   Evaluate precision, recall and F1 with stemmed exact matching on the public abstracts of Hulth (2003) or the SemEval-2010 keyphrase data (Kim and coauthors, 2010), with an ablation on the window size.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Success: the paper's ranking of the methods is reproduced or its failure explained.
+
+2.  **[Solo · ≈ 20 h] Paper study: DPO against reward modelling and policy gradient (Rafailov and coauthors, 2023).** Question: on a controlled problem with a known reward, when do the two routes reach the same policy?
+    -   Extend Example 11.8 to many prompts with a tabular policy. Implement reward-model fitting followed by KL-regularised policy gradient, DPO, and the IPO variant (Azar and coauthors, 2024).
+    -   Plot reward against KL divergence from the reference, sample efficiency, and the effect of nearly deterministic preferences (Exercise 12). Chapters 0, 11.
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Success: both routes reach the same frontier on Bradley–Terry data, and the degeneration of DPO on deterministic preferences is shown and corrected.
+
+3.  **[Solo · ≈ 20 h] How low can rank and bits go?** Question: what LoRA rank and how many bits does a small open model need on a classification task?
+    -   Fine-tune GPT-2 small (124 million parameters, public weights) with LoRA of rank 1 to 64 on SST-2 (Socher and coauthors, 2013), on a free GPU tier (ch. 10).
+    -   Merge the adapters, quantize the model with round-to-nearest and the GPTQ procedure of Example 13.8 at 8, 4 and 3 bits, and report SST-2 accuracy. As a check of general ability, also report the WikiText-2 perplexity (Merity and coauthors, 2017) of the pretrained model quantized the same way (ch. 13).
+    -   Deliverables: code, a 4–6 page report, a 10-minute talk. Success: an accuracy-versus-rank curve with a clear knee, and GPTQ at least as good as round-to-nearest at 4 and 3 bits.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Data challenge: classifying papers from their text and their citations.** Use the ogbn-arxiv citation graph of the Open Graph Benchmark (Hu and coauthors, 2020) with the public titles and abstracts of its papers; the task is the subject area, on the official split.
+    -   Member 1: text models — TF-IDF with logistic regression, then a small pretrained encoder, frozen or fine-tuned with LoRA (ch. 1, 7, 10).
+    -   Member 2: graph models — label propagation and message passing over citations (Definition 12.6), with graph-of-words features (ch. 3).
+    -   Member 3: fusion, hidden test set, leaderboard and error analysis.
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Success: the fused model beats the group's best text-only and best graph-only models on the hidden split, with ablations.
+
+2.  **[Group of 3 · ≈ 30 h each] A grounded, graph-augmented question-answering system.** Use the distractor setting of HotpotQA (Yang and coauthors, 2018), whose questions need two supporting paragraphs.
+    -   Retrieval: BM25 and a small public dense encoder, evaluated by recall at $k$ of the supporting paragraphs (ch. 12).
+    -   Graph: an entity graph built from the paragraphs, with $k$-hop expansion from the entities of the question (Example 12.7).
+    -   Generation: a small open instruction-tuned model, or an extractive reader, prompted to cite paragraphs; exact match, F1 and citation correctness (ch. 9, 12).
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Success: graph expansion raises supporting-paragraph recall on bridge questions over BM25 alone, and the answer metrics follow.
+
+3.  **[Group of 2–3 · ≈ 30 h each] Paper study: distilling an evaluation metric (Kamal Eddine and coauthors, 2022).** Reproduce FrugalScore at small scale.
+    -   Member 1: generate candidate–reference pairs from a public summarisation corpus such as CNN/DailyMail (Hermann and coauthors, 2015) and score them with BERTScore (Zhang and coauthors, 2020) as teacher.
+    -   Member 2: train compact pretrained students (Turc and coauthors, 2019) to regress the teacher scores (Proposition 9.5, Example 9.7).
+    -   Member 3: meta-evaluation against the human judgements of SummEval (Fabbri and coauthors, 2021), and speed benchmarks.
+    -   Deliverables: code, a 6–8 page report, a 15-minute talk. Success: the student keeps most of the teacher's Kendall correlation with human judgements while running at least ten times faster.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four questions.
+
+1.  **Question (4 points).** Define the $k$-core of a graph, the core number of a node and the degeneracy. Describe main-core keyword extraction on a graph-of-words, explain why it needs no corpus statistics, unlike TF-IDF, and give one limitation.
+
+    *Expected*: Definitions 3.1–3.2 and the peeling algorithm of Theorem 3.3; the score uses only the document's own graph (Definition 3.4). Limitations: on short texts the main core is coarse, which CoreRank refines; the result depends on the window size and on preprocessing.
+
+2.  **Question (5 points).** (a) Under the rule of 20 tokens per parameter, how many tokens and operations does a model of $10^9$ parameters need? (b) How many parameters does LoRA of rank 8 add to a $2048 \times 2048$ matrix? (c) What is the KV-cache memory of one sequence of 4096 tokens for 24 layers, 16 key–value heads of dimension 128, in 16 bits?
+
+    *Expected*: (a) $D = 2 \times 10^{10}$ tokens and $C = 6ND = 1.2 \times 10^{20}$ operations. (b) $8 \times (2048 + 2048) = 32{,}768$ parameters, 0.78 % of the matrix. (c) By Proposition 13.7, $2 \times 24 \times 16 \times 128 \times 4096 \times 2$ bytes, that is 768 MiB.
+
+3.  **Question (5 points).** One query attends to three keys with $d_k = 2$:
+    $$
+    q = (1, 0); \quad k_1 = (1, 0),\ k_2 = (0, 1),\ k_3 = (-1, 0); \quad v_1 = (1, 0),\ v_2 = (0, 1),\ v_3 = (1, 1).
+    $$
+    Compute the attention weights and the output. Then apply a causal mask, the query being at position 2, and recompute. Finally, explain why self-attention without positions cannot distinguish “good bad” from “bad good”.
+
+    *Expected*: scaled scores $(0.707, 0, -0.707)$, weights $(0.576, 0.284, 0.140)$, output $(0.716, 0.424)$. With the mask only $k_1, k_2$ remain: weights $(0.670, 0.330)$ and output $(0.670, 0.330)$. Without positions, self-attention is permutation-equivariant (Proposition 6.4), so any pooled output is the same for both orders.
+
+4.  **Question (6 points).** For a reward $r$, a reference policy and $\beta > 0$, prove that the maximiser of the KL-regularized objective is the reference tilted by $\exp(r/\beta)$. Deduce the DPO loss under the Bradley–Terry model, and explain what happens when the policy equals the reference.
+
+    *Expected*: the Gibbs argument of Theorem 11.3, writing the objective as $-\beta\, \mathrm{KL}(\pi \,\|\, \pi^*) + \beta \log Z$; inversion of the optimal policy and cancellation of $\log Z(x)$ in the reward difference (Theorem 11.6). At the reference, the margin is 0 and the loss is $\log 2$ (Exercise 12).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness and rigour | 25 % | methods implemented as defined in the chapters; derivations checked; no data leakage between training and evaluation |
+| Experimental protocol | 20 % | honest baselines (TF-IDF, BM25, round-to-nearest), held-out data, fixed seeds, error bars (Proposition 9.9) |
+| Results and analysis | 20 % | the success criterion is met or its failure explained; ablations and error analysis |
+| Code and reproducibility | 15 % | a script or notebook that reruns every number of the report from public data |
+| Written report | 10 % | clear question, related work with real references, figures that make the point |
+| Talk and questions | 10 % | the main result in ten minutes; precise answers on the methods |
+
+## References {#refs}
+
+*Works behind the methods named in the official syllabus.* The official pages list no bibliography; these are the papers that introduced the methods the 2026–2027 syllabus names explicitly (GreekMMLU is named there without a reference).
+
+-   M. Kamal Eddine, A. J.-P. Tixier, M. Vazirgiannis, “BARThez: a Skilled Pretrained French Sequence-to-Sequence Model”, *EMNLP*, 2021.
+-   M. Kamal Eddine, G. Shang, A. J.-P. Tixier, M. Vazirgiannis, “FrugalScore: Learning Cheaper, Lighter and Faster Evaluation Metrics for Automatic Text Generation”, *ACL*, 2022.
+-   T. Mikolov, K. Chen, G. Corrado, J. Dean, “Efficient Estimation of Word Representations in Vector Space”, *ICLR Workshop*, 2013; T. Mikolov, I. Sutskever, K. Chen, G. Corrado, J. Dean, “Distributed Representations of Words and Phrases and their Compositionality”, *NeurIPS*, 2013.
+-   J. Pennington, R. Socher, C. Manning, “GloVe: Global Vectors for Word Representation”, *EMNLP*, 2014.
+-   D. Bahdanau, K. Cho, Y. Bengio, “Neural Machine Translation by Jointly Learning to Align and Translate”, *ICLR*, 2015; M.-T. Luong, H. Pham, C. Manning, “Effective Approaches to Attention-based Neural Machine Translation”, *EMNLP*, 2015.
+-   Z. Yang, D. Yang, C. Dyer, X. He, A. Smola, E. Hovy, “Hierarchical Attention Networks for Document Classification”, *NAACL*, 2016.
+-   J. Su, Y. Lu, S. Pan, A. Murtadha, B. Wen, Y. Liu, “RoFormer: Enhanced Transformer with Rotary Position Embedding”, arXiv, 2021 (*Neurocomputing*, 2024); O. Press, N. Smith, M. Lewis, “Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation”, *ICLR*, 2022.
+-   J. Hoffmann and coauthors, “Training Compute-Optimal Large Language Models”, *NeurIPS*, 2022.
+-   E. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, W. Chen, “LoRA: Low-Rank Adaptation of Large Language Models”, *ICLR*, 2022; X. L. Li, P. Liang, “Prefix-Tuning: Optimizing Continuous Prompts for Generation”, *ACL*, 2021.
+-   J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov, “Proximal Policy Optimization Algorithms”, arXiv, 2017; R. Rafailov, A. Sharma, E. Mitchell, S. Ermon, C. Manning, C. Finn, “Direct Preference Optimization: Your Language Model is Secretly a Reward Model”, *NeurIPS*, 2023.
+-   V. Karpukhin and coauthors, “Dense Passage Retrieval for Open-Domain Question Answering”, *EMNLP*, 2020.
+-   E. Frantar, S. Ashkboos, T. Hoefler, D. Alistarh, “GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers”, *ICLR*, 2023; J. Lin and coauthors, “AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration”, *MLSys*, 2024; T. Dettmers, M. Lewis, Y. Belkada, L. Zettlemoyer, “LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale”, *NeurIPS*, 2022.
+
+*Textbooks.*
+
+-   D. Jurafsky, J. H. Martin, *Speech and Language Processing*, 3rd edition draft, Stanford University, online.
+-   Y. Goldberg, *Neural Network Methods for Natural Language Processing*, Morgan & Claypool, 2017.
+-   C. Manning, P. Raghavan, H. Schütze, *Introduction to Information Retrieval*, Cambridge University Press, 2008.
+-   W. L. Hamilton, *Graph Representation Learning*, Morgan & Claypool, 2020.
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016.
+
+*Chapters 0–3: text representations and graphs of words.*
+
+-   D. Kingma, J. Ba, “Adam: A Method for Stochastic Optimization”, *ICLR*, 2015; Z. Harris, “Distributional Structure”, *Word*, 1954.
+-   G. Salton, C. Buckley, “Term-Weighting Approaches in Automatic Text Retrieval”, *Information Processing & Management*, 1988; S. Chen, J. Goodman, “An Empirical Study of Smoothing Techniques for Language Modeling”, *ACL*, 1996.
+-   R. Sennrich, B. Haddow, A. Birch, “Neural Machine Translation of Rare Words with Subword Units”, *ACL*, 2016; T. Kudo, “Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates”, *ACL*, 2018; M. Schuster, K. Nakajima, “Japanese and Korean Voice Search”, *ICASSP*, 2012.
+-   O. Levy, Y. Goldberg, “Neural Word Embedding as Implicit Matrix Factorization”, *NeurIPS*, 2014; O. Levy, Y. Goldberg, I. Dagan, “Improving Distributional Similarity with Lessons Learned from Word Embeddings”, *TACL*, 2015.
+-   P. Bojanowski, E. Grave, A. Joulin, T. Mikolov, “Enriching Word Vectors with Subword Information”, *TACL*, 2017.
+-   F. Rousseau, M. Vazirgiannis, “Graph-of-word and TW-IDF: New Approach to Ad Hoc IR”, *CIKM*, 2013; F. Rousseau, M. Vazirgiannis, “Main Core Retention on Graph-of-Words for Single-Document Keyword Extraction”, *ECIR*, 2015.
+-   A. J.-P. Tixier, F. Malliaros, M. Vazirgiannis, “A Graph Degeneracy-based Approach to Keyword Extraction”, *EMNLP*, 2016.
+-   S. Seidman, “Network Structure and Minimum Degree”, *Social Networks*, 1983; V. Batagelj, M. Zaversnik, “An O(m) Algorithm for Cores Decomposition of Networks”, arXiv, 2003.
+-   K. Borgwardt, H.-P. Kriegel, “Shortest-Path Kernels on Graphs”, *ICDM*, 2005; G. Nikolentzos, P. Meladianos, F. Rousseau, Y. Stavrakas, M. Vazirgiannis, “Shortest-Path Graph Kernels for Document Similarity”, *EMNLP*, 2017.
+-   G. Nikolentzos, P. Meladianos, S. Limnios, M. Vazirgiannis, “A Degeneracy Framework for Graph Similarity”, *IJCAI*, 2018; G. Nikolentzos, A. J.-P. Tixier, M. Vazirgiannis, “Message Passing Attention Networks for Document Understanding”, *AAAI*, 2020.
+-   R. Mihalcea, P. Tarau, “TextRank: Bringing Order into Texts”, *EMNLP*, 2004.
+
+*Chapters 4–7: sequence models, Transformers and pretraining.*
+
+-   Y. Bengio, P. Simard, P. Frasconi, “Learning Long-Term Dependencies with Gradient Descent is Difficult”, *IEEE Transactions on Neural Networks*, 1994; R. Pascanu, T. Mikolov, Y. Bengio, “On the Difficulty of Training Recurrent Neural Networks”, *ICML*, 2013.
+-   S. Hochreiter, J. Schmidhuber, “Long Short-Term Memory”, *Neural Computation*, 1997; F. Gers, J. Schmidhuber, F. Cummins, “Learning to Forget: Continual Prediction with LSTM”, *Neural Computation*, 2000; R. Jozefowicz, W. Zaremba, I. Sutskever, “An Empirical Exploration of Recurrent Network Architectures”, *ICML*, 2015.
+-   K. Cho and coauthors, “Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation”, *EMNLP*, 2014; I. Sutskever, O. Vinyals, Q. Le, “Sequence to Sequence Learning with Neural Networks”, *NeurIPS*, 2014.
+-   Y. Kim, “Convolutional Neural Networks for Sentence Classification”, *EMNLP*, 2014; M. Schuster, K. Paliwal, “Bidirectional Recurrent Neural Networks”, *IEEE Transactions on Signal Processing*, 1997.
+-   S. Jain, B. Wallace, “Attention is not Explanation”, *NAACL*, 2019; S. Wiegreffe, Y. Pinter, “Attention is not not Explanation”, *EMNLP*, 2019.
+-   A. Vaswani and coauthors, “Attention Is All You Need”, *NeurIPS*, 2017.
+-   J. Devlin, M.-W. Chang, K. Lee, K. Toutanova, “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding”, *NAACL*, 2019.
+-   M. Lewis and coauthors, “BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension”, *ACL*, 2020; C. Raffel and coauthors, “Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer”, *JMLR*, 2020.
+-   A. Radford, J. Wu, R. Child, D. Luan, D. Amodei, I. Sutskever, “Language Models are Unsupervised Multitask Learners”, OpenAI technical report, 2019; T. Brown and coauthors, “Language Models are Few-Shot Learners”, *NeurIPS*, 2020.
+-   Y. Liu and coauthors, “Multilingual Denoising Pre-training for Neural Machine Translation”, *TACL*, 2020; L. Martin and coauthors, “CamemBERT: a Tasty French Language Model”, *ACL*, 2020; H. Le and coauthors, “FlauBERT: Unsupervised Language Model Pre-training for French”, *LREC*, 2020.
+
+*Chapters 8–10: scale, evaluation and adaptation.*
+
+-   I. Loshchilov, F. Hutter, “Decoupled Weight Decay Regularization”, *ICLR*, 2019.
+-   J. Kaplan and coauthors, “Scaling Laws for Neural Language Models”, arXiv, 2020; T. Besiroglu, E. Erdil, M. Barnett, J. You, “Chinchilla Scaling: A Replication Attempt”, arXiv, 2024.
+-   A. Petrov, E. La Malfa, P. Torr, A. Bibi, “Language Model Tokenizers Introduce Unfairness Between Languages”, *NeurIPS*, 2023; P. Rust, J. Pfeiffer, I. Vulić, S. Ruder, I. Gurevych, “How Good is Your Tokenizer? On the Monolingual Performance of Multilingual Language Models”, *ACL*, 2021.
+-   K. Papineni, S. Roukos, T. Ward, W.-J. Zhu, “BLEU: a Method for Automatic Evaluation of Machine Translation”, *ACL*, 2002; C.-Y. Lin, “ROUGE: A Package for Automatic Evaluation of Summaries”, *ACL Workshop Text Summarization Branches Out*, 2004.
+-   T. Zhang, V. Kishore, F. Wu, K. Weinberger, Y. Artzi, “BERTScore: Evaluating Text Generation with BERT”, *ICLR*, 2020.
+-   G. Hinton, O. Vinyals, J. Dean, “Distilling the Knowledge in a Neural Network”, *NeurIPS Deep Learning Workshop*, 2015; V. Sanh, L. Debut, J. Chaumond, T. Wolf, “DistilBERT, a Distilled Version of BERT: Smaller, Faster, Cheaper and Lighter”, *NeurIPS EMC² Workshop*, 2019.
+-   D. Hendrycks and coauthors, “Measuring Massive Multitask Language Understanding”, *ICLR*, 2021; S. Gururangan and coauthors, “Don't Stop Pretraining: Adapt Language Models to Domains and Tasks”, *ACL*, 2020.
+-   J. Wei and coauthors, “Finetuned Language Models Are Zero-Shot Learners”, *ICLR*, 2022; N. Houlsby and coauthors, “Parameter-Efficient Transfer Learning for NLP”, *ICML*, 2019; B. Lester, R. Al-Rfou, N. Constant, “The Power of Scale for Parameter-Efficient Prompt Tuning”, *EMNLP*, 2021.
+-   A. Aghajanyan, L. Zettlemoyer, S. Gupta, “Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning”, *ACL*, 2021; J. He, C. Zhou, X. Ma, T. Berg-Kirkpatrick, G. Neubig, “Towards a Unified View of Parameter-Efficient Transfer Learning”, *ICLR*, 2022.
+
+*Chapters 11–13: alignment, retrieval and efficient inference.*
+
+-   R. A. Bradley, M. E. Terry, “Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons”, *Biometrika*, 1952.
+-   P. Christiano and coauthors, “Deep Reinforcement Learning from Human Preferences”, *NeurIPS*, 2017; L. Ouyang and coauthors, “Training Language Models to Follow Instructions with Human Feedback”, *NeurIPS*, 2022.
+-   Y. Bai and coauthors, “Constitutional AI: Harmlessness from AI Feedback”, arXiv, 2022; L. Gao, J. Schulman, J. Hilton, “Scaling Laws for Reward Model Overoptimization”, *ICML*, 2023.
+-   S. Robertson, H. Zaragoza, “The Probabilistic Relevance Framework: BM25 and Beyond”, *Foundations and Trends in Information Retrieval*, 2009; J. Johnson, M. Douze, H. Jégou, “Billion-Scale Similarity Search with GPUs”, *IEEE Transactions on Big Data*, 2019.
+-   P. Lewis and coauthors, “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks”, *NeurIPS*, 2020; Z. Ji and coauthors, “Survey of Hallucination in Natural Language Generation”, *ACM Computing Surveys*, 2023; N. Liu and coauthors, “Lost in the Middle: How Language Models Use Long Contexts”, *TACL*, 2024.
+-   J. Gilmer, S. Schoenholz, P. Riley, O. Vinyals, G. Dahl, “Neural Message Passing for Quantum Chemistry”, *ICML*, 2017; X. He and coauthors, “G-Retriever: Retrieval-Augmented Generation for Textual Graph Understanding and Question Answering”, *NeurIPS*, 2024.
+-   T. Yu and coauthors, “Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task”, *EMNLP*, 2018.
+-   D. Edge and coauthors, “From Local to Global: A Graph RAG Approach to Query-Focused Summarization”, arXiv, 2024; V. Traag, L. Waltman, N. J. van Eck, “From Louvain to Leiden: Guaranteeing Well-Connected Communities”, *Scientific Reports*, 2019.
+-   B. Hassibi, D. Stork, “Second Order Derivatives for Network Pruning: Optimal Brain Surgeon”, *NeurIPS*, 1993; T. Dettmers, A. Pagnoni, A. Holtzman, L. Zettlemoyer, “QLoRA: Efficient Finetuning of Quantized LLMs”, *NeurIPS*, 2023.
+-   N. Shazeer, “Fast Transformer Decoding: One Write-Head is All You Need”, arXiv, 2019; J. Ainslie and coauthors, “GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints”, *EMNLP*, 2023; W. Kwon and coauthors, “Efficient Memory Management for Large Language Model Serving with PagedAttention”, *SOSP*, 2023.
+-   E. Frantar, D. Alistarh, “SparseGPT: Massive Language Models Can Be Accurately Pruned in One-Shot”, *ICML*, 2023; M. Sun, Z. Liu, A. Bair, J. Z. Kolter, “A Simple and Effective Pruning Approach for Large Language Models”, *ICLR*, 2024.
+
+*Chapter 14 and projects.*
+
+-   G. Shang and coauthors, “Unsupervised Abstractive Meeting Summarization with Multi-Sentence Compression and Budgeted Submodular Maximization”, *ACL*, 2018.
+-   T. Dao, D. Fu, S. Ermon, A. Rudra, C. Ré, “FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness”, *NeurIPS*, 2022; A. Gu, T. Dao, “Mamba: Linear-Time Sequence Modeling with Selective State Spaces”, arXiv, 2023.
+-   M. G. Azar and coauthors, “A General Theoretical Paradigm to Understand Learning from Human Preferences”, *AISTATS*, 2024; Z. Shao and coauthors, “DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models”, arXiv, 2024.
+-   L. Zheng and coauthors, “Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena”, *NeurIPS Datasets and Benchmarks*, 2023; S. Pan and coauthors, “Unifying Large Language Models and Knowledge Graphs: A Roadmap”, *IEEE Transactions on Knowledge and Data Engineering*, 2024.
+-   J. Chee, Y. Cai, V. Kuleshov, C. De Sa, “QuIP: 2-Bit Quantization of Large Language Models With Guarantees”, *NeurIPS*, 2023.
+-   A. Hulth, “Improved Automatic Keyword Extraction Given More Linguistic Knowledge”, *EMNLP*, 2003; S. N. Kim, O. Medelyan, M.-Y. Kan, T. Baldwin, “SemEval-2010 Task 5: Automatic Keyphrase Extraction from Scientific Articles”, *SemEval*, 2010.
+-   R. Socher and coauthors, “Recursive Deep Models for Semantic Compositionality Over a Sentiment Treebank”, *EMNLP*, 2013; S. Merity, C. Xiong, J. Bradbury, R. Socher, “Pointer Sentinel Mixture Models”, *ICLR*, 2017.
+-   W. Hu and coauthors, “Open Graph Benchmark: Datasets for Machine Learning on Graphs”, *NeurIPS*, 2020; Z. Yang and coauthors, “HotpotQA: A Dataset for Diverse, Explainable Multi-hop Question Answering”, *EMNLP*, 2018.
+-   K. M. Hermann and coauthors, “Teaching Machines to Read and Comprehend”, *NeurIPS*, 2015; I. Turc, M.-W. Chang, K. Lee, K. Toutanova, “Well-Read Students Learn Better: On the Importance of Pre-training Compact Models”, arXiv, 2019; A. Fabbri and coauthors, “SummEval: Re-evaluating Summarization Evaluation”, *TACL*, 2021.

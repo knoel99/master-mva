@@ -1,0 +1,2287 @@
+---
+title: "Medical Image Analysis Based on Generative, Geometric and Biophysical Models"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: the mathematical toolbox](#ch0)
+-   [1. Medical image modalities and image formation](#ch1)
+-   [2. Image filtering and low-level operations](#ch2)
+-   [3. Image classification with generative models of intensities](#ch3)
+-   [4. Segmentation with deformable contours and surfaces](#ch4)
+-   [5. Parametric registration: the geometry of rigid and affine transformations](#ch5)
+-   [6. Deformable registration and diffeomorphisms](#ch6)
+-   [7. Biophysical models: from images to simulation](#ch7)
+-   [8. Geometric statistics on transformations and shapes](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  Module               Medical Image Analysis Based on Generative, Geometric and Biophysical Models
+  Official title       Medical image analysis based on generative, geometric and biophysical models
+  Instructors          H. DELINGETTE, X. PENNEC (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 24 h (lectures 24 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label}[Track Santé]{.badge .track}
+  Language             Not displayed (the master-mva.com description is written in English)
+  Assessment           Projects, article presentation and quiz (mini exam) (master-mva.com); “partial continuous assessment” (Université Paris-Saclay); no weights displayed
+  Prerequisites        Not displayed
+  -------------------- ------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with a good M1 in mathematics, computer science or physics, at ease with linear algebra, probability and partial derivatives, who has never opened a scanner image and wants the models that turn such images into measurements of anatomy.
+
+**Empirical first**: take two T1-weighted brain MRIs of the same person, acquired a week apart. Subtracting them shows mostly the motion of the head, not any change in the brain. Within each scan, the intensity of white matter drifts smoothly from one side of the head to the other, so a single threshold that separates grey from white matter on one side fails on the other. Registration (ch. 5–6) and model-based classification with a bias field (ch. 3) are the cures; in the [code of ch. 3](#ch3) the error falls from 11 % to below 1 %.
+
+The course is an introduction to medical image analysis, centred on the two problems that start most pipelines. *Segmentation* asks which voxels belong to which structure; *registration* asks which point of one image corresponds to which point of another. Each problem is solved with an explicit model: a **generative** model of the intensities (mixtures, Markov fields, bias fields), a **geometric** model of shapes and transformations (deformable contours, rotations, diffeomorphisms), or a **biophysical** model of the tissues (elasticity, reaction–diffusion).
+
+It prepares [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), where the same tasks are learned from data, and the geometric courses [Geometry and Shape Spaces](../s2-shape-spaces/index.html) and [Deformable Models and Geodesic Methods for Image Analysis](../s2-deformable-models-geodesics/index.html).
+
+### What you will be able to do
+
+-   Explain how CT, MRI, PET and ultrasound form their images, and derive filtered back-projection from the Fourier slice theorem.
+-   Convert between voxel indices and world coordinates, and predict the effect of voxel size, partial volume and noise models on an analysis.
+-   Filter an image with linear, morphological and nonlinear diffusion operators, and choose among them for a given noise and structure.
+-   Classify tissues with a Gaussian mixture fitted by EM, add a Markov random field prior and a bias field, and prove that EM increases the likelihood.
+-   Segment an organ with a snake, a level set or a Chan–Vese model, and discretise the corresponding Euler–Lagrange equations stably.
+-   Register two point sets in closed form with the SVD, run ICP, and predict the target registration error from the fiducial configuration.
+-   Choose a similarity measure (SSD, correlation, correlation ratio, mutual information) from a model of the relation between two modalities.
+-   Run a demons registration, build diffeomorphisms by scaling and squaring, and check a deformation through its Jacobian determinant.
+-   Simulate soft-tissue elasticity with finite elements and tumour growth with a reaction–diffusion equation, and say which parameters images can identify.
+-   Average rotations and deformations with Fréchet means, and build a statistical shape model.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents the course as an introduction to medical image analysis, in particular to registration and segmentation. It adds that the course is complemented by a second-semester course detailing advanced techniques in statistical and mechanical modelling for computational anatomy and physiology. No course of the 2026–2027 catalogue carries that second description; its themes are previewed here in ch. 7 and ch. 8.
+
+The description announces 8 courses, open to external auditors without any grade, assessment or certificate. The list of themes has five items, matched below; its first item is cut off on master-mva.com after “Medical Image Modalities and”. The Université Paris-Saclay course detail displays only the nature of the assessment, so it adds no programme item.
+
+| Official topic | Course section |
+|---|---|
+| Medical Image Modalities and … (the item is cut off on master-mva.com) | [ch. 1](#ch1): X-ray and CT (Beer–Lambert law, Radon transform, Fourier slice theorem, filtered back-projection), MRI (Larmor frequency, k-space, Rician noise), PET (Poisson data, MLEM), ultrasound (speckle), voxels and world coordinates; sessions 1–2 |
+| Image Filtering and Low Level Operations | [ch. 2](#ch2): linear filtering and Gaussian scale-space, derivatives and vesselness, median and anisotropic diffusion, mathematical morphology, thresholding, interpolation; sessions 2–3 |
+| Image Classification | [ch. 3](#ch3): Bayesian voxel classification, Gaussian mixtures and EM, Markov random fields and ICM, bias-field estimation, atlas priors, discriminative classifiers, Dice and Hausdorff evaluation; sessions 3–4 |
+| Segmentation with Deformable Contours and Surfaces | [ch. 4](#ch4): snakes, balloons and gradient vector flow, level sets, geodesic active contours, Chan–Vese, deformable surfaces and simplex meshes, physics-based models; ch. 8.4 for statistical shape models; sessions 4–5 |
+| Parametric and Deformable Registration of Images | [ch. 5](#ch5) (parametric: rotations, Procrustes, error prediction, ICP, similarity measures) and [ch. 6](#ch6) (deformable: regularisation, free-form deformations, demons, diffeomorphisms, evaluation); sessions 6–7 |
+| “Plus de détails” (end of the list of themes) | not covered — a link to the course web page at INRIA, not a topic |
+| “Les intervenants” (end of the list of themes) | not covered — a heading introducing the instructors, not a topic |
+| Objective: an introduction to medical image analysis, in particular registration and segmentation | ch. 1–6; segmentation in ch. 3–4, registration in ch. 5–6, combined in atlas-based segmentation (ch. 6.5) |
+| Title: generative models | ch. 3 (mixtures, Markov fields, bias field), ch. 4.2 (Chan–Vese as a two-region Gaussian model), ch. 5.6 (similarity measures as likelihoods) |
+| Title: geometric models | ch. 4 (contours, surfaces, level sets), ch. 5.2 (rotations and the exponential map), ch. 6.4 (diffeomorphisms), ch. 8 (geometric statistics, self-study) |
+| Title: biophysical models | ch. 4.4 (physics-based deformable models), ch. 6.1 (elastic regularisation), ch. 7 (soft-tissue elasticity, tumour growth, cardiac electrophysiology, personalisation) |
+| Complement announced for the second semester: statistical and mechanical modelling for computational anatomy and physiology | previewed in ch. 7 (mechanical and physiological models) and ch. 8 (statistics on shapes and deformations); related second-semester pages below |
+| Organisation: 8 courses, open to external auditors without grade or certificate | [session plan](#sessions): 8 sessions of 3 h |
+| Assessment: projects + article presentation + quiz (mini exam) | [Projects and assessment](#projects): project subjects, paper studies for the presentation, and an exam proposal that prepares the quiz |
+| References: Fitzpatrick and Sonka; Hajnal, Hill and Hawkes; Bankman; the MICCAI conference | [References](#refs), first block; cited chapter by chapter |
+
+Extensions beyond the syllabus: the proof of filtered back-projection (ch. 1), the error prediction of point-based registration (ch. 5.4), scaling and squaring and the log-domain view of demons (ch. 6.4), and two self-study chapters, on geometric statistics (ch. 8) and on research directions (ch. 9).
+
+### Where this course fits in the programme
+
+The course is taught by Hervé Delingette and Xavier Pennec (INRIA Sophia-Antipolis, per master-mva.com). Official prerequisites: not displayed. Chapter 0 reviews what is used: the Fourier transform, the SVD, Bayes' rule with Jensen's inequality, and the Euler–Lagrange equation.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian likelihoods, Bayes, EM), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (SVD, gradients, Gauss–Newton), [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block).
+-   **Related first-semester courses** — [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (EM, Markov fields), [Computational Statistics](../s1-computational-statistics/index.html), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) (shapes, registration), [Geometry Processing and Geometric Deep Learning](../s1-geometry-processing-gdl/index.html) (meshes, Laplacians), [3D Computer Vision](../s1-3d-computer-vision/index.html) (rotations, Procrustes), [Image Denoising](../s1-image-denoising/index.html), [Sub-Pixel Image Processing](../s1-sub-pixel-image-processing/index.html) (interpolation), [Convex Optimization](../s1-convex-optimization/index.html).
+-   **Second-semester courses that build on it** — [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html), [Geometry and Shape Spaces](../s2-shape-spaces/index.html), [Deformable Models and Geodesic Methods for Image Analysis](../s2-deformable-models-geodesics/index.html), [Representation Learning for Computer Vision and Medical Imaging](../s2-representation-learning-medical/index.html), [Inverse Problems and Imaging](../s2-inverse-problems-imaging/index.html), [Functional Brain Imaging and Brain–Computer Interfaces](../s2-brain-imaging-bci/index.html), [Learning Physical Phenomena](../s2-physics-learning-uq/index.html) (surrogates of biophysical models), [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html) (ICP).
+-   **Throughout the year and afterwards** — the [Hospital Immersion](../year-hospital-immersion/index.html) pairs students with a physician, and the [Research Internship](../s3-research-internship/index.html) is often a medical-imaging project.
+
+### Course outline
+
+-   **Review: the mathematical toolbox** — convolution and Fourier transform, SVD and least squares, Bayes and Jensen, Euler–Lagrange equations.
+-   **Medical image modalities and image formation** — CT, MRI, PET and ultrasound from their physics to their noise; voxels, world coordinates and file formats.
+-   **Image filtering and low-level operations** — linear and Gaussian filtering, scale-space and vesselness, anisotropic diffusion, morphology, thresholding, interpolation.
+-   **Image classification with generative models of intensities** — Bayesian voxel classification, Gaussian mixtures and EM, Markov random fields, bias field, atlases, evaluation.
+-   **Segmentation with deformable contours and surfaces** — snakes, level sets, geodesic active contours, Chan–Vese, deformable surfaces, physics-based models.
+-   **Parametric registration** — rotations and the exponential map, closed-form point registration, error prediction, ICP, intensity similarity measures.
+-   **Deformable registration and diffeomorphisms** — regularisation, B-spline free-form deformations, demons, stationary velocity fields and LDDMM, evaluation.
+-   **Biophysical models** — linear elasticity and finite elements, reaction–diffusion tumour growth, cardiac electrophysiology, personalisation.
+-   **Geometric statistics on transformations and shapes** — Fréchet means on manifolds, mean rotations, statistical shape models, tensors and deformations (self-study).
+-   **Research directions and open problems** — learned registration and segmentation, foundation models, digital twins, validation (self-study).
+
+### Session plan {#sessions}
+
+**24 h in class = 8 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (24 h of lectures), and master-mva.com announces 8 courses, which matches 8 sessions of 3 h. The assignment of chapters to sessions is a proposal; it follows the order of the official themes, with the geometry of rotations taught inside parametric registration.
+
+Level 1 = foundations (reviews, image formation, first operators), 2 = core models with their proofs, 3 = advanced models close to current research; the level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: Fourier, SVD, Bayes and Jensen, Euler–Lagrange; ch. 1.1–1.3 modalities, CT and the Fourier slice theorem, MRI and k-space | Ex. 1, 2 |
+| 2 | 3 h | 1 | ch. 1.4–1.5 PET, ultrasound, voxels and world coordinates; ch. 2.1–2.2 noise, linear filtering, scale-space, derivatives and vesselness | Ex. 3; lab: code of ch. 1 |
+| 3 | 3 h | 2 | ch. 2.3–2.6 anisotropic diffusion, morphology, thresholding, interpolation; ch. 3.1–3.2 Bayesian voxel classification, Gaussian mixtures and EM | Ex. 4, 5, 7 |
+| 4 | 3 h | 2 | ch. 3.3–3.5 Markov random fields and ICM, bias field, atlas priors, evaluation; ch. 4.1 snakes | Ex. 6, 8, 9 |
+| 5 | 3 h | 2 | ch. 4.2–4.4 level sets, geodesic active contours and Chan–Vese, deformable surfaces, physics-based deformable models | Ex. 10; lab: code of ch. 4 |
+| 6 | 3 h | 2 | ch. 5 Parametric registration: rotations, Procrustes, error prediction, ICP, intensity similarity measures | Ex. 11, 12, 13 |
+| 7 | 3 h | 3 | ch. 6 Deformable registration: regularisation, free-form deformations, demons, diffeomorphisms, evaluation | Ex. 14, 16 |
+| 8 | 3 h | 3 | ch. 7 Biophysical models: elasticity and finite elements, tumour growth, cardiac electrophysiology, personalisation; quiz | Ex. 15 |
+
+**Self-study, outside the 24 h** (about 7 h in total): ch. 8 Geometric statistics on transformations and shapes (≈ 4 h, with Ex. 17) · ch. 9 Research directions and open problems (≈ 2 h, with Ex. 18, a synthesis of the whole course) · the code blocks of the in-class chapters, run and modified at home (≈ 1 h).
+
+### How to study this module
+
+-   Read ch. 0 before the first session: the four tools it reviews are used in every later chapter without warning.
+-   After each session, do the exercises of the *Practice* column; the ★ ones check the session, the ★★ ones prepare the next.
+-   Run every code block and change one parameter (noise level, regularisation weight, number of fiducials) while predicting the effect before looking.
+-   Keep a list of the models met: for each, write the energy or likelihood, its Euler–Lagrange equation or EM update, and the algorithm. The quiz rewards exactly this.
+-   Prepare the article presentation as you go: the papers cited in each chapter and in ch. 9 are good candidates.
+-   Environment: Python 3 with NumPy and SciPy; every code block uses synthetic data and runs in a few seconds on a laptop. For real data, nibabel reads NIfTI files and SimpleITK offers registration and filtering.
+
+::: note
+[Independent notes]{.tag} These notes reconstruct the official description of the course; they are not the instructors' material. The facts of the fiche come from master-mva.com and the Université Paris-Saclay programme table.
+:::
+
+## 0. Review: the mathematical toolbox {#ch0}
+
+Four tools come back in every chapter: the Fourier transform, for image formation and filtering; the singular value decomposition, for rigid registration and shape models; Bayes' rule with Jensen's inequality, for classification; and the Euler–Lagrange equation, for deformable models and registration. This chapter states them in the form used later.
+
+### 0.1 Images, convolution and the Fourier transform
+
+::: def
+[Definition 0.1 — Image, convolution, Fourier transform]{.tag} A $d$-dimensional image ($d = 2$ or $3$) is a function $I : \Omega \subset \mathbb{R}^d \to \mathbb{R}$, sampled on a grid of voxels. The convolution of two integrable functions and the Fourier transform are
+$$
+(f * g)(x) = \int_{\mathbb{R}^d} f(y)\, g(x - y)\, dy, \qquad \hat f(\xi) = \int_{\mathbb{R}^d} f(x)\, e^{-2i\pi \langle \xi, x \rangle}\, dx .
+$$
+:::
+
+:::: thm
+[Theorem 0.2 — Convolution theorem]{.tag} For integrable $f$ and $g$,
+$$
+\widehat{f * g} = \hat f \, \hat g .
+$$
+
+::: proof
+By Fubini's theorem, $\widehat{f * g}(\xi)$ is the double integral of $f(y)\, g(x - y)\, e^{-2i\pi \langle \xi, x \rangle}$ over $x$ and $y$.
+
+Substitute $x = y + z$: the exponential splits into a factor in $y$ times a factor in $z$,
+$$
+e^{-2i\pi \langle \xi, x \rangle} = e^{-2i\pi \langle \xi, y \rangle}\, e^{-2i\pi \langle \xi, z \rangle},
+$$
+and the integral factorises into $\hat f(\xi)\, \hat g(\xi)$. [∎]{.qed}
+:::
+::::
+
+The Gaussian kernel and its Fourier transform are
+$$
+G_\sigma(x) = (2\pi\sigma^2)^{-d/2} e^{-|x|^2 / (2\sigma^2)}, \qquad \hat G_\sigma(\xi) = e^{-2\pi^2 \sigma^2 |\xi|^2} .
+$$
+
+Multiplying two such transforms adds the variances:
+$$
+G_\sigma * G_\tau = G_{\sqrt{\sigma^2 + \tau^2}} .
+$$
+
+The same theorem holds for discrete images with circular convolution and the discrete Fourier transform, which makes filtering cost $O(N \log N)$ for $N$ voxels.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+f = rng.standard_normal((64, 64))                  # a white-noise "image"
+x = np.arange(64) - 32
+g = np.exp(-(x[:, None]**2 + x[None, :]**2) / (2 * 2.0**2))
+g = np.fft.ifftshift(g / g.sum())                  # Gaussian kernel, sigma = 2, centred at 0
+
+# circular convolution computed directly, then through the Fourier transform
+direct = np.zeros_like(f)
+for i in range(64):
+    for j in range(64):
+        direct += f[i, j] * np.roll(np.roll(g, i, axis=0), j, axis=1)
+fourier = np.real(np.fft.ifft2(np.fft.fft2(f) * np.fft.fft2(g)))
+print("max |direct - Fourier| =", np.abs(direct - fourier).max())
+print("std before / after smoothing:", f.std().round(3), fourier.std().round(3))
+```
+
+The two computations agree to $10^{-15}$. The noise standard deviation drops from 1 to 0.15, close to the value $1 / (2\sqrt{\pi}\, \sigma) \approx 0.14$ predicted for white noise in 2D (Exercise 3).
+
+### 0.2 Least squares and the singular value decomposition
+
+:::: thm
+[Theorem 0.3 — Singular value decomposition]{.tag} Every real $m \times n$ matrix factorises as
+$$
+M = U \Sigma V^\top,
+$$
+with $U$ and $V$ orthogonal and $\Sigma$ diagonal with non-negative entries $\sigma_1 \geq \sigma_2 \geq \dots \geq 0$.
+
+::: proof
+The matrix $M^\top M$ is symmetric positive semi-definite, so it has an orthonormal eigenbasis $v_1, \dots, v_n$ with eigenvalues $\sigma_i^2$.
+
+For $\sigma_i > 0$, the vectors $u_i = M v_i / \sigma_i$ are orthonormal, since $\langle M v_i, M v_j \rangle = \sigma_i^2 \delta_{ij}$. Completing them into an orthonormal basis gives $U$, and $M v_i = \sigma_i u_i$ for every $i$. [∎]{.qed}
+:::
+::::
+
+The next lemma is the key step of closed-form point registration (ch. 5.3).
+
+:::: prop
+[Lemma 0.4 — Trace of an orthogonal matrix times a positive diagonal]{.tag} Let $Q$ be orthogonal and $\Sigma = \mathrm{diag}(\sigma_1, \dots, \sigma_n)$ with $\sigma_i \geq 0$. Then
+$$
+\mathrm{tr}(Q \Sigma) \leq \mathrm{tr}(\Sigma),
+$$
+with equality at $Q = I$, and only there when all $\sigma_i > 0$.
+
+::: proof
+$\mathrm{tr}(Q \Sigma) = \sum_i Q_{ii} \sigma_i$, and $|Q_{ii}| \leq 1$ because the columns of $Q$ are unit vectors. Equality with every $\sigma_i > 0$ forces $Q_{ii} = 1$ for all $i$, so each column is the corresponding basis vector. [∎]{.qed}
+:::
+::::
+
+Two other facts are used without proof. The least-squares problem $\min_x \|Ax - b\|^2$ is solved by the normal equations $A^\top A x = A^\top b$. The best rank-$k$ approximation of a centred data matrix is given by its first $k$ singular vectors (Eckart–Young), which is principal component analysis.
+
+### 0.3 Bayes' rule, Gaussian likelihoods and Jensen's inequality
+
+Most models of this course are written as a likelihood $p(y \mid \theta)$ of the image $y$ given parameters $\theta$, and a prior $p(\theta)$. Bayes' rule gives the posterior, and the maximum a posteriori (MAP) estimate maximises it:
+$$
+p(\theta \mid y) = \frac{p(y \mid \theta)\, p(\theta)}{p(y)}, \qquad \hat\theta_{\text{MAP}} = \arg\min_\theta \big[-\log p(y \mid \theta) - \log p(\theta)\big].
+$$
+
+With Gaussian noise, $y = f(\theta) + \varepsilon$ and $\varepsilon \sim \mathcal{N}(0, \sigma^2 I)$, the negative log-likelihood is a sum of squares, up to a constant:
+$$
+-\log p(y \mid \theta) = \frac{1}{2\sigma^2} \|y - f(\theta)\|^2 + \text{const}.
+$$
+
+This is why the sum of squared differences appears in registration (ch. 5.6) and Gaussian classes in classification (ch. 3).
+
+:::: thm
+[Theorem 0.5 — Jensen's inequality and the Kullback–Leibler divergence]{.tag} For a concave function $\psi$ and an integrable random variable $X$, $\mathbb{E}[\psi(X)] \leq \psi(\mathbb{E}[X])$. Consequently, for two probability distributions $q$ and $p$ on the same finite set,
+
+::: key
+[Key result — Gibbs' inequality]{.tag}
+$$
+\mathrm{KL}(q \,\|\, p) = \sum_z q(z) \log \frac{q(z)}{p(z)} \geq 0, \quad \text{with equality iff } q = p .
+$$
+:::
+
+::: proof
+Jensen's inequality follows from the tangent line: $\psi(x) \leq \psi(m) + a\,(x - m)$ for some slope $a$ at $m = \mathbb{E}[X]$, and taking expectations removes the linear term.
+
+Apply it to the concave logarithm and $X = p(Z)/q(Z)$ with $Z \sim q$:
+$$
+-\mathrm{KL}(q \,\|\, p) = \mathbb{E}_q\Big[\log \frac{p(Z)}{q(Z)}\Big] \leq \log \sum_z q(z) \frac{p(z)}{q(z)} \leq \log 1 = 0 .
+$$
+The logarithm is strictly concave, so equality forces $p/q$ to be constant on the support of $q$, hence $p = q$. [∎]{.qed}
+:::
+::::
+
+### 0.4 Calculus of variations
+
+Deformable models and non-rigid registration minimise *functionals*: energies whose unknown is a function (a curve, a displacement field).
+
+:::: thm
+[Theorem 0.6 — Euler–Lagrange equation]{.tag} Let $E(u) = \int_a^b L(s, u, u', u'')\, ds$ with $L$ smooth, over smooth functions $u$ that are periodic, or have fixed values and derivatives at $a$ and $b$. A minimiser satisfies
+$$
+\frac{\partial L}{\partial u} - \frac{d}{ds} \frac{\partial L}{\partial u'} + \frac{d^2}{ds^2} \frac{\partial L}{\partial u''} = 0 .
+$$
+
+::: proof
+For every admissible perturbation $h$ (periodic, or vanishing with its derivative at $a$ and $b$), the function $\varepsilon \mapsto E(u + \varepsilon h)$ is minimal at $\varepsilon = 0$, so its derivative vanishes:
+$$
+\int_a^b \Big( \frac{\partial L}{\partial u} h + \frac{\partial L}{\partial u'} h' + \frac{\partial L}{\partial u''} h'' \Big)\, ds = 0 .
+$$
+
+Integrating by parts once in the second term and twice in the third moves all derivatives onto the coefficients, and the boundary terms vanish. The bracket of the statement, integrated against every smooth $h$, gives zero, so it is zero (fundamental lemma of the calculus of variations). [∎]{.qed}
+:::
+::::
+
+The left-hand side is the gradient $\nabla E(u)$ for the $L^2$ inner product. The *gradient flow* $\partial_t u = -\nabla E(u)$ decreases $E$, and is how most deformable models are run.
+
+::: ex
+[Example 0.7 — Two energies, two equations]{.tag}
+
+-   $E(u) = \frac12 \int |\nabla u|^2$ in any dimension gives $\nabla E = -\Delta u$; its gradient flow is the heat equation $\partial_t u = \Delta u$ (ch. 2.2).
+-   Adding the data term $\frac12 \int (u - f)^2$ to $\frac{\lambda}{2} \int |\nabla u|^2$ gives the equation $u - \lambda \Delta u = f$. Its solution is a linear smoothing of $f$, and the gradient term reappears as a regulariser in registration (ch. 6.1).
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 0
+:::
+
+-   Convolution is a product in the Fourier domain; Gaussian blurs compose by adding variances.
+-   The SVD and the bound $\mathrm{tr}(Q\Sigma) \leq \mathrm{tr}(\Sigma)$ solve orthogonal least-squares problems.
+-   Gaussian noise turns maximum likelihood into least squares; Jensen's inequality gives $\mathrm{KL} \geq 0$, the engine of EM.
+-   Minimisers of integral energies satisfy Euler–Lagrange equations, and gradient flows decrease the energy.
+::::
+
+## 1. Medical image modalities and image formation {#ch1}
+
+A medical image is a measurement, not a photograph: each modality measures a different physical quantity, with its own resolution, contrast and noise. This chapter derives how the main modalities form their images, because every later model (noise, bias, similarity measure) depends on it.
+
+### 1.1 Anatomical and functional modalities
+
+Anatomical modalities show structure; functional ones show a physiological process such as metabolism or blood flow.
+
+| Modality | Physical quantity | Typical resolution | Noise and artefacts |
+|---|---|---|---|
+| Radiography, CT | X-ray attenuation coefficient $\mu$ | sub-millimetre | Gaussian-like after reconstruction; streaks near metal; ionising |
+| MRI | proton density weighted by relaxation times $T_1$, $T_2$ | about 1 mm | Rician magnitude noise; smooth bias field; no ionisation |
+| PET, SPECT | concentration of a radioactive tracer | several millimetres | Poisson counts; low resolution; ionising |
+| Ultrasound | echoes at changes of acoustic impedance | sub-millimetre along the beam | multiplicative speckle; shadows; real time |
+
+Several modalities are often combined: PET with CT, or anatomical and diffusion MRI. Combining them needs registration (ch. 5–6) with similarity measures adapted to different contrasts (ch. 5.6).
+
+### 1.2 X-ray and computed tomography
+
+A beam of X-ray photons crossing tissue of linear attenuation coefficient $\mu$ loses intensity at a rate proportional to itself.
+
+:::: prop
+[Proposition 1.1 — Beer–Lambert law]{.tag} If $dI/ds = -\mu(s)\, I$ along a ray, the detected intensity is
+$$
+I = I_0 \exp\Big(-\int_{\text{ray}} \mu(s)\, ds\Big).
+$$
+
+::: proof
+Divide by $I$ and integrate along the ray: $\log I - \log I_0 = -\int \mu\, ds$. [∎]{.qed}
+:::
+::::
+
+A radiograph therefore records, for each ray, the line integral $\log(I_0 / I)$ of $\mu$. Computed tomography (CT) records these integrals along all directions of a slice and inverts them. In 2D, write $\boldsymbol\theta = (\cos\theta, \sin\theta)$ and $\boldsymbol\theta^\perp$ for the orthogonal unit vector.
+
+::: def
+[Definition 1.2 — Radon transform and sinogram]{.tag} The Radon transform of $f : \mathbb{R}^2 \to \mathbb{R}$ is the set of its line integrals:
+$$
+(\mathcal{R} f)(\theta, s) = \int_{\mathbb{R}} f(s\, \boldsymbol\theta + t\, \boldsymbol\theta^\perp)\, dt, \qquad \theta \in [0, \pi),\ s \in \mathbb{R} .
+$$
+Displayed as an image in $(\theta, s)$, it is the *sinogram*: a point source traces a sinusoid.
+:::
+
+:::: thm
+[Theorem 1.3 — Fourier slice theorem]{.tag} The one-dimensional Fourier transform of a projection, taken in $s$, is a slice of the two-dimensional Fourier transform of $f$:
+$$
+\widehat{\mathcal{R} f}(\theta, \omega) = \hat f(\omega\, \boldsymbol\theta) .
+$$
+
+::: proof
+By definition, $\widehat{\mathcal{R} f}(\theta, \omega)$ is the double integral
+$$
+\int_{\mathbb{R}} \int_{\mathbb{R}} f(s\boldsymbol\theta + t\boldsymbol\theta^\perp)\, e^{-2i\pi \omega s}\, dt\, ds .
+$$
+
+The change of variables $x = s\boldsymbol\theta + t\boldsymbol\theta^\perp$ is a rotation, with Jacobian 1, and $s = \langle x, \boldsymbol\theta \rangle$. The integral becomes
+$$
+\int_{\mathbb{R}^2} f(x)\, e^{-2i\pi \langle \omega \boldsymbol\theta, x \rangle}\, dx = \hat f(\omega \boldsymbol\theta).
+$$
+[∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 1.4 — Filtered back-projection]{.tag} Filter each projection with the *ramp* $|\omega|$:
+$$
+\hat q_\theta(\omega) = |\omega|\, \widehat{\mathcal{R} f}(\theta, \omega) .
+$$
+Then $f$ is the back-projection of the filtered projections:
+$$
+f(x) = \int_0^\pi q_\theta\big(\langle x, \boldsymbol\theta \rangle\big)\, d\theta .
+$$
+
+::: proof
+Write the inverse Fourier transform of $f$ in polar coordinates $\xi = \omega \boldsymbol\theta$, with $\theta \in [0, \pi)$ and $\omega \in \mathbb{R}$; the Jacobian is $|\omega|$:
+$$
+f(x) = \int_0^\pi \int_{\mathbb{R}} \hat f(\omega \boldsymbol\theta)\, e^{2i\pi \omega \langle \boldsymbol\theta, x \rangle}\, |\omega|\, d\omega\, d\theta .
+$$
+
+By Theorem 1.3, the product $\hat f(\omega\boldsymbol\theta)\, |\omega|$ equals $\hat q_\theta(\omega)$, so the inner integral is the inverse 1D Fourier transform of $\hat q_\theta$ evaluated at $\langle \boldsymbol\theta, x \rangle$. [∎]{.qed}
+:::
+::::
+
+The ramp amplifies high frequencies, hence noise: in practice it is multiplied by a smooth window (Shepp–Logan, Hann). Without the ramp, plain back-projection returns $f$ blurred by a kernel in $1/|x|$.
+
+```python
+import numpy as np
+from scipy.ndimage import rotate
+
+n = 128
+yy, xx = np.mgrid[-1:1:n * 1j, -1:1:n * 1j]
+ell = lambda cx, cy, a, b: (((xx - cx) / a) ** 2 + ((yy - cy) / b) ** 2 <= 1) * 1.0
+phantom = ell(0, 0, 0.7, 0.9) - 0.7 * ell(-0.3, 0, 0.18, 0.4) - 0.7 * ell(0.3, 0, 0.18, 0.4)
+phantom += 0.5 * ell(0, -0.55, 0.06, 0.06)               # a small dense lesion
+
+angles = np.linspace(0, 180, 180, endpoint=False)
+# Radon transform: rotate the image, then integrate along the columns
+sino = np.array([rotate(phantom, a, reshape=False, order=1).sum(axis=0) for a in angles])
+
+# ramp filter |omega| applied to each projection (Theorem 1.4)
+ramp = np.abs(np.fft.fftfreq(n))
+filtered = np.real(np.fft.ifft(np.fft.fft(sino, axis=1) * ramp, axis=1))
+
+def backproject(proj):
+    rec = np.zeros((n, n))
+    for a, p in zip(angles, proj):     # smear each projection back along its rays
+        rec += rotate(np.tile(p, (n, 1)), -a, reshape=False, order=1)
+    return rec * np.pi / len(angles)
+
+corr = lambda a, b: np.corrcoef(a.ravel(), b.ravel())[0, 1]
+bp, fbp = backproject(sino), backproject(filtered)
+print(f"correlation with the phantom: plain back-projection {corr(bp, phantom):.3f}, "
+      f"filtered back-projection {corr(fbp, phantom):.3f}")
+# add Gaussian noise of 2 % of the maximum to the projections and reconstruct again
+rng = np.random.default_rng(0)
+noisy = sino + 0.02 * sino.max() * rng.standard_normal(sino.shape)
+fbp_noisy = backproject(np.real(np.fft.ifft(np.fft.fft(noisy, axis=1) * ramp, axis=1)))
+print(f"with 2 % noise on the projections: {corr(fbp_noisy, phantom):.3f}")
+```
+
+Plain back-projection reaches a correlation of 0.76 with the phantom, filtered back-projection 0.99, and 0.97 with noisy projections.
+
+::: def
+[Definition 1.5 — Hounsfield units]{.tag} CT intensities are reported on a scale where air is $-1000$ and water $0$:
+$$
+\mathrm{HU}(\mu) = 1000\, \frac{\mu - \mu_{\text{water}}}{\mu_{\text{water}} - \mu_{\text{air}}} .
+$$
+:::
+
+Because the HU scale is absolute, a fixed intensity window selects a tissue in every CT scan; MRI has no such scale.
+
+### 1.3 Magnetic resonance imaging
+
+In a field $B_0$, hydrogen nuclei precess at the *Larmor frequency* $f_0 = \frac{\gamma}{2\pi} B_0$, with $\frac{\gamma}{2\pi} \approx 42.58$ MHz/T: about 64 MHz at 1.5 T and 128 MHz at 3 T. A radio-frequency pulse tips their magnetisation, which then relaxes: its longitudinal part recovers with time constant $T_1$, its transverse part decays with $T_2$.
+
+Gradient coils add a field $\langle G(t), x \rangle$ that makes the frequency depend on position. After demodulation, the received signal is, ignoring relaxation during readout,
+$$
+s(t) = \int \rho(x)\, e^{-2i\pi \langle k(t), x \rangle}\, dx, \qquad k(t) = \frac{\gamma}{2\pi} \int_0^t G(\tau)\, d\tau .
+$$
+
+The scanner thus samples the Fourier transform of the weighted proton density $\rho$, along a trajectory in *k-space* steered by the gradients.
+
+:::: prop
+[Proposition 1.6 — Field of view and resolution]{.tag} Sampling k-space on a Cartesian grid of step $\Delta k$ with $N$ samples per axis reconstructs an image that is periodic with period $\mathrm{FOV} = 1/\Delta k$, with pixel size
+$$
+\Delta x = \frac{\mathrm{FOV}}{N} = \frac{1}{N\, \Delta k} .
+$$
+
+::: proof
+Sampling $\hat\rho$ with step $\Delta k$ multiplies it by a Dirac comb; by the Poisson summation formula, the inverse transform is the sum of the copies of $\rho$ shifted by multiples of $1/\Delta k$.
+
+Keeping $N$ samples truncates k-space to a width $N \Delta k$, which limits the resolution to $1/(N\Delta k)$. [∎]{.qed}
+:::
+::::
+
+An object larger than the field of view folds back onto itself: this is the *wrap-around* artefact. Contrast is set by the sequence timing. For a spin-echo sequence with repetition time TR and echo time TE, the signal of a tissue is approximately
+$$
+S \propto \rho \,\big(1 - e^{-\mathrm{TR}/T_1}\big)\, e^{-\mathrm{TE}/T_2} .
+$$
+
+Short TR and TE give a $T_1$-weighted image (white matter bright), long TR and TE a $T_2$-weighted one (fluid bright).
+
+**Noise and bias.** The k-space samples carry independent complex Gaussian noise, and the unitary Fourier transform keeps it complex Gaussian with variance $\sigma^2$ per component. Displayed images are magnitudes. A voxel of true value $A$ then has a *Rician* density
+$$
+p(m) = \frac{m}{\sigma^2} \exp\Big(-\frac{m^2 + A^2}{2\sigma^2}\Big)\, I_0\Big(\frac{A m}{\sigma^2}\Big), \qquad m \geq 0,
+$$
+where $I_0$ is a modified Bessel function. In the background ($A = 0$), it reduces to a Rayleigh density of mean $\sigma\sqrt{\pi/2}$. The inhomogeneity of the receive coils also multiplies the image by a smooth *bias field*, which ch. 3.4 estimates.
+
+### 1.4 Nuclear imaging and ultrasound
+
+**PET.** A positron emitted by the tracer annihilates with an electron into two photons of 511 keV emitted in opposite directions. Detecting both defines a *line of response*. With $x_j$ the activity in voxel $j$ and $a_{ij}$ the probability that a decay in $j$ is detected on line $i$, the counts are independent:
+$$
+y_i \sim \mathrm{Poisson}\big((Ax)_i\big) .
+$$
+
+Shepp and Vardi (1982) maximise this likelihood with the multiplicative *MLEM* update, which keeps the activity non-negative:
+$$
+x_j \leftarrow \frac{x_j}{\sum_i a_{ij}} \sum_i a_{ij} \frac{y_i}{(Ax)_i} .
+$$
+
+The update is an instance of the EM algorithm, whose monotonicity is proved in ch. 3.2.
+
+**Ultrasound.** A transducer emits a short pulse and records its echoes; an echo received after a time $t$ comes from the depth $d = c\, t / 2$, with $c \approx 1540$ m/s in soft tissue. Within a resolution cell, many sub-resolution scatterers add with random phases. Their sum is approximately complex Gaussian, so the envelope follows a Rayleigh law: this is *speckle*.
+
+::: ex
+[Example 1.7 — Speckle is multiplicative]{.tag} For a Rayleigh variable of scale $s$, the mean is $s\sqrt{\pi/2}$ and the standard deviation $s\sqrt{(4 - \pi)/2}$. Their ratio does not depend on $s$:
+$$
+\frac{\text{mean}}{\text{std}} = \sqrt{\frac{\pi}{4 - \pi}} \approx 1.91 .
+$$
+
+A brighter region is proportionally noisier, so filters designed for additive Gaussian noise (ch. 2) are often applied to the logarithm of ultrasound images.
+:::
+
+### 1.5 From scanner to array: voxels and world coordinates
+
+A scanner stores an array $I[i, j, k]$ together with the position of each voxel in the patient. Analysis software must use that geometry, not the array indices.
+
+::: def
+[Definition 1.8 — Voxel-to-world transform]{.tag} The world position of voxel $(i, j, k)$ is given by an affine map
+$$
+x_{\text{world}} = M \begin{pmatrix} i \\ j \\ k \end{pmatrix} + t,
+$$
+where the columns of $M$ are the axis directions scaled by the voxel spacing, and $t$ is the position of voxel $(0, 0, 0)$.
+:::
+
+The two common formats disagree on the orientation of the world axes. DICOM, the hospital format, uses patient coordinates in which $x$ points to the patient's left, $y$ to the back and $z$ to the head (LPS). NIfTI, the research format, stores the affine map for axes pointing to the right, the front and the head (RAS). Forgetting the sign flip between them swaps left and right.
+
+::: ex
+[Example 1.9 — Anisotropic voxels and partial volume]{.tag} A clinical brain MRI often has voxels of $0.9 \times 0.9 \times 5$ mm, so one voxel holds 4 mm³. A voxel that straddles the boundary between grey matter (fraction $\alpha$) and cerebrospinal fluid has an intensity close to the mixture $\alpha \mu_{\text{GM}} + (1 - \alpha)\mu_{\text{CSF}}$.
+
+This *partial-volume effect* blurs every boundary over one voxel. It is larger across the 5 mm direction, and biases volumes measured by counting voxels.
+:::
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 1
+:::
+
+-   CT measures line integrals of attenuation; the Fourier slice theorem makes filtered back-projection exact, and the ramp filter amplifies noise.
+-   MRI samples the Fourier transform of a weighted proton density: the k-space step sets the field of view, the extent of k-space sets the resolution.
+-   Noise models differ: Rician magnitudes in MRI, Poisson counts in PET, multiplicative speckle in ultrasound, plus a smooth bias field in MRI.
+-   An image is an array plus a voxel-to-world affine map; anisotropic voxels and partial volume matter for every measurement.
+::::
+
+## 2. Image filtering and low-level operations {#ch2}
+
+Before any model, images are denoised, differentiated, cleaned and resampled. This chapter presents these low-level operators with the property that decides when to use each one.
+
+### 2.1 Noise and linear filtering
+
+Model an image as $y = x + \varepsilon$, with $\varepsilon$ white noise of variance $\sigma^2$. Averaging $n$ independent voxels divides the variance by $n$, but also averages across edges.
+
+A linear filter is a convolution $y * h$. The Gaussian kernel $G_\sigma$ is the standard choice, for three reasons:
+
+-   it is *separable*: a 3D filter is three 1D filters, so the cost per voxel grows like $3k$ instead of $k^3$ for a kernel of width $k$;
+-   it is smooth and positive, so it creates no oscillation;
+-   it generates the scale-space of the next section.
+
+### 2.2 Scale-space and differential operators
+
+:::: prop
+[Proposition 2.1 — Gaussian smoothing solves the heat equation]{.tag} The solution of $\partial_t u = \Delta u$ with $u(\cdot, 0) = u_0$ is
+$$
+u(\cdot, t) = G_{\sqrt{2t}} * u_0 .
+$$
+Smoothing at scale $\sigma$ then at scale $\tau$ equals smoothing at scale $\sqrt{\sigma^2 + \tau^2}$.
+
+::: proof
+In the Fourier domain, the equation reads $\partial_t \hat u = -4\pi^2 |\xi|^2 \hat u$, so $\hat u(\xi, t) = e^{-4\pi^2 |\xi|^2 t}\, \hat u_0(\xi)$.
+
+This is $\hat G_\sigma\, \hat u_0$ with $2\pi^2\sigma^2 = 4\pi^2 t$, that is $\sigma^2 = 2t$. The semigroup property is $G_\sigma * G_\tau = G_{\sqrt{\sigma^2 + \tau^2}}$ (ch. 0.1). [∎]{.qed}
+:::
+::::
+
+Derivatives commute with convolution: $\partial_i (G_\sigma * u) = (\partial_i G_\sigma) * u$. Image derivatives are therefore computed stably by convolving with derivatives of a Gaussian. The gradient magnitude $|\nabla (G_\sigma * u)|$ is large on edges, and its local maxima along the gradient direction give the Canny edge detector.
+
+Second derivatives describe the local shape of the intensity. Let $\lambda_1, \lambda_2, \lambda_3$ be the eigenvalues of the Hessian of $G_\sigma * u$ at a voxel, sorted by increasing absolute value.
+
+::: def
+[Definition 2.2 — Hessian signature of a bright tube]{.tag} Inside a bright tubular structure of radius close to $\sigma$, such as a contrast-filled vessel,
+$$
+|\lambda_1| \approx 0, \qquad \lambda_2 \approx \lambda_3 \ll 0 :
+$$
+the intensity is flat along the vessel axis and decreases in the two orthogonal directions. A bright plate has one large negative eigenvalue; a bright blob has three.
+:::
+
+Frangi et al. (1998) turn this signature into a *vesselness* measure, zero when $\lambda_2 > 0$ or $\lambda_3 > 0$, and otherwise
+$$
+V = \Big(1 - e^{-R_A^2 / (2\alpha^2)}\Big)\, e^{-R_B^2 / (2\beta^2)}\, \Big(1 - e^{-S^2 / (2c^2)}\Big),
+$$
+with $R_A = |\lambda_2| / |\lambda_3|$ (tube versus plate), $R_B = |\lambda_1| / \sqrt{|\lambda_2 \lambda_3|}$ (tube versus blob) and $S = \|\lambda\|$ (contrast). Taking the maximum of $V$ over several scales $\sigma$ detects vessels of several radii.
+
+### 2.3 Nonlinear filtering
+
+Linear filters blur edges because they ignore them. Three nonlinear filters avoid this.
+
+-   The **median filter** replaces a voxel by the median of its neighbourhood. It removes isolated outliers and preserves a straight step edge exactly.
+-   The **bilateral filter** (Tomasi and Manduchi, 1998) averages neighbours with weights that decrease with both the spatial distance and the intensity difference.
+-   **Anisotropic diffusion** (Perona and Malik, 1990) slows the heat equation where the gradient is large.
+
+::: def
+[Definition 2.3 — Perona–Malik diffusion]{.tag} With an edge threshold $K > 0$ and a decreasing diffusivity $c$,
+$$
+\partial_t u = \operatorname{div}\big(c(|\nabla u|)\, \nabla u\big), \qquad c(s) = \frac{1}{1 + (s/K)^2} \ \text{ or } \ c(s) = e^{-(s/K)^2} .
+$$
+:::
+
+:::: prop
+[Proposition 2.4 — Forward and backward diffusion]{.tag} In one dimension, with the flux $\phi(s) = s\, c(s)$, the equation reads $\partial_t u = \phi'(u_x)\, u_{xx}$. For the first diffusivity,
+$$
+\phi'(s) = \frac{1 - (s/K)^2}{\big(1 + (s/K)^2\big)^2} .
+$$
+Slopes below $K$ are smoothed (forward diffusion); slopes above $K$ are sharpened (backward diffusion).
+
+::: proof
+$\partial_t u = \partial_x \phi(u_x) = \phi'(u_x)\, u_{xx}$ by the chain rule, and differentiating $s / (1 + s^2/K^2)$ gives the formula. Where $\phi' > 0$ the equation is a heat equation with a positive coefficient; where $\phi' < 0$ it is a backward heat equation, which concentrates the variation. [∎]{.qed}
+:::
+::::
+
+Backward diffusion makes the continuous problem ill-posed. Catté et al. (1992) restore well-posedness by evaluating $c$ on the smoothed gradient $|\nabla (G_\sigma * u)|$. In practice an explicit scheme with a few dozen steps is used.
+
+```python
+import numpy as np
+from scipy.ndimage import gaussian_filter
+
+rng = np.random.default_rng(0)
+clean = np.zeros((96, 96)); clean[:, 48:] = 1.0            # a vertical step edge
+noisy = clean + 0.15 * rng.standard_normal(clean.shape)
+
+def perona_malik(u, K=0.3, tau=0.2, steps=50):
+    """Explicit scheme for u_t = div(c(|grad u|) grad u), c(s) = exp(-(s/K)^2)."""
+    u = u.copy()
+    c = lambda d: np.exp(-(d / K) ** 2)
+    for _ in range(steps):
+        p = np.pad(u, 1, mode="edge")                        # no flux across the border
+        d = [p[:-2, 1:-1] - u, p[2:, 1:-1] - u, p[1:-1, :-2] - u, p[1:-1, 2:] - u]
+        u = u + tau * sum(c(di) * di for di in d)            # four neighbour fluxes
+    return u
+
+gauss = gaussian_filter(noisy, 2.0)
+pm = perona_malik(noisy)
+flat = (slice(None), slice(8, 40))                           # a region far from the edge
+for name, u in [("noisy", noisy), ("Gaussian", gauss), ("Perona-Malik", pm)]:
+    jump = u[:, 49].mean() - u[:, 46].mean()                 # contrast across 3 pixels
+    print(f"{name:13s} noise std {u[flat].std():.3f}   jump across the edge {jump:.2f}")
+```
+
+The Gaussian filter reduces the noise from 0.151 to 0.021 but halves the edge contrast (0.55). Perona–Malik reduces it to 0.009 and keeps the full jump of 1.00.
+
+### 2.4 Mathematical morphology
+
+Morphology processes binary masks, such as thresholded images, with a *structuring element* $B$, a small symmetric set like a ball. Write $B_x$ for $B$ translated to $x$.
+
+::: def
+[Definition 2.5 — Erosion, dilation, opening, closing]{.tag} For a set $X$:
+$$
+\varepsilon_B(X) = \{x : B_x \subset X\}, \qquad \delta_B(X) = \{x : B_x \cap X \neq \emptyset\},
+$$
+and the opening and closing are $\gamma_B = \delta_B \circ \varepsilon_B$ and $\varphi_B = \varepsilon_B \circ \delta_B$. On grey-level images, erosion and dilation become the minimum and maximum over $B_x$.
+:::
+
+:::: prop
+[Proposition 2.6 — The opening is a filter]{.tag} The opening $\gamma_B(X)$ is the union of the translates $B_y$ contained in $X$. Consequently it is anti-extensive, increasing and idempotent:
+$$
+\gamma_B(X) \subset X, \qquad X \subset Y \Rightarrow \gamma_B(X) \subset \gamma_B(Y), \qquad \gamma_B(\gamma_B(X)) = \gamma_B(X) .
+$$
+
+::: proof
+A point $x$ lies in $\delta_B(\varepsilon_B(X))$ iff some $y$ with $B_y \subset X$ satisfies $x \in B_y$, by symmetry of $B$. This is the union formula, and the first two properties follow from it.
+
+For idempotence, every $B_y \subset X$ is also contained in $\gamma_B(X)$, so it appears in the union defining $\gamma_B(\gamma_B(X))$. Hence $\gamma_B(X) \subset \gamma_B(\gamma_B(X))$, and the reverse inclusion is anti-extensivity. [∎]{.qed}
+:::
+::::
+
+An opening removes structures thinner than $B$, such as noise specks and thin bridges between organs; a closing fills holes and gaps smaller than $B$. Together with connected-component labelling and the distance transform, these operators clean every segmentation of this course.
+
+### 2.5 Histograms and thresholding
+
+Thresholding at $t$ splits the voxels into two classes with proportions $\omega_0(t)$, $\omega_1(t)$ and means $\mu_0(t)$, $\mu_1(t)$. The total variance splits into a within-class and a between-class part, the latter being
+$$
+\sigma_B^2(t) = \omega_0 \omega_1 (\mu_0 - \mu_1)^2 .
+$$
+
+Otsu's method (1979) chooses the $t$ that maximises $\sigma_B^2$, which is the same as minimising the within-class variance since their sum does not depend on $t$. It works when the histogram is bimodal; ch. 3 replaces it with a probabilistic model.
+
+### 2.6 Interpolation and resampling
+
+Registration and reformatting evaluate images between grid points. An interpolating model writes
+$$
+I(x) = \sum_{k \in \mathbb{Z}^d} c_k\, \beta(x - k),
+$$
+with a kernel $\beta$: nearest neighbour (the box $\beta^0$), linear (the tent $\beta^1$), or the cubic B-spline $\beta^3$. For $\beta^3$ the coefficients $c_k$ are not the samples, and a recursive prefilter computes them (Unser, 1999).
+
+Label maps must be resampled by nearest neighbour, or by interpolating one probability map per label. Downsampling needs a Gaussian prefilter, otherwise high frequencies alias into the coarse grid.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 2
+:::
+
+-   Gaussian smoothing is the heat equation; scales compose by adding variances, and derivatives are computed by convolving with Gaussian derivatives.
+-   Hessian eigenvalues detect tubes, plates and blobs, the basis of vesselness filters.
+-   Perona–Malik diffusion smooths slopes below the threshold $K$ and sharpens those above it.
+-   Openings and closings are idempotent filters that remove small structures and fill small holes.
+-   Interpolate intensities with splines and labels with nearest neighbour; prefilter before downsampling.
+::::
+
+## 3. Image classification with generative models of intensities {#ch3}
+
+Tissue classification assigns each voxel to a class, such as grey matter, white matter or cerebrospinal fluid (CSF) in the brain. This chapter builds a *generative* model of the intensities, a mixture of Gaussians, then adds spatial regularity and the bias field, and fits everything with the EM algorithm.
+
+### 3.1 Voxel classification as a Bayesian decision
+
+Let $z_i \in \{1, \dots, K\}$ be the class of voxel $i$ and $y_i$ its intensity. If class $k$ has prior probability $\pi_k$ and intensity density $p(y \mid k)$, the classifier that minimises the probability of error picks the class of maximal posterior:
+$$
+\hat z_i = \arg\max_k \ \pi_k\, p(y_i \mid k) .
+$$
+
+:::: prop
+[Proposition 3.1 — Two Gaussian classes]{.tag} With $p(y \mid k) = \mathcal{N}(\mu_k, \sigma^2)$ for $k = 0, 1$ and $\mu_0 < \mu_1$, the Bayes classifier chooses class 1 iff $y > t$, where
+$$
+t = \frac{\mu_0 + \mu_1}{2} + \frac{\sigma^2}{\mu_1 - \mu_0} \log \frac{\pi_0}{\pi_1} .
+$$
+
+::: proof
+Class 1 wins iff
+$$
+\log \pi_1 - \frac{(y - \mu_1)^2}{2\sigma^2} > \log \pi_0 - \frac{(y - \mu_0)^2}{2\sigma^2} .
+$$
+The quadratic terms in $y$ cancel, which leaves a linear inequality in $y$; solving it gives $t$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 3.2 — Grey and white matter]{.tag} Take $\mu_0 = 0.6$ (grey matter), $\mu_1 = 0.9$ (white matter), $\sigma = 0.08$, and priors $0.6$ and $0.4$. The threshold moves from the midpoint 0.75 towards the rarer class:
+$$
+t = 0.75 + \frac{0.0064}{0.3} \log 1.5 \approx 0.759 .
+$$
+
+The error rate is $0.6\, P(Z > 1.98) + 0.4\, P(Z > 1.77) \approx 0.0297$, against 0.0304 at the midpoint.
+:::
+
+In practice the means, variances and priors are unknown and differ between scanners, so they must be estimated from the image itself.
+
+### 3.2 Gaussian mixtures and the EM algorithm
+
+::: def
+[Definition 3.3 — Gaussian mixture model]{.tag} The intensities are independent with density
+$$
+p(y \mid \theta) = \sum_{k=1}^K \pi_k\, \mathcal{N}(y; \mu_k, \sigma_k^2), \qquad \theta = (\pi_k, \mu_k, \sigma_k)_{k \leq K} .
+$$
+The class $z_i$ is a hidden variable: $P(z_i = k) = \pi_k$, and given $z_i = k$, $y_i \sim \mathcal{N}(\mu_k, \sigma_k^2)$.
+:::
+
+The log-likelihood, a sum over voxels of the logarithm of a sum over classes, has no closed-form maximiser. If the classes were known, the estimates would be class proportions, means and variances. EM alternates between guessing the classes softly and re-estimating:
+
+-   **E-step**: compute the *responsibilities*
+    $$
+    r_{ik} = \frac{\pi_k\, \mathcal{N}(y_i; \mu_k, \sigma_k^2)}{\sum_l \pi_l\, \mathcal{N}(y_i; \mu_l, \sigma_l^2)} = P(z_i = k \mid y_i, \theta) ;
+    $$
+-   **M-step**: with $n_k = \sum_i r_{ik}$, update
+    $$
+    \pi_k = \frac{n_k}{n}, \qquad \mu_k = \frac{1}{n_k} \sum_i r_{ik}\, y_i, \qquad \sigma_k^2 = \frac{1}{n_k} \sum_i r_{ik} (y_i - \mu_k)^2 .
+    $$
+
+:::: thm
+[Theorem 3.4 — EM never decreases the likelihood]{.tag} For any distribution $q$ of the hidden classes $z = (z_i)$, define the *free energy*
+$$
+F(q, \theta) = \mathbb{E}_q\big[\log p(y, z \mid \theta)\big] - \mathbb{E}_q\big[\log q(z)\big] .
+$$
+
+::: key
+[Key result — the EM decomposition]{.tag}
+$$
+\log p(y \mid \theta) = F(q, \theta) + \mathrm{KL}\big(q \,\|\, p(z \mid y, \theta)\big)
+$$
+:::
+
+The E-step maximises $F$ in $q$ and the M-step maximises it in $\theta$. Hence the iterates satisfy
+$$
+\log p(y \mid \theta^{t+1}) \geq \log p(y \mid \theta^t) .
+$$
+
+::: proof
+Write $p(y, z \mid \theta) = p(z \mid y, \theta)\, p(y \mid \theta)$, take the logarithm and the expectation under $q$: this is the decomposition.
+
+The E-step sets $q^t = p(z \mid y, \theta^t)$, which cancels the divergence, so $F(q^t, \theta^t) = \log p(y \mid \theta^t)$.
+
+The M-step chooses $\theta^{t+1}$ maximising $F(q^t, \cdot)$, whose $\theta$-dependent part is the expected complete log-likelihood; setting its derivatives to zero gives the updates above. Since the divergence is non-negative (Theorem 0.5),
+$$
+\log p(y \mid \theta^{t+1}) \geq F(q^t, \theta^{t+1}) \geq F(q^t, \theta^t) = \log p(y \mid \theta^t).
+$$
+[∎]{.qed}
+:::
+::::
+
+EM converges to a stationary point, which depends on the initialisation; k-means or intensity quantiles are common starts. The likelihood is unbounded if a class collapses on a single intensity ($\sigma_k \to 0$), so a variance floor is useful.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(1)
+n = 128
+yy, xx = np.mgrid[-1:1:n * 1j, -1:1:n * 1j]
+r = np.sqrt(xx ** 2 + (yy / 1.2) ** 2)
+truth = np.select([r < 0.25, r < 0.55, r < 0.8], [0, 2, 1], -1)   # 0 CSF, 1 GM, 2 WM
+truth[(np.abs(xx) < 0.06) & (r < 0.55)] = 0                        # a CSF "sulcus"
+mask = truth >= 0
+y = np.array([0.3, 0.6, 0.9])[truth[mask]] + 0.08 * rng.standard_normal(mask.sum())
+
+def em_gmm(y, mu, iters=50):
+    """EM for a 1D Gaussian mixture (Definition 3.3); returns parameters and responsibilities."""
+    K = len(mu); pi = np.full(K, 1 / K); var = np.full(K, y.var())
+    for _ in range(iters):
+        logp = -0.5 * (y[:, None] - mu) ** 2 / var - 0.5 * np.log(2 * np.pi * var) + np.log(pi)
+        resp = np.exp(logp - logp.max(1, keepdims=True))
+        resp /= resp.sum(1, keepdims=True)                          # E-step
+        nk = resp.sum(0)                                            # M-step
+        pi, mu = nk / len(y), resp.T @ y / nk
+        var = (resp * (y[:, None] - mu) ** 2).sum(0) / nk
+    loglik = np.log(np.exp(logp).sum(1)).sum()
+    return pi, mu, np.sqrt(var), resp, loglik
+
+pi, mu, sd, resp, ll = em_gmm(y, mu=np.quantile(y, [0.1, 0.5, 0.9]))
+print("weights", pi.round(3), " means", mu.round(3), " std", sd.round(3))
+print("true weights", np.bincount(truth[mask]) / mask.sum())
+print(f"voxel error rate {(resp.argmax(1) != truth[mask]).mean():.3%}")
+```
+
+EM recovers the means $0.32, 0.60, 0.90$ and the class proportions within three percentage points. The error rate of 4.4 % is close to the Bayes error of this noise level: the overlap of the Gaussians, not the fit, limits it.
+
+### 3.3 Spatial priors: Markov random fields
+
+Voxels are classified independently above, so isolated noisy voxels get isolated wrong labels. Neighbouring voxels usually share a class, which a prior on the label image $z$ can express.
+
+::: def
+[Definition 3.5 — Potts model]{.tag} On a grid where $i \sim j$ denotes neighbouring voxels, the Potts prior with parameter $\beta > 0$ is
+$$
+p(z) \propto \exp\Big(-\beta \sum_{i \sim j} \mathbb{1}[z_i \neq z_j]\Big) .
+$$
+The MAP labelling under the mixture likelihood minimises the energy
+$$
+U(z) = -\sum_i \log\big(\pi_{z_i}\, p(y_i \mid z_i)\big) + \beta \sum_{i \sim j} \mathbb{1}[z_i \neq z_j] .
+$$
+:::
+
+The Potts model is a Markov random field: given its neighbours, a label is independent of the rest of the image. By the Hammersley–Clifford theorem, every positive distribution with this Markov property has such a Gibbs form, a sum of potentials over cliques of the neighbourhood graph (Geman and Geman, 1984).
+
+:::: prop
+[Proposition 3.6 — Iterated conditional modes]{.tag} ICM (Besag, 1986) visits the voxels in turn and replaces $z_i$ by the label $k$ minimising its local energy
+$$
+U_i(k) = -\log\big(\pi_k\, p(y_i \mid k)\big) + \beta\, \#\{j \sim i : z_j \neq k\} .
+$$
+Each update does not increase $U$, and ICM stops after finitely many sweeps.
+
+::: proof
+$U$ is the local energy of voxel $i$ plus terms that do not involve $z_i$, so minimising the local energy minimises $U$ over $z_i$ with the others fixed.
+
+Keep the current label in case of ties: every change then strictly decreases $U$. There are finitely many labellings, so changes stop. [∎]{.qed}
+:::
+::::
+
+ICM reaches a local minimum. For two classes the exact MAP is a minimum cut in a graph (Greig, Porteous and Seheult, 1989). Zhang, Brady and Smith (2001) combine the Potts prior with EM through a mean-field approximation.
+
+### 3.4 The bias field and atlas priors
+
+The MRI bias field of ch. 1.3 multiplies the image by a smooth function. Taking logarithms makes it additive: $\ell_i = \log y_i = \log x_i + \beta_i$, with $\beta$ smooth. Wells et al. (1996) and Van Leemput et al. (1999) estimate $\beta$ inside EM; here $\beta = \Phi c$, where the columns of $\Phi$ are smooth basis functions, such as low-degree polynomials, evaluated at the voxels.
+
+:::: prop
+[Proposition 3.7 — The bias step of EM is a weighted least-squares fit]{.tag} Let the log-intensities of class $k$ be Gaussian with mean $\mu_k + \beta_i$ and variance $\sigma_k^2$, and let $r_{ik}$ be the responsibilities. The M-step for $c$ solves
+$$
+\Phi^\top W \Phi\, c = \Phi^\top W \rho, \qquad w_i = \sum_k \frac{r_{ik}}{\sigma_k^2}, \qquad \rho_i = \ell_i - \frac{1}{w_i} \sum_k \frac{r_{ik}\, \mu_k}{\sigma_k^2},
+$$
+with $W = \mathrm{diag}(w_i)$.
+
+::: proof
+Up to terms without $\beta$, the expected complete log-likelihood is
+$$
+-\sum_i \sum_k \frac{r_{ik}}{2\sigma_k^2} (\ell_i - \beta_i - \mu_k)^2 .
+$$
+
+Expanding in $\beta_i$, it equals $-\frac12 \sum_i w_i (\beta_i - \rho_i)^2$ plus a constant. Maximising over $\beta = \Phi c$ is the weighted least-squares problem, whose normal equations are the statement (ch. 0.2). [∎]{.qed}
+:::
+::::
+
+The residual $\rho_i$ is the log-intensity minus the class mean expected at that voxel. The basis must not contain a constant, which the class means already represent. It must also be too smooth to mimic anatomy: on the concentric phantom below, a quadratic basis can reproduce the radial layout of the tissues, and the error rises to about a third of the voxels.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(1)
+n = 128
+yy, xx = np.mgrid[-1:1:n * 1j, -1:1:n * 1j]
+r = np.sqrt(xx ** 2 + (yy / 1.2) ** 2)
+truth = np.select([r < 0.25, r < 0.55, r < 0.8], [0, 2, 1], -1)   # 0 CSF, 1 GM, 2 WM
+truth[(np.abs(xx) < 0.06) & (r < 0.55)] = 0
+mask = truth >= 0
+bias = np.exp(0.3 * xx + 0.15 * yy)                               # smooth multiplicative field
+img = bias * np.array([0.3, 0.6, 0.9])[np.maximum(truth, 0)] + 0.05 * rng.standard_normal((n, n))
+logy = np.log(np.clip(img[mask], 1e-3, None))                     # work on log-intensities
+Phi = np.stack([xx[mask], yy[mask]], 1)       # bias basis: degree-1 polynomial, no constant
+
+def em(logy, bias_basis=None, iters=60):
+    K = 3; mu = np.quantile(logy, [0.1, 0.5, 0.9]); var = np.full(K, 0.05); pi = np.full(K, 1 / K)
+    beta = np.zeros_like(logy)
+    for _ in range(iters):
+        res = logy - beta
+        logp = -0.5 * (res[:, None] - mu) ** 2 / var - 0.5 * np.log(var) + np.log(pi)
+        R = np.exp(logp - logp.max(1, keepdims=True)); R /= R.sum(1, keepdims=True)
+        nk = R.sum(0); pi = nk / len(logy)
+        mu = R.T @ res / nk; var = (R * (res[:, None] - mu) ** 2).sum(0) / nk
+        if bias_basis is not None:                                 # Proposition 3.7
+            w = (R / var).sum(1)
+            target = logy - (R * mu / var).sum(1) / w
+            c = np.linalg.solve(bias_basis.T @ (w[:, None] * bias_basis), bias_basis.T @ (w * target))
+            beta = bias_basis @ c
+    return logp, R
+
+def icm(unary, beta_mrf=1.0, sweeps=5):
+    """Iterated conditional modes for the Potts prior on the 4-neighbour grid (Proposition 3.6)."""
+    lab = -np.ones((n, n), int); lab[mask] = unary.argmax(1)
+    U = np.zeros((n, n, 3)); U[mask] = unary
+    for _ in range(sweeps):
+        for i, j in zip(*np.nonzero(mask)):
+            nb = [lab[a, b] for a, b in ((i-1, j), (i+1, j), (i, j-1), (i, j+1)) if lab[a, b] >= 0]
+            lab[i, j] = np.argmax(U[i, j] - beta_mrf * np.array([sum(l != k for l in nb) for k in range(3)]))
+    return lab[mask]
+
+err = lambda lab: (lab != truth[mask]).mean()
+logp0, R0 = em(logy)
+logp1, R1 = em(logy, Phi)
+print(f"EM without bias model : error {err(R0.argmax(1)):.1%}")
+print(f"EM with bias model    : error {err(R1.argmax(1)):.1%}")
+print(f"  + Potts prior (ICM) : error {err(icm(logp1)):.1%}")
+```
+
+The bias field alone raises the error of plain EM to 10.8 %. Estimating it inside EM brings the error down to 0.6 %, and the Potts prior to 0.2 %.
+
+**Atlas priors.** A probabilistic atlas gives, at each position, the frequency of each tissue over a population. Once the atlas is aligned with the image, a registration problem solved in ch. 5–6, its values replace the global proportions $\pi_k$ by voxel-wise priors $\pi_{ik}$ (Van Leemput et al., 1999). The atlas also tells apart structures with the same intensity, such as two grey-matter nuclei.
+
+### 3.5 Discriminative classifiers and evaluation
+
+Generative models describe how intensities arise and need no training labels. *Discriminative* classifiers learn $P(z \mid \text{features})$ from labelled images instead. Typical examples are k-nearest neighbours or random forests on features computed by the filters of ch. 2 (smoothed intensities, gradients, Hessian eigenvalues), and the convolutional networks of [Deep Learning for Medical Imaging](../s2-deep-learning-medical-imaging/index.html). They need annotated data and may fail on a scanner they have not seen.
+
+::: def
+[Definition 3.8 — Overlap and distance measures]{.tag} For a segmentation $A$ and a reference $B$ (sets of voxels),
+$$
+\mathrm{Dice}(A, B) = \frac{2|A \cap B|}{|A| + |B|}, \qquad \mathrm{J}(A, B) = \frac{|A \cap B|}{|A \cup B|}, \qquad \mathrm{Dice} = \frac{2\mathrm{J}}{1 + \mathrm{J}} .
+$$
+The Hausdorff distance between the boundaries $\partial A$ and $\partial B$ is
+$$
+d_H(\partial A, \partial B) = \max\Big(\sup_{a \in \partial A} d(a, \partial B),\ \sup_{b \in \partial B} d(b, \partial A)\Big) .
+$$
+:::
+
+The relation between Dice and Jaccard follows from $|A| + |B| = |A \cup B| + |A \cap B|$. Overlap measures forgive boundary errors on large organs and punish them on small structures; the Hausdorff distance, often replaced by its 95th percentile, measures the worst boundary error in millimetres.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 3
+:::
+
+-   The Bayes classifier thresholds the posterior; with Gaussian classes the threshold moves towards the rarer class.
+-   EM maximises the free energy alternately in the class distribution and the parameters, so the likelihood never decreases.
+-   A Potts prior removes isolated errors; ICM decreases its energy monotonically.
+-   In the log domain, the bias step of EM is a weighted least-squares fit of smooth functions to the residuals.
+-   Report Dice and a boundary distance; Dice and Jaccard are equivalent.
+::::
+
+## 4. Segmentation with deformable contours and surfaces {#ch4}
+
+Voxel classification ignores shape: it cannot separate two touching organs of equal intensity, nor bridge a missing edge. Deformable models move a curve or a surface under two forces, an internal one that keeps it smooth and an external one that pulls it towards the boundaries of the image.
+
+### 4.1 Snakes
+
+::: def
+[Definition 4.1 — Snake]{.tag} A snake (Kass, Witkin and Terzopoulos, 1988) is a closed curve $v : [0, 1] \to \mathbb{R}^2$ minimising
+$$
+E(v) = \int_0^1 \Big( \frac{\alpha}{2} |v'(s)|^2 + \frac{\beta}{2} |v''(s)|^2 + P\big(v(s)\big) \Big)\, ds,
+$$
+where $\alpha$ penalises stretching, $\beta$ penalises bending, and the potential $P = -|\nabla (G_\sigma * I)|^2$ is low on edges.
+:::
+
+By Theorem 0.6 applied to each coordinate, a minimiser satisfies the force balance
+$$
+-\alpha\, v'' + \beta\, v'''' + \nabla P(v) = 0 .
+$$
+
+Discretise the curve into $n$ points $v_i$ with unit spacing. The internal energy becomes a quadratic form $\frac12 v^\top A v$ with $A = \alpha L + \beta L^2$, where $L$ is the circulant matrix of the second difference, with rows $(-1, 2, -1)$.
+
+:::: prop
+[Proposition 4.2 — Explicit and semi-implicit snakes]{.tag} The explicit gradient step $v \leftarrow v - \tau (A v + \nabla P(v))$ is stable for the internal forces only if
+$$
+\tau \leq \frac{2}{4\alpha + 16\beta} .
+$$
+The semi-implicit step $(I + \tau A)\, v^{t+1} = v^t - \tau \nabla P(v^t)$ damps every mode of the internal forces for all $\tau > 0$.
+
+::: proof
+$L$ is circulant, with eigenvalues $\mu_k = 2 - 2\cos(2\pi k / n) \in [0, 4]$, so $A$ has eigenvalues $\alpha \mu_k + \beta \mu_k^2 \in [0, 4\alpha + 16\beta]$.
+
+The explicit step multiplies mode $k$ by $1 - \tau(\alpha\mu_k + \beta\mu_k^2)$, which stays in $[-1, 1]$ iff $\tau$ satisfies the bound. The semi-implicit step multiplies it by $1 / (1 + \tau(\alpha\mu_k + \beta\mu_k^2)) \in (0, 1]$. [∎]{.qed}
+:::
+::::
+
+Kass et al. use the semi-implicit scheme: one banded linear solve per step. Two extensions widen the narrow capture range of the edge potential. Cohen (1991) adds a *balloon* force $\kappa\, n(s)$ along the normal, which inflates the snake from a seed until edges stop it. Xu and Prince (1998) replace $-\nabla P$ by a *gradient vector flow* field that diffuses the edge forces into homogeneous regions.
+
+### 4.2 Level sets and region-based contours
+
+Parametric contours cannot split or merge, and their points bunch up. Osher and Sethian (1988) represent the curve implicitly instead, as the zero level of a function $\varphi(x, t)$, negative inside. Write $N = -\nabla\varphi / |\nabla\varphi|$ for the inward unit normal.
+
+:::: prop
+[Proposition 4.3 — Level-set equation]{.tag} If the curve moves with speed $F$ along $N$, that is $\partial_t C = F N$, then
+$$
+\partial_t \varphi = F\, |\nabla \varphi| .
+$$
+
+::: proof
+Differentiate $\varphi(C(p, t), t) = 0$ in $t$:
+$$
+\partial_t \varphi + \langle \nabla\varphi, \partial_t C \rangle = 0 .
+$$
+Since $\langle \nabla\varphi, N \rangle = -|\nabla\varphi|$, the second term is $-F|\nabla\varphi|$. [∎]{.qed}
+:::
+::::
+
+The equation is solved on a fixed grid, and topology changes happen without special treatment. The curvature of the level lines is the divergence of the unit normal field, $\kappa = \operatorname{div} n$ with $n = \nabla\varphi / |\nabla\varphi|$. With $F = \kappa$, the *curve-shortening flow*, a circle of radius $r$ shrinks with $\dot r = -1/r$:
+$$
+r(t) = \sqrt{r_0^2 - 2t} .
+$$
+
+**Geodesic active contours.** Caselles, Kimmel and Sapiro (1997) minimise a length weighted by an edge-stopping function, such as $g = 1 / (1 + |\nabla (G_\sigma * I)|^2)$:
+$$
+L_g(C) = \int g\big(C(s)\big)\, ds .
+$$
+
+Its gradient flow is $\partial_t C = (g\kappa - \langle \nabla g, N \rangle) N$, and by Proposition 4.3 the level-set form is
+$$
+\partial_t \varphi = |\nabla\varphi|\, \operatorname{div}\Big(g\, \frac{\nabla\varphi}{|\nabla\varphi|}\Big) .
+$$
+
+The curve settles on the minimal paths of the metric $g$, which follow the edges.
+
+**Chan–Vese.** Edges are weak in noisy images, so Chan and Vese (2001) use regions instead. They fit two constants $c_1$, $c_2$ inside and outside the curve:
+$$
+E(c_1, c_2, C) = \mu\, \mathrm{Length}(C) + \lambda_1 \int_{\text{inside}} (I - c_1)^2 + \lambda_2 \int_{\text{outside}} (I - c_2)^2 .
+$$
+
+This is a generative model in the sense of ch. 3: two Gaussian classes of equal variance, with $\lambda = 1/(2\sigma^2)$, plus a prior on the length of their boundary. For fixed $C$, $c_1$ and $c_2$ are the means inside and outside. With $\varphi > 0$ inside and a smoothed Dirac $\delta_\epsilon$, the gradient flow is
+$$
+\partial_t \varphi = \delta_\epsilon(\varphi) \Big[ \mu \operatorname{div}\Big(\frac{\nabla\varphi}{|\nabla\varphi|}\Big) - \lambda_1 (I - c_1)^2 + \lambda_2 (I - c_2)^2 \Big] .
+$$
+
+```python
+import numpy as np
+from scipy.ndimage import gaussian_filter
+
+rng = np.random.default_rng(2)
+n = 100
+yy, xx = np.mgrid[0:n, 0:n]
+truth = ((xx - 40) ** 2 + (yy - 50) ** 2 < 18 ** 2) | ((xx - 66) ** 2 + (yy - 50) ** 2 < 12 ** 2)
+img = 0.4 + 0.3 * truth + 0.25 * rng.standard_normal((n, n))     # weak contrast, strong noise
+
+def curvature(phi):
+    """div(grad phi / |grad phi|), the curvature of the level lines."""
+    gy, gx = np.gradient(phi)
+    norm = np.sqrt(gx ** 2 + gy ** 2) + 1e-8
+    return np.gradient(gx / norm, axis=1) + np.gradient(gy / norm, axis=0)
+
+def chan_vese(img, mu=0.5, dt=1.0, iters=300, eps=1.0):
+    phi = np.sin(np.pi * xx / 8) * np.sin(np.pi * yy / 8)          # many small seeds
+    for _ in range(iters):
+        inside = phi > 0
+        c1, c2 = img[inside].mean(), img[~inside].mean()           # region means
+        delta = eps / (np.pi * (eps ** 2 + phi ** 2))              # smoothed Dirac
+        phi = phi + dt * delta * (mu * curvature(phi) - (img - c1) ** 2 + (img - c2) ** 2)
+    inside = phi > 0
+    return inside if img[inside].mean() > img[~inside].mean() else ~inside
+
+dice = lambda a, b: 2 * (a & b).sum() / (a.sum() + b.sum())
+print(f"Dice, threshold of the raw image    : {dice(img > 0.55, truth):.3f}")
+print(f"Dice, threshold of a smoothed image : {dice(gaussian_filter(img, 1.5) > 0.55, truth):.3f}")
+print(f"Dice, Chan-Vese level set           : {dice(chan_vese(img), truth):.3f}")
+```
+
+At a noise level close to the contrast, thresholding the raw image gives a Dice of 0.44. Chan–Vese reaches 0.96 and estimates the two intensities itself, starting from many small seeds. Smoothing then thresholding does as well (0.97) only because the threshold was set at the ideal value, which requires knowing both intensities.
+
+### 4.3 Deformable surfaces
+
+In 3D the contour becomes a closed surface, discretised as a mesh. Delingette (1999) uses *simplex meshes*, in which every vertex has exactly three neighbours. This makes the mean curvature at a vertex computable from the vertex and its three neighbours alone, and simplex meshes are dual to triangulations. Internal forces regularise the curvature, external forces pull each vertex along its normal towards nearby edges, and the vertices follow discrete Newtonian dynamics.
+
+The simplest internal force moves each vertex towards the average of its neighbours, the *umbrella* operator. It shrinks the model, as the closed polygon shows.
+
+:::: prop
+[Proposition 4.4 — Laplacian smoothing shrinks]{.tag} On a closed polygon of $n$ vertices, consider the step
+$$
+v_i \leftarrow v_i + \lambda\Big(\tfrac12 (v_{i-1} + v_{i+1}) - v_i\Big), \qquad 0 < \lambda \leq \tfrac12 .
+$$
+It keeps the centroid fixed and multiplies the $k$-th Fourier mode of the vertex positions by
+$$
+1 - \lambda \Big(1 - \cos \frac{2\pi k}{n}\Big) .
+$$
+Every non-constant mode, including the overall size of the shape, shrinks.
+
+::: proof
+The step is the circulant matrix $I - \frac{\lambda}{2} L$, diagonal in the discrete Fourier basis with the eigenvalues of $L$ given in Proposition 4.2.
+
+Mode $0$ is the centroid, with factor 1; since $1 - \cos$ lies in $(0, 2]$ for the other modes, their factors lie in $[0, 1)$ when $\lambda \leq \frac12$. [∎]{.qed}
+:::
+::::
+
+A circle sampled by 100 points and smoothed 1000 times with $\lambda = 0.5$ keeps only $0.37$ of its radius. Taubin (1995) alternates a shrinking step $\lambda > 0$ and an inflating step $\mu < -\lambda$, which leaves low frequencies almost unchanged and damps high ones.
+
+### 4.4 Physics-based deformable models
+
+The internal energy can also be a physical one: the model is an elastic body. Discretised by finite elements (ch. 7.1), its displacement $u$ obeys Lagrangian dynamics, with mass $M$, damping $D$, stiffness $K$ and image forces $f$:
+$$
+M \ddot u + D \dot u + K u = f(u) .
+$$
+
+Terzopoulos, Witkin and Kass (1988) introduced such models to recover 3D shape and non-rigid motion, and Cohen and Cohen (1993) solved balloon models with finite elements in 2D and 3D. The stiffness matrix then encodes a biophysical prior: soft regions deform more than stiff ones. Chapter 7 develops the elastic model, and ch. 8.4 adds a statistical prior on shapes learned from a population.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 4
+:::
+
+-   A snake balances stretching and bending energies against an edge potential; semi-implicit steps are stable for any step size.
+-   Level sets move curves by $\partial_t\varphi = F|\nabla\varphi|$ and change topology freely; curvature motion shrinks a circle as $\sqrt{r_0^2 - 2t}$.
+-   Geodesic active contours follow edges; Chan–Vese fits a two-region Gaussian model with a length prior and works without edges.
+-   Laplacian smoothing of meshes shrinks every non-constant mode; physics-based models replace it with an elastic energy.
+::::
+
+## 5. Parametric registration: the geometry of rigid and affine transformations {#ch5}
+
+Registration finds the transformation that maps each point of one image onto the corresponding point of another: two scans of a patient, a scan and an atlas, two modalities. This chapter treats transformations with few parameters, starting with rotations, whose geometry is not that of a vector space.
+
+### 5.1 The registration problem
+
+Given a fixed image $J$ and a moving image $I$, registration seeks a transformation $T$ in a class $\mathcal{T}$ minimising
+$$
+E(T) = \mathcal{D}(J, I \circ T) + \lambda\, \mathcal{R}(T),
+$$
+where $\mathcal{D}$ measures dissimilarity and $\mathcal{R}$ regularises. *Feature-based* methods match extracted points or surfaces; *intensity-based* methods compare voxel values directly.
+
+The classes are groups under composition. In 3D, rigid transformations $x \mapsto Rx + t$ have 6 parameters, similarities 7 and affine maps 12. Rigid registration suits the head, with its skull; deformable registration (ch. 6) is needed for soft organs and between subjects.
+
+### 5.2 Rotations and the exponential map
+
+Rotations form the group $SO(3) = \{R : R^\top R = I,\ \det R = 1\}$, a curved 3-dimensional manifold. Near the identity, $R \approx I + W$ with $W$ skew-symmetric. Write $[\omega]_\times$ for the skew matrix with $[\omega]_\times x = \omega \times x$.
+
+:::: thm
+[Theorem 5.1 — Rodrigues' formula]{.tag} For a unit axis $n$ and an angle $\theta$, with $K = [n]_\times$,
+$$
+\exp(\theta K) = I + \sin\theta\, K + (1 - \cos\theta)\, K^2 .
+$$
+It is the rotation of angle $\theta$ about $n$; every rotation has this form, so $\exp$ maps the vectors $\omega = \theta n$ with $|\omega| \leq \pi$ onto $SO(3)$.
+
+::: proof
+For a unit vector, $K^2 = n n^\top - I$, hence $K^3 = -K$. Grouping the odd and even terms of the exponential series gives $\theta - \theta^3/3! + \dots = \sin\theta$ in front of $K$, and $\theta^2/2! - \theta^4/4! + \dots = 1 - \cos\theta$ in front of $K^2$.
+
+The matrix fixes $n$ (since $Kn = 0$) and acts as a rotation of angle $\theta$ in the plane orthogonal to $n$, where $K^2 = -I$. Conversely, every rotation fixes an axis (Euler's theorem). [∎]{.qed}
+:::
+::::
+
+The inverse, the *logarithm*, follows from the trace: $\mathrm{tr}\, R = 1 + 2\cos\theta$, so $\theta = \arccos\big((\mathrm{tr}\, R - 1)/2\big)$. For $0 < \theta < \pi$, the axis is read off $(R - R^\top)/(2\sin\theta) = K$.
+
+The geodesic distance between two rotations is the angle of $R_1^\top R_2$. Unit quaternions $q = (\cos\frac\theta2, \sin\frac\theta2\, n)$ represent the same rotations, $q$ and $-q$ giving the same one; they compose by a product of four numbers and avoid the singularities of Euler angles.
+
+::: ex
+[Example 5.2 — A quarter turn]{.tag} The rotation of $90°$ about $z$ maps $(x, y, z)$ to $(-y, x, z)$. Its trace is $0 + 0 + 1 = 1$, so
+$$
+\theta = \arccos 0 = \pi/2,
+$$
+and $(R - R^\top)/2 = [e_z]_\times$ gives the axis $e_z$. The arithmetic mean of this rotation and the identity has determinant $1/2$: it is not a rotation (ch. 8).
+:::
+
+### 5.3 Point-based registration in closed form
+
+Suppose $N$ landmarks $x_i$ in one image correspond to $y_i$ in the other, such as anatomical points or fiducial markers. Write $\bar x$, $\bar y$ for the centroids, and add a prime for centred points: $x_i' = x_i - \bar x$.
+
+:::: thm
+[Theorem 5.3 — Orthogonal Procrustes problem]{.tag} Let $M = \sum_i y_i' x_i'^\top = U \Sigma V^\top$ (SVD). The minimisers of $\sum_i |R x_i + t - y_i|^2$ over rotations $R$ and translations $t$ are
+$$
+R^\star = U\, \mathrm{diag}\big(1, 1, \det(U V^\top)\big)\, V^\top, \qquad t^\star = \bar y - R^\star \bar x .
+$$
+
+::: proof
+For fixed $R$, the criterion is quadratic in $t$ and its gradient vanishes at $t = \bar y - R\bar x$; substituting leaves $\sum_i |R x_i' - y_i'|^2$.
+
+Expanding the squares, $|R x_i'|^2 = |x_i'|^2$, so it remains to maximise
+$$
+\sum_i y_i'^\top R x_i' = \mathrm{tr}(R M^\top) = \mathrm{tr}(Q \Sigma), \qquad Q = U^\top R V,
+$$
+where $Q$ is orthogonal.
+
+By Lemma 0.4, $\mathrm{tr}(Q\Sigma) \leq \mathrm{tr}(\Sigma)$ with equality at $Q = I$, that is $R = U V^\top$. This is a rotation when $\det(UV^\top) = 1$.
+
+Otherwise $Q$ must have determinant $-1$, and the maximum of $\mathrm{tr}(Q \Sigma)$ over such $Q$ is $\sigma_1 + \sigma_2 - \sigma_3$, reached at $Q = \mathrm{diag}(1, 1, -1)$ (Umeyama, 1991). [∎]{.qed}
+:::
+::::
+
+Arun, Huang and Blostein (1987) gave the SVD solution and Horn (1987) an equivalent one with quaternions. The determinant correction matters when the points are nearly coplanar or very noisy.
+
+### 5.4 Predicting the registration error
+
+Landmarks are localised with an error, the *fiducial localisation error* (FLE). The residual after registration is the *fiducial registration error* (FRE). What matters clinically is the *target registration error* (TRE) at a point $r$ of interest, such as a tumour, where there is no landmark.
+
+:::: thm
+[Theorem 5.4 — Error prediction (Fitzpatrick, West and Maurer, 1998)]{.tag} Assume independent, isotropic localisation errors of mean square $\mathrm{FLE}^2$, small compared with the extent of the configuration. To first order,
+$$
+\mathbb{E}[\mathrm{FRE}^2] \approx \Big(1 - \frac{2}{N}\Big) \mathrm{FLE}^2, \qquad \mathbb{E}[\mathrm{TRE}^2(r)] \approx \frac{\mathrm{FLE}^2}{N} \Big(1 + \frac13 \sum_{k=1}^3 \frac{d_k^2}{f_k^2}\Big),
+$$
+where $d_k$ is the distance from $r$ to the $k$-th principal axis of the landmarks, and $f_k$ the RMS distance of the landmarks to that axis.
+
+::: proof
+*Sketch.* Linearise the Procrustes solution around the true transformation: the estimated translation and rotation are linear in the errors. The residual is the projection of the $3N$ error coordinates onto the orthogonal complement of the 6-dimensional space of infinitesimal rigid motions, whose expected squared norm is $(3N - 6)/(3N)$ of the total. For the TRE, the translation error contributes $\mathrm{FLE}^2/N$, and the rotation error is amplified by the distance of $r$ to each axis, damped by the spread $f_k$ of the landmarks around it. [∎]{.qed}
+:::
+::::
+
+Two lessons follow. First, spread the landmarks widely and place the target near their centroid. Second, the FRE does not depend on where the target is: a small residual does not prove a small error at the target.
+
+```python
+import numpy as np
+
+def procrustes(X, Y):
+    """Rotation R and translation t minimising sum |R x_i + t - y_i|^2 (Theorem 5.3)."""
+    xm, ym = X.mean(0), Y.mean(0)
+    U, S, Vt = np.linalg.svd((Y - ym).T @ (X - xm))            # M = sum y'_i x'_i^T
+    D = np.diag([1.0, 1.0, np.sign(np.linalg.det(U @ Vt))])     # forbid reflections
+    R = U @ D @ Vt
+    return R, ym - R @ xm
+
+def rodrigues(w):
+    th = np.linalg.norm(w); K = np.cross(np.eye(3), w / th)     # K = [n]_x
+    return np.eye(3) + np.sin(th) * K + (1 - np.cos(th)) * K @ K
+
+rng = np.random.default_rng(3)
+fid = np.array([[60, 0, 0], [-60, 0, 0], [0, 80, 0], [0, -80, 20.]])   # 4 fiducials (mm)
+target = np.array([20.0, 30.0, 60.0])
+R0, t0 = rodrigues(np.array([0.2, -0.1, 0.4])), np.array([5.0, -3.0, 12.0])
+fle = 1.0                                                     # RMS localisation error (mm)
+fre2, tre2 = [], []
+for _ in range(20000):
+    X = fid                                                   # exact in the first space
+    Y = fid @ R0.T + t0 + fle / np.sqrt(3) * rng.standard_normal(fid.shape)
+    R, t = procrustes(X, Y)
+    fre2.append(np.mean(np.sum((X @ R.T + t - Y) ** 2, 1)))
+    tre2.append(np.sum((R @ target + t - (R0 @ target + t0)) ** 2))
+
+# prediction of Fitzpatrick, West and Maurer (1998), Theorem 5.4
+N, c = len(fid), fid - fid.mean(0)
+_, _, axes = np.linalg.svd(c)                                 # principal axes of the fiducials
+dist2 = lambda P, a: np.sum(P ** 2, -1) - (P @ a) ** 2        # squared distance to an axis
+f2 = np.array([dist2(c, a).mean() for a in axes])
+d2 = np.array([dist2(target - fid.mean(0), a) for a in axes])
+fle2 = fle ** 2
+print(f"FRE^2  simulated {np.mean(fre2):.3f}   predicted {(1 - 2 / N) * fle2:.3f}")
+print(f"TRE^2  simulated {np.mean(tre2):.3f}   predicted {fle2 / N * (1 + np.sum(d2 / f2) / 3):.3f}")
+```
+
+With four markers and an FLE of 1 mm, the simulation gives a mean square FRE of 0.500 mm² and a mean square TRE of 0.537 mm², matching the predictions 0.500 and 0.539.
+
+### 5.5 Iterative closest point
+
+Without known correspondences, for instance to align a surface extracted from CT with points digitised on the patient, Besl and McKay (1992) alternate two steps:
+
+1.  match each point $x_i$ to its closest point $y_{c(i)}$ on the target surface;
+2.  solve the Procrustes problem (Theorem 5.3) for these pairs, and apply the result to the $x_i$.
+
+:::: prop
+[Proposition 5.5 — ICP converges monotonically]{.tag} The criterion $e = \sum_i |R x_i + t - y_{c(i)}|^2$ never increases, so it converges.
+
+::: proof
+Step 1 replaces each matched point by the closest one, which cannot increase any term. Step 2 minimises $e$ over $(R, t)$ for fixed matches. The sequence is non-increasing and bounded below by 0. [∎]{.qed}
+:::
+::::
+
+The limit is a local minimum, so ICP needs a rough initial alignment. Robust variants discard the worst matches, and Chen and Medioni (1992) minimise distances to tangent planes instead of points.
+
+### 5.6 Intensity-based registration: similarity measures
+
+The choice of $\mathcal{D}$ encodes an assumption on how the intensities of the two images relate at corresponding points (Roche, Malandain and Ayache, 2000).
+
+::: def
+[Definition 5.6 — Four similarity measures]{.tag} Over the overlap of $J$ and $I \circ T$:
+
+-   **SSD**, the sum of squared differences, assumes $J = I \circ T + \varepsilon$ with Gaussian noise: it is the negative log-likelihood (ch. 0.3).
+-   **Normalised correlation** assumes an affine relation $J = a\, (I \circ T) + b + \varepsilon$.
+-   The **correlation ratio**, the fraction of the variance of $J$ explained by $I \circ T$, assumes a functional relation $J = f(I \circ T) + \varepsilon$ (Roche et al., 1998):
+    $$
+    \eta^2 = 1 - \frac{\mathbb{E}[\mathrm{Var}(J \mid I \circ T)]}{\mathrm{Var}(J)} .
+    $$
+-   **Mutual information**, $\mathrm{MI} = H(I \circ T) + H(J) - H(I \circ T, J)$, computed from the joint histogram, assumes only statistical dependence (Maes et al., 1997; Viola and Wells, 1997).
+:::
+
+:::: prop
+[Proposition 5.7 — Properties of mutual information]{.tag} For discrete intensities, $\mathrm{MI}(X, Y) \geq 0$ with equality iff $X$ and $Y$ are independent. It is unchanged when $X$ is replaced by $g(X)$ with $g$ one-to-one.
+
+For a function $f$, the value $\mathrm{MI}(X, f(X)) = H(f(X))$ is the maximum over all $Y$ with the same law as $f(X)$.
+
+::: proof
+$\mathrm{MI}(X, Y) = \mathrm{KL}(p_{XY} \,\|\, p_X p_Y)$, which is non-negative and vanishes iff $p_{XY} = p_X p_Y$ (Theorem 0.5). A one-to-one $g$ only relabels the bins of the joint histogram.
+
+Finally $\mathrm{MI}(X, Y) = H(Y) - H(Y \mid X)$, and $H(Y \mid X) = 0$ iff $Y$ is a function of $X$. [∎]{.qed}
+:::
+::::
+
+In words, mutual information is maximal when one image predicts the other, whatever the intensity mapping, which suits pairs such as $T_1$ and $T_2$ MRI or CT and MRI. Studholme, Hill and Hawkes (1999) normalise it to reduce its dependence on the size of the overlap.
+
+```python
+import numpy as np
+from scipy.ndimage import rotate, gaussian_filter
+
+rng = np.random.default_rng(4)
+n = 128
+yy, xx = np.mgrid[-1:1:n * 1j, -1:1:n * 1j]
+labels = (np.sqrt((xx / 0.8) ** 2 + (yy / 0.6) ** 2) < 1).astype(int)       # 1 = tissue A
+labels[(xx - 0.3) ** 2 + (yy + 0.1) ** 2 < 0.08] = 2                       # 2 = tissue B
+labels[(xx + 0.35) ** 2 + yy ** 2 < 0.03] = 3                              # 3 = tissue C
+t1 = np.array([0.0, 0.7, 0.4, 1.0])[labels]          # "T1-like" contrast
+t2 = np.array([0.9, 0.2, 1.0, 0.5])[labels]          # "T2-like": a non-monotone remapping
+t1 = gaussian_filter(t1, 1) + 0.03 * rng.standard_normal((n, n))
+t2 = gaussian_filter(t2, 1) + 0.03 * rng.standard_normal((n, n))
+
+def mutual_information(a, b, bins=32):
+    h, _, _ = np.histogram2d(a.ravel(), b.ravel(), bins=bins)
+    p = h / h.sum(); pa, pb = p.sum(1), p.sum(0)
+    nz = p > 0
+    return np.sum(p[nz] * np.log(p[nz] / np.outer(pa, pb)[nz]))
+
+true_angle = 12.0
+moving = rotate(t2, true_angle, reshape=False, order=1, mode="nearest")    # T2 image, rotated
+angles = np.arange(-30, 31, 1.0)
+ssd = [np.mean((rotate(moving, -a, reshape=False, order=1, mode="nearest") - t1) ** 2) for a in angles]
+mi = [mutual_information(rotate(moving, -a, reshape=False, order=1, mode="nearest"), t1) for a in angles]
+print("SSD is minimal at", angles[np.argmin(ssd)], "degrees")
+print("MI  is maximal at", angles[np.argmax(mi)], "degrees (true:", true_angle, ")")
+```
+
+SSD is minimal at the edge of the search range, $-30°$, because it tries to match bright to bright. Mutual information peaks at the true angle, $12°$.
+
+In practice, the rigid parameters are optimised by Gauss–Newton or Powell's method over a pyramid of downsampled images (coarse to fine), with rotations updated through the exponential map, $R \leftarrow R \exp([\delta\omega]_\times)$, and the moving image interpolated as in ch. 2.6.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 5
+:::
+
+-   Rotations form a curved group: use Rodrigues' formula and the logarithm, not averages of matrices.
+-   Point-based rigid registration has a closed form through the SVD of the cross-covariance, with a determinant correction.
+-   The expected TRE grows with the distance of the target from the principal axes of the landmarks; a small FRE says nothing about the TRE.
+-   ICP alternates closest-point matching and Procrustes, and decreases its criterion monotonically.
+-   Choose the similarity measure from the intensity relation: SSD (identity), correlation (affine), correlation ratio (functional), mutual information (statistical).
+::::
+
+## 6. Deformable registration and diffeomorphisms {#ch6}
+
+Soft organs deform, and two brains differ by more than a rigid motion. Deformable registration estimates a dense displacement field. It has as many unknowns as voxels, so the regulariser carries the model of what deformations are plausible.
+
+### 6.1 Non-parametric registration and regularisation
+
+Write the transformation as $\varphi(x) = x + u(x)$ and minimise, for SSD,
+$$
+E(u) = \frac12 \int \big(J(x) - I(x + u(x))\big)^2 dx + \lambda\, \mathcal{R}(u) .
+$$
+
+Three regularisers are classical:
+
+-   *diffusion*, $\mathcal{R}(u) = \frac12 \sum_k \int |\nabla u_k|^2$, whose Euler–Lagrange term is $-\Delta u$;
+-   *linear elasticity*, a biophysical prior with Lamé coefficients $\mu$ and $\lambda_L$ (ch. 7.1), where $\varepsilon(u)$ is the symmetric part of $\nabla u$:
+    $$
+    \mathcal{R}(u) = \int \mu\, \|\varepsilon(u)\|^2 + \frac{\lambda_L}{2} (\operatorname{div} u)^2 ;
+    $$
+-   *curvature*, $\frac12 \sum_k \int (\Delta u_k)^2$, which leaves affine maps unpenalised.
+
+Bajcsy and Kovačič (1989) introduced elastic matching; Christensen, Rabbitt and Miller (1996) replaced it with a viscous fluid to allow large deformations.
+
+:::: prop
+[Proposition 6.1 — The aperture problem]{.tag} Linearise the residual at one voxel: $J - I(x + u) \approx d - g^\top u$ with $d = J(x) - I(x)$ and $g = \nabla I(x)$. If $g \neq 0$, the displacements that cancel it form a line (in 2D) or a plane (in 3D), and the one of minimal norm is
+$$
+u = \frac{d}{|g|^2}\, g .
+$$
+
+::: proof
+The solutions of $g^\top u = d$ are the minimal-norm solution plus any vector orthogonal to $g$. That solution is parallel to $g$, and $g^\top (s g) = d$ gives $s = d / |g|^2$. [∎]{.qed}
+:::
+::::
+
+Intensities thus determine motion only along the gradient, and nothing in uniform regions. The regulariser propagates the information from edges into the rest of the image.
+
+### 6.2 Free-form deformations with B-splines
+
+Rueckert et al. (1999) parametrise $u$ by displacements $c_k$ of control points on a grid of spacing $h$, combined with the cubic B-spline $\beta^3$ of ch. 2.6:
+$$
+u(x) = \sum_{k} c_k\, \beta^3\Big(\frac{x}{h} - k\Big), \qquad \beta^3(x_1, \dots, x_d) = \prod_{i=1}^d \beta^3(x_i) .
+$$
+
+The field is $C^2$, and each control point influences only $4^d$ cells, so gradients are cheap. A coarse-to-fine sequence of grids captures large then small deformations.
+
+The transformation folds where the Jacobian determinant $\det(I + \nabla u)$ becomes non-positive. Choi and Lee (2000) proved that an FFD is one-to-one when every control-point displacement stays below about $0.48\, h$ in 2D and $0.40\, h$ in 3D. Rueckert et al. (2006) compose many such small FFDs to obtain large diffeomorphic deformations.
+
+::: ex
+[Example 6.2 — Folding in one dimension]{.tag} The map $\varphi(x) = x + a \sin x$ has derivative $1 + a \cos x$. It is increasing, hence one-to-one, iff
+$$
+|a| < 1 ;
+$$
+for $|a| > 1$ the derivative changes sign and the map folds the line onto itself.
+:::
+
+### 6.3 The demons algorithm
+
+Thirion (1998) imagined “demons” at the edges of $J$ pushing the moving image along $\nabla J$. Pennec, Cachier and Ayache (1999) showed that the resulting update is a regularised second-order step on the SSD.
+
+:::: prop
+[Proposition 6.3 — The demons force]{.tag} At voxel $x$, let $d = J(x) - (I \circ \varphi)(x)$, $g = \nabla J(x)$ and $\alpha > 0$. The minimiser of $(d - g^\top v)^2 + \alpha |v|^2$ is
+$$
+v = \frac{d}{|g|^2 + \alpha}\, g .
+$$
+With the adaptive choice $\alpha = d^2 / \sigma_x^2$, this is Thirion's force, and every update satisfies $|v| \leq \sigma_x / 2$.
+
+::: proof
+The gradient in $v$ is $-2g(d - g^\top v) + 2\alpha v$. It vanishes iff $(g g^\top + \alpha I) v = g d$, a system with a positive definite matrix and hence a unique solution.
+
+Trying $v = s g$ gives $s(|g|^2 + \alpha) = d$, which is that solution.
+
+For the bound, $|v| = |d|\,|g| / (|g|^2 + d^2/\sigma_x^2)$, and $|g|^2 + d^2/\sigma_x^2 \geq 2 |g|\,|d| / \sigma_x$ by the inequality between arithmetic and geometric means. [∎]{.qed}
+:::
+::::
+
+The algorithm alternates the force computation, the update $u \leftarrow u + v$, and a Gaussian smoothing of the field. Smoothing the total field acts like an elastic regulariser, smoothing only the update like a fluid one; Cachier et al. (2003) interpret the alternation as minimising an energy with an auxiliary field.
+
+```python
+import numpy as np
+from scipy.ndimage import gaussian_filter, map_coordinates
+
+n = 96
+yy, xx = np.mgrid[0:n, 0:n].astype(float)
+J = gaussian_filter(((xx - 48) ** 2 + (yy - 48) ** 2 < 22 ** 2) * 1.0, 1.5)           # fixed: disc
+I = gaussian_filter((((xx - 44) / 26) ** 2 + ((yy - 50) / 17) ** 2 < 1) * 1.0, 1.5)  # moving: ellipse
+
+def warp(img, u):
+    """I o phi with phi(x) = x + u(x), linear interpolation (ch. 2.6)."""
+    return map_coordinates(img, [yy + u[0], xx + u[1]], order=1, mode="nearest")
+
+def jacobian_det(u):
+    (u0y, u0x), (u1y, u1x) = np.gradient(u[0]), np.gradient(u[1])
+    return (1 + u0y) * (1 + u1x) - u0x * u1y
+
+gJ = np.array(np.gradient(J))                       # gradient of the fixed image
+u = np.zeros((2, n, n))
+sigma_x = 1.0                                       # maximal step: sigma_x / 2 (Prop. 6.3)
+for it in range(150):
+    diff = J - warp(I, u)
+    denom = (gJ ** 2).sum(0) + diff ** 2 / sigma_x ** 2
+    v = np.where(denom > 1e-9, diff * gJ / np.maximum(denom, 1e-9), 0.0)   # demons force
+    u = gaussian_filter(u + v, sigma=(0, 2.0, 2.0))  # add the update, then smooth the field
+mse0, mse1 = np.mean((J - I) ** 2), np.mean((J - warp(I, u)) ** 2)
+print(f"mean squared difference: {mse0:.4f} before, {mse1:.5f} after demons")
+print(f"min Jacobian determinant {jacobian_det(u).min():.3f}, max |u| = {np.abs(u).max():.1f} pixels")
+```
+
+The mean squared difference drops from 0.035 to $2 \times 10^{-5}$, with displacements up to 8 pixels. The minimum Jacobian determinant, 0.55, shows a strong local compression but no folding; nothing in additive demons guarantees it.
+
+### 6.4 Diffeomorphic registration
+
+A *diffeomorphism* is a smooth bijection with a smooth inverse. Requiring $\varphi$ to be one keeps the topology of the anatomy: no tearing, no folding. Diffeomorphisms do not form a vector space, but a group, and they are built by integrating velocity fields.
+
+::: def
+[Definition 6.4 — Flow of a velocity field]{.tag} For a smooth, bounded velocity field $v$ with bounded derivatives, the flow $\phi_t$ solves
+$$
+\partial_t \phi_t(x) = v\big(\phi_t(x)\big), \qquad \phi_0(x) = x .
+$$
+By the Cauchy–Lipschitz theorem each $\phi_t$ is a diffeomorphism, with inverse the flow of $-v$. Its time-one map is the group exponential $\exp(v) = \phi_1$.
+:::
+
+:::: prop
+[Proposition 6.5 — Scaling and squaring]{.tag} For a stationary velocity field, $\phi_{s+t} = \phi_s \circ \phi_t$. Consequently,
+$$
+\exp(v) = \Big(\exp\big(v / 2^N\big)\Big)^{2^N},
+$$
+where the power denotes composition, and $\exp(v / 2^N) \approx \mathrm{id} + v / 2^N$ for large $N$.
+
+::: proof
+Both $t \mapsto \phi_{s+t}(x)$ and $t \mapsto \phi_t(\phi_s(x))$ solve the same differential equation with the same value at $t = 0$, so they coincide by uniqueness; the two orders agree by symmetry. Applying the identity $N$ times with $s = t = 2^{-k}$ gives the formula. [∎]{.qed}
+:::
+::::
+
+Arsigny et al. (2006) used this to compute exponentials with $N$ compositions instead of $2^N$ integration steps. Vercauteren et al. (2009) made demons diffeomorphic by composing exponentials of the updates, $\varphi \leftarrow \varphi \circ \exp(v)$. Their log-domain variant (2008) keeps $\varphi = \exp(w)$ for a velocity $w$, so the inverse $\exp(-w)$ comes for free and the registration can be made symmetric.
+
+```python
+import numpy as np
+from scipy.ndimage import map_coordinates
+
+n = 128
+yy, xx = np.mgrid[0:n, 0:n].astype(float)
+# a smooth, divergence-free "swirl" velocity field: its flow preserves areas
+bump = 60.0 * np.exp(-((xx - 64) ** 2 + (yy - 64) ** 2) / (2 * 15.0 ** 2))
+v = np.array([bump * (xx - 64) / 15.0, -bump * (yy - 64) / 15.0])
+
+def compose(a, b):
+    """Displacement of (id + a) o (id + b): b(x) + a(x + b(x))."""
+    return b + np.array([map_coordinates(c, [yy + b[0], xx + b[1]], order=1, mode="nearest") for c in a])
+
+def expmap(v, N=7):
+    """Scaling and squaring: exp(v) = exp(v / 2^N) composed 2^N times with itself."""
+    u = v / 2 ** N
+    for _ in range(N):
+        u = compose(u, u)
+    return u
+
+def jacobian_det(u):
+    (u0y, u0x), (u1y, u1x) = np.gradient(u[0]), np.gradient(u[1])
+    return (1 + u0y) * (1 + u1x) - u0x * u1y
+
+print(f"max |v| = {np.abs(v).max():.1f} pixels")
+print(f"id + v  : min Jacobian determinant {jacobian_det(v).min():.3f}")
+print(f"exp(v)  : min Jacobian determinant {jacobian_det(expmap(v)).min():.3f}")
+inv_err = np.abs(compose(expmap(v), expmap(-v))).max()
+print(f"exp(v) o exp(-v) = id up to {inv_err:.2f} pixels")
+```
+
+The displacement $\mathrm{id} + v$ folds (minimum determinant $-1.16$), whereas $\exp(v)$ stays positive (0.95). The flow of this divergence-free field preserves areas exactly, so the deviation from 1 and the 1-pixel inverse error come from interpolation.
+
+**Large deformations.** LDDMM (Beg et al., 2005) lets the velocity depend on time and minimises
+$$
+E(v) = \int_0^1 \|v_t\|_V^2\, dt + \frac{1}{\sigma^2} \big\|I \circ \phi_1^{-1} - J\big\|^2,
+$$
+where $\|\cdot\|_V$ is a Sobolev norm. The first term is the squared length of a path of diffeomorphisms for a right-invariant metric, so optimal paths are geodesics and give a distance between shapes. This framework of computational anatomy is developed in [Geometry and Shape Spaces](../s2-shape-spaces/index.html).
+
+### 6.5 Evaluating deformable registration
+
+A low image dissimilarity proves little: a wild field can match intensities while scrambling anatomy. Registrations are evaluated instead by:
+
+-   the overlap (Dice, ch. 3.5) of labels propagated by $\varphi$ against manual labels, as in the comparison of 14 algorithms by Klein et al. (2009);
+-   the distance between corresponding landmarks not used for registration (TRE, ch. 5.4);
+-   the Jacobian determinant: the fraction of non-positive values (folds) and the plausibility of the volume changes;
+-   inverse consistency: registering $I$ to $J$ and $J$ to $I$ should give inverse maps.
+
+Propagating the labels of an annotated atlas to a new image is *atlas-based segmentation*. With several atlases, fusing the propagated labels by majority vote or by local weights is more robust than any single atlas. It also provides the aligned atlas priors of ch. 3.4.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 6
+:::
+
+-   Intensities constrain motion only along the gradient (aperture problem); the regulariser — diffusion, elastic, curvature — fills in the rest.
+-   B-spline free-form deformations are smooth and local; small control-point displacements guarantee injectivity.
+-   The demons force is a regularised Gauss–Newton step whose length is at most $\sigma_x / 2$.
+-   Flows of smooth velocity fields are diffeomorphisms; scaling and squaring computes $\exp(v)$ with a few compositions.
+-   Evaluate with labels, landmarks and Jacobians, never with the image similarity alone.
+::::
+
+## 7. Biophysical models: from images to simulation {#ch7}
+
+Images give the geometry of organs; biophysical models describe how tissues deform, grow or conduct. Combined, they yield *patient-specific* models, whose parameters are estimated from images and which can then predict or simulate. This chapter presents two such models and the inverse problem of personalisation.
+
+### 7.1 Linear elasticity and finite elements
+
+::: def
+[Definition 7.1 — Linear elasticity]{.tag} For a displacement $u$ of a body $\Omega$, the strain and the stress (Hooke's law) are
+$$
+\varepsilon(u) = \tfrac12 \big(\nabla u + \nabla u^\top\big), \qquad \sigma = \lambda_L\, \mathrm{tr}(\varepsilon)\, I + 2\mu\, \varepsilon,
+$$
+with Lamé coefficients $\mu = \frac{E}{2(1 + \nu)}$ and $\lambda_L = \frac{E \nu}{(1 + \nu)(1 - 2\nu)}$ for a Young modulus $E$ and a Poisson ratio $\nu$. The stored energy is
+$$
+W(u) = \int_\Omega \mu\, \|\varepsilon(u)\|^2 + \frac{\lambda_L}{2} \big(\mathrm{tr}\, \varepsilon(u)\big)^2 \, dx .
+$$
+At equilibrium under a force density $f$, $\operatorname{div} \sigma + f = 0$.
+:::
+
+Soft tissues are nearly incompressible, with $\nu$ close to $0.5$, which makes $\lambda_L$ large. Linear elasticity is valid only for small strains; large deformations need nonlinear laws.
+
+The finite element method writes $u = \sum_j u_j N_j$ with piecewise linear “hat” functions $N_j$ on a tetrahedral mesh of the organ. Minimising $W(u) - \int f \cdot u$ over this space gives a sparse linear system $K \mathbf{u} = F$.
+
+:::: prop
+[Proposition 7.2 — The stiffness matrix]{.tag} $K$ is symmetric positive semi-definite. With $\mu > 0$ and $\lambda_L \geq 0$, its kernel consists of the infinitesimal rigid motions $u(x) = a + \omega \times x$. Fixing enough nodes, for instance where an organ is attached, makes $K$ positive definite.
+
+::: proof
+For the discrete field $u_h$ with nodal vector $\mathbf{u}$, we have $\mathbf{u}^\top K \mathbf{u} = 2W(u_h) \geq 0$. If $W(u_h) = 0$ then $\varepsilon(u) = 0$, and the identity
+$$
+\partial_j \partial_k u_i = \partial_j \varepsilon_{ik} + \partial_k \varepsilon_{ij} - \partial_i \varepsilon_{jk}
+$$
+shows that $u$ is affine with a skew-symmetric gradient, which is an infinitesimal rigid motion. [∎]{.qed}
+:::
+::::
+
+```python
+import numpy as np
+
+# 1D bar of length L, Young modulus E, clamped at x = 0, free at x = L, uniform load f
+L, E, f, n_el = 1.0, 2.0, 1.0, 8
+x = np.linspace(0, L, n_el + 1); h = L / n_el
+K = np.zeros((n_el + 1, n_el + 1)); F = np.zeros(n_el + 1)
+for e in range(n_el):                                   # assemble P1 element matrices
+    idx = [e, e + 1]
+    K[np.ix_(idx, idx)] += E / h * np.array([[1, -1], [-1, 1]])
+    F[idx] += f * h / 2
+print("smallest |eigenvalue| of K before boundary conditions:", np.abs(np.linalg.eigvalsh(K)).min().round(12))
+u = np.zeros(n_el + 1)
+u[1:] = np.linalg.solve(K[1:, 1:], F[1:])               # clamp: remove the first node
+exact = f / E * (L * x - x ** 2 / 2)                    # solution of -E u'' = f, u(0) = 0, u'(L) = 0
+print("max nodal error:", np.abs(u - exact).max())
+print("tip displacement:", u[-1], "exact", f * L ** 2 / (2 * E))
+```
+
+The assembled matrix has a zero eigenvalue (the rigid translation of the bar) until the end is clamped. In 1D, P1 elements are exact at the nodes: the tip moves by $fL^2 / (2E) = 0.25$.
+
+Cotin, Delingette and Ayache (1999) used precomputed linear elastic models for real-time surgery simulation. Ferrant et al. (2001) drove a finite element model of the brain with intraoperative MRI surfaces, a biomechanical registration of the brain shift during surgery.
+
+### 7.2 Tumour growth by reaction–diffusion
+
+Diffuse gliomas infiltrate the brain beyond their visible boundary. The Fisher–Kolmogorov model describes the normalised tumour cell density $u \in [0, 1]$ by
+$$
+\partial_t u = \operatorname{div}(D \nabla u) + \rho\, u (1 - u),
+$$
+with a diffusion $D$ (cell motility) and a proliferation rate $\rho$. Swanson, Alvord and Murray (2000) made $D$ larger in white matter than in grey matter. Jbabdi et al. (2005) made it anisotropic along the fibres seen in diffusion MRI.
+
+:::: prop
+[Proposition 7.3 — Speed of the invasion front]{.tag} In 1D with constant $D$, a travelling front $u(x, t) = U(x - ct)$ with $U$ decreasing from 1 to 0 and $U \geq 0$ requires
+$$
+c \geq 2\sqrt{D \rho} .
+$$
+From a compactly supported initial tumour, the front moves asymptotically at this minimal speed (Kolmogorov, Petrovsky and Piskunov, 1937; Aronson and Weinberger, 1978).
+
+::: proof
+*Necessity.* Far ahead of the front, $U$ is small and solves the linearised equation $D U'' + c U' + \rho U = 0$. Its characteristic roots are
+$$
+r = \frac{-c \pm \sqrt{c^2 - 4D\rho}}{2D} .
+$$
+If $c^2 < 4D\rho$, they are complex, and $U$ oscillates around 0, which contradicts $U \geq 0$. The selection of the minimal speed is the content of the cited theorems. [∎]{.qed}
+:::
+::::
+
+```python
+import numpy as np
+
+D, rho = 0.1, 1.0                         # diffusion (mm^2/day) and proliferation (1/day)
+L, nx = 120.0, 4000
+dx = L / nx; dt = 0.4 * dx ** 2 / D       # explicit scheme, stable for dt <= dx^2 / (2D)
+x = np.arange(nx) * dx
+u = np.where(x < 2.0, 1.0, 0.0)           # a small initial tumour at the left end
+front, times, t = [], [], 0.0
+while t < 150.0:
+    lap = np.zeros_like(u)
+    lap[1:-1] = (u[2:] - 2 * u[1:-1] + u[:-2]) / dx ** 2
+    lap[0], lap[-1] = 2 * (u[1] - u[0]) / dx ** 2, 2 * (u[-2] - u[-1]) / dx ** 2  # no flux
+    u = u + dt * (D * lap + rho * u * (1 - u))
+    t += dt
+    if t > 50.0:                          # after the transient: track the u = 0.5 front
+        front.append(x[np.argmax(u < 0.5)]); times.append(t)
+speed = np.polyfit(times, front, 1)[0]
+print(f"measured front speed {speed:.3f} mm/day, theory 2 sqrt(D rho) = {2 * np.sqrt(D * rho):.3f}")
+```
+
+The simulated front moves at 0.626 against $2\sqrt{D\rho} = 0.632$, in illustrative units; the small gap is the known logarithmic delay of fronts started from a compact tumour.
+
+Imaging sees only where the density exceeds a detection threshold. Two scans give the speed of the visible boundary, hence $\sqrt{D\rho}$. The distance between the boundaries seen on two MRI sequences with different detection thresholds reflects the slope of the profile, of order $\sqrt{D/\rho}$; with the speed, it identifies $D$ and $\rho$. Konukoglu et al. (2010) personalise the model from image time series with an eikonal approximation of the front. Clatz et al. (2005) coupled the growth with the elastic model of ch. 7.1 to simulate the mass effect.
+
+### 7.3 Personalisation as an inverse problem
+
+A biophysical model $M_\theta$ predicts observables $H(M_\theta)$, such as a tumour boundary or the activation times of the heart. Personalisation estimates $\theta$ from image-derived data $y$:
+$$
+\hat\theta = \arg\min_\theta \ \big\|y - H(M_\theta)\big\|^2 + \mathcal{R}(\theta) .
+$$
+
+Each evaluation of $H$ is a simulation, so derivative-free optimisers, adjoint methods or fast surrogate models are used. The central question is *identifiability*: a single boundary only gives $\sqrt{D\rho}$, as above.
+
+In cardiac electrophysiology, the activation time $T(x)$ of the myocardium approximately solves an eikonal equation $c(x)\, |\nabla T| = 1$, with a conduction velocity $c$ larger along the fibres. Fitting $c$ to measured activation maps personalises the model; Sermesant et al. (2012) used such personalised models to predict the effect of cardiac resynchronisation therapy. Ch. 9 lists the open problems of these “digital twins”.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 7
+:::
+
+-   Linear elasticity: strain, Hooke's law with Lamé coefficients, and a stiffness matrix whose kernel is the rigid motions.
+-   The Fisher–Kolmogorov model predicts an invasion front moving at $2\sqrt{D\rho}$.
+-   Personalising a model is an inverse problem; images often identify only combinations of parameters.
+::::
+
+## 8. Geometric statistics on transformations and shapes {#ch8}
+
+*Self-study chapter.* Averaging is the first step of any population study: a mean rotation of a bone, a mean shape of an organ, a mean deformation towards an atlas. None of these objects lives in a vector space, so the arithmetic mean is not defined, or is wrong. This chapter replaces it by the Fréchet mean on a manifold, following the framework of Pennec (2006), and previews the second-semester themes of computational anatomy.
+
+### 8.1 Why the mean of rotations is not the mean of matrices
+
+The arithmetic mean of two rotation matrices is generally not a rotation: in Example 5.2, the mean of a quarter turn and the identity has determinant $1/2$. Projecting it back onto $SO(3)$ gives a rotation, but one that depends on the embedding of $SO(3)$ in the space of matrices, not on the geometry of rotations. The intrinsic answer uses distances measured on the group itself.
+
+### 8.2 Riemannian manifolds, exponential and logarithm
+
+A Riemannian manifold $\mathcal{M}$ carries an inner product on each tangent space $T_x \mathcal{M}$, which defines the length of curves and the geodesic distance $d(x, y)$, the length of the shortest curve.
+
+::: def
+[Definition 8.1 — Exponential and logarithm maps]{.tag} For $x \in \mathcal{M}$ and a tangent vector $w \in T_x\mathcal{M}$, $\exp_x(w)$ is the point reached at time 1 by the geodesic leaving $x$ with velocity $w$. Within the injectivity domain, its inverse is
+$$
+\log_x(y) \in T_x\mathcal{M}, \qquad |\log_x(y)| = d(x, y) .
+$$
+:::
+
+On $SO(3)$ with the metric for which the distance is the rotation angle, these maps are translated versions of the matrix exponential and logarithm of ch. 5.2:
+$$
+\exp_R(W) = R\, \exp(W), \qquad \log_R(S) = \log(R^\top S) .
+$$
+
+The logarithm maps the manifold, locally, to a vector space where linear statistics can be computed; the exponential maps the results back.
+
+### 8.3 The Fréchet mean
+
+::: def
+[Definition 8.2 — Fréchet mean]{.tag} The Fréchet (or Karcher) mean of points $x_1, \dots, x_n$ of $\mathcal{M}$ is a minimiser of the variance
+$$
+\sigma^2(x) = \frac{1}{n} \sum_{i=1}^n d(x, x_i)^2 .
+$$
+In a vector space with the Euclidean distance, it is the arithmetic mean.
+:::
+
+:::: prop
+[Proposition 8.3 — Characterisation and fixed-point algorithm]{.tag} Inside the injectivity domain, the Riemannian gradient of $\frac12 d(\cdot, y)^2$ at $x$ is $-\log_x(y)$. Therefore a Fréchet mean $\bar x$ satisfies
+$$
+\sum_{i=1}^n \log_{\bar x}(x_i) = 0,
+$$
+and the gradient descent with unit step reads
+$$
+x \leftarrow \exp_x\Big(\frac1n \sum_{i=1}^n \log_x(x_i)\Big) .
+$$
+
+::: proof
+*Sketch.* By the Gauss lemma, moving $x$ along a geodesic towards $y$ decreases $d(x, y)$ at unit rate, and moving orthogonally to it does not change $d$ to first order.
+
+Hence the gradient of $d(\cdot, y)$ is the unit vector $-\log_x(y) / |\log_x(y)|$, and the chain rule gives the gradient of $\frac12 d^2$.
+
+The mean cancels the gradient of $\frac12\sigma^2$, which is $-\frac1n \sum_i \log_x(x_i)$. [∎]{.qed}
+:::
+::::
+
+Karcher (1977) proved that the mean exists and is unique when the points lie in a sufficiently small geodesic ball, where the algorithm converges. Without this assumption, the mean need not be unique: on a circle, two diametrically opposite points have two means.
+
+```python
+import numpy as np
+
+def hat(w):
+    return np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
+
+def exp_so3(w):                                   # Rodrigues' formula (Theorem 5.1)
+    th = np.linalg.norm(w)
+    if th < 1e-12:
+        return np.eye(3)
+    K = hat(w / th)
+    return np.eye(3) + np.sin(th) * K + (1 - np.cos(th)) * K @ K
+
+def log_so3(R):                                   # inverse of exp for angles in [0, pi)
+    th = np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1))
+    if th < 1e-12:
+        return np.zeros(3)
+    W = (R - R.T) * th / (2 * np.sin(th))
+    return np.array([W[2, 1], W[0, 2], W[1, 0]])
+
+rng = np.random.default_rng(5)
+R_true = exp_so3(np.array([0.3, -0.5, 1.0]))
+samples = [R_true @ exp_so3(0.6 * rng.standard_normal(3)) for _ in range(50)]  # noisy rotations
+
+M = samples[0]                                    # Fréchet mean by fixed-point iteration (8.3)
+for it in range(20):
+    step = np.mean([log_so3(M.T @ R) for R in samples], axis=0)
+    M = M @ exp_so3(step)
+    if np.linalg.norm(step) < 1e-10:
+        break
+A = np.mean(samples, axis=0)                      # arithmetic mean of the matrices
+U, _, Vt = np.linalg.svd(A)
+P = U @ np.diag([1, 1, np.linalg.det(U @ Vt)]) @ Vt   # its projection onto SO(3)
+dist = lambda R1, R2: np.linalg.norm(log_so3(R1.T @ R2))
+print(f"iterations {it + 1}; det of the arithmetic mean {np.linalg.det(A):.3f}")
+print(f"distance to the true rotation: Frechet mean {dist(M, R_true):.4f} rad, "
+      f"projected mean {dist(P, R_true):.4f} rad, between them {dist(M, P):.4f} rad")
+```
+
+The fixed-point iteration converges in 9 iterations. The arithmetic mean of the 50 matrices has determinant 0.39, far from a rotation. Projected back onto $SO(3)$ it lands close to the Fréchet mean here (0.013 rad away), because the dispersion is moderate; the gap grows with the dispersion.
+
+### 8.4 Statistical shape models
+
+Cootes et al. (1995) represent each training shape by $L$ corresponding landmarks, stacked into a vector $s \in \mathbb{R}^{dL}$. The *point distribution model* is built in three steps:
+
+1.  align the shapes by *generalised Procrustes analysis*: alternately register every shape to the current mean with Theorem 5.3 (with a scale factor), then recompute the mean;
+2.  compute the mean shape $\bar s$ and the principal components $p_k$ of the aligned shapes, with variances $\lambda_k$ (ch. 0.2);
+3.  model a shape with $m$ modes as
+    $$
+    s = \bar s + \sum_{k=1}^m b_k\, p_k, \qquad |b_k| \leq 3\sqrt{\lambda_k} .
+    $$
+
+The *active shape model* segments a new image by alternating two steps: each landmark moves towards the strongest nearby edge along its normal, then the shape is projected back onto the model, with the coefficients $b_k$ clipped to the bounds. Unlike the snakes of ch. 4, the regularisation is learned from the population.
+
+Aligned shapes lie in a curved shape space (Kendall's), so the PCA of step 2 is in fact a *tangent PCA* at the mean. Fletcher et al. (2004) replace it by *principal geodesic analysis*, which finds geodesic subspaces of maximal variance.
+
+### 8.5 Diffusion tensors
+
+Diffusion MRI estimates, at each voxel, a symmetric positive definite (SPD) $3 \times 3$ matrix: the covariance of the displacement of water molecules. Interpolating, smoothing or averaging tensors needs a metric on SPD matrices.
+
+::: ex
+[Example 8.4 — The swelling effect]{.tag} Let $A = \mathrm{diag}(4, 1)$ and $B = \mathrm{diag}(1, 4)$: two tensors of determinant 4, elongated in orthogonal directions. Their Euclidean mean $\mathrm{diag}(2.5, 2.5)$ has determinant
+$$
+6.25 > 4,
+$$
+so averaging creates more diffusion than either tensor shows. The log-Euclidean mean
+$$
+\exp\Big(\tfrac12 (\log A + \log B)\Big) = \mathrm{diag}(2, 2)
+$$
+keeps the determinant 4, the geometric mean of the determinants.
+:::
+
+Pennec, Fillard and Ayache (2006) use the affine-invariant metric, $d(A, B) = \|\log(A^{-1/2} B A^{-1/2})\|$, for which SPD matrices form a complete manifold of non-positive curvature: means are unique, and matrices with zero or negative eigenvalues sit at infinite distance. Arsigny et al. (2006) propose the log-Euclidean metric $\|\log A - \log B\|$, which gives the same type of results with closed-form means and simpler computations.
+
+### 8.6 Statistics on deformations and atlases
+
+The stationary velocity fields of ch. 6.4 play for diffeomorphisms the role of the logarithm: Arsigny et al. (2006) define log-Euclidean statistics on deformations by averaging velocities $w_i$ with $\varphi_i = \exp(w_i)$.
+
+An *unbiased atlas* (Joshi et al., 2004) is a template image together with the deformations that map it to each subject, such that their mean is the identity. It is computed by alternating registration of all subjects to the template and update of the template. The deformations then become the data of population statistics: Jacobian determinants measure local volume changes (deformation-based morphometry), and longitudinal series of velocity fields model disease progression. These are the themes of computational anatomy that [Geometry and Shape Spaces](../s2-shape-spaces/index.html) develops.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 8
+:::
+
+-   On a manifold, replace the arithmetic mean by the Fréchet mean, characterised by $\sum_i \log_{\bar x}(x_i) = 0$ and computed by a fixed-point iteration.
+-   Statistical shape models are a tangent PCA of Procrustes-aligned landmarks, used as a learned prior for segmentation.
+-   Log-Euclidean and affine-invariant metrics avoid the swelling of Euclidean tensor averages.
+-   Velocity fields linearise deformations, which makes atlases and statistics on deformations computable.
+::::
+
+## 9. Research directions and open problems {#ch9}
+
+*Self-study chapter.* The models of this course remain the backbone of medical image analysis, but learning has changed how they are fitted. This chapter surveys current directions, each with the papers to start from, and closes with open problems suitable for a project or an internship.
+
+### 9.1 Learning registration
+
+Classical registration optimises an energy for each pair of images, which takes minutes. Work by Balakrishnan and coauthors (2019) trains a network, VoxelMorph, to output the displacement field in one pass, by minimising the same energy (similarity plus regularisation) over a training set. Dalca et al. (2019) and Krebs et al. (2019) predict stationary velocity fields and integrate them by scaling and squaring (ch. 6.4), which keeps the output diffeomorphic. Hoffmann et al. (2022) train SynthMorph on synthetic images only, so that it registers contrasts never seen in training.
+
+**Open questions.** A network amortises the optimisation, but nothing guarantees that its output is a minimiser for a new pair. How can one detect failures, calibrate the uncertainty of a predicted deformation, and keep accuracy across scanners?
+
+### 9.2 Segmentation between models and networks
+
+U-Net (Ronneberger, Fischer and Brox, 2015) and its self-configuring version nnU-Net (Isensee et al., 2021) are the reference segmentation methods when annotations exist; promptable foundation models such as SAM (Kirillov et al., 2023) and MedSAM (Ma et al., 2024) target the cases where they do not. The generative models of ch. 3 return in an unexpected way: SynthSeg (Billot et al., 2023) trains a network on images *sampled* from a Gaussian mixture conditioned on label maps, with random means, variances and bias fields, and segments brain MRI of any contrast and resolution.
+
+**Open questions.** Networks give no guarantee of topology (a hole in a cortex, two components for one organ) or anatomical plausibility, which deformable and shape models enforce by construction. Combining the two, through shape priors, topological losses or registration-based segmentation, is active work.
+
+### 9.3 Geometric statistics
+
+The book edited by Pennec, Sommer and Fletcher (2020) collects the Riemannian tools of ch. 8 and their extensions. Statistics on manifolds with few samples, the bias of tangent approximations in curved spaces, and the choice of metric on diffeomorphisms remain open, as does the modelling of longitudinal shape changes in disease.
+
+### 9.4 Biophysical models and digital twins
+
+Personalised models of the heart and of tumours are now called *digital twins* (Corral-Acero et al., 2020; Niederer et al., 2021). Their bottlenecks are those of ch. 7.3: identifiability of the parameters from sparse, noisy images; the cost of each simulation; and validation against outcomes. Physics-informed neural networks (Raissi, Perdikaris and Karniadakis, 2019) and learned surrogates are tried as fast approximations; [Learning Physical Phenomena](../s2-physics-learning-uq/index.html) covers surrogates and uncertainty quantification.
+
+### 9.5 Validation
+
+Rankings of segmentation and registration challenges can change with the metric and the aggregation method (Maier-Hein et al., 2018), and recommendations for choosing metrics have been published (Maier-Hein et al., 2024). Reporting the uncertainty of a comparison, and validating on data from other centres, are part of the method.
+
+### 9.6 Open problems
+
+-   Registration with guaranteed diffeomorphism and calibrated uncertainty for a single forward pass.
+-   Segmentation networks constrained by topology or by a statistical shape model, evaluated on rare anatomies.
+-   Identifiability analysis of reaction–diffusion and cardiac models from the images actually acquired in the clinic.
+-   Fréchet means and principal geodesic analysis on spaces of diffeomorphisms with few subjects.
+-   Generative models of images conditioned on anatomy, used to train contrast-agnostic methods.
+
+:::: recap
+::: recap-title
+Key takeaways — chapter 9
+:::
+
+-   Learning amortises registration and segmentation, while the models of this course provide losses, regularisers and synthetic training data.
+-   Guarantees (diffeomorphism, topology, uncertainty) and validation across centres are the main open issues.
+-   Biophysical digital twins face identifiability, cost and validation problems.
+::::
+
+## Exercises {#ex}
+
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended or research-flavoured. Exercises 12, 13 and 15 are computational, and Exercises 16 and 17 end with an implementation.
+
+1.  **★ Attenuation and Hounsfield units.** Take $\mu_{\text{water}} = 0.19$ cm⁻¹ and $\mu_{\text{air}} = 0$. (a) Convert $\mu = 0.20$ and $0.38$ cm⁻¹ to HU. (b) What fraction of the photons crosses 20 cm of water? (c) A lesion of $+50$ HU and 1 cm thickness lies on the path. By how much does it change the detected intensity?
+
+    *Solution*: (a) By Definition 1.5, $1000 \times 0.01 / 0.19 \approx 53$ HU and $1000$ HU (dense bone).
+
+    (b) By Proposition 1.1, $e^{-0.19 \times 20} = e^{-3.8} \approx 0.022$: about 2 % of the photons.
+
+    (c) The lesion has $\mu = 0.19 \times 1.05$, so the line integral grows by $0.0095$ and the intensity is multiplied by $e^{-0.0095} \approx 0.990$. A 1 % change must be detected under photon noise, which is why low-contrast lesions need dose.
+
+2.  **★ k-space and field of view.** An MRI slice is acquired with a field of view of 240 mm and a $256 \times 256$ matrix. (a) Give the k-space step, the extent of k-space and the pixel size. (b) To halve the acquisition time, every second phase-encoding line is skipped. What happens to the image of a head 200 mm wide? (c) Give the Larmor frequency at 3 T and at 7 T.
+
+    *Solution*: (a) By Proposition 1.6, $\Delta k = 1/240$ mm⁻¹, the extent is $256/240 \approx 1.07$ mm⁻¹, and $\Delta x = 240/256 \approx 0.94$ mm.
+
+    (b) Doubling $\Delta k$ halves the field of view to 120 mm along that axis. The head, wider than 120 mm, folds back: each side overlaps the image by 40 mm (wrap-around). Parallel imaging and compressed sensing undo this folding with extra information.
+
+    (c) $42.58 \times 3 \approx 128$ MHz and $42.58 \times 7 \approx 298$ MHz.
+
+3.  **★ How much does Gaussian smoothing reduce noise?** Let $\varepsilon$ be white noise of variance $s^2$ per unit area (or volume) in dimension $d$. (a) Show that $G_\sigma * \varepsilon$ has variance $s^2 \int G_\sigma^2$, and that this integral equals $(4\pi\sigma^2)^{-d/2}$.
+
+    (b) Evaluate it for $d = 2$, $\sigma = 2$ pixels, and compare with the code of ch. 0.1. (c) A filter of $\sigma = 3$ followed by one of $\sigma = 4$ is applied. Which single filter is equivalent?
+
+    *Solution*: (a) The variance of $\int G_\sigma(x - y)\, \varepsilon(y)\, dy$ is $s^2 \int G_\sigma^2$ for white noise. Squaring the Gaussian halves its variance and squares its constant:
+    $$
+    \int G_\sigma^2 = (2\pi\sigma^2)^{-d} (\pi\sigma^2)^{d/2} = (4\pi\sigma^2)^{-d/2} .
+    $$
+
+    (b) $1/(16\pi) \approx 0.020$, a standard deviation of $0.141$ for $s = 1$; the code measures $0.15$, the difference coming from the discrete kernel.
+
+    (c) $\sigma = \sqrt{9 + 16} = 5$ (Proposition 2.1).
+
+4.  **★ Morphology and Otsu by hand.** (a) On the 1D binary signal $X$ = `0111011111100100` (positions 0 to 15) and the structuring element of 3 consecutive pixels, compute the erosion, the opening and the closing. (b) A histogram has 30 voxels at intensity 1, 10 at 2, 10 at 6 and 30 at 7. Compute $\sigma_B^2$ for the thresholds 1.5, 4 and 6.5, and give Otsu's threshold.
+
+    *Solution*: (a) Erosion: positions 2 and 6 to 9. Opening: positions 1–3 and 5–10; the isolated pixel 13 disappears. Closing (with zero padding at the ends): positions 1 to 13; the one-pixel hole at 4 and the two-pixel gap 11–12 are filled.
+
+    (b) The between-class variances are $0.375 \times 0.625 \times 4.8^2 = 5.40$, $0.5 \times 0.5 \times 5.5^2 \approx 7.56$ and $5.40$. Otsu's threshold is any value between 2 and 6, with class means 1.25 and 6.75.
+
+5.  **★ One EM step by hand.** Fit a two-class mixture to $y = (0, 1, 4, 5)$ from $\mu = (0, 5)$, $\sigma_1^2 = \sigma_2^2 = 1$, $\pi = (\frac12, \frac12)$. (a) Compute the responsibilities. (b) Compute the updated parameters. (c) Check that the log-likelihood increased.
+
+    *Solution*: (a) For $y = 1$, $r_{i1} = 1 / (1 + e^{-7.5}) \approx 0.99945$; for $y = 0$ it is $1 - 3.7 \times 10^{-6}$. By symmetry, $y = 4$ and $y = 5$ get the mirror values.
+
+    (b) $\pi = (0.5, 0.5)$, $\mu \approx (0.501, 4.499)$, $\sigma_1^2 = \sigma_2^2 \approx 0.253$.
+
+    (c) The log-likelihood goes from $-7.447$ to $-5.676$, as Theorem 3.4 guarantees.
+
+6.  **★ Dice, Jaccard and Hausdorff.** (a) A reference is the square $[0, 10)^2$ of 100 pixels; a segmentation is the same square shifted by 2 pixels. Compute Dice, Jaccard and the Hausdorff distance. (b) Repeat for a $4 \times 4$ square shifted by 2 pixels. (c) Which measure separates the two cases, and why?
+
+    *Solution*: (a) The overlap has 80 pixels: Dice $= 160/200 = 0.80$, Jaccard $= 80/120 \approx 0.667$, and $2J/(1 + J) = 0.80$ (Definition 3.8). The Hausdorff distance is 2 pixels.
+
+    (b) Overlap 8 pixels: Dice $= 16/32 = 0.50$, Jaccard $= 1/3$, Hausdorff still 2.
+
+    (c) The same boundary error halves the Dice of the small structure, whereas the Hausdorff distance reports the same 2 pixels. Report both kinds of measure.
+
+7.  **★★ The threshold of Perona–Malik.** (a) For the diffusivity $c(s) = e^{-(s/K)^2}$, compute $\phi'(s)$ and the slope at which diffusion changes from forward to backward. (b) In the code of ch. 2.3, $K = 0.3$ and the noise has standard deviation 0.15. Compare the typical difference between neighbouring pixels in flat regions and across the edge with this threshold. (c) Explain why the edge keeps its full contrast.
+
+    *Solution*: (a) $\phi(s) = s\, e^{-s^2/K^2}$ gives $\phi'(s) = (1 - 2s^2/K^2)\, e^{-s^2/K^2}$, which changes sign at $|s| = K/\sqrt2 \approx 0.21$.
+
+    (b) The difference of two independent noisy pixels has standard deviation $0.15\sqrt2 \approx 0.21$, about the threshold, so most noise differences are smoothed. Across the edge the difference is about 1.
+
+    (c) There, $c(1) = e^{-11.1} \approx 1.5 \times 10^{-5}$: the flux across the edge is negligible, so the two sides are smoothed separately.
+
+8.  **★★ ICM on a chain.** Five pixels on a line, two classes, Potts weight $\beta = 1$. The unary costs $(U_i(0), U_i(1))$ of the five pixels are
+    $$
+    (0, 3), \quad (0, 3), \quad (0.8, 0), \quad (0, 3), \quad (3, 0) .
+    $$
+
+    (a) Start from the pixel-wise best labels and compute the energy. (b) Run one ICM sweep from left to right. (c) Below which $\beta$ does the third pixel keep the label 1?
+
+    *Solution*: (a) Labels $(0, 0, 1, 0, 1)$: unary cost 0, three disagreeing pairs, energy 3.
+
+    (b) Pixels 1 and 2 keep 0. Pixel 3 has costs $0.8 + 0 = 0.8$ for label 0 and $0 + 2 = 2$ for label 1: it switches to 0. Pixels 4 and 5 keep their labels. The final labels $(0, 0, 0, 0, 1)$ have energy $0.8 + 1 = 1.8$, and a second sweep changes nothing (Proposition 3.6).
+
+    (c) Pixel 3 keeps label 1 iff $2\beta < 0.8$, that is $\beta < 0.4$.
+
+9.  **★★ Choosing a snake step.** A closed snake of $n = 100$ points has $\alpha = 1$ and $\beta = 0.5$ (unit spacing). (a) Give the largest stable explicit step. (b) With the semi-implicit scheme and $\tau = 1$, give the damping factor of the highest and of the lowest non-constant mode. (c) Without image forces, what does the snake do, and which force of ch. 4.1 counteracts it?
+
+    *Solution*: (a) By Proposition 4.2, $\tau \leq 2/(4 + 8) = 1/6$.
+
+    (b) The highest mode has $\mu = 4$, eigenvalue $4 + 8 = 12$ and factor $1/13 \approx 0.077$. The lowest has $\mu_1 = 2 - 2\cos(2\pi/100) \approx 0.00395$ and factor $\approx 0.9961$ per step, so about $0.67$ after 100 steps.
+
+    (c) The stretching energy shrinks the closed snake towards its centroid, mode by mode. The balloon force of Cohen (1991) pushes it outwards and balances this shrinkage.
+
+10. **★★ Curvature motion and the scale of Chan–Vese.** (a) Check that $\varphi(x, t) = |x| - \sqrt{r_0^2 - 2t}$ solves $\partial_t\varphi = \kappa |\nabla\varphi|$, and give the extinction time.
+
+    (b) An image equals 1 on a disc of radius $R$ and 0 elsewhere. Fix $c_1 = 1$ and $c_2 = 0$ in the Chan–Vese energy, with $\lambda_1 = \lambda_2 = \lambda$, and restrict the contour to circles of radius $r$ centred on the disc. Show that the disc is found iff $R > 2\mu/\lambda$.
+
+    *Solution*: (a) $|\nabla\varphi| = 1$, $\kappa = \operatorname{div}(x/|x|) = 1/|x|$, which equals $1/r(t)$ on the zero level, and $\partial_t\varphi = 1/\sqrt{r_0^2 - 2t}$. The circle disappears at $t = r_0^2/2$.
+
+    (b) The energy of a circle of radius $r$ is
+    $$
+    E(r) = \begin{cases} 2\pi\mu r + \lambda\pi(R^2 - r^2) & r \leq R \ \text{(concave in } r), \\ 2\pi\mu r + \lambda\pi(r^2 - R^2) & r \geq R \ \text{(increasing)}. \end{cases}
+    $$
+
+    The minimum is therefore at $r = 0$ or $r = R$, and $E(R) = 2\pi\mu R$ is below $E(0) = \lambda\pi R^2$ iff $R > 2\mu/\lambda$. The length weight sets the smallest object that survives.
+
+11. **★★ Rotations and Procrustes by hand.** (a) Compute the angle and the axis of
+    $$
+    R = \begin{pmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix} .
+    $$
+
+    (b) Let $x_i$ be $(\pm 1, 0, 0)$ and $(0, \pm 1, 0)$ and $y_i = R x_i$. Compute $M = \sum_i y_i x_i^\top$ and its singular values.
+
+    (c) Show that a reflection also maps the $x_i$ onto the $y_i$, and explain how Theorem 5.3 chooses the rotation.
+
+    *Solution*: (a) $\mathrm{tr}\, R = 1$, so $\theta = \arccos 0 = 90°$, and $(R - R^\top)/2 = [e_z]_\times$: the axis is $e_z$.
+
+    (b) $M = 2(e_y e_x^\top - e_x e_y^\top)$, which is twice $R$ restricted to the plane $z = 0$. Its singular values are $(2, 2, 0)$.
+
+    (c) The map $R\, \mathrm{diag}(1, 1, -1)$ has determinant $-1$ and agrees with $R$ on the plane of the points. With $\sigma_3 = 0$, both reach the maximum of $\mathrm{tr}(Q\Sigma)$; the determinant correction picks the rotation. Coplanar landmarks are the typical case where an uncorrected SVD returns a reflection.
+
+12. **★★ Where is the registration error largest?** Use the code of ch. 5.4. (a) Predict and simulate the TRE at the centroid of the fiducials and at the point $(0, 0, 210)$ mm. (b) Add a fifth fiducial at $(0, 0, 150)$ mm and repeat. (c) What do you conclude for the placement of markers?
+
+    *Hints and expected result*: (a) At the centroid all $d_k$ vanish, so $\mathbb{E}[\mathrm{TRE}^2] = \mathrm{FLE}^2/N = 0.25$ mm², an RMS of 0.50 mm. At $(0, 0, 210)$ the prediction is $3.22$ mm², and the simulation gives $3.21$ mm² (RMS 1.8 mm). The nearly planar configuration controls rotations about the in-plane axes poorly.
+
+    (b) The fifth marker increases the spread $f_k$ about the in-plane axes. The predicted mean square TRE at that point falls from 3.22 to 0.97 mm² (RMS from 1.8 to 1.0 mm), and the simulation agrees.
+
+    (c) Spread the markers in all three dimensions, and surround the target with them.
+
+13. **★★ What each similarity measure assumes.** Use the code of ch. 5.6. (a) Compute $\mathrm{MI}(t_1, t_1)$, $\mathrm{MI}(t_1, 1 - t_1)$ and $\mathrm{MI}(t_1, t_1^2)$, and explain the results. (b) Add the normalised correlation and the correlation ratio as functions of the angle. Which measures find the true angle?
+
+    *Hints and expected result*: (a) The first two are equal (2.39): $1 - t$ maps the equal-width bins onto equal-width bins, so Proposition 5.7 applies.
+
+    The third is lower (1.39). On the noisy background, where 30 % of the voxels are negative, $t \mapsto t^2$ is not one-to-one; but the cube, which is, also lowers the value (1.32). A nonlinear map moves voxels between equal-width bins, and invariance holds only for maps that send bins onto bins.
+
+    (b) The correlation is negative and its absolute value peaks at $12°$: here the intensity relation is roughly decreasing. Maximising the signed correlation picks $-30°$.
+
+    The correlation ratio of $t_2$ given $t_1$ peaks at $12°$, and at $11°$ with the roles swapped; mutual information peaks at $12°$.
+
+14. **★★ Folding and exponentials.** (a) Compute the Jacobian determinant of $\varphi(x, y) = (x + cy,\ y + cx)$ for $c = 0.5$ and $c = 1.2$.
+
+    (b) For the stationary velocity field $v(x) = a \sin x$ on the line, is $\exp(v)$ a diffeomorphism for $a = 2$? Compare with Example 6.2.
+
+    (c) For a linear field $v(x) = Ax$, show that $\det \exp(v) = e^{\mathrm{tr} A} > 0$, and give a matrix $A$ for which $\det(I + A) < 0$.
+
+    *Solution*: (a) $\det = 1 - c^2$: $0.75$ for $c = 0.5$, and $-0.44$ for $c = 1.2$, an orientation reversal everywhere.
+
+    (b) Yes. The flow of $\dot x = 2\sin x$ never crosses the fixed points $k\pi$ and preserves the order of points, so its time-one map is an increasing bijection: a diffeomorphism by Definition 6.4. The displacement $x + 2\sin x$ folds.
+
+    (c) The flow is $x \mapsto e^{tA}x$, and $\det e^{A} = e^{\mathrm{tr} A}$, since the eigenvalues of $e^A$ are the exponentials of those of $A$.
+
+    For $A = \mathrm{diag}(-2, 0)$, $\det(I + A) = -1$ whereas $\det e^A = e^{-2} \approx 0.14$.
+
+15. **★★ What a growing tumour reveals.** Modify the code of ch. 7.2 to return the front speed and the width of the front, the distance between the levels $u = 0.8$ and $u = 0.2$ at the final time. (a) Compare $(D, \rho) = (0.1, 1)$ with $(0.2, 0.5)$. (b) Compare $(0.05, 1)$ with $(0.1, 0.5)$. (c) Which combination of parameters does each measurement identify?
+
+    *Hints and expected result*: (a) Both speeds are close to $2\sqrt{0.1} \approx 0.632$ (0.626 and 0.622), but the widths are 1.77 and 3.54.
+
+    (b) Both speeds are close to $0.447$ (0.441 and 0.440), and the widths are 1.26 and 2.49.
+
+    (c) The speed identifies $D\rho$ (Proposition 7.3); the width is about $5.6 \sqrt{D/\rho}$ in all cases. Two time points of a single boundary give only $D\rho$; a second boundary, or the shape of the profile, is needed to separate $D$ and $\rho$.
+
+16. **★★★ Demons as alternating optimisation.** Following Cachier et al. (2003) and Vercauteren et al. (2009), introduce an auxiliary transformation $c$ and the energy
+    $$
+    E(c, \varphi) = \frac{1}{\sigma_i^2} \|J - I \circ c\|^2 + \frac{1}{\sigma_x^2} \|c - \varphi\|^2 + \frac{1}{\sigma_T^2} \|\nabla \varphi\|^2 .
+    $$
+    (a) Show that one Gauss–Newton step in $c$ from $c = \varphi$ gives the force of Proposition 6.3, and identify $\alpha$.
+
+    (b) Show that the minimisation in $\varphi$ is a linear smoothing of $c$, and give its Fourier transfer function. (c) Implement both choices of $\alpha$ (constant, and Thirion's $d^2/\sigma_x^2$) in the code of ch. 6.3, and compare convergence and the minimum Jacobian.
+
+    *Hints and expected result*: (a) Pointwise, minimise $(d - g^\top v)^2/\sigma_i^2 + |v|^2/\sigma_x^2$: Proposition 6.3 with $\alpha = \sigma_i^2 / \sigma_x^2$. Thirion's force sets $\sigma_i^2 = d^2$, a local noise estimate.
+
+    (b) The Euler–Lagrange equation is $(\varphi - c)/\sigma_x^2 - \Delta\varphi/\sigma_T^2 = 0$, so
+    $$
+    \hat\varphi(\xi) = \frac{\hat c(\xi)}{1 + 4\pi^2 |\xi|^2 \sigma_x^2/\sigma_T^2},
+    $$
+    a low-pass filter that the Gaussian smoothing approximates.
+
+    (c) A constant $\alpha$ makes long steps where the residual is large and can overshoot; the adaptive one bounds the step by $\sigma_x/2$. Report the energy per iteration and the fraction of folds.
+
+17. **★★★ Fréchet means on the circle.** On the unit circle with the arc-length distance, $\log_x(y)$ is the difference of angles wrapped to $(-\pi, \pi]$. (a) Find the Fréchet means of the two points $0$ and $\pi$.
+
+    (b) Find those of the three points $0$, $2\pi/3$ and $4\pi/3$, by comparing the variance at a data point and at a midpoint. (c) Implement the fixed-point iteration of Proposition 8.3 and run it from several starting points on these examples and on points spread over an arc of length $\pi/2$.
+
+    *Solution*: (a) Every point is at total squared distance $\theta^2 + (\pi - \theta)^2$ from them, minimal at $\theta = \pi/2$: the means are $\pi/2$ and $3\pi/2$.
+
+    (b) At a data point the sum of squared distances is $0 + 2(2\pi/3)^2 = 8\pi^2/9$; at a midpoint it is $2(\pi/3)^2 + \pi^2 = 11\pi^2/9$. Near a data point the sum is $8\pi^2/9 + 3\varepsilon^2$, so each data point is a mean: three means.
+
+    (c) In (a) and (b) the iteration converges to the mean nearest to its start. On an arc of length $\pi/2$ the mean is unique and the iteration converges from any start in the arc, as the theorem of Karcher (1977) predicts.
+
+18. **★★★ An atlas-guided tissue classifier.** Design a brain tissue classification pipeline for $T_1$-weighted MRI that combines ch. 2, 3, 5 and 6, and an experiment to validate it on simulated data such as the BrainWeb phantom (Collins et al., 1998).
+
+    *Hints and expected result*: preprocess (resampling, ch. 2.6; brain mask), register a probabilistic atlas affinely then non-rigidly (ch. 5.6, 6.3), and use it as voxel-wise priors in EM with a bias field (ch. 3.4) and a Potts prior (ch. 3.3).
+
+    Validate against the ground truth of the phantom, with Dice per tissue (ch. 3.5), at several noise and bias levels, and in an ablation (no atlas, no bias field, no Markov prior). Discuss the loop between registration and classification, as in the unified segmentation of Ashburner and Friston (2005).
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) combines projects, an article presentation and a quiz, a mini exam; the Université Paris-Saclay course detail describes it as partial continuous assessment, and no weights are displayed. The solo subjects below are sized for a course project, and the paper studies among them double as article presentations. The group subjects suit study groups or a longer project, and say how the work divides. The written exam is a proposal to prepare the quiz, not an official component.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Model-based tissue classification with a bias field (paper study).** Reproduce, in a simplified form, the method of Van Leemput et al. (1999): a Gaussian mixture fitted by EM, a polynomial bias field in the log domain, and a Potts prior. Use simulated $T_1$-weighted brain MRI from BrainWeb (Collins et al., 1998), whose ground-truth tissue maps are public, and compare with k-means and plain EM.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
+    -   *Chapters*: ch. 2, 3.
+    -   *Success criterion*: Dice per tissue at several noise and non-uniformity levels of the simulator; the bias model must win at the strongest non-uniformity, the Markov prior at the strongest noise.
+2.  **[Solo · ≈ 20 h] Demons and diffeomorphic demons (paper study).** Implement in 2D the demons of Thirion (1998) and the diffeomorphic demons of Vercauteren et al. (2009). Generate test pairs by warping BrainWeb slices with known random smooth deformations, so that the true displacement is available.
+    -   *Deliverables*: code, a report, a talk.
+    -   *Chapters*: ch. 2.6, 6.
+    -   *Success criterion*: displacement error against the known field, fraction of folded pixels, and inverse-consistency error for both algorithms; the diffeomorphic version must have no folds at a similar accuracy.
+3.  **[Solo · ≈ 15 h] Predicting the error of point-based registration.** Prove the first-order formula of Theorem 5.4 for the expected FRE, with its factor $1 - 2/N$. Then validate the TRE formula of Fitzpatrick, West and Maurer (1998) by simulation, map the TRE over a volume for several marker configurations, and extend the simulation to anisotropic localisation errors.
+    -   *Deliverables*: a written proof, code, a report with TRE maps, a talk.
+    -   *Chapters*: ch. 0.2, 5.3–5.4.
+    -   *Success criterion*: simulated and predicted TRE within 5 % in the isotropic case, and a placement rule supported by the maps.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Multi-atlas segmentation of brain structures.** Use the preprocessed and labelled OASIS brain MRI of the Learn2Reg challenge (Marcus et al., 2007; Hering et al., 2023). Register several atlases to each test subject, affinely then non-rigidly (with SimpleITK or your own demons), propagate their labels, and fuse them.
+    -   *Split*: affine registration with mutual information; deformable registration; label fusion and evaluation.
+    -   *Measure*: Dice per structure for the best single atlas, majority voting and a locally weighted vote; fraction of folds.
+    -   *Chapters*: ch. 3.5, 5, 6. *Deliverables*: code, an 8-page report, a 20-minute talk.
+    -   *Success criterion*: fused labels beat the best single atlas on average, with paired comparisons over subjects.
+2.  **[Group of 2–3 · ≈ 30 h each] Personalising a tumour growth model (paper study).** In the spirit of Konukoglu et al. (2010), simulate 2D Fisher–Kolmogorov growth in a brain slice, with a diffusion larger in white than in grey matter, using BrainWeb tissue maps. Create synthetic “scans” by thresholding the density at two levels and two times, with noise, then estimate $D$ and $\rho$.
+    -   *Split*: forward simulator; synthetic imaging; inverse problem and uncertainty.
+    -   *Measure*: error on $D$ and $\rho$; the shape of the misfit landscape.
+    -   *Chapters*: ch. 2, 7. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: both parameters within 10 % with two thresholds, and a demonstration that a single threshold only identifies $D\rho$.
+3.  **[Group of 2–3 · ≈ 30 h each] Statistical shape model of the left ventricle (paper study).** Following Cootes et al. (1995), build a point distribution model of the left-ventricular cavity from the segmentations of the ACDC data (Bernard et al., 2018), public after registration. Resample contours by arc length, align them by generalised Procrustes analysis, and run an active shape model search on held-out slices.
+    -   *Split*: landmarking and Procrustes; PCA and model; segmentation and comparison with Chan–Vese.
+    -   *Measure*: variance explained per mode; Dice and Hausdorff distance on held-out slices.
+    -   *Chapters*: ch. 4, 5.3, 8.4. *Deliverables*: code, a report, a talk.
+    -   *Success criterion*: a model explaining 90 % of the variance with few modes, and a comparison where the shape prior helps on low-contrast slices.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 2 hours, one handwritten A4 sheet allowed, no electronic device; four exercises, 20 points in total.
+
+1.  **Question (5 points).** Course question. For CT, magnitude MRI and ultrasound, state the noise model of the reconstructed image. Why is ultrasound speckle called multiplicative, and what does it imply for filtering? Compute the mean-to-standard-deviation ratio of a Rayleigh variable.
+
+    *Expected*: CT roughly Gaussian after filtered back-projection, with noise amplified by the ramp filter (ch. 1.2); Rician magnitude noise in MRI, Rayleigh in the background (ch. 1.3); Rayleigh speckle in ultrasound with a constant ratio $\sqrt{\pi/(4 - \pi)} \approx 1.91$, so filter its logarithm (Example 1.7).
+
+2.  **Question (5 points).** Computation. Two tissue classes have intensities $\mathcal{N}(100, 10^2)$ and $\mathcal{N}(140, 10^2)$ and prior probabilities 0.8 and 0.2. Give the Bayes threshold and the error rate. Then write one EM update of the means from given responsibilities.
+
+    *Expected*: by Proposition 3.1, $t = 120 + 2.5 \log 4 \approx 123.5$. The error is
+    $$
+    0.8\, P(Z > 2.35) + 0.2\, P(Z > 1.65) \approx 0.8 \times 0.0094 + 0.2 \times 0.049 \approx 0.017 .
+    $$
+
+    The M-step means are responsibility-weighted averages (ch. 3.2).
+
+3.  **Question (5 points).** Short proof. State and prove the closed-form solution of rigid point registration, assuming $\det(UV^\top) = 1$. Why can the solution be a reflection when the correction is omitted?
+
+    *Expected*: Theorem 5.3 with its proof through Lemma 0.4: elimination of the translation, reduction to $\max \mathrm{tr}(Q\Sigma)$, equality at $Q = I$. Without the correction, $UV^\top$ can have determinant $-1$ for noisy or coplanar points (Exercise 11).
+
+4.  **Question (5 points).** Registration. Derive the demons force as the minimiser of a regularised linearised residual and prove that its length is at most $\sigma_x/2$. Explain why mutual information, not SSD, is used to register $T_1$ with $T_2$ images. Give the Jacobian determinant of $\varphi(x) = x + a \sin x$ and the values of $a$ for which it folds.
+
+    *Expected*: Proposition 6.3 and its proof; MI assumes only statistical dependence and is invariant to one-to-one intensity remappings (Proposition 5.7), whereas SSD assumes identical intensities; $\varphi'(x) = 1 + a\cos x$, folding for $|a| > 1$ (Example 6.2).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Correctness of models and mathematics | 30 % | Energies, likelihoods, Euler–Lagrange equations and updates derived correctly; claims proved or cited |
+| Experimental protocol and validation | 25 % | Ground truth or reference labels, baselines, several noise or deformation levels, Dice, Hausdorff, TRE and folding reported |
+| Critical analysis | 20 % | Failure cases, sensitivity to parameters and initialisation, identifiability and limitations discussed |
+| Reproducibility of the code | 10 % | Fixed seeds, scripted data preparation, one command reproduces the main figure |
+| Report, article presentation and talk | 15 % | Clear structure, honest figures, a fair account of the paper studied, answers to questions show understanding |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   Fitzpatrick, J. M. and Sonka, M. (eds.) (2009). *Handbook of Medical Imaging, Volume 2: Medical Image Processing and Analysis*. SPIE Press Monograph PM80 (the edition cited on the course page).
+-   Hajnal, J. V., Hill, D. L. G. and Hawkes, D. J. (eds.) (2001). *Medical Image Registration*. CRC Press.
+-   Bankman, I. N. (ed.) (2008). *Handbook of Medical Imaging: Processing and Analysis*, 2nd edition, as cited on the course page (published as *Handbook of Medical Image Processing and Analysis*). Academic Press.
+-   Medical Image Computing and Computer-Assisted Intervention (MICCAI), annual conference: <http://www.miccai.org/conferences>.
+
+### Textbooks and surveys
+
+-   Aubert, G. and Kornprobst, P. (2006). *Mathematical Problems in Image Processing: Partial Differential Equations and the Calculus of Variations*, 2nd edition. Springer.
+-   Bishop, C. M. (2006). *Pattern Recognition and Machine Learning*. Springer.
+-   Kak, A. C. and Slaney, M. (1988). *Principles of Computerized Tomographic Imaging*. IEEE Press.
+-   Maintz, J. B. A. and Viergever, M. A. (1998). A survey of medical image registration. *Medical Image Analysis*, 2(1), 1–36.
+-   McInerney, T. and Terzopoulos, D. (1996). Deformable models in medical image analysis: a survey. *Medical Image Analysis*, 1(2), 91–108.
+-   Modersitzki, J. (2004). *Numerical Methods for Image Registration*. Oxford University Press.
+-   Pennec, X., Sommer, S. and Fletcher, T. (eds.) (2020). *Riemannian Geometric Statistics in Medical Image Analysis*. Academic Press.
+-   Prince, J. L. and Links, J. M. (2006). *Medical Imaging Signals and Systems*. Pearson Prentice Hall.
+-   Sotiras, A., Davatzikos, C. and Paragios, N. (2013). Deformable medical image registration: a survey. *IEEE Transactions on Medical Imaging*, 32(7), 1153–1190.
+-   Suetens, P. (2009). *Fundamentals of Medical Imaging*, 2nd edition. Cambridge University Press.
+
+### Image formation and filtering
+
+-   Canny, J. (1986). A computational approach to edge detection. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 8(6), 679–698.
+-   Catté, F., Lions, P.-L., Morel, J.-M. and Coll, T. (1992). Image selective smoothing and edge detection by nonlinear diffusion. *SIAM Journal on Numerical Analysis*, 29(1), 182–193.
+-   Frangi, A. F., Niessen, W. J., Vincken, K. L. and Viergever, M. A. (1998). Multiscale vessel enhancement filtering. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 1496, 130–137.
+-   Gudbjartsson, H. and Patz, S. (1995). The Rician distribution of noisy MRI data. *Magnetic Resonance in Medicine*, 34(6), 910–914.
+-   Otsu, N. (1979). A threshold selection method from gray-level histograms. *IEEE Transactions on Systems, Man, and Cybernetics*, 9(1), 62–66.
+-   Perona, P. and Malik, J. (1990). Scale-space and edge detection using anisotropic diffusion. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 12(7), 629–639.
+-   Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
+-   Shepp, L. A. and Vardi, Y. (1982). Maximum likelihood reconstruction for emission tomography. *IEEE Transactions on Medical Imaging*, 1(2), 113–122.
+-   Tomasi, C. and Manduchi, R. (1998). Bilateral filtering for gray and color images. *IEEE International Conference on Computer Vision (ICCV)*.
+-   Unser, M. (1999). Splines: a perfect fit for signal and image processing. *IEEE Signal Processing Magazine*, 16(6), 22–38.
+
+### Classification
+
+-   Ashburner, J. and Friston, K. J. (2005). Unified segmentation. *NeuroImage*, 26(3), 839–851.
+-   Besag, J. (1986). On the statistical analysis of dirty pictures. *Journal of the Royal Statistical Society, Series B*, 48(3), 259–302.
+-   Dempster, A. P., Laird, N. M. and Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *Journal of the Royal Statistical Society, Series B*, 39(1), 1–38.
+-   Geman, S. and Geman, D. (1984). Stochastic relaxation, Gibbs distributions, and the Bayesian restoration of images. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 6(6), 721–741.
+-   Greig, D. M., Porteous, B. T. and Seheult, A. H. (1989). Exact maximum a posteriori estimation for binary images. *Journal of the Royal Statistical Society, Series B*, 51(2), 271–279.
+-   Van Leemput, K., Maes, F., Vandermeulen, D. and Suetens, P. (1999). Automated model-based bias field correction of MR images of the brain. *IEEE Transactions on Medical Imaging*, 18(10), 885–896.
+-   Van Leemput, K., Maes, F., Vandermeulen, D. and Suetens, P. (1999). Automated model-based tissue classification of MR images of the brain. *IEEE Transactions on Medical Imaging*, 18(10), 897–908.
+-   Wells, W. M., Grimson, W. E. L., Kikinis, R. and Jolesz, F. A. (1996). Adaptive segmentation of MRI data. *IEEE Transactions on Medical Imaging*, 15(4), 429–442.
+-   Zhang, Y., Brady, M. and Smith, S. (2001). Segmentation of brain MR images through a hidden Markov random field model and the expectation-maximization algorithm. *IEEE Transactions on Medical Imaging*, 20(1), 45–57.
+
+### Deformable models and shape models
+
+-   Caselles, V., Kimmel, R. and Sapiro, G. (1997). Geodesic active contours. *International Journal of Computer Vision*, 22(1), 61–79.
+-   Chan, T. F. and Vese, L. A. (2001). Active contours without edges. *IEEE Transactions on Image Processing*, 10(2), 266–277.
+-   Cohen, L. D. (1991). On active contour models and balloons. *CVGIP: Image Understanding*, 53(2), 211–218.
+-   Cohen, L. D. and Cohen, I. (1993). Finite-element methods for active contour models and balloons for 2-D and 3-D images. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 15(11), 1131–1147.
+-   Cootes, T. F., Taylor, C. J., Cooper, D. H. and Graham, J. (1995). Active shape models — their training and application. *Computer Vision and Image Understanding*, 61(1), 38–59.
+-   Delingette, H. (1999). General object reconstruction based on simplex meshes. *International Journal of Computer Vision*, 32(2), 111–146.
+-   Kass, M., Witkin, A. and Terzopoulos, D. (1988). Snakes: active contour models. *International Journal of Computer Vision*, 1(4), 321–331.
+-   Osher, S. and Sethian, J. A. (1988). Fronts propagating with curvature-dependent speed: algorithms based on Hamilton–Jacobi formulations. *Journal of Computational Physics*, 79(1), 12–49.
+-   Taubin, G. (1995). Curve and surface smoothing without shrinkage. *IEEE International Conference on Computer Vision (ICCV)*, 852–857.
+-   Terzopoulos, D., Witkin, A. and Kass, M. (1988). Constraints on deformable models: recovering 3D shape and nonrigid motion. *Artificial Intelligence*, 36(1), 91–123.
+-   Xu, C. and Prince, J. L. (1998). Snakes, shapes, and gradient vector flow. *IEEE Transactions on Image Processing*, 7(3), 359–369.
+
+### Registration
+
+-   Arsigny, V., Commowick, O., Pennec, X. and Ayache, N. (2006). A log-Euclidean framework for statistics on diffeomorphisms. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 4190, 924–931.
+-   Arun, K. S., Huang, T. S. and Blostein, S. D. (1987). Least-squares fitting of two 3-D point sets. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 9(5), 698–700.
+-   Bajcsy, R. and Kovačič, S. (1989). Multiresolution elastic matching. *Computer Vision, Graphics, and Image Processing*, 46(1), 1–21.
+-   Beg, M. F., Miller, M. I., Trouvé, A. and Younes, L. (2005). Computing large deformation metric mappings via geodesic flows of diffeomorphisms. *International Journal of Computer Vision*, 61(2), 139–157.
+-   Besl, P. J. and McKay, N. D. (1992). A method for registration of 3-D shapes. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 14(2), 239–256.
+-   Cachier, P., Bardinet, E., Dormont, D., Pennec, X. and Ayache, N. (2003). Iconic feature based nonrigid registration: the PASHA algorithm. *Computer Vision and Image Understanding*, 89(2–3), 272–298.
+-   Chen, Y. and Medioni, G. (1992). Object modelling by registration of multiple range images. *Image and Vision Computing*, 10(3), 145–155.
+-   Choi, Y. and Lee, S. (2000). Injectivity conditions of 2D and 3D uniform cubic B-spline functions. *Graphical Models*, 62(6), 411–427.
+-   Christensen, G. E., Rabbitt, R. D. and Miller, M. I. (1996). Deformable templates using large deformation kinematics. *IEEE Transactions on Image Processing*, 5(10), 1435–1447.
+-   Fitzpatrick, J. M., West, J. B. and Maurer, C. R. (1998). Predicting error in rigid-body point-based registration. *IEEE Transactions on Medical Imaging*, 17(5), 694–702.
+-   Horn, B. K. P. (1987). Closed-form solution of absolute orientation using unit quaternions. *Journal of the Optical Society of America A*, 4(4), 629–642.
+-   Klein, A. et al. (2009). Evaluation of 14 nonlinear deformation algorithms applied to human brain MRI registration. *NeuroImage*, 46(3), 786–802.
+-   Maes, F., Collignon, A., Vandermeulen, D., Marchal, G. and Suetens, P. (1997). Multimodality image registration by maximization of mutual information. *IEEE Transactions on Medical Imaging*, 16(2), 187–198.
+-   Pennec, X., Cachier, P. and Ayache, N. (1999). Understanding the “demon's algorithm”: 3D non-rigid registration by gradient descent. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 1679, 597–605.
+-   Roche, A., Malandain, G., Pennec, X. and Ayache, N. (1998). The correlation ratio as a new similarity measure for multimodal image registration. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 1496, 1115–1124.
+-   Roche, A., Malandain, G. and Ayache, N. (2000). Unifying maximum likelihood approaches in medical image registration. *International Journal of Imaging Systems and Technology*, 11(1), 71–80.
+-   Rueckert, D., Sonoda, L. I., Hayes, C., Hill, D. L. G., Leach, M. O. and Hawkes, D. J. (1999). Nonrigid registration using free-form deformations: application to breast MR images. *IEEE Transactions on Medical Imaging*, 18(8), 712–721.
+-   Rueckert, D., Aljabar, P., Heckemann, R. A., Hajnal, J. V. and Hammers, A. (2006). Diffeomorphic registration using B-splines. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 4191, 702–709.
+-   Studholme, C., Hill, D. L. G. and Hawkes, D. J. (1999). An overlap invariant entropy measure of 3D medical image alignment. *Pattern Recognition*, 32(1), 71–86.
+-   Thirion, J.-P. (1998). Image matching as a diffusion process: an analogy with Maxwell's demons. *Medical Image Analysis*, 2(3), 243–260.
+-   Umeyama, S. (1991). Least-squares estimation of transformation parameters between two point patterns. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 13(4), 376–380.
+-   Vercauteren, T., Pennec, X., Perchant, A. and Ayache, N. (2008). Symmetric log-domain diffeomorphic registration: a demons-based approach. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*, LNCS 5241, 754–761.
+-   Vercauteren, T., Pennec, X., Perchant, A. and Ayache, N. (2009). Diffeomorphic demons: efficient non-parametric image registration. *NeuroImage*, 45(1), S61–S72.
+-   Viola, P. and Wells, W. M. (1997). Alignment by maximization of mutual information. *International Journal of Computer Vision*, 24(2), 137–154.
+
+### Biophysical models
+
+-   Aronson, D. G. and Weinberger, H. F. (1978). Multidimensional nonlinear diffusion arising in population genetics. *Advances in Mathematics*, 30(1), 33–76.
+-   Clatz, O., Sermesant, M., Bondiau, P.-Y., Delingette, H., Warfield, S. K., Malandain, G. and Ayache, N. (2005). Realistic simulation of the 3-D growth of brain tumors in MR images coupling diffusion with biomechanical deformation. *IEEE Transactions on Medical Imaging*, 24(10), 1334–1346.
+-   Cotin, S., Delingette, H. and Ayache, N. (1999). Real-time elastic deformations of soft tissues for surgery simulation. *IEEE Transactions on Visualization and Computer Graphics*, 5(1), 62–73.
+-   Ferrant, M., Nabavi, A., Macq, B., Jolesz, F. A., Kikinis, R. and Warfield, S. K. (2001). Registration of 3-D intraoperative MR images of the brain using a finite-element biomechanical model. *IEEE Transactions on Medical Imaging*, 20(12), 1384–1397.
+-   Fisher, R. A. (1937). The wave of advance of advantageous genes. *Annals of Eugenics*, 7(4), 355–369.
+-   Jbabdi, S. et al. (2005). Simulation of anisotropic growth of low-grade gliomas using diffusion tensor imaging. *Magnetic Resonance in Medicine*, 54(3), 616–624.
+-   Kolmogorov, A., Petrovsky, I. and Piskunov, N. (1937). Étude de l'équation de la diffusion avec croissance de la quantité de matière et son application à un problème biologique. *Bulletin de l'Université d'État de Moscou, Série internationale, Section A*, 1(6), 1–25.
+-   Konukoglu, E. et al. (2010). Image guided personalization of reaction-diffusion type tumor growth models using modified anisotropic eikonal equations. *IEEE Transactions on Medical Imaging*, 29(1), 77–95.
+-   Murray, J. D. (2003). *Mathematical Biology II: Spatial Models and Biomedical Applications*, 3rd edition. Springer.
+-   Sermesant, M. et al. (2012). Patient-specific electromechanical models of the heart for the prediction of pacing acute effects in CRT: a preliminary clinical validation. *Medical Image Analysis*, 16(1), 201–215.
+-   Swanson, K. R., Alvord, E. C. and Murray, J. D. (2000). A quantitative model for differential motility of gliomas in grey and white matter. *Cell Proliferation*, 33(5), 317–329.
+
+### Geometric statistics
+
+-   Arsigny, V., Fillard, P., Pennec, X. and Ayache, N. (2006). Log-Euclidean metrics for fast and simple calculus on diffusion tensors. *Magnetic Resonance in Medicine*, 56(2), 411–421.
+-   Fletcher, P. T., Lu, C., Pizer, S. M. and Joshi, S. (2004). Principal geodesic analysis for the study of nonlinear statistics of shape. *IEEE Transactions on Medical Imaging*, 23(8), 995–1005.
+-   Joshi, S., Davis, B., Jomier, M. and Gerig, G. (2004). Unbiased diffeomorphic atlas construction for computational anatomy. *NeuroImage*, 23(Suppl. 1), S151–S160.
+-   Karcher, H. (1977). Riemannian center of mass and mollifier smoothing. *Communications on Pure and Applied Mathematics*, 30(5), 509–541.
+-   Pennec, X. (2006). Intrinsic statistics on Riemannian manifolds: basic tools for geometric measurements. *Journal of Mathematical Imaging and Vision*, 25(1), 127–154.
+-   Pennec, X., Fillard, P. and Ayache, N. (2006). A Riemannian framework for tensor computing. *International Journal of Computer Vision*, 66(1), 41–66.
+
+### Research directions
+
+-   Balakrishnan, G., Zhao, A., Sabuncu, M. R., Guttag, J. and Dalca, A. V. (2019). VoxelMorph: a learning framework for deformable medical image registration. *IEEE Transactions on Medical Imaging*, 38(8), 1788–1800.
+-   Billot, B., Greve, D. N., Puonti, O., Thielscher, A., Van Leemput, K., Fischl, B., Dalca, A. V. and Iglesias, J. E. (2023). SynthSeg: segmentation of brain MRI scans of any contrast and resolution without retraining. *Medical Image Analysis*, 86, 102789.
+-   Corral-Acero, J. et al. (2020). The “Digital Twin” to enable the vision of precision cardiology. *European Heart Journal*, 41(48), 4556–4564.
+-   Dalca, A. V., Balakrishnan, G., Guttag, J. and Sabuncu, M. R. (2019). Unsupervised learning of probabilistic diffeomorphic registration for images and surfaces. *Medical Image Analysis*, 57, 226–236.
+-   Hoffmann, M., Billot, B., Greve, D. N., Iglesias, J. E., Fischl, B. and Dalca, A. V. (2022). SynthMorph: learning contrast-invariant registration without acquired images. *IEEE Transactions on Medical Imaging*, 41(3), 543–558.
+-   Isensee, F., Jaeger, P. F., Kohl, S. A. A., Petersen, J. and Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. *Nature Methods*, 18, 203–211.
+-   Kirillov, A. et al. (2023). Segment anything. *IEEE/CVF International Conference on Computer Vision (ICCV)*.
+-   Krebs, J., Delingette, H., Mailhé, B., Ayache, N. and Mansi, T. (2019). Learning a probabilistic model for diffeomorphic registration. *IEEE Transactions on Medical Imaging*, 38(9), 2165–2176.
+-   Ma, J., He, Y., Li, F., Han, L., You, C. and Wang, B. (2024). Segment anything in medical images. *Nature Communications*, 15, 654.
+-   Maier-Hein, L. et al. (2018). Why rankings of biomedical image analysis competitions should be interpreted with care. *Nature Communications*, 9, 5217.
+-   Maier-Hein, L. et al. (2024). Metrics reloaded: recommendations for image analysis validation. *Nature Methods*, 21, 195–212.
+-   Niederer, S. A., Sacks, M. S., Girolami, M. and Willcox, K. (2021). Scaling digital twins from the artisanal to the industrial. *Nature Computational Science*, 1, 313–320.
+-   Raissi, M., Perdikaris, P. and Karniadakis, G. E. (2019). Physics-informed neural networks: a deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. *Journal of Computational Physics*, 378, 686–707.
+-   Ronneberger, O., Fischer, P. and Brox, T. (2015). U-Net: convolutional networks for biomedical image segmentation. *Medical Image Computing and Computer-Assisted Intervention (MICCAI)*.
+
+### Data sets and software
+
+-   Bernard, O. et al. (2018). Deep learning techniques for automatic MRI cardiac multi-structures segmentation and diagnosis: is the problem solved? *IEEE Transactions on Medical Imaging*, 37(11), 2514–2525 (ACDC data).
+-   Collins, D. L., Zijdenbos, A. P., Kollokian, V., Sled, J. G., Kabani, N. J., Holmes, C. J. and Evans, A. C. (1998). Design and construction of a realistic digital brain phantom. *IEEE Transactions on Medical Imaging*, 17(3), 463–468 (BrainWeb).
+-   Hering, A. et al. (2023). Learn2Reg: comprehensive multi-task medical image registration challenge, dataset and evaluation in the era of deep learning. *IEEE Transactions on Medical Imaging*, 42(3).
+-   Lowekamp, B. C., Chen, D. T., Ibáñez, L. and Blezek, D. (2013). The design of SimpleITK. *Frontiers in Neuroinformatics*, 7, 45.
+-   Marcus, D. S., Wang, T. H., Parker, J., Csernansky, J. G., Morris, J. C. and Buckner, R. L. (2007). Open Access Series of Imaging Studies (OASIS): cross-sectional MRI data in young, middle aged, nondemented, and demented older adults. *Journal of Cognitive Neuroscience*, 19(9), 1498–1507.

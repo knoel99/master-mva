@@ -1,0 +1,2221 @@
+---
+title: "Robotics"
+subtitle: "M2 MVA · Semester 1 · Modelling · 5 ECTS"
+lang: en
+format:
+  html:
+    theme: none
+    minimal: true
+    toc: false
+    anchor-sections: false
+    html-math-method:
+      method: katex
+      url: "https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js"
+    highlight-style: github
+    embed-resources: false
+    css: ../../assets/paper.css
+    include-in-header:
+      - text: |
+          <meta name="color-scheme" content="light dark">
+          <script>(function(){try{var t=localStorage.getItem("mva-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+    include-before-body:
+      - text: |
+          <a class="skip" href="#main">Skip to content</a>
+          <header class="topbar">
+            <button type="button" class="tb-btn" id="toc-toggle" aria-controls="sidetoc" aria-expanded="false"><span aria-hidden="true">☰</span><span class="tb-label">Contents</span></button>
+            <a class="brand" href="../../index.html">MVA<span class="brand-sub"> · Course notes</span></a>
+            <span class="tb-title" id="tb-title"></span>
+            <button type="button" class="tb-btn" id="theme-toggle"><span aria-hidden="true">◐</span><span class="tb-label">Theme</span></button>
+          </header>
+          <div class="layout">
+          <nav class="sidetoc" id="sidetoc" aria-label="Contents"></nav>
+          <main class="paper" id="main">
+    include-after-body:
+      - text: |
+          </main>
+          </div>
+          <footer class="foot"><p><a href="../../index.html">← Master's programme</a></p></footer>
+          <script defer src="../../assets/theme.js"></script>
+---
+
+## Contents
+
+-   [Introduction and overview](#intro)
+-   [0. Review: least squares, rotations, integration and Gaussian conditioning](#ch0)
+-   [1. Modelling and simulation of robotic systems](#ch1)
+-   [2. Motion planning](#ch2)
+-   [3. Inverse problems for robot control](#ch3)
+-   [4. Optimal control and trajectory optimisation](#ch4)
+-   [5. Perception and estimation](#ch5)
+-   [6. Reinforcement learning for robotics](#ch6)
+-   [7. Legged locomotion](#ch7)
+-   [8. Responsible robotics](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
+
+## Introduction and overview {#intro}
+
+  -------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Module               Robotics
+  Official title       Robotics
+  Instructors          J. CARPENTIER, S. BONNABEL, P.B. WIEBER, A. SATHYA (master-mva.com, 2026–2027)
+  Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
+  Credits and volume   5 ECTS · 28 h (lectures 19 h, tutorials 9 h) per the Université Paris-Saclay programme table
+  Label                [Modelling]{.badge .label} · domains on master-mva.com: Machine Learning
+  Language             not displayed on the official pages (the master-mva.com description is written in English)
+  Assessment           weekly homework (20 %) + project or an article study (80 %); the final exam is a 4 h student seminar of project and report presentations (master-mva.com); non-integral continuous assessment, “Evaluation Continue non Intégrale” (Université Paris-Saclay course detail)
+  Prerequisites        undergraduate-level linear algebra; labs (TP) in Python, with basic knowledge of the language and of general programming concepts (functions, loops, recursion, data structures); taking the “Convex optimization” course by A. d’Aspremont at the same time is recommended (master-mva.com)
+  -------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Audience**: a student with an M1 in mathematics, computer science or physics who has never modelled a robot, and who wants to understand how modelling, planning, control, estimation and learning fit together on a machine that moves in the physical world.
+
+**Empirical first**: integrate the frictionless oscillator $\ddot x = -x$ with the explicit Euler scheme and a step of 0.1 s, and after 1,000 steps its energy has been multiplied by about 21,000; the semi-implicit scheme, one line different, keeps it within 5.3 % ([ch. 0](#ch0)). A humanoid whose centre of mass is 0.8 m high and which is pushed at 0.5 m/s must place its next foot about 14 cm ahead of its centre of mass, within a few tenths of a second, or fall ([ch. 7](#ch7)).
+
+Both facts are about dynamics, and dynamics is the thread of the course. A robot is a mechanical system whose state obeys Newton's laws, whose sensors are noisy, and whose motions must avoid obstacles and respect contact. Each chapter turns one of these constraints into a mathematical problem — a least-squares problem, a graph search, an optimal control problem, a filtering problem, a stochastic optimisation — and into an algorithm that runs on a real robot.
+
+The course leans on [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html), which the official page recommends taking at the same time. Its estimation chapter meets [3D Computer Vision](../s1-3d-computer-vision/index.html) and [Introduction to Probabilistic Graphical Models](../s1-probabilistic-graphical-models/index.html); its learning chapter opens the door to [Reinforcement Learning](../s2-reinforcement-learning/index.html) in semester 2.
+
+### What you will be able to do
+
+-   Model a robot as a kinematic tree: compute its forward kinematics, its Jacobians and its Lagrangian dynamics, and simulate it with an integrator suited to mechanics.
+-   Plan collision-free paths with A\*, probabilistic roadmaps and rapidly-exploring random trees, and bound the failure probability of a sampling-based planner.
+-   Solve inverse kinematics by damped least squares, exploit redundancy with null-space projections, and write whole-body control as a quadratic program.
+-   Design computed-torque and PD-plus-gravity controllers and prove their stability with a Lyapunov function.
+-   Derive the linear-quadratic regulator from dynamic programming, apply Pontryagin's principle, and optimise trajectories with iLQR and model predictive control.
+-   Estimate the state of a robot with Kalman and extended Kalman filters, explain what invariant errors on Lie groups bring to them, and register two point clouds.
+-   Train a policy by policy gradient, relate it to optimal control, and quantify the simulation-to-reality gap.
+-   Generate a walking pattern with the linear inverted pendulum, the zero-moment point and the capture point.
+-   Build a safety filter with a control barrier function, and argue about the responsibilities of robotics research.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com observes that a large part of the recent progress in robotics has come with advances in machine learning, optimisation and computer vision. The course introduces the general conceptual tools behind these advances, and shows how they let robots perceive the world and perform tasks that go beyond factory automation, from highly dynamic somersaults to mountain hikes.
+
+It covers modelling and simulation of robotic systems, motion planning, inverse problems for motion control, optimal control and reinforcement learning. It includes practical exercises with state-of-the-art robotics libraries, and a broader reflection on our responsibilities when doing research and innovation in robotics.
+
+master-mva.com organises the course in 8 sessions of 3 h and a 4 h final exam held as a student seminar, and lists seven themes. The Université Paris-Saclay course detail adds only the nature of the assessment; it lists no programme items. The table maps every official item to a section of this page.
+
+| Official topic | Course section |
+|---|---|
+| Theme: modelling and simulation of robotic systems | [ch. 1](#ch1): configuration spaces, rigid motions, product of exponentials, Jacobians, Lagrangian dynamics, rigid-body algorithms, contact and time stepping; integrators in [ch. 0](#ch0) |
+| Theme: motion planning | [ch. 2](#ch2): configuration space, A\*, probabilistic roadmaps and their completeness bound, RRT and RRT\*, shortcutting and time scaling |
+| Theme: inverse problems | [ch. 3](#ch3): inverse geometry by Levenberg–Marquardt, differential inverse kinematics, redundancy and task priority, inverse dynamics, task-space quadratic programs |
+| Theme: optimal control | [ch. 4](#ch4): dynamic programming, LQR, Pontryagin's principle, direct methods, iLQR and DDP, model predictive control |
+| Theme: perception and estimation | [ch. 5](#ch5): Bayes and Kalman filters, EKF and observability, invariant filtering on Lie groups, batch estimation and SLAM, camera model, point-cloud registration |
+| Theme: reinforcement learning | [ch. 6](#ch6): Markov decision processes, policy gradient, actor–critic methods, simulation-to-reality transfer, imitation learning |
+| Theme: legged locomotion | [ch. 7](#ch7): centroidal dynamics, zero-moment point, linear inverted pendulum, capture point, walking pattern generation by MPC, whole-body control |
+| Objective: a broader reflection on our responsibilities in robotics research and innovation | [ch. 8](#ch8): safety by design and control barrier functions, research integrity, responsible-innovation framework, dual use, environment and work |
+| Objective: practical exercises with state-of-the-art robotics libraries | Pinocchio and MuJoCo, with their main Python calls, in [ch. 1](#ch1); Crocoddyl in [ch. 4](#ch4); the five labs of the [session plan](#sessions) reimplement their core algorithms in NumPy, so that every block runs on a laptop |
+| Objective: robots that perceive the world and perform highly dynamic motions or mountain hikes | [ch. 5](#ch5) (perception), [ch. 6](#ch6) (learned locomotion in the wild) and [ch. 7](#ch7) (balance and walking) |
+| Session “Introduction: 3h lecture” | session 1: [ch. 0](#ch0) and [ch. 1](#ch1) |
+| Session “Motion planning for robotics: 2h lecture, 1h TP” | session 2: [ch. 2](#ch2); lab: RRT with shortcutting (code of ch. 2) |
+| Session “Inverse problems for robot control: 2h lecture, 1h TP” | session 3: [ch. 3](#ch3); lab: Levenberg–Marquardt and null-space inverse kinematics (code of ch. 3) |
+| Session “Optimal control and trajectory optimization: 2h lecture, 1h TP” | session 4: [ch. 4](#ch4); lab: Riccati recursion and iLQR swing-up (code of ch. 4) |
+| Session “Perception and estimation: 3h lecture” | session 5: [ch. 5](#ch5) |
+| Session “Reinforcement learning for robotics: 2h lecture, 1h TP” | session 6: [ch. 6](#ch6); lab: REINFORCE against the LQR gain (code of ch. 6) |
+| Session “Legged locomotion: 2h lecture, 1h TP” | session 7: [ch. 7](#ch7); lab: ZMP preview by MPC (code of ch. 7) |
+| Session “Responsible robotics: 3h lecture” | session 8: [ch. 8](#ch8) |
+| Session “Final exam: 4h student seminar (Project/report presentations)” | session 9; subjects, talk format and rubric in [Projects and assessment](#projects) |
+| “8 courses of 3h + final exam (4 h)” | the [session plan](#sessions) keeps this organisation exactly |
+| “The course is open to external auditors, but without any grade, assessment or certificate” | not covered: an access rule, not a topic |
+| “Plus de détails”, “Les intervenants” (last two items of the theme list) | not covered: link labels of the master-mva.com page, not topics; the instructors are named in the fiche |
+
+Beyond the syllabus, this page adds control barrier functions as a mathematical tool of safety ([ch. 8](#ch8)), the simulation lemma that quantifies the sim-to-real gap ([ch. 6](#ch6)), and a chapter of research directions ([ch. 9](#ch9), self-study).
+
+### Where this course fits in the programme
+
+Official prerequisites (master-mva.com): undergraduate-level linear algebra, and enough Python for the labs — functions, loops, recursion, data structures. The page recommends following “Convex optimization” by A. d’Aspremont in the same semester. The instructors listed are Justin Carpentier (INRIA), Silvère Bonnabel (Mines Paris), Pierre Brice Wieber (INRIA) and A. Sathya.
+
+-   **Refreshers** — [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (least squares, eigenvalues, Lagrange multipliers), [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (Gaussian vectors, conditioning) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (every code block of this page).
+-   **Related courses of the same semester** — [Convex Optimization and Applications in Machine Learning](../s1-convex-optimization/index.html) (the quadratic programs of ch. 3, 4 and 7), [3D Computer Vision](../s1-3d-computer-vision/index.html) (camera models and registration, ch. 5), [Object Recognition and Computer Vision](../s1-object-recognition-cv/index.html), [Introduction to Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (state-space models), [Computational Statistics](../s1-computational-statistics/index.html) (particle filters), [Deep Learning](../s1-deep-learning/index.html), [Geometric Data Analysis](../s1-geometric-data-analysis/index.html) and [Fundamentals of Reproducible Research and Free Software](../s1-reproducible-research/index.html) (ch. 8).
+-   **Courses that build on it in semester 2** — [Reinforcement Learning](../s2-reinforcement-learning/index.html) and [Sequential Learning](../s2-sequential-learning/index.html) (ch. 6), [Point Clouds and 3D Modelling (NPM3D)](../s2-point-clouds-3d/index.html) (registration and mapping, ch. 5), [Geometry and Shape Spaces](../s2-shape-spaces/index.html) (Lie groups), [Deep Learning in Practice / Advanced Deep Learning](../s2-deep-learning-in-practice/index.html), [Regulating AI](../s2-regulating-ai/index.html), [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Artificial Intelligence and the Environment](../s2-ai-environment/index.html) (ch. 8).
+
+### Course outline
+
+-   **Review: least squares, rotations, integration and Gaussian conditioning** — the pseudo-inverse and its damped version, equality-constrained quadratic programs, Rodrigues' formula, explicit and semi-implicit Euler, Gaussian conditioning.
+-   **Modelling and simulation of robotic systems** — configuration spaces, rigid motions, product of exponentials, Jacobians and statics, Lagrangian dynamics and its skew-symmetry, rigid-body algorithms and libraries, contact and time stepping.
+-   **Motion planning** — the configuration-space formulation, A\* and its optimality, probabilistic roadmaps with a completeness bound, RRT and RRT\*, from paths to trajectories.
+-   **Inverse problems for robot control** — inverse geometry by Levenberg–Marquardt, differential inverse kinematics and redundancy, computed torque, PD plus gravity compensation, task-space quadratic programs.
+-   **Optimal control and trajectory optimisation** — Bellman's principle, the LQR, Pontryagin's principle, direct transcription, iLQR and DDP, model predictive control and its stability.
+-   **Perception and estimation** — Bayes and Kalman filters, the EKF and observability, invariant errors on Lie groups, batch estimation and SLAM, cameras and point-cloud registration.
+-   **Reinforcement learning for robotics** — MDPs and their link with optimal control, the policy-gradient theorem, PPO and SAC, the simulation lemma and sim-to-real transfer, imitation learning.
+-   **Legged locomotion** — centroidal dynamics, the zero-moment point and the support polygon, the linear inverted pendulum, the capture point, MPC walking pattern generation, whole-body control.
+-   **Responsible robotics** — safety standards and control barrier functions, research integrity and statistics of robot trials, a responsible-innovation framework, dual use, environment and work.
+-   **Research directions and open problems** — differentiable contact simulation, whole-body MPC, learned locomotion and manipulation, Lie-group estimation, certified learning (self-study).
+
+### Session plan {#sessions}
+
+**28 h in class = 9 sessions (8 × 3 h + 1 × 4 h).** The volume is that of the Université Paris-Saclay programme table (lectures 19 h, tutorials 9 h). master-mva.com organises it as eight sessions of 3 h — 19 h of lectures and 5 h of labs (TP) — and a 4 h final exam held as a student seminar. Counting the labs and the seminar as tutorials gives the 9 h of the table; this reading is ours. The plan below follows that organisation; the content of each session is a proposal.
+
+Level 1 = foundations and first examples, 2 = core models and algorithms, 3 = advanced material close to research; the level never decreases.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | Introduction (3 h lecture): ch. 0 Review; ch. 1 configuration spaces, rigid motions, kinematics, Jacobians, Lagrangian dynamics, algorithms and libraries, contact and simulation | Ex. 1, 2, 6 |
+| 2 | 3 h | 2 | Motion planning (2 h lecture + 1 h lab): ch. 2 configuration space, A\*, PRM and its completeness bound, RRT and RRT\*, shortcutting and time scaling | Ex. 4; lab: RRT with shortcutting |
+| 3 | 3 h | 2 | Inverse problems (2 h lecture + 1 h lab): ch. 3 inverse geometry, differential inverse kinematics and redundancy, computed torque and PD plus gravity, task-space QP | Ex. 7, 13; lab: Levenberg–Marquardt and null-space IK |
+| 4 | 3 h | 2 | Optimal control (2 h lecture + 1 h lab): ch. 4 Bellman, LQR, Pontryagin, direct methods, iLQR and DDP, MPC | Ex. 8, 9; lab: Riccati and iLQR swing-up |
+| 5 | 3 h | 2 | Perception and estimation (3 h lecture): ch. 5 Bayes and Kalman filters, EKF and observability, invariant errors, batch estimation and SLAM, registration | Ex. 3, 14 |
+| 6 | 3 h | 3 | Reinforcement learning (2 h lecture + 1 h lab): ch. 6 MDPs, policy gradient, PPO and SAC, simulation lemma and sim-to-real, imitation | Ex. 10; lab: REINFORCE against the LQR gain |
+| 7 | 3 h | 3 | Legged locomotion (2 h lecture + 1 h lab): ch. 7 centroidal dynamics, ZMP, linear inverted pendulum, capture point, MPC walking, whole-body control | Ex. 5, 11, 15; lab: ZMP preview by MPC |
+| 8 | 3 h | 3 | Responsible robotics (3 h lecture): ch. 8 specific questions of robotics, safety and control barrier functions, research integrity, responsible innovation | Ex. 12, 17 |
+| 9 | 4 h | 3 | Final exam (official): student seminar of project and article-study presentations, with questions from the audience; format and rubric in Projects and assessment | talks |
+
+**Self-study, outside the 28 h** (about 3 h in total, plus the project): ch. 9 Research directions and open problems (≈ 3 h, with Ex. 16).
+
+### How to study this module
+
+-   Read ch. 0 before session 1. Proposition 0.3 (damped least squares), Proposition 0.4 (KKT systems) and Proposition 0.9 (Gaussian conditioning) are used again in ch. 3, 5 and 8.
+-   After each session, do the exercises of the *Practice* column; the official weekly homework counts for 20 % of the grade, and the homework suggested in the plan has the right size.
+-   Rerun each code block and change one parameter at a time: the step of the integrator, the damping of the inverse kinematics, the horizon of the MPC, the exploration noise of the policy.
+-   Choose the project or the article study early (session 4 at the latest): it counts for 80 % and is presented at the final seminar.
+-   Python environment: NumPy and SciPy suffice for every block; all data are synthetic, with fixed seeds. For the projects, the open-source libraries Pinocchio, MuJoCo and Crocoddyl are the natural next step.
+
+## 0. Review: least squares, rotations, integration and Gaussian conditioning {#ch0}
+
+Four M1 tools carry most of the course. Least squares solves inverse kinematics and estimation problems; quadratic programs with equality constraints encode control; rotations describe every rigid body; numerical integration turns equations of motion into simulations.
+
+This chapter states each tool in the form used later, with short proofs. The last section recalls Gaussian conditioning, on which the Kalman filter of [ch. 5](#ch5) rests.
+
+### Least squares and the pseudo-inverse
+
+Robotics constantly solves linear systems that have too many or too few equations. A task in the plane constrains two coordinates of a seven-joint arm; twenty camera measurements constrain six pose parameters. The pseudo-inverse handles both cases at once.
+
+::: def
+[Definition 0.1 — Moore–Penrose pseudo-inverse]{.tag} Let $A \in \mathbb{R}^{m \times n}$ have the singular value decomposition $A = U \Sigma V^\top$, with singular values $\sigma_1 \geq \dots \geq \sigma_r > 0$. Its pseudo-inverse is
+$$
+A^+ = V \Sigma^+ U^\top,
+$$
+where $\Sigma^+ \in \mathbb{R}^{n \times m}$ has $1/\sigma_i$ in position $(i, i)$ for $i \leq r$ and zeros elsewhere.
+
+When $A$ has full row rank, $A^+ = A^\top (A A^\top)^{-1}$; when it has full column rank, $A^+ = (A^\top A)^{-1} A^\top$.
+:::
+
+:::: thm
+[Theorem 0.2 — Minimum-norm least squares]{.tag} For every $b \in \mathbb{R}^m$, the vector $x^\star = A^+ b$ minimises $\|A x - b\|$, and among all minimisers it has the smallest norm.
+
+::: proof
+Write $y = V^\top x$ and $c = U^\top b$. Orthogonal matrices preserve norms, so
+$$
+\|A x - b\|^2 = \sum_{i \leq r} (\sigma_i y_i - c_i)^2 + \sum_{i > r} c_i^2 .
+$$
+
+The second sum does not depend on $x$. The first one vanishes exactly when $y_i = c_i / \sigma_i$ for $i \leq r$; the coordinates $y_i$ with $i > r$ are free.
+
+Since $\|x\| = \|y\|$, the minimiser of smallest norm sets the free coordinates to zero. That vector is $y = \Sigma^+ c$, that is $x = V \Sigma^+ U^\top b = A^+ b$. [∎]{.qed}
+:::
+::::
+
+Near a rank drop, some $\sigma_i$ is tiny and $c_i / \sigma_i$ explodes. For a robot this means huge joint velocities near a singular configuration ([ch. 3](#ch3)). The cure is to penalise the norm of the solution.
+
+:::: prop
+[Proposition 0.3 — Damped least squares]{.tag} For $\lambda > 0$, the unique minimiser of $\|A x - b\|^2 + \lambda \|x\|^2$ is
+$$
+x_\lambda = (A^\top A + \lambda I)^{-1} A^\top b = A^\top (A A^\top + \lambda I)^{-1} b .
+$$
+
+In the coordinates of Theorem 0.2, $y_i = \sigma_i c_i / (\sigma_i^2 + \lambda)$, so that every coordinate is bounded by $|c_i| / (2 \sqrt{\lambda})$.
+
+::: proof
+The objective is strongly convex; setting its gradient to zero gives the normal equations $(A^\top A + \lambda I) x = A^\top b$.
+
+The second expression follows from the identity $(A^\top A + \lambda I) A^\top = A^\top (A A^\top + \lambda I)$, multiplied on the left and on the right by the two inverses.
+
+The diagonal form follows by substituting the SVD. Finally $\sigma^2 + \lambda \geq 2 \sigma \sqrt{\lambda}$, by the inequality between arithmetic and geometric means, which gives the bound. [∎]{.qed}
+:::
+::::
+
+The second form is the one used in practice: it inverts an $m \times m$ matrix, and $m$ (the task dimension) is usually smaller than $n$ (the number of joints).
+
+### Quadratic programs with equality constraints
+
+Whole-body control ([ch. 3](#ch3)), the LQR ([ch. 4](#ch4)) and walking pattern generation ([ch. 7](#ch7)) all reduce to minimising a convex quadratic under linear constraints.
+
+:::: prop
+[Proposition 0.4 — KKT system]{.tag} Let $H \succ 0$ and let $A \in \mathbb{R}^{p \times n}$ have full row rank. The problem
+$$
+\min_x \ \tfrac12 x^\top H x + g^\top x \quad \text{subject to} \quad A x = b
+$$
+has a unique solution $x^\star$. With a multiplier $\nu^\star$, it is the unique solution of the linear system
+$$
+\begin{pmatrix} H & A^\top \\ A & 0 \end{pmatrix}
+\begin{pmatrix} x^\star \\ \nu^\star \end{pmatrix}
+=
+\begin{pmatrix} -g \\ b \end{pmatrix}.
+$$
+
+::: proof
+The feasible set is an affine subspace, non-empty because $A$ is onto, and the objective is strongly convex on it: the minimiser exists and is unique.
+
+At the minimiser, the gradient $H x^\star + g$ is orthogonal to $\ker A$, hence lies in the range of $A^\top$: this is the first block row. The second block row is feasibility.
+
+The matrix is invertible. If $H x + A^\top \nu = 0$ and $A x = 0$, then $x^\top H x = -x^\top A^\top \nu = 0$, so $x = 0$; then $A^\top \nu = 0$ and $\nu = 0$ by the rank assumption. [∎]{.qed}
+:::
+::::
+
+Inequality constraints (torque limits, friction cones, obstacle half-planes) require active-set or interior-point solvers; they are the subject of the [Convex Optimization](../s1-convex-optimization/index.html) course and of chapter 16 of Nocedal and Wright's textbook.
+
+### Rotations and the exponential map
+
+::: def
+[Definition 0.5 — The rotation group]{.tag} The special orthogonal group is
+$$
+SO(3) = \{ R \in \mathbb{R}^{3 \times 3} : R^\top R = I, \ \det R = 1 \}.
+$$
+For $\omega \in \mathbb{R}^3$, the *hat* map gives the skew-symmetric matrix $[\omega]_\times$ such that $[\omega]_\times v = \omega \times v$ for every $v$.
+
+Differentiating $R^\top R = I$ shows that $R^\top \dot R$ is skew-symmetric. Hence every motion of a rotation obeys
+$$
+\dot R = R\, [\omega]_\times ,
+$$
+where $\omega$ is the angular velocity expressed in the moving (body) frame.
+:::
+
+With $\omega$ constant, the solution starting at $I$ is the matrix exponential of $t\, [\omega]_\times$. For skew-symmetric matrices, the exponential has a closed form.
+
+:::: prop
+[Proposition 0.6 — Rodrigues' formula]{.tag} For a unit vector $u$ and an angle $\theta$,
+$$
+\exp(\theta [u]_\times) = I + \sin\theta \, [u]_\times + (1 - \cos\theta) \, [u]_\times^2 .
+$$
+This is the rotation of angle $\theta$ about the axis $u$.
+
+::: proof
+For a unit $u$, one checks that $[u]_\times^3 = -[u]_\times$; hence $[u]_\times^{2k+1} = (-1)^k [u]_\times$ and $[u]_\times^{2k+2} = (-1)^k [u]_\times^2$ for $k \geq 0$.
+
+Splitting the exponential series into odd and even powers gives
+$$
+I + \Big(\sum_{k \geq 0} \tfrac{(-1)^k \theta^{2k+1}}{(2k+1)!}\Big) [u]_\times + \Big(\sum_{k \geq 0} \tfrac{(-1)^k \theta^{2k+2}}{(2k+2)!}\Big) [u]_\times^2 ,
+$$
+and the two series are $\sin\theta$ and $1 - \cos\theta$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 0.7 — A quarter turn]{.tag} Take $u = e_z$ and $\theta = \pi/2$. Then $\sin\theta = 1$, $1 - \cos\theta = 1$, and $[e_z]_\times^2 = \mathrm{diag}(-1, -1, 0)$.
+
+Rodrigues' formula gives
+$$
+R = \begin{pmatrix} 0 & -1 & 0 \\ 1 & 0 & 0 \\ 0 & 0 & 1 \end{pmatrix},
+$$
+which sends $e_x$ to $e_y$, as a quarter turn about $z$ should.
+:::
+
+### Integrating equations of motion
+
+A simulator advances the state $(x, v)$ of a mechanical system with a fixed step $h$. Two first-order schemes look almost identical:
+
+-   **explicit Euler**: $x_{k+1} = x_k + h v_k$ and $v_{k+1} = v_k + h a(x_k)$;
+-   **semi-implicit (symplectic) Euler**: first $v_{k+1} = v_k + h a(x_k)$, then $x_{k+1} = x_k + h v_{k+1}$.
+
+:::: prop
+[Proposition 0.8 — Energy behaviour on the oscillator]{.tag} Apply both schemes to $\ddot x = -x$, whose energy $\tfrac12 (x^2 + v^2)$ is constant.
+
+-   Explicit Euler multiplies the energy by exactly $1 + h^2$ at every step.
+-   Semi-implicit Euler conserves exactly the modified energy $x^2 + v^2 - h\, x v$, which differs from twice the energy by at most a factor $1 \pm h/2$.
+
+::: proof
+For explicit Euler, the cross terms cancel in
+$$
+x_{k+1}^2 + v_{k+1}^2 = (x_k + h v_k)^2 + (v_k - h x_k)^2 = (1 + h^2)(x_k^2 + v_k^2).
+$$
+
+For the semi-implicit scheme, substitute $v_{k+1} = v_k - h x_k$ and $x_{k+1} = x_k + h v_{k+1}$ into the modified energy and expand; all terms in $h$ and $h^2$ cancel. The comparison follows from $|x v| \leq \tfrac12 (x^2 + v^2)$. [∎]{.qed}
+:::
+::::
+
+For the semi-implicit scheme with $h = 0.1$ and $(x_0, v_0) = (1, 0)$, the modified energy equals 1. The energy therefore stays, for ever, in the band
+$$
+0.476 \leq \tfrac12 (x_k^2 + v_k^2) \leq 0.526 ,
+$$
+that is within 5.3 % of its initial value 0.5.
+
+For explicit Euler, 1,000 steps multiply the energy by $1.01^{1000} \approx 2.1 \times 10^4$. This is the explosion announced in the introduction; the code below confirms both claims and checks Rodrigues' formula against a general-purpose matrix exponential.
+
+```python
+import numpy as np
+from scipy.linalg import expm
+
+def hat(w):
+    """Skew-symmetric matrix [w]x, so that hat(w) @ v == np.cross(w, v)."""
+    return np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
+
+def rodrigues(w):
+    th = np.linalg.norm(w)
+    if th < 1e-12:
+        return np.eye(3) + hat(w)
+    K = hat(w / th)
+    return np.eye(3) + np.sin(th) * K + (1 - np.cos(th)) * K @ K
+
+w = np.array([0.3, -0.5, 0.8])
+R = rodrigues(w)
+print("max |Rodrigues - expm| =", np.abs(R - expm(hat(w))).max())
+print("R^T R = I:", np.allclose(R.T @ R, np.eye(3)), "| det R =", round(np.linalg.det(R), 12))
+
+# Explicit vs semi-implicit Euler on x'' = -x, step h = 0.1, 1000 steps
+h, n = 0.1, 1000
+for scheme in ["explicit", "semi-implicit"]:
+    x, v = 1.0, 0.0
+    for _ in range(n):
+        if scheme == "explicit":
+            x, v = x + h * v, v - h * x
+        else:
+            v = v - h * x
+            x = x + h * v
+    print(f"{scheme:>13} Euler: energy after {n} steps = {0.5 * (x**2 + v**2):.4f} (initial 0.5)")
+```
+
+The output gives an energy of about 10,480 for explicit Euler and 0.52 for semi-implicit Euler. Physics engines therefore use semi-implicit schemes, which also extend naturally to contact ([ch. 1](#ch1)).
+
+### Gaussian conditioning
+
+::: prop
+[Proposition 0.9 — Conditioning a Gaussian vector]{.tag} Let $(X, Y)$ be a Gaussian vector with means $\mu_X, \mu_Y$ and covariance blocks $\Sigma_{XX}, \Sigma_{XY}, \Sigma_{YY}$, with $\Sigma_{YY} \succ 0$. Given $Y = y$, the vector $X$ is Gaussian, with
+$$
+\mathbb{E}[X \mid Y = y] = \mu_X + \Sigma_{XY} \Sigma_{YY}^{-1} (y - \mu_Y),
+\qquad
+\mathrm{Cov}(X \mid Y) = \Sigma_{XX} - \Sigma_{XY} \Sigma_{YY}^{-1} \Sigma_{YX}.
+$$
+
+*Proof sketch.* The vector $X - \Sigma_{XY} \Sigma_{YY}^{-1} Y$ is uncorrelated with $Y$, hence independent of $Y$ since the pair is Gaussian. Writing $X$ as this vector plus a function of $Y$ gives both formulas; see the [Probability and Statistics refresher](../s0-refresher-probability-statistics/index.html).
+:::
+
+::: recap
+Key takeaways — chapter 0
+
+-   The pseudo-inverse gives the minimum-norm least-squares solution; damping bounds it near singularities at the price of a small bias.
+-   A strictly convex quadratic under linear equality constraints is solved by one symmetric linear (KKT) system.
+-   Rotations form the group $SO(3)$; Rodrigues' formula is the closed form of its exponential map.
+-   For mechanics, prefer semi-implicit Euler to explicit Euler: same cost, bounded energy error.
+-   Gaussian conditioning is the algebra behind every Kalman filter.
+:::
+
+## 1. Modelling and simulation of robotic systems {#ch1}
+
+Before planning or controlling a robot, one needs its model: which configurations it can take, where its end effector is for a given configuration, and how torques produce accelerations. This chapter builds that model, from geometry to dynamics, and ends with simulation and contact.
+
+### Configuration space and rigid motions
+
+::: def
+[Definition 1.1 — Configuration space, degrees of freedom]{.tag} The *configuration* of a robot is a minimal set of parameters that fixes the position of all its points; the set $\mathcal{Q}$ of configurations is the configuration space, and its dimension is the number of degrees of freedom.
+
+-   A revolute joint contributes an angle (a circle), a prismatic joint a length (an interval of the line).
+-   A serial arm with $n$ revolute joints has $\mathcal{Q} = (S^1)^n$, a torus of dimension $n$.
+-   A legged robot also has a *floating base*, whose pose lies in $SE(3)$ (below). A quadruped with 12 joints has $6 + 12 = 18$ degrees of freedom, of which only 12 are actuated.
+:::
+
+::: def
+[Definition 1.2 — Rigid motions]{.tag} The pose of a frame attached to a rigid body is a rotation $R \in SO(3)$ and a position $p \in \mathbb{R}^3$, stored in a homogeneous matrix
+$$
+g = \begin{pmatrix} R & p \\ 0 & 1 \end{pmatrix} \in SE(3),
+\qquad
+g^{-1} = \begin{pmatrix} R^\top & -R^\top p \\ 0 & 1 \end{pmatrix}.
+$$
+
+Composition of poses is the matrix product: if $g_{ab}$ is the pose of frame $b$ in frame $a$, then $g_{ac} = g_{ab}\, g_{bc}$.
+:::
+
+Like $SO(3)$, the group $SE(3)$ has an exponential map. A *twist* $\xi = (v, \omega) \in \mathbb{R}^6$ describes an infinitesimal screw motion. Its matrix form is
+$$
+\hat\xi = \begin{pmatrix} [\omega]_\times & v \\ 0 & 0 \end{pmatrix} \in \mathbb{R}^{4 \times 4},
+$$
+and $e^{\hat\xi \theta} \in SE(3)$ is the rigid motion obtained by following the twist during a time $\theta$.
+
+For a revolute joint of unit axis $\omega$ through the point $r$, the twist is $\xi = (-\omega \times r, \omega)$. Then $e^{\hat\xi \theta}$ is the rotation of angle $\theta$ about that axis.
+
+### Forward kinematics
+
+:::: thm
+[Theorem 1.3 — Product of exponentials]{.tag} Let $\xi_1, \dots, \xi_n$ be the twists of the joints of a serial chain, expressed in the base frame at the reference configuration $q = 0$, and let $g(0)$ be the pose of the end effector there. For every configuration $q$,
+$$
+g(q) = e^{\hat\xi_1 q_1}\, e^{\hat\xi_2 q_2} \cdots e^{\hat\xi_n q_n}\; g(0).
+$$
+
+::: proof
+Move the joints one at a time, starting from the last. Rotating joint $n$ by $q_n$, all other joints at zero, moves the end effector rigidly about the fixed axis $\xi_n$: the pose becomes $e^{\hat\xi_n q_n} g(0)$.
+
+Then rotate joint $n-1$. It moves rigidly everything beyond it, including the current axis of joint $n$, about the axis $\xi_{n-1}$, which is still at its reference place because the joints before it have not moved. The pose becomes $e^{\hat\xi_{n-1} q_{n-1}} e^{\hat\xi_n q_n} g(0)$.
+
+Induction down to joint 1 gives the formula. [∎]{.qed}
+:::
+::::
+
+The formula, due to Brockett, needs no frame per link; Murray, Li and Sastry (chapter 3) build their whole treatment of manipulators on it. For planar arms, elementary trigonometry gives the same result.
+
+::: ex
+[Example 1.4 — The planar two-link arm]{.tag} Links of lengths $l_1, l_2$, joint angles $q_1$ (from the horizontal axis) and $q_2$ (relative). The end effector is at
+$$
+x = l_1 \cos q_1 + l_2 \cos(q_1 + q_2), \qquad y = l_1 \sin q_1 + l_2 \sin(q_1 + q_2).
+$$
+
+With $l_1 = 1$ m, $l_2 = 0.8$ m and $q = (0.4, 1.1)$ rad:
+$$
+(x, y) = (0.978, \ 1.187) \ \text{m}.
+$$
+:::
+
+### Jacobians, singularities and statics
+
+::: def
+[Definition 1.5 — Kinematic Jacobian]{.tag} If $p = f(q)$ is the position of the end effector, its velocity is
+$$
+\dot p = J(q)\, \dot q, \qquad J(q) = \frac{\partial f}{\partial q}(q).
+$$
+
+A configuration where $J$ loses rank is *singular*: some directions of motion of the end effector cannot be produced, and the inverse problems of [ch. 3](#ch3) become ill-conditioned there.
+:::
+
+For the arm of Example 1.4, a direct computation gives
+$$
+\det J(q) = l_1 l_2 \sin q_2 .
+$$
+The arm is singular when it is fully stretched ($q_2 = 0$) or fully folded ($q_2 = \pi$). At $q = (0.4, 1.1)$ the determinant is $0.713$.
+
+:::: prop
+[Proposition 1.6 — Statics duality]{.tag} To exert a force $f$ on the environment with its end effector, in static equilibrium and without friction in the joints, the robot must apply the joint torques
+$$
+\tau = J(q)^\top f .
+$$
+
+::: proof
+By the principle of virtual work, the work of the joint torques in a virtual displacement $\delta q$ equals the work of the force in the induced displacement $\delta p = J \delta q$. Hence $\tau^\top \delta q = f^\top J \delta q$ for every $\delta q$, which gives $\tau = J^\top f$. [∎]{.qed}
+:::
+::::
+
+The same transpose appears in dynamics: contact forces enter the equations of motion through $J_c^\top \lambda$, where $J_c$ is the Jacobian of the contact point.
+
+### Lagrangian dynamics
+
+Let $T(q, \dot q) = \tfrac12 \dot q^\top M(q) \dot q$ be the kinetic energy of the robot and $V(q)$ its potential energy. The matrix $M(q)$ is the *mass matrix*. For a robot made of point masses $m_i$ located at $p_i = f_i(q)$, it is
+$$
+M(q) = \sum_i m_i\, J_i(q)^\top J_i(q),
+$$
+since the kinetic energy is $\sum_i \tfrac12 m_i \|J_i \dot q\|^2$. Rigid links add the rotational terms $J_{\omega,i}^\top I_i J_{\omega,i}$ in the same way.
+
+:::: thm
+[Theorem 1.7 — Equations of motion]{.tag} The Euler–Lagrange equations of the robot read
+$$
+M(q)\, \ddot q + C(q, \dot q)\, \dot q + g(q) = \tau + J_c(q)^\top \lambda ,
+$$
+where $g = \nabla V$, $\tau$ are the joint torques, $\lambda$ the contact forces, and
+$$
+C_{ij} = \sum_k \Gamma_{ijk}\, \dot q_k, \qquad \Gamma_{ijk} = \tfrac12 \Big( \frac{\partial M_{ij}}{\partial q_k} + \frac{\partial M_{ik}}{\partial q_j} - \frac{\partial M_{jk}}{\partial q_i} \Big).
+$$
+
+*Proof sketch.* Apply the Euler–Lagrange equations with $L = T - V$:
+$$
+\frac{d}{dt} \frac{\partial L}{\partial \dot q} - \frac{\partial L}{\partial q} = \tau + J_c^\top \lambda .
+$$
+The first term gives $M \ddot q + \dot M \dot q$. Subtracting $\tfrac12 \dot q^\top (\partial_{q_i} M) \dot q$ and symmetrising the sum over $j, k$ gives the Christoffel symbols $\Gamma_{ijk}$. The generalised forces of the contacts follow from Proposition 1.6.
+::::
+
+::: key
+[Key result — the equation of every robot]{.tag}
+$$
+M(q)\, \ddot q + C(q, \dot q)\, \dot q + g(q) = \tau + J_c(q)^\top \lambda
+$$
+:::
+
+:::: prop
+[Proposition 1.8 — Skew-symmetry and energy balance]{.tag} With the Christoffel choice of $C$, the matrix $\dot M - 2C$ is skew-symmetric. Consequently, without contact, the total energy $E = T + V$ obeys
+$$
+\dot E = \dot q^\top \tau .
+$$
+
+::: proof
+Since $\dot M_{ij} = \sum_k (\partial_{q_k} M_{ij})\, \dot q_k$, the definition of $\Gamma$ gives
+$$
+(\dot M - 2C)_{ij} = \sum_k \Big( \frac{\partial M_{jk}}{\partial q_i} - \frac{\partial M_{ik}}{\partial q_j} \Big) \dot q_k ,
+$$
+which changes sign when $i$ and $j$ are exchanged.
+
+For the energy,
+$$
+\dot E = \dot q^\top M \ddot q + \tfrac12 \dot q^\top \dot M \dot q + \dot q^\top g .
+$$
+Substituting $M \ddot q = \tau - C \dot q - g$ leaves $\dot q^\top \tau + \tfrac12 \dot q^\top (\dot M - 2C) \dot q$, and the last term vanishes by skew-symmetry. [∎]{.qed}
+:::
+::::
+
+Proposition 1.8 says that the joints inject exactly the power $\dot q^\top \tau$. It is the key step of the stability proofs of [ch. 3](#ch3), and a sharp test for a simulator: with $\tau = 0$ the energy must stay constant.
+
+### Rigid-body algorithms and libraries
+
+Forming $M(q)$ and $C(q, \dot q)$ symbolically is hopeless beyond a few joints. Three recursive algorithms over the kinematic tree, collected in Featherstone's monograph, do the work instead:
+
+-   the **recursive Newton–Euler algorithm** computes the inverse dynamics $\tau = \mathrm{ID}(q, \dot q, \ddot q)$ in $O(n)$ operations — a forward pass for velocities and accelerations, a backward pass for forces;
+-   the **composite rigid-body algorithm** computes $M(q)$ in $O(n^2)$;
+-   the **articulated-body algorithm** computes the forward dynamics $\ddot q$ in $O(n)$, without forming or inverting $M$.
+
+The open-source library Pinocchio (Carpentier and coauthors, 2019) implements these algorithms together with their analytical derivatives, which [ch. 4](#ch4) needs for trajectory optimisation. The MuJoCo simulator (Todorov, Erez and Tassa, 2012) adds contact. Both have Python bindings and are the natural tools for the projects.
+
+The official course includes practical exercises with such state-of-the-art libraries. In Pinocchio's Python interface, `pinocchio.buildModelFromUrdf` loads a robot description and `model.createData()` creates a workspace. The three algorithms above are then the functions `rnea`, `crba` and `aba`, which take the model, the workspace and the joint vectors. MuJoCo loads a model with `mujoco.MjModel.from_xml_path` and advances it by one time step with `mujoco.mj_step`. The code of this page re-implements the same computations in NumPy on small examples, so that every block runs without these libraries.
+
+### Contact and simulation
+
+Walking and grasping are made of contacts that open and close. A contact is *unilateral*: the bodies cannot interpenetrate, and the ground can push but not pull.
+
+::: def
+[Definition 1.9 — Unilateral contact with Coulomb friction]{.tag} Let $\phi(q)$ be the signed distance between two bodies and $\lambda = (\lambda_n, \lambda_t)$ the normal and tangential contact forces. The contact is described by the complementarity condition
+$$
+0 \leq \phi(q) \ \perp \ \lambda_n \geq 0 ,
+$$
+meaning that both are non-negative and at least one is zero. Coulomb's law adds the friction cone
+$$
+\|\lambda_t\| \leq \mu\, \lambda_n ,
+$$
+and when the contact slides, the bound is reached and the tangential force opposes the sliding velocity.
+:::
+
+The conditions are non-smooth: velocities jump at impacts. *Time-stepping* schemes (Stewart and Trinkle, 1996) therefore work with impulses over one step. At each step they solve a complementarity problem for the contact impulses, then update the velocities and the positions in the semi-implicit order of [ch. 0](#ch0). MuJoCo relaxes this problem into a convex one, which makes it fast and always solvable, at the price of small artificial penetrations.
+
+Without contact, any good integrator works. The code below takes the two-link arm of Example 1.4 with point masses at the elbow and at the tip, and checks the Jacobian against finite differences. It builds $M(q) = \sum_i m_i J_i^\top J_i$, lets the arm fall freely for 5 s, and monitors the energy (Proposition 1.8).
+
+```python
+import numpy as np
+
+l1, l2, m1, m2, g = 1.0, 0.8, 1.0, 0.5, 9.81   # lengths (m), point masses (kg)
+
+def fk(q):
+    """Position of the end effector (angles measured from the x axis)."""
+    return np.array([l1 * np.cos(q[0]) + l2 * np.cos(q[0] + q[1]),
+                     l1 * np.sin(q[0]) + l2 * np.sin(q[0] + q[1])])
+
+def jacobian(q):
+    s1, c1 = np.sin(q[0]), np.cos(q[0])
+    s12, c12 = np.sin(q[0] + q[1]), np.cos(q[0] + q[1])
+    return np.array([[-l1 * s1 - l2 * s12, -l2 * s12],
+                     [ l1 * c1 + l2 * c12,  l2 * c12]])
+
+q = np.array([0.4, 1.1])
+eps = 1e-6
+J_fd = np.column_stack([(fk(q + eps * e) - fk(q - eps * e)) / (2 * eps) for e in np.eye(2)])
+print("max |J - J_fd| =", f"{np.abs(jacobian(q) - J_fd).max():.1e}",
+      "| det J =", round(np.linalg.det(jacobian(q)), 6), "| l1 l2 sin q2 =", round(l1 * l2 * np.sin(q[1]), 6))
+
+def mass_matrix(q):
+    J1 = np.array([[-l1 * np.sin(q[0]), 0.0], [l1 * np.cos(q[0]), 0.0]])  # elbow mass
+    return m1 * J1.T @ J1 + m2 * jacobian(q).T @ jacobian(q)            # M = sum m_i J_i^T J_i
+
+def bias(q, dq):
+    """Coriolis, centrifugal and gravity terms h(q, dq)."""
+    k = m2 * l1 * l2 * np.sin(q[1])
+    cor = np.array([-k * (2 * dq[0] * dq[1] + dq[1] ** 2), k * dq[0] ** 2])
+    grav = np.array([(m1 + m2) * g * l1 * np.cos(q[0]) + m2 * g * l2 * np.cos(q[0] + q[1]),
+                     m2 * g * l2 * np.cos(q[0] + q[1])])
+    return cor + grav
+
+def energy(q, dq):
+    return 0.5 * dq @ mass_matrix(q) @ dq + m1 * g * l1 * np.sin(q[0]) + m2 * g * fk(q)[1]
+
+# Passive motion (tau = 0) during 5 s: semi-implicit Euler vs Runge-Kutta 4
+def rhs(s):
+    return np.concatenate([s[2:], np.linalg.solve(mass_matrix(s[:2]), -bias(s[:2], s[2:]))])
+
+s0 = np.array([0.4, 1.1, 0.0, 0.0])
+E0 = energy(s0[:2], s0[2:])
+for h in [1e-3, 1e-4]:
+    s, dev = s0.copy(), 0.0
+    for _ in range(round(5 / h)):
+        s[2:] += h * rhs(s)[2:]          # velocity first ...
+        s[:2] += h * s[2:]               # ... then position with the new velocity
+        dev = max(dev, abs(energy(s[:2], s[2:]) - E0) / E0)
+    print(f"semi-implicit Euler, h = {h:g} s: max relative energy error {dev:.1e}")
+s, h = s0.copy(), 1e-3
+for _ in range(5000):
+    k1 = rhs(s); k2 = rhs(s + h / 2 * k1); k3 = rhs(s + h / 2 * k2); k4 = rhs(s + h * k3)
+    s = s + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+print(f"Runge-Kutta 4,       h = 0.001 s: relative energy error {abs(energy(s[:2], s[2:]) - E0) / E0:.1e}")
+```
+
+The finite differences agree with the analytic Jacobian to about $10^{-10}$. The semi-implicit scheme keeps the energy within 3.6 % at $h = 1$ ms and within 0.35 % at $h = 0.1$ ms: the error is of first order, but bounded.
+
+Runge–Kutta 4 conserves the energy to $2 \times 10^{-10}$, which confirms that the Coriolis terms are right. Yet contact simulators keep first-order schemes, because high-order schemes lose their accuracy at every impact.
+
+::: recap
+Key takeaways — chapter 1
+
+-   A robot lives in a configuration space; a floating base adds six unactuated degrees of freedom.
+-   Forward kinematics is a product of exponentials of joint twists; its Jacobian maps joint velocities to end-effector velocities, and its transpose maps forces to torques.
+-   The dynamics always has the form $M \ddot q + C \dot q + g = \tau + J_c^\top \lambda$, with $M \succ 0$ and $\dot M - 2C$ skew-symmetric.
+-   Recursive algorithms compute dynamics in linear time; Pinocchio and MuJoCo implement them.
+-   Contact is a complementarity condition with a friction cone; simulators handle it with semi-implicit time stepping.
+:::
+
+## 2. Motion planning {#ch2}
+
+Motion planning finds a collision-free motion from a start configuration to a goal configuration. The key idea is to plan in the configuration space of [ch. 1](#ch1), where the robot is a point, rather than in the workspace, where it is a complicated body.
+
+### The planning problem
+
+::: def
+[Definition 2.1 — Free space and path]{.tag} Let $\mathcal{A}(q)$ be the set of points occupied by the robot at configuration $q$, and $\mathcal{O}$ the obstacles. The obstacle region and the free space are
+$$
+\mathcal{Q}_{\mathrm{obs}} = \{ q : \mathcal{A}(q) \cap \mathcal{O} \neq \emptyset \}, \qquad \mathcal{Q}_{\mathrm{free}} = \mathcal{Q} \setminus \mathcal{Q}_{\mathrm{obs}} .
+$$
+
+A *path* is a continuous map $\sigma : [0, 1] \to \mathcal{Q}_{\mathrm{free}}$ with $\sigma(0) = q_s$ and $\sigma(1) = q_g$. A planner is *complete* if it returns a path whenever one exists and reports failure otherwise.
+:::
+
+Complete planning is hard. Reif (1979) proved that the generalised “mover's problem” is PSPACE-hard, and the exact algorithms that exist are exponential in the number of degrees of freedom. Practical planners give up exact completeness: they discretise the space (resolution completeness) or sample it (probabilistic completeness).
+
+### Search on a graph: A\*
+
+On a grid or a roadmap, planning is a shortest-path problem on a graph with non-negative edge costs $c(u, v)$. Dijkstra's algorithm expands vertices by increasing cost-to-come $g(v)$; A\* (Hart, Nilsson and Raphael, 1968) expands them by $g(v) + h(v)$, where the heuristic $h$ estimates the cost-to-go.
+
+:::: thm
+[Theorem 2.2 — Optimality of A\*]{.tag} Suppose the heuristic is *consistent*: $h(v_{\mathrm{goal}}) = 0$ and
+$$
+h(u) \leq c(u, v) + h(v) \quad \text{for every edge } (u, v).
+$$
+Then A\* expands every vertex at most once and returns a shortest path.
+
+::: proof
+Define the reduced costs $c'(u, v) = c(u, v) - h(u) + h(v)$, which are non-negative by consistency. Along any path from $v_s$ to $v$, the reduced costs telescope:
+$$
+\sum c' = \sum c + h(v) - h(v_s).
+$$
+
+So A\* with costs $c$ is exactly Dijkstra's algorithm with costs $c'$: the priorities differ by the constant $h(v_s)$. Dijkstra with non-negative costs settles each vertex once, at its shortest reduced distance.
+
+All paths from $v_s$ to the goal have their cost shifted by the same constant $-h(v_s)$, because $h(v_{\mathrm{goal}}) = 0$. Shortest paths for $c'$ are therefore shortest paths for $c$. [∎]{.qed}
+:::
+::::
+
+The Euclidean distance to the goal is a consistent heuristic on any geometric graph, by the triangle inequality. Grids, however, scale as $(1/\delta)^d$ with the resolution $\delta$ and the dimension $d$: a seven-joint arm needs another idea.
+
+### Sampling-based planning: PRM and RRT
+
+The *probabilistic roadmap* (PRM; Kavraki, Švestka, Latombe and Overmars, 1996) samples $N$ configurations uniformly in $\mathcal{Q}_{\mathrm{free}}$. It connects every pair at distance at most $r$ whose straight segment is collision-free, and answers queries by graph search. Only two primitives are needed: a collision test for a configuration and one for a segment.
+
+:::: thm
+[Theorem 2.3 — Failure probability of the PRM]{.tag} In $\mathcal{Q} \subset \mathbb{R}^d$, suppose a path of length $L$ from $q_s$ to $q_g$ has *clearance* $r$: the ball of radius $r$ around each of its points is free.
+
+Let $\mu$ denote volume and set $m = \lceil 2L / r \rceil$.
+
+A PRM with $N$ uniform samples and connection radius $r$, with $q_s$ and $q_g$ added to the roadmap, connects them except with probability at most
+$$
+m \Big( 1 - \frac{\mu(B_{r/4})}{\mu(\mathcal{Q}_{\mathrm{free}})} \Big)^N \ \leq \ m \exp\Big( - N \frac{\mu(B_{r/4})}{\mu(\mathcal{Q}_{\mathrm{free}})} \Big).
+$$
+
+::: proof
+Place points $y_0 = q_s, y_1, \dots, y_m = q_g$ along the path, at arc-length spacing at most $L/m \leq r/2$.
+
+Suppose each ball $B(y_i, r/4)$ with $0 < i < m$ contains a sample $x_i$, and set $x_0 = q_s$, $x_m = q_g$.
+
+-   Consecutive samples are close: $\|x_i - x_{i+1}\| \leq r/4 + r/2 + r/4 = r$, so the PRM tries to connect them.
+-   Both endpoints lie in the ball $B(y_i, 3r/4)$, which is convex, so the whole segment does too. That ball lies in $B(y_i, r) \subset \mathcal{Q}_{\mathrm{free}}$: the segment is collision-free.
+
+So failure requires that one of the $m - 1$ balls receives no sample. A given ball is missed by all $N$ independent samples with probability
+$$
+\big(1 - \mu(B_{r/4}) / \mu(\mathcal{Q}_{\mathrm{free}})\big)^N ,
+$$
+and the union bound concludes. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.4 — How many samples?]{.tag} In the unit square with $\mu(\mathcal{Q}_{\mathrm{free}}) = 0.8$, take a path of length $L = 1.7$ and clearance $r = 0.1$. Then $m = 34$, and each ball of radius $0.025$ has relative volume $p = \pi (0.025)^2 / 0.8 \approx 0.00245$.
+
+The bound is $34\, (1 - p)^N$:
+
+-   about $0.25$ for $N = 2{,}000$;
+-   about $1.6 \times 10^{-4}$ for $N = 5{,}000$.
+
+The failure probability decays exponentially in $N$, but the rate depends on the clearance: narrow passages are the enemy of sampling.
+:::
+
+The *rapidly-exploring random tree* (RRT; LaValle, 1998; LaValle and Kuffner, 2001) grows a single tree from $q_s$. At each iteration it samples $q_{\mathrm{rand}}$ and finds the nearest tree vertex $q_{\mathrm{near}}$. It moves from $q_{\mathrm{near}}$ towards $q_{\mathrm{rand}}$ by at most a step $\eta$, and adds the new vertex if the segment is free.
+
+Large Voronoi cells attract samples, so the tree rushes into unexplored regions. RRT is probabilistically complete but not optimal. Karaman and Frazzoli (2011) proved that, with probability one, its solution does not converge to an optimal path. Their RRT\* rewires the tree within a radius shrinking like $(\log n / n)^{1/d}$, and is asymptotically optimal.
+
+### From paths to trajectories
+
+A sampled path zigzags. *Shortcutting* replaces a sub-path by a straight segment whenever that segment is free. Then a *time scaling* $s(t)$ turns the geometric path $\sigma(s)$ into a trajectory $\sigma(s(t))$ that respects velocity and torque limits.
+
+For a rest-to-rest motion, the cubic scaling $s(t) = 3 (t/T)^2 - 2 (t/T)^3$ has peak speed $1.5 / T$ at mid-course. On a path of length $L$ with a speed limit $v_{\max}$, it needs
+$$
+T \geq 1.5\, L / v_{\max}.
+$$
+
+Time-optimal scaling under torque limits is a classical problem (Bobrow, Dubowsky and Gibson, 1985). Planning directly with dynamics — *kinodynamic* planning — merges with the optimal control of [ch. 4](#ch4). Artificial potential fields (Khatib, 1986) are a reactive alternative, fast but trapped by local minima.
+
+The code below runs an RRT in a square with three discs. The straight line is blocked, and the gaps between the discs are narrower than the step, so the tree must go around. Shortcutting then shortens the path.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+obstacles = [((0.5, 0.5), 0.2), ((0.25, 0.75), 0.15), ((0.75, 0.25), 0.15)]  # (centre, radius)
+start, goal = np.array([0.05, 0.05]), np.array([0.95, 0.95])
+
+def free(p):
+    return all(np.linalg.norm(p - np.array(c)) > r for c, r in obstacles)
+
+def segment_free(a, b, step=0.005):
+    n = max(2, int(np.linalg.norm(b - a) / step) + 1)
+    return all(free(a + t * (b - a)) for t in np.linspace(0, 1, n))
+
+def rrt(eta=0.05, goal_bias=0.05, max_iter=5000):
+    nodes, parent = [start], [-1]
+    for it in range(max_iter):
+        x_rand = goal if rng.random() < goal_bias else rng.random(2)
+        i_near = int(np.argmin([np.linalg.norm(x_rand - v) for v in nodes]))
+        d = x_rand - nodes[i_near]
+        x_new = nodes[i_near] + d * min(1.0, eta / (np.linalg.norm(d) + 1e-12))
+        if not segment_free(nodes[i_near], x_new):
+            continue
+        nodes.append(x_new); parent.append(i_near)
+        if np.linalg.norm(x_new - goal) < eta and segment_free(x_new, goal):
+            nodes.append(goal); parent.append(len(nodes) - 2)
+            path, i = [], len(nodes) - 1
+            while i >= 0:
+                path.append(nodes[i]); i = parent[i]
+            return path[::-1], it + 1, len(nodes)
+    return None, max_iter, len(nodes)
+
+def shortcut(path):
+    """Greedy shortcutting: jump to the farthest vertex visible from the current one."""
+    out, i = [path[0]], 0
+    while i < len(path) - 1:
+        j = len(path) - 1
+        while j > i + 1 and not segment_free(path[i], path[j]):
+            j -= 1
+        out.append(path[j]); i = j
+    return out
+
+length = lambda p: sum(np.linalg.norm(b - a) for a, b in zip(p, p[1:]))
+path, iters, n_nodes = rrt()
+short = shortcut(path)
+print(f"RRT: {iters} iterations, {n_nodes} nodes, path of {len(path)} vertices, length {length(path):.3f}")
+print(f"after shortcutting: {len(short)} vertices, length {length(short):.3f}")
+print(f"straight line {np.linalg.norm(goal - start):.3f} (blocked by the central disc: {not segment_free(start, goal)})")
+```
+
+With this seed, the tree reaches the goal after 500 iterations with 206 vertices. Its path has length 2.22; shortcutting reduces it to 1.71 with a single intermediate vertex, against 1.27 for the blocked straight line.
+
+::: recap
+Key takeaways — chapter 2
+
+-   Plan in configuration space, where the robot is a point and obstacles are the region $\mathcal{Q}_{\mathrm{obs}}$.
+-   A\* with a consistent heuristic is Dijkstra on reduced costs, hence optimal.
+-   Sampling-based planners need only collision tests; the PRM fails with a probability that decays exponentially in the number of samples, at a rate set by the clearance.
+-   RRT explores fast but is not optimal; RRT\* is asymptotically optimal.
+-   Shortcutting and time scaling turn a path into an executable trajectory.
+:::
+
+## 3. Inverse problems for robot control {#ch3}
+
+A task is specified for the end effector — reach this point, follow this line, push with this force — but the robot is commanded through its joints. Each level of control is therefore an inverse problem: positions (inverse geometry), velocities (differential kinematics), accelerations and torques (inverse dynamics).
+
+### Inverse geometry
+
+::: ex
+[Example 3.1 — Closed-form inverse kinematics of the two-link arm]{.tag} For a target $(x, y)$ of Example 1.4, the law of cosines gives
+$$
+\cos q_2 = \frac{x^2 + y^2 - l_1^2 - l_2^2}{2 l_1 l_2},
+\qquad
+q_1 = \operatorname{atan2}(y, x) - \operatorname{atan2}(l_2 \sin q_2, \ l_1 + l_2 \cos q_2).
+$$
+
+-   For the target $(0.978, 1.187)$, $\cos q_2 \approx 0.453$, so $q_2 \approx \pm 1.10$: two solutions, elbow up and elbow down.
+-   When $|\cos q_2| > 1$ the target is out of reach, and when $|\cos q_2| = 1$ the two solutions merge at a singularity.
+:::
+
+Closed forms exist only for special geometries. In general, inverse geometry is posed as nonlinear least squares, with $e(q) = x^\star - f(q)$:
+$$
+\min_q \ \tfrac12 \| x^\star - f(q) \|^2 .
+$$
+
+Linearising $f$ at the current iterate and solving the damped problem of Proposition 0.3 gives the Levenberg–Marquardt step
+$$
+\Delta q = J^\top (J J^\top + \lambda I)^{-1} e .
+$$
+The damping is decreased after a successful step and increased after a failed one.
+
+:::: prop
+[Proposition 3.2 — The damped step is a descent direction]{.tag} If $J^\top e \neq 0$ and $\lambda > 0$, the Levenberg–Marquardt step decreases the objective for a small enough step length.
+
+::: proof
+By Proposition 0.3, $\Delta q = (J^\top J + \lambda I)^{-1} J^\top e$. The gradient of the objective is $-J^\top e$, and
+$$
+\langle -J^\top e, \Delta q \rangle = -(J^\top e)^\top (J^\top J + \lambda I)^{-1} (J^\top e) < 0,
+$$
+because the matrix in the middle is positive definite. [∎]{.qed}
+:::
+::::
+
+A large $\lambda$ gives a short gradient step; a small one gives the fast Gauss–Newton step. Damped least squares in inverse kinematics was introduced by Wampler (1986) and by Nakamura and Hanafusa (1986).
+
+### Differential kinematics and redundancy
+
+When the robot has more joints than the task has dimensions ($n > m$), the task does not determine the joint velocities.
+
+:::: prop
+[Proposition 3.3 — All solutions and the null-space projector]{.tag} Let $J \in \mathbb{R}^{m \times n}$ have full row rank. The solutions of $J \dot q = v$ are exactly
+$$
+\dot q = J^+ v + (I - J^+ J)\, z, \qquad z \in \mathbb{R}^n .
+$$
+$J^+ v$ is the solution of smallest norm, and $P = I - J^+ J$ is the orthogonal projector onto $\ker J$.
+
+::: proof
+With $J^+ = J^\top (J J^\top)^{-1}$, one has $J J^+ = I$, so $J^+ v$ is a solution and $J P = J - J = 0$.
+
+$P$ is symmetric, and $P^2 = P$ because $J^+ J J^+ = J^+$.
+
+Its range is $\ker J$: it lies in $\ker J$ since $J P = 0$, and $P z = z$ whenever $J z = 0$.
+
+Any solution differs from $J^+ v$ by an element of $\ker J$, that is by some $P z$.
+
+Finally $J^+ v$ lies in the range of $J^\top$, orthogonal to $\ker J$, so adding $P z$ can only increase the norm. [∎]{.qed}
+:::
+::::
+
+The free vector $z$ serves a secondary objective: avoid joint limits, stay away from singularities, keep a posture. The *task-priority* scheme (Nakamura, Hanafusa and Yoshikawa, 1987; Siciliano and Slotine, 1991) projects a second task $J_2 \dot q = v_2$ into the null space of the first:
+$$
+\dot q = J_1^+ v_1 + (J_2 P_1)^+ \big( v_2 - J_2 J_1^+ v_1 \big).
+$$
+
+Integrating velocities lets the error drift. Closed-loop inverse kinematics adds a feedback term on the task error.
+
+:::: prop
+[Proposition 3.4 — Closed-loop inverse kinematics]{.tag} Let $x^\star(t)$ be a desired trajectory, $e = x^\star - f(q)$, and $k > 0$. If $J(q)$ keeps full row rank along the motion, the control
+$$
+\dot q = J^+ (\dot x^\star + k\, e)
+$$
+gives $\dot e = -k e$, hence $e(t) = e^{-kt} e(0)$.
+
+::: proof
+Since $J J^+ = I$,
+$$
+\dot e = \dot x^\star - J \dot q = \dot x^\star - J J^+ (\dot x^\star + k e) = -k e .
+$$
+[∎]{.qed}
+:::
+::::
+
+The code below solves inverse geometry for a three-link planar arm, first for a reachable target, then for an unreachable one. It then solves the reachable task again with a null-space term $z = -q$ that pulls the joints towards zero.
+
+```python
+import numpy as np
+
+L = np.array([1.0, 0.8, 0.5])            # three-link planar arm, reach 2.3 m
+
+def fk(q):
+    a = np.cumsum(q)                      # absolute link angles
+    return np.array([L @ np.cos(a), L @ np.sin(a)])
+
+def jac(q):
+    a = np.cumsum(q)
+    return np.array([[-L[j:] @ np.sin(a[j:]) for j in range(3)],
+                     [ L[j:] @ np.cos(a[j:]) for j in range(3)]])
+
+def ik_lm(x_star, q0, lam=1e-2, tol=1e-12, max_iter=200):
+    """Levenberg-Marquardt on 1/2 |x* - fk(q)|^2, damping adapted to progress."""
+    q = q0.copy()
+    for k in range(max_iter):
+        e = x_star - fk(q)
+        if e @ e < tol:
+            break
+        J = jac(q)
+        q_try = q + J.T @ np.linalg.solve(J @ J.T + lam * np.eye(2), e)
+        if np.linalg.norm(x_star - fk(q_try)) < np.linalg.norm(e):
+            q, lam = q_try, lam / 2          # success: trust the Gauss-Newton model more
+        else:
+            lam = lam * 10                   # failure: shorter, gradient-like step
+    return q, k
+
+q0, x_star = np.array([0.3, 0.3, 0.3]), np.array([1.2, 1.0])
+q, k = ik_lm(x_star, q0)
+print(f"reachable target: {k} iterations, q = {np.round(q, 4)}, error {np.linalg.norm(x_star - fk(q)):.1e}")
+q_lm = q
+far = np.array([3.0, 0.0])
+q, k = ik_lm(far, q0)
+print(f"unreachable target: q = {np.round(q, 4) + 0.0}, residual {np.linalg.norm(far - fk(q)):.4f} (= 3.0 - 2.3)")
+
+# Redundancy: same target, secondary task "stay close to q = 0" projected in the null space
+q = q0.copy()
+for _ in range(400):
+    J = jac(q); Jp = np.linalg.pinv(J)
+    dq = Jp @ (2.0 * (x_star - fk(q))) + (np.eye(3) - Jp @ J) @ (-q)
+    q = q + 0.05 * dq
+print(f"with a null-space task: q = {np.round(q, 4)}, |q| = {np.linalg.norm(q):.4f} "
+      f"(Levenberg-Marquardt: {np.linalg.norm(q_lm):.4f}), error {np.linalg.norm(x_star - fk(q)):.1e}")
+```
+
+The reachable target is met in 6 iterations. For the unreachable one, the method converges to the stretched arm pointing at the target, at the best possible distance $0.7$ m, instead of diverging. The null-space term reaches the same target with a smaller joint norm (1.513 against 1.530): the secondary task acts without disturbing the primary one.
+
+### Inverse dynamics and torque control
+
+Kinematic control assumes that the joints follow their commands. Fast or heavy robots need torque control, which inverts the dynamics of Theorem 1.7. Write $h(q, \dot q) = C(q, \dot q) \dot q + g(q)$.
+
+:::: prop
+[Proposition 3.5 — Computed torque]{.tag} Let $q_d(t)$ be a twice differentiable reference, $e = q_d - q$, and $K_p, K_d$ diagonal positive definite. The control
+$$
+\tau = M(q) \big( \ddot q_d + K_d \dot e + K_p e \big) + h(q, \dot q)
+$$
+gives the linear error dynamics $\ddot e + K_d \dot e + K_p e = 0$, which converge exponentially to zero.
+
+::: proof
+Substituting $\tau$ into $M \ddot q + h = \tau$ and cancelling $h$ gives $M (\ddot q_d - \ddot q + K_d \dot e + K_p e) = 0$. Since $M \succ 0$, the bracket vanishes; it is the stated equation, whose characteristic roots have negative real parts. [∎]{.qed}
+:::
+::::
+
+Computed torque needs an exact model. A much simpler law needs only gravity.
+
+:::: thm
+[Theorem 3.6 — PD plus gravity compensation (Takegaki and Arimoto, 1981)]{.tag} For a constant target $q_d$ and $K_p, K_d \succ 0$, the control
+$$
+\tau = K_p (q_d - q) - K_d \dot q + g(q)
+$$
+makes $(q, \dot q) = (q_d, 0)$ globally asymptotically stable.
+
+::: proof
+Take $V = \tfrac12 \dot q^\top M \dot q + \tfrac12 e^\top K_p e$ with $e = q_d - q$, so that $\dot e = -\dot q$. Then
+$$
+\dot V = \dot q^\top M \ddot q + \tfrac12 \dot q^\top \dot M \dot q - \dot q^\top K_p e .
+$$
+
+Substitute $M \ddot q = \tau - C \dot q - g = K_p e - K_d \dot q - C \dot q$. By the skew-symmetry of Proposition 1.8,
+$$
+\dot V = -\dot q^\top K_d \dot q \leq 0 .
+$$
+
+LaSalle's invariance principle applies, $V$ being radially unbounded. On the set where $\dot V = 0$ we have $\dot q \equiv 0$, hence $\ddot q = 0$ and $0 = K_p e$, so $e = 0$. The largest invariant set is the target. [∎]{.qed}
+:::
+::::
+
+### Task-space inverse dynamics as a quadratic program
+
+A humanoid must track several tasks while respecting its dynamics, its contacts and its torque limits. Modern controllers solve, at every control period (typically 1 ms), a quadratic program in $(\ddot q, \tau, \lambda)$:
+$$
+\begin{aligned}
+\min_{\ddot q, \tau, \lambda} \ & \| J_t \ddot q + \dot J_t \dot q - \ddot x_t^\star \|^2 + \epsilon \|\ddot q\|^2 \\
+\text{s.t.} \ & M \ddot q + h = S^\top \tau + J_c^\top \lambda, \quad J_c \ddot q + \dot J_c \dot q = 0, \\
+& \lambda \in \text{linearised friction cones}, \quad \tau_{\min} \leq \tau \leq \tau_{\max} .
+\end{aligned}
+$$
+
+Here $S$ selects the actuated joints (the floating base has no motor), and the second equality keeps the contact points fixed. The reference $\ddot x_t^\star$ comes from a PD law on the task, as in Proposition 3.5.
+
+With equality constraints only, Proposition 0.4 solves the problem with one KKT system. With strict priorities between tasks, a hierarchy of such programs is solved, efficiently, by the hierarchical quadratic programming of Escande, Mansard and Wieber (2014).
+
+::: recap
+Key takeaways — chapter 3
+
+-   Inverse geometry is nonlinear least squares; Levenberg–Marquardt steps are descent directions and stay bounded near singularities.
+-   Redundancy is handled by the null-space projector $I - J^+ J$; priorities stack tasks without disturbing the first.
+-   Closed-loop inverse kinematics makes the task error decay exponentially.
+-   Computed torque linearises the dynamics exactly; PD plus gravity is globally stable thanks to the skew-symmetry of $\dot M - 2C$.
+-   Whole-body control is a quadratic program over accelerations, torques and contact forces, solved at every control period.
+:::
+
+## 4. Optimal control and trajectory optimisation {#ch4}
+
+Inverse kinematics and computed torque track a motion that someone has designed. Optimal control designs the motion itself: among all control signals that respect the dynamics, it picks the one that minimises a cost — effort, time, distance to a goal.
+
+### Dynamic programming
+
+::: def
+[Definition 4.1 — Discrete-time optimal control problem]{.tag} Given dynamics $x_{t+1} = f(x_t, u_t)$, a running cost $\ell$ and a terminal cost $\ell_N$, find controls $u_0, \dots, u_{N-1}$ that minimise
+$$
+J = \sum_{t=0}^{N-1} \ell(x_t, u_t) + \ell_N(x_N)
+$$
+from a given initial state $x_0$.
+:::
+
+:::: thm
+[Theorem 4.2 — Bellman's principle]{.tag} Define the value functions backwards by $V_N = \ell_N$ and
+$$
+V_t(x) = \min_u \ \big[ \ell(x, u) + V_{t+1}(f(x, u)) \big].
+$$
+Then $V_0(x_0)$ is the optimal cost, and choosing at each time a minimiser $u_t = \pi_t(x_t)$ is optimal.
+
+*Proof sketch.* By backward induction, $V_t(x)$ is the optimal cost-to-go from state $x$ at time $t$. The tail of an optimal trajectory must be optimal for the tail problem; otherwise replacing it would lower the total cost.
+::::
+
+The theorem returns a *feedback* law, not just a trajectory, but it requires a minimisation over $u$ for every state: tabulating $V_t$ is impossible beyond a few dimensions. One structure escapes this curse exactly.
+
+### The linear-quadratic regulator
+
+:::: thm
+[Theorem 4.3 — Discrete-time LQR]{.tag} Let $f(x, u) = A x + B u$, $\ell(x, u) = x^\top Q x + u^\top R u$ and $\ell_N(x) = x^\top Q_N x$, with $Q, Q_N \succeq 0$ and $R \succ 0$.
+
+Then $V_t(x) = x^\top P_t x$, the optimal control is the linear feedback $u_t = -K_t x_t$, and with $P_N = Q_N$:
+$$
+K_t = (R + B^\top P_{t+1} B)^{-1} B^\top P_{t+1} A,
+\qquad
+P_t = Q + A^\top P_{t+1} (A - B K_t).
+$$
+
+::: proof
+By induction, assume $V_{t+1}(x) = x^\top P_{t+1} x$ with $P_{t+1} \succeq 0$. The Bellman minimand
+$$
+x^\top Q x + u^\top R u + (A x + B u)^\top P_{t+1} (A x + B u)
+$$
+is strictly convex in $u$, since $R + B^\top P_{t+1} B \succ 0$.
+
+Setting its gradient in $u$ to zero gives $u = -K_t x$. Substituting back, the value is $x^\top P_t x$ with $P_t$ as stated, and $P_t \succeq 0$ as a minimum of non-negative quantities. [∎]{.qed}
+:::
+::::
+
+Over a long horizon, $P_t$ converges to the solution of the *discrete algebraic Riccati equation* when $(A, B)$ is stabilisable and $(A, Q^{1/2})$ detectable. The stationary gain then stabilises the system.
+
+::: ex
+[Example 4.4 — A scalar LQR]{.tag} Take $a = 1$, $b = 0.5$, $q = 1$, $r = 0.1$. The stationary Riccati equation $p = q + a^2 p - (a b p)^2 / (r + b^2 p)$ reduces to
+$$
+p^2 - p - 0.4 = 0, \qquad p = \frac{1 + \sqrt{2.6}}{2} \approx 1.306 .
+$$
+
+-   The gain is $K = a b p / (r + b^2 p) \approx 1.531$.
+-   The closed loop $x_{t+1} = (a - b K) x_t$ has pole $0.234$: the error shrinks by a factor of about four at each step.
+
+[Chapter 6](#ch6) will rediscover this gain by trial and error.
+:::
+
+### Pontryagin's maximum principle
+
+In continuous time, with $\dot x = f(x, u)$ and cost $\int_0^T \ell(x, u)\, dt + \ell_T(x(T))$, the necessary conditions take the form of a two-point boundary value problem. Define the Hamiltonian
+$$
+H(x, u, p) = \ell(x, u) + p^\top f(x, u).
+$$
+
+::: thm
+[Theorem 4.5 — Maximum principle (minimum form)]{.tag} Assume $f$ and $\ell$ are continuously differentiable and the final time $T$ is fixed. If $u^\star$ is optimal, with trajectory $x^\star$, there is a costate $p(t)$ such that, in the *normal* case,
+$$
+\dot x^\star = \frac{\partial H}{\partial p}, \qquad \dot p = -\frac{\partial H}{\partial x},
+$$
+and for almost every $t$, $u^\star(t)$ minimises $H(x^\star(t), \cdot, p(t))$ over the admissible controls. Boundary conditions complete the system: a fixed final state, or the transversality condition $p(T) = \nabla \ell_T(x^\star(T))$ when it is free.
+
+In general the Hamiltonian is $p_0 \ell + p^\top f$ with a constant $p_0 \geq 0$, and $(p_0, p)$ never vanishes. The normal case is $p_0 = 1$; it always holds when the final state is free. With a fixed final state, an *abnormal* extremal ($p_0 = 0$) can occur, and the cost then plays no role in the conditions.
+
+The proof, by needle variations, is out of scope; see chapter 4 of Liberzon (2011).
+:::
+
+::: ex
+[Example 4.6 — Minimum-energy transfer of a double integrator]{.tag} Move a unit mass from rest at 0 to rest at 1 in time 1, with $\ddot x = u$ and cost $\int_0^1 u^2 dt$.
+
+1.  With state $(x, v)$, the Hamiltonian is $u^2 + p_1 v + p_2 u$.
+2.  The problem is normal: with $p_0 = 0$, minimising $p_2 u$ over all real $u$ would force $p_2 \equiv 0$, then $p_1 = 0$.
+3.  The costate equations are $\dot p_1 = 0$ and $\dot p_2 = -p_1$, so $p_2$ is affine in $t$.
+4.  Minimising $H$ gives $u = -p_2 / 2$, so $u(t) = a + b t$.
+5.  The four boundary conditions give $a = 6$ and $b = -12$.
+
+The optimal control and its cost are
+$$
+u(t) = 6 - 12 t, \qquad \int_0^1 u^2\, dt = 12 .
+$$
+:::
+
+### Direct methods and differential dynamic programming
+
+Robots have nonlinear dynamics, constraints and dozens of states. Practical solvers discretise first and optimise afterwards:
+
+-   **single shooting** optimises the controls only, the states being obtained by simulation; simple, but badly conditioned for unstable systems;
+-   **multiple shooting** and **collocation** also treat the states as variables, linked by the dynamics as equality constraints. The resulting large, sparse nonlinear program is solved by sequential quadratic programming or interior points.
+
+*Differential dynamic programming* (DDP; Mayne, 1966) applies Bellman's principle locally around a nominal trajectory $(\bar x_t, \bar u_t)$. Its iterative-LQR variant (iLQR; Li and Todorov, 2004) linearises the dynamics, $\delta x_{t+1} \approx A_t \delta x_t + B_t \delta u_t$, and expands the cost to second order. It then solves the resulting LQ problem by the backward recursion
+$$
+Q_u = \ell_u + B_t^\top V'_x, \quad Q_{uu} = \ell_{uu} + B_t^\top V'_{xx} B_t, \quad Q_{ux} = \ell_{ux} + B_t^\top V'_{xx} A_t,
+$$
+where $V'$ is the quadratic model of the value at time $t + 1$. The step is $\delta u_t = k_t + K_t \delta x_t$, with $k_t = -Q_{uu}^{-1} Q_u$ and $K_t = -Q_{uu}^{-1} Q_{ux}$.
+
+A forward simulation with a line search on $k_t$ produces the next nominal trajectory. DDP also keeps the second derivatives of $f$, which iLQR drops. The Crocoddyl library (Mastalli and coauthors, 2020) implements DDP for multi-contact robots on top of Pinocchio.
+
+The code computes the LQR gain of a double integrator by the Riccati recursion and checks it against SciPy. It then swings up a damped pendulum with iLQR, from rest hanging down to the upright position in 5 s.
+
+```python
+import numpy as np
+from scipy.linalg import solve_discrete_are
+
+# (a) LQR for the double integrator, state (position, velocity), period dt = 0.1 s
+dt = 0.1
+A = np.array([[1.0, dt], [0.0, 1.0]]); B = np.array([[dt**2 / 2], [dt]])
+Q, R = np.diag([1.0, 0.1]), np.array([[0.01]])
+P = Q.copy()
+for _ in range(500):                                   # Riccati recursion, backwards in time
+    K = np.linalg.solve(R + B.T @ P @ B, B.T @ P @ A)
+    P = Q + A.T @ P @ (A - B @ K)
+P_are = solve_discrete_are(A, B, Q, R)
+print("K from the recursion:", np.round(K, 4), "| max |P - P_are| =", f"{np.abs(P - P_are).max():.1e}")
+print("closed-loop eigenvalue moduli:", np.round(np.abs(np.linalg.eigvals(A - B @ K)), 4))
+
+# (b) iLQR swing-up of a damped pendulum (theta = 0 hanging down, target theta = pi)
+m, l, g, b, h, N = 1.0, 1.0, 9.81, 0.1, 0.05, 100      # 100 steps of 50 ms
+x_goal, r, w_T = np.array([np.pi, 0.0]), 1e-2, 1e3
+
+def f(x, u):                                           # explicit Euler discretisation
+    return np.array([x[0] + h * x[1], x[1] + h * (-g / l * np.sin(x[0]) - b * x[1] + u / (m * l**2))])
+
+def f_x(x):
+    return np.array([[1.0, h], [-h * g / l * np.cos(x[0]), 1.0 - h * b]])
+
+f_u = np.array([0.0, h / (m * l**2)])
+
+def cost(X, U):
+    e = X[-1] - x_goal
+    return r * U @ U + w_T * e @ e
+
+U = np.zeros(N)
+X = np.zeros((N + 1, 2))
+for t in range(N):
+    X[t + 1] = f(X[t], U[t])
+J = cost(X, U)
+for it in range(200):
+    Vx, Vxx = 2 * w_T * (X[-1] - x_goal), 2 * w_T * np.eye(2)    # backward pass
+    k_ff, K_fb = np.zeros(N), np.zeros((N, 2))
+    for t in reversed(range(N)):
+        At = f_x(X[t])
+        Qx, Qu = At.T @ Vx, 2 * r * U[t] + f_u @ Vx
+        Qxx, Quu, Qux = At.T @ Vxx @ At, 2 * r + f_u @ Vxx @ f_u, f_u @ Vxx @ At
+        k_ff[t], K_fb[t] = -Qu / Quu, -Qux / Quu
+        Vx = Qx + Qux * k_ff[t]                                   # value of the optimal step
+        Vxx = Qxx - np.outer(Qux, Qux) / Quu
+    for alpha in [1.0, 0.5, 0.25, 0.1, 0.03, 0.01]:               # forward pass + line search
+        Xn, Un = np.zeros_like(X), np.zeros(N)
+        Xn[0] = X[0]
+        for t in range(N):
+            Un[t] = U[t] + alpha * k_ff[t] + K_fb[t] @ (Xn[t] - X[t])
+            Xn[t + 1] = f(Xn[t], Un[t])
+        if cost(Xn, Un) < J:
+            break
+    if J - cost(Xn, Un) < 1e-9 * J:
+        break
+    X, U, J = Xn, Un, cost(Xn, Un)
+print(f"iLQR: {it} iterations, cost {J:.3f}, final state {np.round(X[-1], 4)}, max |u| = {np.abs(U).max():.2f} N m")
+```
+
+The recursion matches SciPy to $10^{-13}$ and both closed-loop poles have modulus 0.76. iLQR converges in 46 iterations to a final angle of 3.1405 rad with a peak torque of 2.66 N m. That is about a quarter of the torque $m g l = 9.81$ N m needed to hold the pendulum horizontal, so the optimiser has discovered that it must pump energy by swinging.
+
+### Model predictive control
+
+An open-loop trajectory fails at the first disturbance. *Model predictive control* (MPC) closes the loop by re-optimising.
+
+::: def
+[Definition 4.7 — Receding horizon]{.tag} At each control period, measure the state $x$, solve the optimal control problem of horizon $N$ from $x$, apply only the first control $u_0^\star(x)$, and repeat at the next period.
+:::
+
+:::: prop
+[Proposition 4.8 — Stability with a terminal cost (sketch)]{.tag} Suppose the terminal cost $V_f$ admits a local feedback $\kappa_f$ such that, on a terminal set $\mathbb{X}_f$ that $\kappa_f$ keeps invariant,
+$$
+V_f\big(f(x, \kappa_f(x))\big) - V_f(x) \leq -\ell\big(x, \kappa_f(x)\big),
+$$
+and suppose the MPC problem includes the constraint $x_N \in \mathbb{X}_f$. Then the optimal value $V_N^\star$ decreases along the closed loop by at least $\ell(x, u_0^\star)$, and is a Lyapunov function.
+
+::: proof
+At the next state $x^+$, the shifted sequence $u_1^\star, \dots, u_{N-1}^\star$ followed by $\kappa_f(x_N^\star)$ is feasible. Its cost is $V_N^\star(x) - \ell(x, u_0^\star)$, plus the terminal difference of the assumption, which is non-positive. The optimum at $x^+$ is no larger. [∎]{.qed}
+:::
+::::
+
+This argument, surveyed by Mayne, Rawlings, Rao and Scokaert (2000), underlies the walking controllers of [ch. 7](#ch7), which re-solve a small MPC problem at every control period.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Bellman's principle gives optimal feedback by backward recursion; it is tractable exactly in the linear-quadratic case.
+-   The LQR gain comes from a Riccati recursion; the stationary gain stabilises the system.
+-   Pontryagin's principle gives necessary conditions as a boundary-value problem with a costate.
+-   Direct methods (shooting, collocation) and DDP/iLQR solve nonlinear trajectory optimisation; iLQR is a sequence of local LQR problems.
+-   MPC re-optimises at every period; a terminal cost and set make its value a Lyapunov function.
+:::
+
+## 5. Perception and estimation {#ch5}
+
+A controller needs the state of the robot — its pose, its velocity, the position of the objects around it — but sensors give only noisy, partial measurements. Estimation fuses a model of the motion with these measurements; perception extracts geometric information from cameras and range sensors.
+
+### Sensors and the filtering problem
+
+Robots measure themselves with joint encoders, force sensors and inertial measurement units (gyroscopes and accelerometers). They measure the world with cameras, depth cameras and LiDAR. Both kinds of measurement are summarised by a state-space model:
+$$
+x_{k+1} = f(x_k, u_k) + w_k, \qquad y_k = h(x_k) + v_k ,
+$$
+with process noise $w_k$ and measurement noise $v_k$.
+
+The *Bayes filter* propagates the distribution of $x_k$ given $y_{0:k}$ in two steps. The prediction integrates the motion model against the previous posterior; the update multiplies by the likelihood $p(y_{k+1} \mid x_{k+1})$ and renormalises. Two cases are tractable: linear-Gaussian models (Kalman filter) and low dimensions, or many particles (particle filters, see [Computational Statistics](../s1-computational-statistics/index.html)).
+
+### The Kalman filter
+
+:::: thm
+[Theorem 5.1 — Kalman filter (Kalman, 1960)]{.tag} Let $f(x, u) = F x + G u$ and $h(x) = H x$, with independent Gaussian noises of covariances $Q$ and $R$ and a Gaussian prior.
+
+The posterior of $x_k$ given $y_{0:k}$ is Gaussian, $\mathcal{N}(m_k, P_k)$, computed by the following recursion.
+
+-   **Predict**: $m^- = F m_{k-1} + G u_{k-1}$ and $P^- = F P_{k-1} F^\top + Q$.
+-   **Update**: with the innovation covariance $S = H P^- H^\top + R$ and the gain $K = P^- H^\top S^{-1}$,
+$$
+m_k = m^- + K (y_k - H m^-), \qquad P_k = (I - K H) P^- .
+$$
+
+::: proof
+By induction, suppose the posterior at time $k - 1$ is $\mathcal{N}(m_{k-1}, P_{k-1})$. The state $x_k$ is an affine function of $x_{k-1}$ plus independent Gaussian noise: given $y_{0:k-1}$, it is Gaussian with the predicted moments.
+
+The pair $(x_k, y_k)$ is then jointly Gaussian given $y_{0:k-1}$, with $\mathrm{Cov}(x_k, y_k) = P^- H^\top$ and $\mathrm{Cov}(y_k) = S$. Gaussian conditioning (Proposition 0.9) gives exactly the update formulas. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 5.2 — One update by hand]{.tag} A scalar position has prior $\mathcal{N}(0, 4)$, and a sensor of noise variance $1$ returns $y = 2$.
+
+-   The gain is $K = 4 / (4 + 1) = 0.8$.
+-   The posterior mean is $0 + 0.8 \times 2 = 1.6$, and the posterior variance $(1 - 0.8) \times 4 = 0.8$.
+
+The estimate moves most of the way towards the precise sensor, and its variance is smaller than both the prior and the sensor variances.
+:::
+
+The Riccati recursion of the covariance is the time-reversed twin of the LQR recursion of [ch. 4](#ch4): estimation and control are dual problems, as Kalman already noted.
+
+### Nonlinear models: the EKF and observability
+
+The *extended Kalman filter* (EKF) applies the same recursion to the linearisations $F_k = \partial f / \partial x$ and $H_k = \partial h / \partial x$ at the current estimate. It is the workhorse of robot navigation, but it has no optimality guarantee. Linearising at a wrong estimate can make it inconsistent, that is, overconfident.
+
+Before filtering, one should ask whether the measurements determine the state at all.
+
+::: prop
+[Proposition 5.3 — Observability rank condition]{.tag} The linear system $(F, H)$ with state dimension $n$ is observable — the initial state is determined by noise-free outputs — if and only if the matrix stacking $H, HF, \dots, HF^{n-1}$ has rank $n$.
+
+*Example.* For the constant-velocity model with position measurements, $H = (1, 0)$ and $HF = (1, \Delta t)$: rank 2, so the velocity is observable although never measured. With velocity measurements only, the rank is 1 and the position is not observable.
+:::
+
+### Estimation on Lie groups: invariant errors
+
+Orientation lives in $SO(3)$, not in a vector space, and the EKF's additive error $R - \hat R$ is not a rotation. Bonnabel, Martin and Rouchon (2008) proposed instead errors defined with the group operation. Their behaviour can be remarkable.
+
+:::: prop
+[Proposition 5.4 — An autonomous error for attitude]{.tag} Let the true attitude obey $\dot R = R [\omega]_\times$, where $\omega$ is measured by a perfect gyroscope, and propagate the estimate with the same equation, $\dot{\hat R} = \hat R [\omega]_\times$. Then the invariant error $\eta = R \hat R^\top$ is constant, whatever the motion $\omega(t)$.
+
+::: proof
+Since $[\omega]_\times^\top = -[\omega]_\times$,
+$$
+\dot \eta = R [\omega]_\times \hat R^\top + R [\omega]_\times^\top \hat R^\top = 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+The additive error, by contrast, rotates with $\omega(t)$, and a linearisation of it depends on the trajectory. Barrau and Bonnabel (2017) generalised the observation to *group-affine* systems, a class that includes inertial navigation. For these systems, the invariant error obeys an equation that does not depend on the estimate, and its logarithm obeys an exactly linear equation.
+
+The resulting *invariant EKF* inherits convergence properties of the linear Kalman filter that the standard EKF lacks. Hartley and coauthors (2020) built a contact-aided invariant EKF for legged robots on this basis.
+
+### Batch estimation, SLAM and registration
+
+Filtering processes measurements once. *Batch* estimation computes the maximum a posteriori trajectory given all measurements, as a nonlinear least-squares problem:
+$$
+\min_{x_{0:K}} \ \| x_0 - m_0 \|^2_{P_0^{-1}} + \sum_k \| x_{k+1} - f(x_k, u_k) \|^2_{Q^{-1}} + \sum_k \| y_k - h(x_k) \|^2_{R^{-1}} ,
+$$
+where $\mathcal{N}(m_0, P_0)$ is the prior on the initial state.
+
+Gauss–Newton solves it with sparse linear algebra, because each term involves one or two states. In the linear-Gaussian case, the solution coincides with the Kalman smoother. When the landmarks of a map join the unknowns, the problem becomes *simultaneous localisation and mapping* (SLAM). Factor graphs (Dellaert and Kaess, 2017) represent the sparsity; Barfoot's textbook develops the whole approach.
+
+Cameras enter through the pinhole model. A point $(X, Y, Z)$ in the camera frame projects to the pixel $(f X / Z + c_x, \ f Y / Z + c_y)$, and minimising reprojection errors is *bundle adjustment*; see [3D Computer Vision](../s1-3d-computer-vision/index.html). Depth sensors give 3D points directly, and the basic problem becomes aligning two point clouds.
+
+:::: thm
+[Theorem 5.5 — Rigid registration (Kabsch–Umeyama)]{.tag} Given pairs $(p_i, q_i)$, $i = 1, \dots, n$, with centroids $\bar p, \bar q$, let
+$$
+W = \sum_i (q_i - \bar q)(p_i - \bar p)^\top = U S V^\top ,
+$$
+an SVD with singular values $s_1 \geq s_2 \geq s_3 \geq 0$.
+The minimiser of $\sum_i \|q_i - R p_i - t\|^2$ over $R \in SO(3)$ and $t \in \mathbb{R}^3$ is
+$$
+R^\star = U\, \mathrm{diag}\big(1, 1, \det(U V^\top)\big)\, V^\top, \qquad t^\star = \bar q - R^\star \bar p .
+$$
+
+::: proof
+For fixed $R$, the optimal $t$ is the least-squares fit of the residual means, $t = \bar q - R \bar p$. With centred points $\tilde p_i, \tilde q_i$, the cost becomes a constant minus $2 \sum_i \tilde q_i^\top R \tilde p_i$, and this sum equals $\mathrm{tr}(R^\top W)$.
+
+Write $Z = U^\top R V$, which is orthogonal. Since $|Z_{ii}| \leq 1$,
+$$
+\mathrm{tr}(R^\top W) = \mathrm{tr}(Z^\top S) = \sum_i s_i Z_{ii} \leq \sum_i s_i .
+$$
+Equality holds at $Z = I$, that is $R = U V^\top$, which is a rotation when $\det(U V^\top) = 1$.
+
+Otherwise the constraint $\det R = 1$ forces $\det Z = -1$. The best choice flips the sign of the smallest singular direction, $Z = \mathrm{diag}(1, 1, -1)$; see Umeyama (1991) for the details. [∎]{.qed}
+:::
+::::
+
+When correspondences are unknown, the *iterative closest point* algorithm (Besl and McKay, 1992) alternates nearest-neighbour matching and Theorem 5.5. Each step decreases the cost, so ICP converges, but only to a local minimum: it needs a good initial guess.
+
+The code runs a Kalman filter on a constant-velocity target observed in position only, then registers two noisy point clouds.
+
+```python
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+rng = np.random.default_rng(1)
+# (a) Kalman filter: constant-velocity target, only the position is measured
+dt, n, sa, sr = 0.1, 200, 0.5, 1.0          # period, steps, acceleration std, measurement std
+F, H = np.array([[1.0, dt], [0.0, 1.0]]), np.array([[1.0, 0.0]])
+Qn = sa**2 * np.array([[dt**4 / 4, dt**3 / 2], [dt**3 / 2, dt**2]])
+Rn = np.array([[sr**2]])
+x, xs, ys = np.array([0.0, 1.0]), [], []
+for _ in range(n):
+    x = F @ x + rng.multivariate_normal(np.zeros(2), Qn)
+    xs.append(x); ys.append(H @ x + sr * rng.standard_normal(1))
+xs, ys = np.array(xs), np.array(ys)
+
+m, P, est = np.zeros(2), 10.0 * np.eye(2), []
+for y in ys:
+    m, P = F @ m, F @ P @ F.T + Qn                        # predict
+    S = H @ P @ H.T + Rn
+    K = P @ H.T @ np.linalg.inv(S)                        # Kalman gain
+    m, P = m + K @ (y - H @ m), (np.eye(2) - K @ H) @ P   # update
+    est.append(m)
+est = np.array(est)
+rmse = lambda u, v: np.sqrt(np.mean((u - v) ** 2))
+print(f"position RMSE: raw measurements {rmse(ys[:, 0], xs[:, 0]):.3f}, Kalman {rmse(est[:, 0], xs[:, 0]):.3f}")
+print(f"velocity RMSE (never measured): {rmse(est[:, 1], xs[:, 1]):.3f}; final gain K = {np.round(K.ravel(), 3)}")
+
+# (b) Registration of two point sets with known correspondences (Theorem 5.5)
+R_true = Rotation.from_rotvec([0.2, -0.4, 0.9]).as_matrix()
+t_true = np.array([0.5, -1.0, 2.0])
+p = rng.standard_normal((100, 3))
+q = p @ R_true.T + t_true + 0.01 * rng.standard_normal((100, 3))
+pc, qc = p.mean(0), q.mean(0)
+U, s, Vt = np.linalg.svd((q - qc).T @ (p - pc))           # W = sum (q_i - qc)(p_i - pc)^T
+D = np.diag([1.0, 1.0, np.sign(np.linalg.det(U @ Vt))])
+R_hat = U @ D @ Vt
+t_hat = qc - R_hat @ pc
+angle = np.degrees(np.arccos(np.clip((np.trace(R_hat.T @ R_true) - 1) / 2, -1, 1)))
+print(f"rotation error {angle:.3f} deg, translation error {np.linalg.norm(t_hat - t_true):.4f}")
+```
+
+The filter divides the position error by almost three (0.35 against 0.98 for the raw measurements). It also estimates the velocity, which is never measured, with an error of 0.27, as Proposition 5.3 promised. The registration recovers the rotation to 0.05 degree and the translation to 2 mm.
+
+::: recap
+Key takeaways — chapter 5
+
+-   Estimation fuses a motion model and measurements; the Bayes filter alternates prediction and update.
+-   For linear-Gaussian models, the Kalman filter is exact: it is Gaussian conditioning, step after step, and it is dual to the LQR.
+-   The EKF linearises; check observability before trusting any filter.
+-   Errors defined with the group operation can be independent of the trajectory: the basis of the invariant EKF.
+-   Batch estimation and SLAM are sparse nonlinear least squares; rigid registration has a closed form by SVD, iterated in ICP.
+:::
+
+## 6. Reinforcement learning for robotics {#ch6}
+
+Optimal control needs a model of the dynamics and of the cost. Reinforcement learning (RL) optimises a policy from trials instead — in simulation, most of the time. It has produced the most robust legged controllers of recent years; this chapter gives its mathematical core and the conditions under which it transfers to real robots.
+
+### Markov decision processes and optimal control
+
+::: def
+[Definition 6.1 — Markov decision process]{.tag} A Markov decision process consists of states $x$, actions $u$, a transition kernel $p(x' \mid x, u)$, a cost $c(x, u)$ and a horizon (finite, or infinite with a discount factor $\gamma \in (0, 1)$).
+
+A stochastic policy $\pi_\theta(u \mid x)$ induces a distribution over trajectories $\tau = (x_0, u_0, x_1, \dots)$, and the objective is
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \Big[ \sum_t \gamma^t c(x_t, u_t) \Big].
+$$
+:::
+
+With a known model, this is the optimal control problem of [ch. 4](#ch4), and Bellman's recursion applies with an expectation over $x'$. RL methods differ in what they learn: value functions (Q-learning), policies (policy gradient), or both (actor–critic). The [Reinforcement Learning](../s2-reinforcement-learning/index.html) course of semester 2 develops them in depth. Here, the policy-gradient family matters most, because robot actions are continuous.
+
+### The policy-gradient theorem
+
+:::: thm
+[Theorem 6.2 — Likelihood-ratio policy gradient (Williams, 1992)]{.tag} For a finite horizon $T$ and $G_t = \sum_{s \geq t} c(x_s, u_s)$ the cost-to-go from time $t$,
+$$
+\nabla_\theta J(\theta) = \mathbb{E}\Big[ \sum_{t=0}^{T-1} \nabla_\theta \log \pi_\theta(u_t \mid x_t) \, \big( G_t - b(x_t) \big) \Big]
+$$
+for any baseline $b$ that depends on the state only.
+
+::: proof
+The trajectory density is
+$$
+p_\theta(\tau) = p(x_0) \prod_t \pi_\theta(u_t \mid x_t)\, p(x_{t+1} \mid x_t, u_t).
+$$
+Only the policy factors depend on $\theta$, so
+$$
+\nabla_\theta \log p_\theta(\tau) = \sum_t \nabla_\theta \log \pi_\theta(u_t \mid x_t),
+$$
+and the unknown dynamics disappear. Differentiating $J = \int p_\theta(\tau) C(\tau)\, d\tau$ under the integral and using $\nabla p = p \nabla \log p$ gives the formula with $C(\tau)$ in place of $G_t - b$.
+
+*Causality*: a cost $c(x_s, u_s)$ with $s < t$ is a function of the history up to $x_t$. Given that history, $u_t$ has density $\pi_\theta(\cdot \mid x_t)$, so
+$$
+\mathbb{E}\big[\nabla \log \pi_\theta(u_t \mid x_t) \mid x_t\big] = \nabla \int \pi_\theta(u \mid x_t)\, du = 0 .
+$$
+So past costs can be dropped, leaving $G_t$; the same identity shows that $b(x_t)$ adds zero in expectation. [∎]{.qed}
+:::
+::::
+
+The estimator only needs to sample trajectories and differentiate the log-policy: no model, no derivative of the dynamics. Its variance, however, is large; the baseline reduces it without bias.
+
+::: ex
+[Example 6.3 — A linear Gaussian policy on the scalar system of Example 4.4]{.tag} Take $u = -\theta x + \sigma \varepsilon$ with $\varepsilon \sim \mathcal{N}(0, 1)$. Then
+$$
+\log \pi_\theta(u \mid x) = -\frac{(u + \theta x)^2}{2 \sigma^2} + \text{const}, \qquad \nabla_\theta \log \pi_\theta = -\frac{\varepsilon\, x}{\sigma} .
+$$
+:::
+
+The code below runs this REINFORCE estimator, with the time-wise average of $G_t$ as baseline, on $x_{t+1} = x_t + 0.5 u_t$ with cost $x^2 + 0.1 u^2$ over 30 steps. It compares the learned gain with the LQR gain of Example 4.4.
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(0)
+a, b, qc, rc, T = 1.0, 0.5, 1.0, 0.1, 30       # x' = a x + b u, cost q x^2 + r u^2, horizon T
+
+p = qc                                          # stationary scalar Riccati equation (ch. 4)
+for _ in range(1000):
+    p = qc + a * a * p - (a * b * p) ** 2 / (rc + b * b * p)
+K_lqr = a * b * p / (rc + b * b * p)
+
+def rollouts(theta, sigma, n):
+    """n episodes of the Gaussian policy u = -theta x + sigma eps; returns states, noises, costs."""
+    x = rng.standard_normal(n)
+    X, E, C = np.zeros((T, n)), np.zeros((T, n)), np.zeros((T, n))
+    for t in range(T):
+        eps = rng.standard_normal(n)
+        u = -theta * x + sigma * eps
+        X[t], E[t], C[t] = x, eps, qc * x**2 + rc * u**2
+        x = a * x + b * u
+    return X, E, C
+
+theta, sigma, lr = 0.0, 0.5, 0.003
+for it in range(501):
+    X, E, C = rollouts(theta, sigma, 500)
+    G = np.cumsum(C[::-1], axis=0)[::-1]              # cost-to-go from each time step
+    G = G - G.mean(axis=1, keepdims=True)             # baseline: average cost-to-go at time t
+    score = -E * X / sigma                            # d/dtheta log pi(u_t | x_t)
+    grad = np.mean(np.sum(score * G, axis=0))         # REINFORCE estimate of dJ/dtheta
+    theta -= lr * grad
+    if it % 100 == 0:
+        print(f"iteration {it:3d}: theta = {theta:.3f}, average cost {C.sum(0).mean():.2f}")
+print(f"LQR gain K = {K_lqr:.3f}")
+```
+
+After 501 iterations of 500 episodes each, the learned gain is 1.533, against 1.531 for the LQR. RL has rediscovered the optimal controller, but it used about 250,000 episodes where the Riccati equation needed one line. That ratio is the price of ignoring the model, and the reason why robot RL is done in simulation.
+
+### Actor–critic methods: PPO and SAC
+
+Practical algorithms replace $G_t - b(x_t)$ by an estimate of the *advantage* $A(x_t, u_t) = Q(x_t, u_t) - V(x_t)$, given by a learned critic. Proximal policy optimisation (PPO; Schulman and coauthors, 2017) maximises a clipped surrogate objective over a batch collected with the previous policy:
+$$
+\mathbb{E}\Big[ \min\big( \rho_t A_t, \ \mathrm{clip}(\rho_t, 1 - \epsilon, 1 + \epsilon) A_t \big) \Big], \qquad \rho_t = \frac{\pi_\theta(u_t \mid x_t)}{\pi_{\theta_{\mathrm{old}}}(u_t \mid x_t)},
+$$
+written for rewards (negative costs). The clipping keeps the new policy close to the one that collected the data. Soft actor–critic (SAC; Haarnoja and coauthors, 2018) adds an entropy bonus to the reward and learns off-policy from a replay buffer, which saves samples.
+
+### From simulation to real robots
+
+A policy trained in simulation meets a different robot: other masses, friction, motor dynamics, delays and sensor noise. How much does a model error cost?
+
+:::: prop
+[Proposition 6.4 — Simulation lemma]{.tag} Let a fixed policy induce transition matrices $P$ (real robot) and $\hat P$ (simulator) on a finite state space, with costs in $[0, c_{\max}]$ and discount $\gamma$. Suppose that for every state $x$
+$$
+\|P(\cdot \mid x) - \hat P(\cdot \mid x)\|_1 \leq \varepsilon .
+$$
+Then the values satisfy
+$$
+\| V - \hat V \|_\infty \leq \frac{\gamma\, \varepsilon\, c_{\max}}{(1 - \gamma)^2} .
+$$
+
+::: proof
+The values solve $V = c + \gamma P V$ and $\hat V = c + \gamma \hat P \hat V$. Subtracting,
+$$
+(I - \gamma P)(V - \hat V) = \gamma (P - \hat P) \hat V .
+$$
+
+Since $\|\hat V\|_\infty \leq c_{\max} / (1 - \gamma)$, the right-hand side has sup norm at most $\gamma \varepsilon c_{\max} / (1 - \gamma)$. Since $P$ is stochastic, $(I - \gamma P)^{-1} = \sum_k \gamma^k P^k$ has sup-norm at most $1 / (1 - \gamma)$. [∎]{.qed}
+:::
+::::
+
+The error is amplified by the square of the effective horizon $1 / (1 - \gamma)$: small per-step errors add up along long trajectories. Three remedies dominate practice.
+
+-   **Domain randomisation** (Tobin and coauthors, 2017) trains on a distribution of simulators — random masses, frictions, delays — so that the real robot looks like one more sample.
+-   **Better simulators**, such as a learned model of the actuators (Hwangbo and coauthors, 2019).
+-   **Privileged learning**: a teacher policy trained with simulator-only information is distilled into a student that sees only onboard sensors (Lee and coauthors, 2020). Miki and coauthors (2022) extended this approach to perceptive locomotion, and their quadruped completed a hike in the mountains.
+
+### Learning from demonstrations
+
+When a human can demonstrate the task, *behaviour cloning* fits the policy by supervised learning on the demonstrated state–action pairs. Its weakness is distribution shift: a small error leads to states never demonstrated, where errors grow.
+
+Ross and Bagnell (2010) showed that the cost of behaviour cloning can grow quadratically with the horizon. The DAgger algorithm (Ross, Gordon and Bagnell, 2011) queries the expert on the states visited by the learned policy, and recovers a linear growth.
+
+::: recap
+Key takeaways — chapter 6
+
+-   RL solves the optimal control problem from samples, without a model of the dynamics.
+-   The policy gradient is an expectation of score times cost-to-go; baselines reduce its variance without bias.
+-   On a linear-quadratic problem, policy gradient recovers the LQR gain — with orders of magnitude more data.
+-   PPO and SAC are the standard actor–critic algorithms for continuous control.
+-   Model errors are amplified by the square of the horizon (simulation lemma); domain randomisation, better simulators and privileged teachers close the gap.
+:::
+
+## 7. Legged locomotion {#ch7}
+
+A legged robot is not attached to the ground. It can move its body only by pushing on the ground through its feet, and the ground can only push. This chapter turns that observation into the zero-moment point, the linear inverted pendulum and the capture point. It then generates walking motions with the MPC of [ch. 4](#ch4).
+
+### Floating base and centroidal dynamics
+
+Write the configuration as $q = (q_b, q_j)$, with the floating-base pose $q_b \in SE(3)$ and the joint angles $q_j$. In the dynamics of Theorem 1.7, the torque vector is $S^\top \tau$, where $S$ selects the actuated joints: the first six equations, those of the base, contain no motor torque at all.
+
+:::: prop
+[Proposition 7.1 — Centroidal dynamics]{.tag} Let $m$ be the total mass, $c$ the centre of mass (CoM) and $L$ the angular momentum about $c$.
+
+Let $f_i$ be the contact forces, applied at the points $p_i$. With gravity $-g e_z$,
+$$
+m \ddot c = \sum_i f_i - m g\, e_z, \qquad \dot L = \sum_i (p_i - c) \times f_i .
+$$
+
+::: proof
+Sum Newton's and Euler's laws over all bodies. Internal forces, including those produced by the motors, come in action–reaction pairs with the same line of action. They cancel in the total force and in the total moment, and only the external forces remain: gravity, whose moment about $c$ vanishes, and the contact forces. [∎]{.qed}
+:::
+::::
+
+Without contact, the CoM follows a parabola, whatever the joints do. Walking is therefore the art of choosing contact forces — and the ground constrains them.
+
+### The zero-moment point and the support polygon
+
+::: def
+[Definition 7.2 — Centre of pressure (zero-moment point)]{.tag} On flat ground, with contact points $p_i$ and normal forces $f_{i,z} \geq 0$, not all zero, the centre of pressure is the point of the ground
+$$
+z = \frac{\sum_i f_{i,z}\, p_i}{\sum_i f_{i,z}} .
+$$
+At this point, the contact forces produce no moment about horizontal axes; this is why it is also called the zero-moment point (ZMP), after Vukobratović.
+:::
+
+:::: prop
+[Proposition 7.3 — The ZMP stays in the support polygon]{.tag} The ZMP lies in the convex hull of the contact points, called the support polygon.
+
+::: proof
+The weights $f_{i,z} / \sum_j f_{j,z}$ are non-negative and sum to one, so $z$ is a convex combination of the $p_i$. [∎]{.qed}
+:::
+::::
+
+The moment balance of Proposition 7.1, taken about $z$ instead of $c$, relates the ZMP to the motion of the CoM. With $L$ constant and the CoM at constant height $h$, it gives, for the horizontal coordinates,
+$$
+z = c - \frac{h}{g}\, \ddot c .
+$$
+Balance is then a constraint on the CoM acceleration: $c - (h/g) \ddot c$ must stay inside the support polygon, or the foot starts to tip over its edge.
+
+### The linear inverted pendulum and the capture point
+
+::: key
+[Key result — the linear inverted pendulum (Kajita and coauthors, 2001)]{.tag}
+$$
+\ddot c = \omega^2 (c - z), \qquad \omega = \sqrt{g / h}
+$$
+:::
+
+This is the previous relation solved for $\ddot c$. The CoM is repelled by the ZMP: if $z$ stays fixed, the solution
+$$
+c(t) - z = (c_0 - z) \cosh \omega t + \frac{\dot c_0}{\omega} \sinh \omega t
+$$
+diverges exponentially unless the initial conditions are just right.
+
+::: def
+[Definition 7.4 — Divergent component of motion, capture point]{.tag} The divergent component of motion is
+$$
+\xi = c + \frac{\dot c}{\omega} .
+$$
+In the ground plane, the point $\xi$ is called the *capture point* (Pratt, Carff, Drakunov and Goswami, 2006).
+:::
+
+:::: prop
+[Proposition 7.5 — Stability splits into a stable and an unstable part]{.tag} Along the linear inverted pendulum,
+$$
+\dot \xi = \omega (\xi - z), \qquad \dot c = -\omega (c - \xi).
+$$
+
+With $z$ held constant, $c$ comes to rest above $z$ if and only if $z = \xi(0)$. To stop after a push, the robot must therefore place its ZMP — in practice, its next foot — on the capture point.
+
+::: proof
+Differentiate, using the pendulum equation:
+$$
+\dot \xi = \dot c + \ddot c / \omega = \dot c + \omega (c - z) = \omega (\xi - z).
+$$
+The second equation is the definition of $\xi$ rearranged.
+
+With $z$ constant, $\xi(t) - z = e^{\omega t} (\xi(0) - z)$, which stays bounded only if $\xi(0) = z$.
+
+In that case $\xi \equiv z$, and the stable equation $\dot c = -\omega (c - z)$ brings $c$ to $z$. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 7.6 — How far to step after a push]{.tag} With $h = 0.8$ m, $\omega = \sqrt{9.81 / 0.8} \approx 3.50$ s$^{-1}$. A robot standing still is pushed to $\dot c = 0.5$ m/s.
+
+-   Its capture point is $\xi - c = 0.5 / 3.50 \approx 0.143$ m ahead of the CoM.
+-   If the foot extends 0.1 m ahead of the ankle, the ZMP cannot reach $\xi$: the robot must step.
+-   The divergence time constant is $1/\omega \approx 0.29$ s: the gap $\xi - z$ grows by a factor $e$ every 0.29 s, which sets the urgency of the step.
+:::
+
+Proposition 7.5 also explains why walking needs *preview*. The only bounded solution of the unstable equation is
+$$
+\xi(t) = \omega \int_t^{\infty} e^{-\omega (s - t)} z(s)\, ds ,
+$$
+so the current state must anticipate the future ZMP, that is the future footsteps.
+
+### Walking pattern generation by MPC
+
+Kajita and coauthors (2003) generated walking by *preview control* of the ZMP; Wieber (2006) recast it as linear MPC. Discretise the CoM with period $T$, state $\hat x = (c, \dot c, \ddot c)$ and the jerk as control. Over a horizon of $N$ periods, the future ZMPs are affine in the jerks $U$:
+$$
+Z = P_x \hat x + P_u U .
+$$
+
+The pattern generator minimises a weighted sum of $\|Z - Z_{\mathrm{ref}}\|^2$, where $Z_{\mathrm{ref}}$ follows the planned footsteps, and of $\|U\|^2$. Without inequality constraints, the minimiser is explicit; with the support polygons as constraints, it is a small QP.
+
+Herdt and coauthors (2010) made the footstep positions decision variables of the same QP. Only the first jerk is applied, and the problem is re-solved at the next period (Definition 4.7). The code below generates a lateral sway for steps alternating between $y = \pm 0.1$ m every 0.8 s.
+
+```python
+import numpy as np
+
+g, hc, T, N = 9.81, 0.8, 0.1, 16          # gravity, CoM height (m), period (s), horizon (1.6 s)
+omega = np.sqrt(g / hc)
+# Lateral CoM state (y, y', y''), input = jerk; ZMP z = y - (hc/g) y''
+A = np.array([[1, T, T**2 / 2], [0, 1, T], [0, 0, 1]])
+B = np.array([T**3 / 6, T**2 / 2, T])
+C = np.array([1.0, 0.0, -hc / g])
+Px = np.array([C @ np.linalg.matrix_power(A, i + 1) for i in range(N)])
+Pu = np.zeros((N, N))
+for i in range(N):
+    for j in range(i + 1):
+        Pu[i, j] = C @ np.linalg.matrix_power(A, i - j) @ B
+
+# Footsteps alternate left/right every 0.8 s (y = +-0.1 m); foot half-width 0.05 m
+steps = 120
+z_ref = np.where((np.arange(steps + N) // 8) % 2 == 0, 0.1, -0.1)   # 8 periods = 0.8 s
+z_ref[:8] = 0.0                            # start in double support, between the feet
+R_jerk = 1e-6
+Hq = Pu.T @ Pu + R_jerk * np.eye(N)        # least squares in the jerks (Wieber, 2006)
+
+x, zs, ys = np.zeros(3), [], []
+for k in range(steps):
+    jerks = np.linalg.solve(Hq, Pu.T @ (z_ref[k + 1:k + 1 + N] - Px @ x))
+    x = A @ x + B * jerks[0]               # receding horizon: apply the first jerk only
+    zs.append(C @ x); ys.append(x[0])
+zs, ys = np.array(zs), np.array(ys)
+dev = np.abs(zs[8:] - z_ref[1:steps + 1][8:])
+print(f"omega = {omega:.3f} 1/s; max |ZMP - foot centre| = {dev.max():.3f} m (foot half-width 0.05 m)")
+print(f"CoM lateral sway: {ys[40:].min():+.3f} m to {ys[40:].max():+.3f} m, while the feet are at +-0.100 m")
+xi = 0.0 + 0.5 / omega                     # capture point after a 0.5 m/s push from rest
+print(f"capture point after a 0.5 m/s push: {xi:.3f} m ahead of the CoM")
+```
+
+The ZMP stays within 7 mm of the foot centres, well inside the 5 cm half-width of the feet. The CoM sways between $-0.053$ m and $+0.053$ m: it never goes above the feet, and it starts moving towards the next foot before the step, as the preview formula requires.
+
+### Whole-body control and learned locomotion
+
+On a real humanoid, the layers of this course stack up:
+
+-   a footstep planner, often a graph search or an optimisation ([ch. 2](#ch2));
+-   a CoM pattern generator by MPC, as above;
+-   a whole-body QP that tracks the CoM and foot tasks under the full dynamics, contact and torque limits ([ch. 3](#ch3)), at about 1 kHz;
+-   a state estimator that fuses joint encoders, inertial measurements and contact information ([ch. 5](#ch5)).
+
+The control of the Atlas humanoid described by Kuindersma and coauthors (2016) follows this optimisation-based scheme; Wensing and coauthors (2024) survey it. The alternative of [ch. 6](#ch6) trains a single neural policy by RL in simulation, from proprioception and sometimes perception to joint targets. Combining the guarantees of the first approach with the robustness of the second is an open question ([ch. 9](#ch9)).
+
+::: recap
+Key takeaways — chapter 7
+
+-   Only contact forces move the CoM; the centroidal equations make this precise.
+-   The ZMP is a convex combination of the contact points, so it stays in the support polygon.
+-   Under constant height and angular momentum, the CoM follows the linear inverted pendulum; its divergent component must be steered by the ZMP.
+-   To stop, step on the capture point $c + \dot c / \omega$; to walk, preview the future ZMP — by MPC.
+-   Full controllers stack planning, MPC, whole-body QP and estimation; RL policies are the main alternative.
+:::
+
+## 8. Responsible robotics {#ch8}
+
+The last lecture of the official programme steps back from algorithms. It asks what responsibilities researchers and engineers take on when they build machines that act in the physical world. This chapter gives one mathematical tool, one statistical tool, and a framework for the questions that have no formula.
+
+### What is specific to robots
+
+Many questions of AI ethics apply to robots, but several take a sharper form:
+
+-   **physical harm**: a wrong output is a collision, not a wrong label, and failures can injure;
+-   **diluted responsibility**: when a learned controller fails, responsibility is spread between the designer, the data, the integrator and the operator;
+-   **sensing**: cameras and microphones in homes, hospitals and streets record people who never consented;
+-   **dual use**: the controller that lets a quadruped climb rubble after an earthquake works just as well on a military platform; lethal autonomous weapons are debated within the United Nations Convention on Certain Conventional Weapons;
+-   **work**: automation transforms jobs, and who benefits from the productivity gains is a political question;
+-   **environment**: robots contain batteries, motors and electronics, with their mining and recycling problems, and training large policies consumes energy.
+
+### Safety by design and control barrier functions
+
+Industrial practice relies on standards: ISO 10218 for industrial robots, ISO/TS 15066 for collaborative robots that share space with humans, and ISO 13482 for personal care robots. In the European Union, the Machinery Regulation (EU) 2023/1230 and the AI Act, Regulation (EU) 2024/1689, add legal obligations; the [Regulating AI](../s2-regulating-ai/index.html) course studies them.
+
+Standards ask for risk analysis and protective measures. Control theory offers one precise kind of protective measure: a filter that keeps the state in a safe set, whatever the nominal controller — hand-designed, optimised or learned — asks for.
+
+::: def
+[Definition 8.1 — Control barrier function]{.tag} Consider $\dot x = f(x) + g(x) u$ and a safe set $\mathcal{S} = \{ x : h(x) \geq 0 \}$, with $h$ continuously differentiable.
+
+The function $h$ is a control barrier function with rate $\alpha > 0$ if, for every $x$, some admissible $u$ satisfies
+$$
+\nabla h(x)^\top \big( f(x) + g(x) u \big) \geq -\alpha\, h(x).
+$$
+:::
+
+:::: thm
+[Theorem 8.2 — Forward invariance (Ames and coauthors, 2017)]{.tag} If a locally Lipschitz feedback $u(x)$ satisfies the inequality of Definition 8.1 at every state, then every trajectory that starts in $\mathcal{S}$ stays in $\mathcal{S}$.
+
+::: proof
+Along a trajectory, $\dot h \geq -\alpha h$, so
+$$
+\frac{d}{dt} \big( e^{\alpha t} h(x(t)) \big) = e^{\alpha t} (\dot h + \alpha h) \geq 0 .
+$$
+Hence
+$$
+h(x(t)) \geq e^{-\alpha t}\, h(x(0)) \geq 0 .
+$$
+[∎]{.qed}
+:::
+::::
+
+The *safety filter* chooses the admissible input closest to the nominal one:
+$$
+u^\star(x) = \arg\min_u \ \|u - u_{\mathrm{nom}}(x)\|^2 \quad \text{s.t.} \quad \nabla h^\top (f + g u) \geq -\alpha h .
+$$
+With one constraint, this QP is the projection of $u_{\mathrm{nom}}$ onto a half-space, which has a closed form (Exercise 12).
+
+The code applies the filter to a robot $\dot x = u$ in the plane, driven to a goal by a proportional controller, past a disc of radius 0.5 that lies across the straight path.
+
+```python
+import numpy as np
+
+# Single integrator x' = u in the plane; the nominal controller drives the robot to the goal
+c_obs, r_obs = np.array([0.0, 0.1]), 0.5          # disc to avoid, slightly off the straight line
+goal, k_nom, dt = np.array([2.0, 0.0]), 1.0, 0.01
+
+def h(x):                                          # barrier: h >= 0 outside the disc
+    return (x - c_obs) @ (x - c_obs) - r_obs**2
+
+def safety_filter(x, u_nom, alpha):
+    """argmin |u - u_nom|^2 s.t. grad h(x) . u >= -alpha h(x): one half-plane, closed form."""
+    a = 2 * (x - c_obs)
+    slack = a @ u_nom + alpha * h(x)
+    return u_nom if slack >= 0 else u_nom - slack * a / (a @ a)
+
+for alpha in [None, 1.0, 5.0]:                     # None = no filter
+    x, h_min, active = np.array([-2.0, 0.0]), np.inf, 0
+    for _ in range(1500):                          # 15 s, explicit Euler
+        u_nom = -k_nom * (x - goal)
+        u = u_nom if alpha is None else safety_filter(x, u_nom, alpha)
+        active += int(np.any(u != u_nom))
+        x = x + dt * u
+        h_min = min(h_min, h(x))
+    print(f"alpha = {alpha}: min h = {h_min:+.3f}, final distance to goal "
+          f"{np.linalg.norm(x - goal):.1e}, filter active during {active * dt:.2f} s")
+```
+
+Without the filter, the robot crosses the disc ($h$ reaches $-0.24$). With the filter, $h$ stays positive and the goal is still reached.
+
+A small rate $\alpha = 1$ keeps a wide margin ($h \geq 0.48$); a larger rate $\alpha = 5$ lets the robot graze the obstacle ($h \geq 0.016$).
+
+The guarantee is only as good as the model. Unmodelled dynamics, delays and estimation errors (ch. 5) erode it, and a robot can also get stuck in front of an obstacle. Robust and learned variants of barrier functions are an active research topic ([ch. 9](#ch9)).
+
+### Research integrity: claims, videos and trials
+
+Robotics papers are often judged on videos and success rates, which invites selective reporting. A few habits make claims verifiable:
+
+-   report the number of trials, the failures and the conditions, not only the best run;
+-   release code, simulator configurations and hardware details, in line with the [reproducible research](../s1-reproducible-research/index.html) course;
+-   give confidence intervals: a handful of real-robot trials says less than it seems.
+
+::: ex
+[Example 8.3 — What 18 successes out of 20 trials tell]{.tag} Suppose a grasping policy succeeds in 18 of 20 trials, a “90 % success rate”. The exact (Clopper–Pearson) 95 % confidence interval for the success probability is
+$$
+[0.683, \ 0.988].
+$$
+The data are compatible with a policy that fails almost one time in three. Comparing two methods at this sample size rarely supports a ranking.
+:::
+
+### A framework for responsible innovation
+
+Stilgoe, Owen and Macnaghten (2013) propose four dimensions of responsible innovation, which translate into questions for a robotics project:
+
+-   **anticipation** — who will use this robot, for what, and what could go wrong, including uses the authors do not intend;
+-   **reflexivity** — which assumptions are built into the objective, the data and the benchmark;
+-   **inclusion** — have the people who will work next to the robot, or be watched by it, been consulted;
+-   **responsiveness** — can the project change course when the answers are uncomfortable, up to not publishing a component.
+
+These questions have no algorithmic answer. They belong in the report of every project of this course (see the rubric in [Projects and assessment](#projects)), and they link this page to [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Artificial Intelligence and the Environment](../s2-ai-environment/index.html).
+
+::: recap
+Key takeaways — chapter 8
+
+-   Robots raise sharper questions than software: physical harm, diluted responsibility, sensing, dual use, work and environment.
+-   Standards and regulations frame industrial safety; control barrier functions give a provable, minimally invasive safety filter for a given model.
+-   Success rates need trial counts and confidence intervals; 18 of 20 does not mean 90 %.
+-   Anticipation, reflexivity, inclusion and responsiveness turn responsibility into concrete questions for each project.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is for self-study. It points from each chapter of the course to active research questions, citing only well-established work, and ends with open problems that make good project or internship topics.
+
+### Differentiable and contact-rich simulation
+
+Trajectory optimisation and learning both need derivatives of the dynamics. Carpentier and Mansard (2018) derived the analytical derivatives of the recursive rigid-body algorithms of [ch. 1](#ch1), which made second-order solvers such as the DDP of [ch. 4](#ch4) fast enough for humanoids.
+
+Contacts remain the hard part. The complementarity conditions of Definition 1.9 make the dynamics non-smooth, and every simulator chooses a compromise between physical accuracy, convexity and differentiability. Todorov (2014) described the convex formulation behind MuJoCo; how to obtain informative gradients through contact switches is an open question.
+
+### Optimisation-based whole-body control
+
+Whole-body MPC — the full dynamics of [ch. 1](#ch1), the contacts and the tasks in one receding-horizon problem — is now possible in real time on some robots. The survey of Wensing and coauthors (2024) maps the field: centroidal versus whole-body models, contact sequences fixed or optimised, and the solvers that make them run.
+
+Strict task priorities ([ch. 3](#ch3)) solved by hierarchical quadratic programming (Escande, Mansard and Wieber, 2014) raise their own questions. How should priorities be combined with the horizon of MPC, and with inequality constraints that switch on and off?
+
+### Learned locomotion and manipulation
+
+Policies trained by RL in simulation now walk on rough terrain (Lee and coauthors, 2020; Miki and coauthors, 2022). In manipulation, imitation learning has progressed with expressive policy classes: Chi and coauthors (2023) represent the policy as a diffusion model over action sequences.
+
+Brohan and coauthors (2023) fine-tune vision-language models to output robot actions. How such large models should be evaluated, and how their failures can be bounded, is largely open.
+
+### Estimation on Lie groups
+
+The invariant EKF of [ch. 5](#ch5) (Barrau and Bonnabel, 2017) has spread from inertial navigation to legged robots (Hartley and coauthors, 2020). Solà, Deray and Atchuthan (2018) give a compact introduction to the Lie-group calculus that these filters use. Questions remain for systems that are not group-affine, and for the fusion of learned perception with filters that come with guarantees.
+
+### Safety of learned controllers
+
+Control barrier functions ([ch. 8](#ch8); Ames and coauthors, 2017, 2019) certify safety for a known model. Making them robust to model errors and to estimation errors, learning them from data, and combining them with RL policies without destroying performance are active topics.
+
+### Open problems to think about
+
+1.  Can a simulator be differentiable, physically consistent at impacts and fast, all at once? Which of the three can be relaxed for which task?
+2.  The simulation lemma (Proposition 6.4) is pessimistic. Which structural properties of a robot make policies transfer much better than the bound predicts?
+3.  How many real-robot trials are needed to rank two controllers with confidence (Example 8.3)? Can simulation reduce that number without biasing the comparison?
+4.  Can an invariant filter be built for a legged robot whose feet slip, with a consistent uncertainty?
+5.  What would a responsible-innovation assessment (ch. 8) of a general-purpose humanoid look like, and who should carry it out?
+
+::: recap
+Key takeaways — chapter 9
+
+-   Derivatives of rigid-body dynamics are solved; derivatives through contact are not.
+-   Whole-body MPC and hierarchical QPs bring optimisation to the full robot in real time.
+-   Learning-based policies dominate rough-terrain locomotion and progress fast in manipulation; their evaluation and certification lag behind.
+-   Lie-group estimation and barrier-function safety are mature for known models and open for learned ones.
+:::
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine results or prove a short statement, ★★★ open-ended or research-flavoured. The *Practice* column of the [session plan](#sessions) says when to do each one.
+
+1.  **★ Kinematics of the two-link arm.** For the arm of Example 1.4 ($l_1 = 1$, $l_2 = 0.8$) at $q = (0, \pi/2)$, compute the position of the end effector, the Jacobian and its determinant. Which joint velocities move the end effector straight up at 0.1 m/s? List all singular configurations.
+
+    *Solution*: the end effector is at $(1, 0.8)$, and
+    $$
+    J = \begin{pmatrix} -0.8 & -0.8 \\ 1 & 0 \end{pmatrix}, \qquad \det J = 0.8 = l_1 l_2 \sin q_2 .
+    $$
+
+    Solving $J \dot q = (0, 0.1)$ gives $\dot q_1 = 0.1$ and $\dot q_2 = -0.1$ rad/s: the shoulder lifts and the elbow compensates to keep $x$ fixed.
+
+    The singular configurations are $q_2 = 0$ and $q_2 = \pi$, for any $q_1$.
+
+2.  **★ A rotation that permutes the axes.** With Rodrigues' formula (Proposition 0.6), show that the rotation of angle $2\pi/3$ about $u = (1, 1, 1)/\sqrt{3}$ sends $e_x$ to $e_y$. Without computation, where does it send $e_y$?
+
+    *Solution*: $[u]_\times e_x = u \times e_x = (0, 1, -1)/\sqrt{3}$ and $[u]_\times^2 e_x = u (u^\top e_x) - e_x = (-2/3, 1/3, 1/3)$. With $\sin(2\pi/3) = \sqrt{3}/2$ and $1 - \cos(2\pi/3) = 3/2$:
+    $$
+    R e_x = (1, 0, 0) + \tfrac12 (0, 1, -1) + (-1, \tfrac12, \tfrac12) = (0, 1, 0).
+    $$
+    The rotation commutes with the cyclic permutation of the axes, which fixes $u$, so it also sends $e_y$ to $e_z$ and $e_z$ to $e_x$.
+
+3.  **★ One Kalman step by hand.** A constant-velocity model with $\Delta t = 1$ and no process noise has prior mean $(0, 1)$ and covariance $I$. The position is measured as $y = 1.5$ with noise variance 1. Compute the predicted and updated means and covariances.
+
+    *Solution*: prediction, $m^- = (1, 1)$ and
+    $$
+    P^- = F F^\top = \begin{pmatrix} 2 & 1 \\ 1 & 1 \end{pmatrix}.
+    $$
+
+    Update: $S = 3$, $K = (2/3, 1/3)$, innovation $0.5$, hence $m = (1.333, 1.167)$ and
+    $$
+    P = \begin{pmatrix} 2/3 & 1/3 \\ 1/3 & 2/3 \end{pmatrix}.
+    $$
+    The velocity estimate moved, although only the position was measured: the prediction correlated the two. Repeated over time, this is how the velocity becomes observable (Proposition 5.3).
+
+4.  **★ How many samples for a roadmap?** In a free space of area 0.9 in the plane, a path of length $L = 2$ has clearance $r = 0.05$. With Theorem 2.3, how many uniform samples guarantee a failure probability of at most 1 %? What if the clearance is halved?
+
+    *Solution*: $m = 80$ and $p = \pi (0.0125)^2 / 0.9 \approx 5.45 \times 10^{-4}$. The condition $80\, e^{-N p} \leq 0.01$ gives $N \geq \ln(8000) / p \approx 16{,}500$.
+
+    With $r = 0.025$, $m$ doubles and $p$ is divided by four, so $N \approx 71{,}000$: more than four times as many samples. Narrow passages dominate the cost of sampling-based planning.
+
+5.  **★ Push recovery.** A humanoid has its CoM at $h = 1$ m. It stands still with its ZMP able to move at most 0.12 m ahead of the CoM. Can it stop without stepping after a push to 0.3 m/s? To 0.5 m/s? How long does it have before the divergent component has grown by a factor $e$?
+
+    *Solution*: $\omega = \sqrt{9.81} \approx 3.13$ s$^{-1}$. After 0.3 m/s the capture point is $0.3 / 3.13 \approx 0.096$ m ahead, inside the reach of the ZMP: the ankles suffice (Proposition 7.5).
+
+    After 0.5 m/s it is $0.16$ m ahead, beyond 0.12 m: the robot must step. The time constant is $1/\omega \approx 0.32$ s.
+
+6.  **★★ Holding a load.** The arm of Example 1.4, with massless links, holds a 1 kg mass at the tip in the configuration $q = (0.4, 1.1)$. Compute the joint torques with Proposition 1.6, and interpret each one as a weight times a lever arm. Which configurations of the same tip height minimise the shoulder torque?
+
+    *Solution*: the arm must push up with $f = (0, 9.81)$ N, so
+    $$
+    \tau = J^\top f = 9.81 \begin{pmatrix} l_1 \cos q_1 + l_2 \cos(q_1 + q_2) \\ l_2 \cos(q_1 + q_2) \end{pmatrix} \approx \begin{pmatrix} 9.59 \\ 0.555 \end{pmatrix} \text{N m}.
+    $$
+
+    Each torque is the weight times the horizontal distance from the joint to the load: $\tau_1 = 9.81\, x$. The shoulder torque is therefore minimal, and zero, when the load is directly above the shoulder ($x = 0$), if the tip height is reachable there.
+
+7.  **★★ Two tasks without interference.** Let $P_1 = I - J_1^+ J_1$ and $\dot q = J_1^+ v_1 + (J_2 P_1)^+ (v_2 - J_2 J_1^+ v_1)$, with $J_1$ of full row rank. Prove that the first task is always met exactly, and that the second one is met too when $J_2 P_1$ has full row rank.
+
+    *Solution*: the range of $(J_2 P_1)^+$ is the range of $(J_2 P_1)^\top = P_1 J_2^\top$, contained in the range of $P_1$, which is $\ker J_1$ (Proposition 3.3). Hence $J_1 (J_2 P_1)^+ = 0$ and $J_1 \dot q = J_1 J_1^+ v_1 = v_1$.
+
+    For the second task, $P_1 (J_2 P_1)^+ = (J_2 P_1)^+$ because $P_1$ is a projector onto a space containing that range. So
+    $$
+    J_2 (J_2 P_1)^+ = J_2 P_1 (J_2 P_1)^+ = I
+    $$
+    under the rank assumption, and $J_2 \dot q = J_2 J_1^+ v_1 + v_2 - J_2 J_1^+ v_1 = v_2$.
+
+8.  **★★ The scalar Riccati equation.** For $x_{t+1} = a x_t + b u_t$ with $a = 1.2$, $b = 1$, $q = r = 1$, solve the stationary Riccati equation and give the gain and the closed-loop pole.
+
+    Then show that when $r \to \infty$ (expensive control) and $|a| > 1$, the closed-loop pole tends to $1/a$.
+
+    *Solution*: multiplying the equation by $1 + p$ gives $p^2 - 1.44 p - 1 = 0$, so $p \approx 1.952$, $K = 1.2 p / (1 + p) \approx 0.794$, and the pole is $a - b K \approx 0.406$.
+
+    For large $r$, write $p = r s$ and divide by $r$. In the limit, $s = a^2 s - a^2 b^2 s^2 / (1 + b^2 s)$. Since $s \neq 0$ for an unstable system, $1 + b^2 s = a^2$, hence
+    $$
+    K \to \frac{a^2 - 1}{a b}, \qquad a - b K \to \frac{1}{a} .
+    $$
+    The cheapest stabilising controller mirrors the unstable pole inside the unit circle; here $1/1.2 \approx 0.833$.
+
+9.  **★★ Minimum-energy transfer, general case.** Redo Example 4.6 for a transfer of length $D$ in time $T$. How does the optimal cost scale with $T$? What does that say about fast motions?
+
+    *Solution*: the same steps give $u(t) = a + b t$, and the four boundary conditions yield
+    $$
+    u(t) = \frac{6 D}{T^2} \Big( 1 - \frac{2 t}{T} \Big), \qquad \int_0^T u^2\, dt = \frac{12 D^2}{T^3} .
+    $$
+    Halving the duration multiplies the energy by eight, and the peak acceleration $6 D / T^2$ by four: fast motions quickly hit torque limits.
+
+10. **★★ The best constant baseline.** For the estimator $\hat g = s\, (G - b)$, where $s = \nabla_\theta \log \pi_\theta$ is a scalar score and $b$ a constant, show that $\hat g$ is unbiased for every $b$.
+
+    Find the $b$ that minimises its variance, and check that $\mathbb{E}[s] = 0$ for the policy of Example 6.3.
+
+    *Solution*: $\mathbb{E}[s\, b] = b\, \mathbb{E}[s] = 0$ by the identity in the proof of Theorem 6.2, so the mean does not depend on $b$. The second moment $\mathbb{E}[s^2 (G - b)^2]$ is a quadratic in $b$, minimal at
+    $$
+    b^\star = \frac{\mathbb{E}[s^2 G]}{\mathbb{E}[s^2]} ,
+    $$
+    a score-weighted average of the costs. For Example 6.3, $\mathbb{E}[-\varepsilon x / \sigma] = 0$ because $\varepsilon$ is centred and independent of $x$.
+
+11. **★★ Why walking needs preview.** Prove that the only solution of $\dot \xi = \omega (\xi - z)$ that stays bounded for a bounded ZMP $z$ is $\xi(t) = \omega \int_t^\infty e^{-\omega (s - t)} z(s)\, ds$. Apply it to a ZMP that jumps from 0 to $d$ at time $t_1$ (a step), and interpret.
+
+    *Solution*: the difference of two solutions is $C e^{\omega t}$, bounded only if $C = 0$. The given formula is bounded by $\sup |z|$, and differentiating it gives $\dot \xi = -\omega z(t) + \omega \xi(t)$.
+
+    For the step, $\xi(t) = d\, e^{-\omega (t_1 - t)}$ for $t < t_1$. The divergent component, hence the CoM, starts moving towards the new foot before the step, with a lead time of order $1/\omega$ — what the code of ch. 7 shows.
+
+12. **★★ The safety filter in closed form.** Show that the solution of $\min_u \|u - u_{\mathrm{nom}}\|^2$ subject to $a^\top u \geq \beta$, with $a \neq 0$, is
+    $$
+    u^\star = u_{\mathrm{nom}} + \max\big(0, \ \beta - a^\top u_{\mathrm{nom}}\big) \frac{a}{\|a\|^2} .
+    $$
+    Identify $a$ and $\beta$ in the code of ch. 8.
+
+    *Solution*: if $u_{\mathrm{nom}}$ is feasible, it is optimal. Otherwise the constraint is active at the optimum (a convex problem whose unconstrained minimiser is infeasible). Proposition 0.4 with the single equality $a^\top u = \beta$ gives $u = u_{\mathrm{nom}} + \nu a$ with $\nu = (\beta - a^\top u_{\mathrm{nom}}) / \|a\|^2 > 0$.
+
+    In the code, $a = \nabla h(x) = 2 (x - c)$ and $\beta = -\alpha h(x)$, and `slack` is $a^\top u_{\mathrm{nom}} - \beta$.
+
+13. **★★ Damped least squares near a singularity (Python).** Put the two-link arm almost stretched, $q = (0, 0.01)$, and ask the tip to move towards the base at 0.1 m/s. Compare the joint velocities and the task error given by the pseudo-inverse and by damped least squares with $\lambda = 10^{-4}$ and $10^{-2}$. Explain the results with Proposition 0.3.
+
+    *Hints and expected result*: the smallest singular value of $J$ is about $0.004$. The pseudo-inverse asks for about 25 rad/s, physically impossible, to track the task exactly.
+
+    With $\lambda = 10^{-4}$, the joint speed drops to about 3.5 rad/s and the task is tracked only partially. With $\lambda = 10^{-2}$, the arm barely moves. The factor $\sigma / (\sigma^2 + \lambda)$ replaces $1/\sigma$: damping trades accuracy for bounded speeds.
+
+    ```python
+    import numpy as np
+
+    l1, l2 = 1.0, 0.8
+
+    def jac(q):
+        s1, c1, s12, c12 = np.sin(q[0]), np.cos(q[0]), np.sin(q.sum()), np.cos(q.sum())
+        return np.array([[-l1 * s1 - l2 * s12, -l2 * s12], [l1 * c1 + l2 * c12, l2 * c12]])
+
+    q = np.array([0.0, 0.01])            # arm almost stretched along the x axis
+    v = np.array([-0.1, 0.0])            # move the tip towards the base: the nearly singular direction
+    J = jac(q)
+    print("singular values of J:", np.round(np.linalg.svd(J, compute_uv=False), 5))
+    for lam in [0.0, 1e-4, 1e-2]:
+        dq = J.T @ np.linalg.solve(J @ J.T + lam * np.eye(2), v)
+        print(f"lambda = {lam:g}: |dq| = {np.linalg.norm(dq):7.3f} rad/s, "
+              f"task velocity error {np.linalg.norm(J @ dq - v):.4f} m/s")
+    ```
+
+14. **★★ Is my Kalman filter consistent? (Python).** For a consistent filter, the normalised estimation error squared $e^\top P^{-1} e$, with $e = x - m$, has mean equal to the state dimension. Check it by Monte Carlo on the constant-velocity model of ch. 5. Then give the filter a process-noise covariance one hundred times too small.
+
+    *Hints and expected result*: with the right noise model, the average is 2.00. With the underestimated noise, it is about 72: the filter is overconfident, and in a real robot it would reject valid measurements as outliers. This test is the standard way to tune $Q$ and $R$.
+
+    ```python
+    import numpy as np
+
+    rng = np.random.default_rng(2)
+    dt, n, runs, sa, sr = 0.1, 100, 500, 0.5, 1.0
+    F, H = np.array([[1.0, dt], [0.0, 1.0]]), np.array([[1.0, 0.0]])
+    G = np.array([dt**2 / 2, dt])                    # a random acceleration enters through G
+    Q = sa**2 * np.outer(G, G)
+
+    def average_nees(Q_filter):
+        """Average over runs of e^T P^-1 e at the last step (should be about 2 if consistent)."""
+        x = rng.standard_normal((runs, 2))           # true initial states, prior N(0, I)
+        m, P = np.zeros((runs, 2)), np.eye(2)
+        for _ in range(n):
+            x = x @ F.T + sa * np.outer(rng.standard_normal(runs), G)
+            y = x[:, 0] + sr * rng.standard_normal(runs)
+            m, P = m @ F.T, F @ P @ F.T + Q_filter
+            S = P[0, 0] + sr**2
+            K = P[:, 0] / S
+            m = m + np.outer(y - m[:, 0], K)
+            P = P - np.outer(K, P[0, :])
+        e = x - m
+        return np.mean(np.einsum("ri,ij,rj->r", e, np.linalg.inv(P), e))
+
+    print(f"correct Q:        NEES = {average_nees(Q):.2f}  (dimension 2)")
+    print(f"Q divided by 100: NEES = {average_nees(Q / 100):.2f}  (overconfident filter)")
+    ```
+
+15. **★★★ Constrained walking pattern generation with a push (Python).** Extend the code of ch. 7: add the constraints $|z_k - z_{\mathrm{ref}, k}| \leq 0.05$ m (the foot) and solve the QP at each period, for instance with `scipy.optimize.minimize` (method SLSQP) or a small active-set solver. Apply a lateral push (a jump of the CoM velocity) at $t = 4$ s and find the largest push the generator can absorb without violating the constraints. Then let the next footstep position be a decision variable, as in Herdt and coauthors (2010).
+
+    *Hints and expected result*: with fixed footsteps, the QP becomes infeasible beyond a push for which the capture point leaves the reachable ZMP region (Proposition 7.5). Report this threshold as a function of the foot half-width. With a free footstep, the admissible push grows markedly. A clean figure of the CoM, ZMP and footsteps with and without the push is the expected deliverable.
+
+16. **★★★ Invariant versus standard EKF (self-study, ch. 5 and ch. 9).** Simulate a unicycle in the plane, $\dot \theta = \omega$ and $\dot p = R(\theta) (v, 0)$, measured by noisy odometry $(v, \omega)$ and noisy GPS positions.
+
+    Implement the standard EKF on $(\theta, p)$ and an invariant EKF on $SE(2)$, choosing between the errors $\hat g\, g^{-1}$ and $g^{-1} \hat g$ according to the form of the GPS measurement, as Barrau and Bonnabel (2017) explain. Compare the two filters from an initial heading error of 90 degrees.
+
+    *Hints and expected result*: the dynamics are group-affine, so the invariant error propagates independently of the estimate. Expect the invariant EKF to converge from large heading errors where the standard EKF can become inconsistent — its covariance shrinks while its error does not. Plot the error and the normalised error of ex. 14 for both filters over 100 runs.
+
+17. **★★★ A responsible-robotics case study (ch. 8).** A team plans to deploy a sidewalk delivery robot in a city. Write a two-page analysis organised by the four dimensions of Stilgoe and coauthors (2013). Add one quantitative element: how many independent trials without a single failure are needed to claim, with 95 % confidence, a failure probability below 1 %?
+
+    *Hints and expected result*: with zero failures in $n$ trials, the one-sided bound requires $0.99^n \leq 0.05$, that is $n \geq 299$ — the “rule of three”, $3/n$. The analysis should name the stakeholders (pedestrians, people with reduced mobility, couriers, the city) and the sensing and privacy issues of the cameras. It should also say which safety guarantees are model-based (barrier functions, speed limits) and which are only statistical.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) combines weekly homework (20 %) with a project or an article study (80 %). The final exam is a 4 h student seminar where projects and reports are presented; the Université Paris-Saclay course detail calls this a non-integral continuous assessment. The subjects below are sized for the 80 % component, and each ends with a talk for the seminar. The homework suggested in the [session plan](#sessions) fits the 20 % component. The written exam is only a self-assessment proposal: the official assessment includes none.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Paper study: the capture point.** Reproduce the capture-point analysis of Pratt, Carff, Drakunov and Goswami (2006) on the linear inverted pendulum. Compute the capture region for a finite foot and a minimum step time, then simulate push recovery with ankle control and with stepping.
+    -   Extension: compare with the divergent-component controller of Englsberger, Ott and Albu-Schäffer (2015).
+    -   Success criterion: the largest recoverable push as a function of foot size and step time, matching Proposition 7.5.
+    -   Deliverables: code, 4–6 page report, 10-minute talk at the final seminar. Chapters 7 and 4.
+
+2.  **[Solo · ≈ 20 h] Paper study: the invariant extended Kalman filter.** Study Barrau and Bonnabel (2017): restate their stability theorem for group-affine systems and check its hypotheses on a synthetic navigation problem — a vehicle with gyroscope, odometry and position measurements. Implement the standard and the invariant EKF.
+    -   Success criterion: over 100 runs with random initial headings up to 180 degrees, the invariant EKF brings the heading error below 5 degrees within 60 s in at least 95 runs, with an average normalised error (Exercise 14) in the 95 % chi-square band. A figure shows where the standard EKF fails either test.
+    -   Deliverables: code, 4–6 page report, 10-minute talk. Chapters 0 and 5.
+
+3.  **[Solo · ≈ 20 h] Asymptotic optimality of RRT\*.** Implement RRT and RRT\* (Karaman and Frazzoli, 2011) in the plane and in a three-dimensional configuration space with obstacles. Compute the optimal cost independently, by a visibility graph in the plane or a fine grid with A\* in 3D.
+    -   Success criterion: a plot of the cost against the number of samples over 50 seeds, showing the RRT plateau above the optimum. In the plane, the median RRT\* cost is within 5 % of the visibility-graph optimum at 10,000 samples. A second plot shows the effect of the rewiring radius.
+    -   Deliverables: code, 4–6 page report, 10-minute talk. Chapter 2.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 2–3 · ≈ 30 h each] Cart-pole: optimal control against reinforcement learning.** Derive the cart-pole dynamics with Theorem 1.7 and write a simulator with an energy test. Swing up with iLQR and stabilise with LQR and MPC under a force limit. Train a policy by REINFORCE or PPO in the same simulator, with and without randomisation of the masses.
+    -   Split: member A writes the model and the simulator; B the optimal control and MPC; C the learning and the robustness study.
+    -   Success criterion: swing-up from rest in at most 5 s under the force limit; success rate against mass mismatch for both controllers, with confidence intervals (Example 8.3); number of simulated samples used by each.
+    -   Deliverables: shared repository, 8–10 page report, 20-minute talk. Chapters 1, 4, 6 and 8.
+
+2.  **[Group of 2–3 · ≈ 30 h each] A walking pattern generator with whole-body kinematics.** Implement the linear MPC of Wieber (2006) with ZMP constraints as a QP, then the automatic footstep placement of Herdt and coauthors (2010). Track the sagittal CoM and foot trajectories on a planar five-link biped with task-priority inverse kinematics.
+    -   Split: A writes the MPC and the QP solver; B the kinematic model and the inverse kinematics; C the evaluation (pushes, constraint checks, visualisation).
+    -   Success criterion: ten steps without ZMP violation, with a tracking error below 1 cm. Report the largest forward push absorbed with fixed and with free footsteps; the free footsteps must absorb a strictly larger one.
+    -   Deliverables: shared repository, 8–10 page report, 20-minute talk. Chapters 3, 4 and 7.
+
+3.  **[Group of 3 · ≈ 30 h each] A safe mobile robot: estimate, plan, control and filter.** In a simulated 2D world with static obstacles and moving pedestrians, localise a unicycle by EKF from odometry and range–bearing landmarks. Plan with A\* or RRT\*, track the path by MPC, and protect it with a control-barrier safety filter.
+    -   Split: one member per layer (estimation, planning and control, safety), with shared interfaces fixed in the first week.
+    -   Success criterion: zero collisions in 300 randomised trials — which supports a failure probability below 1 % with 95 % confidence (Exercise 17) — and the arrival rate and time, with and without the filter.
+    -   Deliverables: shared repository, 8–10 page report including a responsible-innovation section (ch. 8), 20-minute talk. Chapters 2, 4, 5 and 8.
+
+### Written exam (proposal) {#projects-exam}
+
+Format: 3 hours, one handwritten A4 sheet allowed, no electronic devices, four exercises. Not part of the official assessment.
+
+1.  **Question (4 points).** Define the zero-moment point of a robot standing on flat ground, and prove that it lies in the support polygon. Explain why keeping the ZMP inside the polygon is not sufficient for a robot to come to rest, using the linear inverted pendulum.
+
+    *Expected*: the definition as the barycentre of the contact points weighted by the normal forces; the convex-combination argument; the equation $\dot \xi = \omega (\xi - z)$, showing that the CoM comes to rest only if the ZMP can reach the capture point (Proposition 7.5).
+
+2.  **Question (6 points).** A planar two-link arm has $l_1 = l_2 = 1$ m. At $q = (\pi/2, -\pi/2)$: (a) give the position of the end effector and the Jacobian; (b) list all singular configurations of the arm; (c) compute the joint torques that exert the force $f = (1, 0)$ N; (d) find the joint velocities that move the end effector up at 1 m/s.
+
+    *Expected*: (a) position $(1, 1)$ and
+    $$
+    J = \begin{pmatrix} -1 & 0 \\ 1 & 1 \end{pmatrix};
+    $$
+    (b) $q_2 \in \{0, \pi\}$, from $\det J = \sin q_2$; (c) $\tau = J^\top f = (-1, 0)$ N m, each torque being the force times the vertical lever arm; (d) $\dot q = (0, 1)$ rad/s.
+
+3.  **Question (5 points).** State and prove the global asymptotic stability of PD control with gravity compensation for a fully actuated robot. Say exactly where the skew-symmetry of $\dot M - 2C$ is used, and what happens without gravity compensation.
+
+    *Expected*: the Lyapunov function $\tfrac12 \dot q^\top M \dot q + \tfrac12 e^\top K_p e$, the derivative $-\dot q^\top K_d \dot q$ after the skew-symmetric term cancels, then LaSalle (Theorem 3.6). Without compensation, the equilibrium satisfies $K_p e = g(q)$: a steady-state error that a larger $K_p$ reduces but does not remove.
+
+4.  **Question (5 points).** For $x_{t+1} = x_t + u_t$ with stage cost $x^2 + u^2$, compute the stationary LQR gain and the closed-loop pole. Then, for the estimation problem $x_{k+1} = x_k + w_k$ and $y_k = x_k + v_k$ with unit noise variances, compute the stationary predicted variance and the Kalman gain. Comment.
+
+    *Expected*: the Riccati equation is $p^2 - p - 1 = 0$, so $p \approx 1.618$, $K = p / (1 + p) \approx 0.618$ and the pole is $0.382$. The predicted variance solves the same equation, giving the same gain 0.618: an instance of the duality between control and estimation (ch. 5).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Problem statement and modelling | 15 % | a precise question, a model stated with its assumptions (dynamics, noise, contacts), a clear success criterion |
+| Correctness and rigour | 25 % | correct equations and algorithms; the results of the course used with their hypotheses checked; proofs or derivations where the subject asks for them |
+| Implementation and reproducibility | 20 % | code that runs from a clean environment, fixed seeds, tests (energy, finite differences, consistency), a README |
+| Experiments and evaluation | 20 % | baselines, several seeds or trials, confidence intervals, figures that answer the question, failures reported |
+| Report and seminar talk | 10 % | a 4–10 page report and a talk within time that a classmate can follow; answers to questions |
+| Critical discussion and responsibility | 10 % | limitations, sim-to-real issues, safety and responsible-innovation questions of ch. 8 applied to the project |
+
+## References {#refs}
+
+### Official references (master-mva.com)
+
+-   Murray, R. M., Li, Z., & Sastry, S. S. (2017). *A Mathematical Introduction to Robotic Manipulation*. CRC Press.
+-   Liberzon, D. (2011). *Calculus of Variations and Optimal Control Theory: A Concise Introduction*. Princeton University Press.
+-   Barfoot, T. D. (2017). *State Estimation for Robotics*. Cambridge University Press.
+-   Kajita, S., Hirukawa, H., Harada, K., & Yokoi, K. (2014). *Introduction to Humanoid Robotics*. Springer.
+
+### Textbooks
+
+-   Bertsekas, D. P. (2017). *Dynamic Programming and Optimal Control*, Vol. I (4th ed.). Athena Scientific.
+-   Featherstone, R. (2008). *Rigid Body Dynamics Algorithms*. Springer.
+-   Hartley, R., & Zisserman, A. (2004). *Multiple View Geometry in Computer Vision* (2nd ed.). Cambridge University Press.
+-   Khalil, H. K. (2002). *Nonlinear Systems* (3rd ed.). Prentice Hall.
+-   LaValle, S. M. (2006). *Planning Algorithms*. Cambridge University Press.
+-   Lynch, K. M., & Park, F. C. (2017). *Modern Robotics: Mechanics, Planning, and Control*. Cambridge University Press.
+-   Nocedal, J., & Wright, S. J. (2006). *Numerical Optimization* (2nd ed.). Springer.
+-   Rawlings, J. B., Mayne, D. Q., & Diehl, M. (2017). *Model Predictive Control: Theory, Computation, and Design* (2nd ed.). Nob Hill Publishing.
+-   Siciliano, B., Sciavicco, L., Villani, L., & Oriolo, G. (2009). *Robotics: Modelling, Planning and Control*. Springer.
+-   Sutton, R. S., & Barto, A. G. (2018). *Reinforcement Learning: An Introduction* (2nd ed.). MIT Press.
+-   Thrun, S., Burgard, W., & Fox, D. (2005). *Probabilistic Robotics*. MIT Press.
+
+### Papers
+
+-   Ames, A. D., Xu, X., Grizzle, J. W., & Tabuada, P. (2017). Control barrier function based quadratic programs for safety critical systems. *IEEE Transactions on Automatic Control*.
+-   Ames, A. D., Coogan, S., Egerstedt, M., Notomista, G., Sreenath, K., & Tabuada, P. (2019). Control barrier functions: Theory and applications. *European Control Conference (ECC)*.
+-   Barrau, A., & Bonnabel, S. (2017). The invariant extended Kalman filter as a stable observer. *IEEE Transactions on Automatic Control*.
+-   Besl, P. J., & McKay, N. D. (1992). A method for registration of 3-D shapes. *IEEE Transactions on Pattern Analysis and Machine Intelligence*.
+-   Bobrow, J. E., Dubowsky, S., & Gibson, J. S. (1985). Time-optimal control of robotic manipulators along specified paths. *The International Journal of Robotics Research*.
+-   Bonnabel, S., Martin, P., & Rouchon, P. (2008). Symmetry-preserving observers. *IEEE Transactions on Automatic Control*.
+-   Brockett, R. W. (1984). Robotic manipulators and the product of exponentials formula. In *Mathematical Theory of Networks and Systems*, Lecture Notes in Control and Information Sciences 58, Springer.
+-   Brohan, A., et al. (2023). RT-2: Vision-language-action models transfer web knowledge to robotic control. *Conference on Robot Learning (CoRL)*.
+-   Carpentier, J., & Mansard, N. (2018). Analytical derivatives of rigid body dynamics algorithms. *Robotics: Science and Systems (RSS)*.
+-   Carpentier, J., Saurel, G., Buondonno, G., Mirabel, J., Lamiraux, F., Stasse, O., & Mansard, N. (2019). The Pinocchio C++ library: A fast and flexible implementation of rigid body dynamics algorithms and their analytical derivatives. *IEEE/SICE International Symposium on System Integration (SII)*.
+-   Chi, C., et al. (2023). Diffusion policy: Visuomotor policy learning via action diffusion. *Robotics: Science and Systems (RSS)*.
+-   Dellaert, F., & Kaess, M. (2017). Factor graphs for robot perception. *Foundations and Trends in Robotics*.
+-   Englsberger, J., Ott, C., & Albu-Schäffer, A. (2015). Three-dimensional bipedal walking control based on divergent component of motion. *IEEE Transactions on Robotics*.
+-   Escande, A., Mansard, N., & Wieber, P.-B. (2014). Hierarchical quadratic programming: Fast online humanoid-robot motion generation. *The International Journal of Robotics Research*.
+-   Haarnoja, T., Zhou, A., Abbeel, P., & Levine, S. (2018). Soft actor-critic: Off-policy maximum entropy deep reinforcement learning with a stochastic actor. *International Conference on Machine Learning (ICML)*.
+-   Hart, P. E., Nilsson, N. J., & Raphael, B. (1968). A formal basis for the heuristic determination of minimum cost paths. *IEEE Transactions on Systems Science and Cybernetics*.
+-   Hartley, R., Ghaffari, M., Eustice, R. M., & Grizzle, J. W. (2020). Contact-aided invariant extended Kalman filtering for robot state estimation. *The International Journal of Robotics Research*.
+-   Herdt, A., Diedam, H., Wieber, P.-B., Dimitrov, D., Mombaur, K., & Diehl, M. (2010). Online walking motion generation with automatic footstep placement. *Advanced Robotics*.
+-   Hwangbo, J., Lee, J., Dosovitskiy, A., Bellicoso, D., Tsounis, V., Koltun, V., & Hutter, M. (2019). Learning agile and dynamic motor skills for legged robots. *Science Robotics*.
+-   Kajita, S., Kanehiro, F., Kaneko, K., Yokoi, K., & Hirukawa, H. (2001). The 3D linear inverted pendulum mode: A simple modeling for a biped walking pattern generation. *IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*.
+-   Kajita, S., Kanehiro, F., Kaneko, K., Fujiwara, K., Harada, K., Yokoi, K., & Hirukawa, H. (2003). Biped walking pattern generation by using preview control of zero-moment point. *IEEE International Conference on Robotics and Automation (ICRA)*.
+-   Kalman, R. E. (1960). A new approach to linear filtering and prediction problems. *Journal of Basic Engineering*.
+-   Karaman, S., & Frazzoli, E. (2011). Sampling-based algorithms for optimal motion planning. *The International Journal of Robotics Research*.
+-   Kavraki, L. E., Švestka, P., Latombe, J.-C., & Overmars, M. H. (1996). Probabilistic roadmaps for path planning in high-dimensional configuration spaces. *IEEE Transactions on Robotics and Automation*.
+-   Khatib, O. (1986). Real-time obstacle avoidance for manipulators and mobile robots. *The International Journal of Robotics Research*.
+-   Kuindersma, S., Deits, R., Fallon, M., Valenzuela, A., Dai, H., Permenter, F., Koolen, T., Marion, P., & Tedrake, R. (2016). Optimization-based locomotion planning, estimation, and control design for the Atlas humanoid robot. *Autonomous Robots*.
+-   LaValle, S. M. (1998). Rapidly-exploring random trees: A new tool for path planning. Technical Report TR 98-11, Computer Science Department, Iowa State University.
+-   LaValle, S. M., & Kuffner, J. J. (2001). Randomized kinodynamic planning. *The International Journal of Robotics Research*.
+-   Lee, J., Hwangbo, J., Wellhausen, L., Koltun, V., & Hutter, M. (2020). Learning quadrupedal locomotion over challenging terrain. *Science Robotics*.
+-   Li, W., & Todorov, E. (2004). Iterative linear quadratic regulator design for nonlinear biological movement systems. *International Conference on Informatics in Control, Automation and Robotics (ICINCO)*.
+-   Mastalli, C., Budhiraja, R., Merkt, W., Saurel, G., Hammoud, B., Naveau, M., Carpentier, J., Righetti, L., Vijayakumar, S., & Mansard, N. (2020). Crocoddyl: An efficient and versatile framework for multi-contact optimal control. *IEEE International Conference on Robotics and Automation (ICRA)*.
+-   Mayne, D. (1966). A second-order gradient method for determining optimal trajectories of non-linear discrete-time systems. *International Journal of Control*.
+-   Mayne, D. Q., Rawlings, J. B., Rao, C. V., & Scokaert, P. O. M. (2000). Constrained model predictive control: Stability and optimality. *Automatica*.
+-   Miki, T., Lee, J., Hwangbo, J., Wellhausen, L., Koltun, V., & Hutter, M. (2022). Learning robust perceptive locomotion for quadrupedal robots in the wild. *Science Robotics*.
+-   Nakamura, Y., & Hanafusa, H. (1986). Inverse kinematic solutions with singularity robustness for robot manipulator control. *Journal of Dynamic Systems, Measurement, and Control*.
+-   Nakamura, Y., Hanafusa, H., & Yoshikawa, T. (1987). Task-priority based redundancy control of robot manipulators. *The International Journal of Robotics Research*.
+-   Pratt, J., Carff, J., Drakunov, S., & Goswami, A. (2006). Capture point: A step toward humanoid push recovery. *IEEE-RAS International Conference on Humanoid Robots*.
+-   Reif, J. H. (1979). Complexity of the mover's problem and generalizations. *IEEE Symposium on Foundations of Computer Science (FOCS)*.
+-   Ross, S., & Bagnell, D. (2010). Efficient reductions for imitation learning. *International Conference on Artificial Intelligence and Statistics (AISTATS)*.
+-   Ross, S., Gordon, G., & Bagnell, D. (2011). A reduction of imitation learning and structured prediction to no-regret online learning. *International Conference on Artificial Intelligence and Statistics (AISTATS)*.
+-   Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). Proximal policy optimization algorithms. arXiv:1707.06347.
+-   Siciliano, B., & Slotine, J.-J. E. (1991). A general framework for managing multiple tasks in highly redundant robotic systems. *International Conference on Advanced Robotics (ICAR)*.
+-   Solà, J., Deray, J., & Atchuthan, D. (2018). A micro Lie theory for state estimation in robotics. arXiv:1812.01537.
+-   Stewart, D. E., & Trinkle, J. C. (1996). An implicit time-stepping scheme for rigid body dynamics with inelastic collisions and Coulomb friction. *International Journal for Numerical Methods in Engineering*.
+-   Stilgoe, J., Owen, R., & Macnaghten, P. (2013). Developing a framework for responsible innovation. *Research Policy*.
+-   Takegaki, M., & Arimoto, S. (1981). A new feedback method for dynamic control of manipulators. *Journal of Dynamic Systems, Measurement, and Control*.
+-   Tobin, J., Fong, R., Ray, A., Schneider, J., Zaremba, W., & Abbeel, P. (2017). Domain randomization for transferring deep neural networks from simulation to the real world. *IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*.
+-   Todorov, E., Erez, T., & Tassa, Y. (2012). MuJoCo: A physics engine for model-based control. *IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*.
+-   Todorov, E. (2014). Convex and analytically-invertible dynamics with contacts and constraints: Theory and implementation in MuJoCo. *IEEE International Conference on Robotics and Automation (ICRA)*.
+-   Umeyama, S. (1991). Least-squares estimation of transformation parameters between two point patterns. *IEEE Transactions on Pattern Analysis and Machine Intelligence*.
+-   Vukobratović, M., & Borovac, B. (2004). Zero-moment point — thirty five years of its life. *International Journal of Humanoid Robotics*.
+-   Wampler, C. W. (1986). Manipulator inverse kinematic solutions based on vector formulations and damped least-squares methods. *IEEE Transactions on Systems, Man, and Cybernetics*.
+-   Wensing, P. M., Posa, M., Hu, Y., Escande, A., Mansard, N., & Del Prete, A. (2024). Optimization-based control for dynamic legged robots. *IEEE Transactions on Robotics*.
+-   Wieber, P.-B. (2006). Trajectory free linear model predictive control for stable walking in the presence of strong perturbations. *IEEE-RAS International Conference on Humanoid Robots*.
+-   Williams, R. J. (1992). Simple statistical gradient-following algorithms for connectionist reinforcement learning. *Machine Learning*.
