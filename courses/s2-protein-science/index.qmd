@@ -137,8 +137,8 @@ The organisation is six lectures of three hours plus one computer practical, whi
 | Lecture 7 — Spatial partitions and applications | [ch. 7](#ch7) |
 | 7 · Random projection trees | Section 7.1 (Definition 7.1, Lemma 7.2, Theorems 7.3 and 7.4) |
 | 7 · Applications to nearest neighbor finding, regression, dimension estimation | Section 7.2 (Proposition 7.5, Code 7.6) |
-| 7 · Shapley–Shubik indices for tree-like structures | Section 7.3 (Definitions 7.7 and 7.9, Theorem 7.8, Example 7.10, Definition 7.11) |
-| 7 · Applications to feature selection and mixing assessment | Section 7.4 (Code 7.12) |
+| 7 · Shapley–Shubik indices for tree-like structures | Section 7.3 (Definitions 7.7 and 7.9, Theorem 7.8, Example 7.10, Definition 7.11, Proposition 7.12 for decision trees), proof in Section 8.7 |
+| 7 · Applications to feature selection and mixing assessment | Section 7.4 (Code 7.13) |
 | Theme: proteins | [ch. 1](#ch1), [ch. 2](#ch2), [ch. 5](#ch5) |
 | Theme: molecular conformations | Sections 1.1–1.2, [ch. 3](#ch3), [ch. 5](#ch5) |
 | Theme: thermodynamics | Section 1.4, Section 0.2, Section 6.4 |
@@ -190,7 +190,7 @@ Level 1 = foundations, 2 = core methods, 3 = advanced material close to research
 | 4 | 3 h | 2 | ch. 4 Maximum entropy and Potts models, pseudo-likelihood, Gibbs and autoregressive samplers, Potts versus factored attention, protein design (4.1–4.4) | Ex. 11, 12, 20; Code 4.6 |
 | 5 | 3 h | 2 | ch. 5 Computer practical: visualisation, structure prediction, distances and alignments, loop sampling (5.1–5.4) | Codes 5.1, 5.4; Ex. 17 started |
 | 6 | 3 h | 3 | ch. 6 Polytope volumes, hardness, hit-and-run, multiphase Monte Carlo, PDMPs, Wang–Landau (6.1–6.4) | Ex. 6, 13, 14, 15, 19; Codes 6.9, 6.15 |
-| 7 | 3 h | 3 | ch. 7 Random projection trees, nearest neighbours and dimension, Shapley and Shapley–Shubik values, mixing assessment (7.1–7.4) | Ex. 5, 16, 18; Codes 7.6, 7.12 |
+| 7 | 3 h | 3 | ch. 7 Random projection trees, nearest neighbours and dimension, Shapley and Shapley–Shubik values, mixing assessment (7.1–7.4) | Ex. 5, 16, 18; Codes 7.6, 7.13 |
 
 **Self-study, outside the 21 h** (about 7 h in total): ch. 0 Review — to read before session 1 (≈ 2 h, with Code 0.9) · ch. 8 Complements — the 1D Eyring–Kramers formula, pseudo-likelihood, PDMP invariance, Wang–Landau as stochastic approximation (≈ 3 h) · ch. 9 Research directions and open problems (≈ 2 h).
 
@@ -847,7 +847,7 @@ The code prints a global RMSD of 3.98 Å, but 0.43 Å on residues 0–39, with G
 
 A single hinge inflates the global RMSD, while GDT_TS and the TM-score see that two thirds of the chain are almost exact; CASP therefore ranks models with GDT and lDDT.
 
-The limits matter here. AlphaFold2 returns one structure per sequence, its accuracy drops with shallow MSAs, and a low pLDDT often marks disorder. It does not predict the populations of alternative conformations, the subject of ch. 3, ch. 4 and ch. 6.
+AlphaFold2 returns one structure per sequence, its accuracy drops with shallow MSAs, and a low pLDDT often marks disorder. It does not predict the populations of alternative conformations, the subject of ch. 3, ch. 4 and ch. 6.
 
 ::: recap
 Key takeaways — chapter 2
@@ -1006,14 +1006,14 @@ The area formula for a graph gives the volume element $\sqrt{\det(I + J_k^\top J
 :::
 ::::
 
-The matrix $J_k$ follows from implicit differentiation of $F(\theta_F, g_k(\theta_F)) = T^\star$. A sampler that ignores this factor is biased towards the regions where the closure set is steep. Conditioning a density on closure adds a second factor (Section 8.6).
+The matrix $J_k$ follows from implicit differentiation of $F(\theta_F, g_k(\theta_F)) = T^\star$. A sampler that ignores this factor under-samples the regions where the closure set is steep, where a small range of $\theta_F$ covers a large area. Conditioning a density on closure adds a second factor (Section 8.6).
 
 ::: thm
 [Algorithm 3.8 — Loop sampling by closure and reweighting]{.tag}
 
 1.  Draw the free dihedrals $\theta_F$ from a prior $p$, for example a mixture fitted to the Ramachandran plot (Section 3.4).
-2.  Solve the closure for $\theta_C$: all roots for a tripeptide (Theorem 3.6), or a local solver for longer loops.
-3.  Give each solution the weight $\pi(\theta)/q(\theta)$, with $q$ from Proposition 3.7 and $\pi$ the target density on the closure set.
+2.  Solve the closure for $\theta_C$ and keep every solution: all roots for a tripeptide (Theorem 3.6), or those found by a local solver for longer loops.
+3.  Give each solution the weight $\pi(\theta) / (K(\theta_F)\, q(\theta))$, with $q$ from Proposition 3.7 and $\pi$ the target density on the closure set. Keeping all $K(\theta_F)$ solutions, instead of one chosen uniformly, removes the factor $1/K$ of $q$.
 4.  Resample with these weights, or use the construction as a proposal inside a Metropolis–Hastings chain (Algorithm 0.8).
 :::
 
@@ -1418,7 +1418,7 @@ Key takeaways — chapter 5
 
 ## 6. High-dimensional sampling: volumes of polytopes and densities of states {#ch6}
 
-How large is a region of a high-dimensional space, and how can it be sampled? Polytopes are the simplest test case. This chapter shows that exact computation is hopeless, then builds the random walks and estimators that work, and carries them over to densities of states.
+How large is a region of a high-dimensional space, and how can it be sampled? On polytopes, this chapter shows that exact computation is hopeless, builds the random walks and estimators that work, and carries them over to densities of states.
 
 ### 6.1 Polytopes and their volumes: hardness and approximability
 
@@ -1801,21 +1801,34 @@ $$
 (2/3,\ 1/6,\ 1/6) .
 $$
 
-The player of weight 49 has no more power than the player of weight 1. Code 7.12 checks this by enumeration.
+The player of weight 49 has no more power than the player of weight 1. Code 7.13 checks this by enumeration.
 :::
 
 ::: def
 [Definition 7.11 — Shapley values of a prediction]{.tag} For a model $f$, an input $x$ and background data, SHAP (Lundberg and Lee, 2017) uses the game $v_x(S) = \mathbb{E}_b\big[f(x_S, b_{\bar S}) - f(b)\big]$, where the features outside $S$ are taken from background points $b$. By efficiency the values add up to $f(x) - \mathbb{E}_b f(b)$.
 :::
 
-If $f$ has 0/1 output and the background is one point $b$ with $f(b) = 0$, then $v_x$ takes values in $\{0, 1\}$; when it is monotone, it is a simple game, and the Shapley values are Shapley–Shubik indices of the features. For tree ensembles, Lundberg and coauthors (2020) compute exact values in polynomial time instead of enumerating $2^d$ coalitions.
+If $f$ has 0/1 output and the background is one point $b$ with $f(b) = 0$, then $v_x$ takes values in $\{0, 1\}$; when it is monotone, it is a simple game, and the Shapley values are Shapley–Shubik indices of the features.
+
+:::: prop
+[Proposition 7.12 — Shapley values of a decision tree]{.tag} Take a tree $f$ and one background point $b$ in Definition 7.11.
+
+On the path to a leaf $\ell$ of value $f_\ell$, let $A_\ell$ and $B_\ell$ hold the features of the tests passed by $x$ only and by $b$ only.
+
+A leaf with a test failed by both points, or with $A_\ell \cap B_\ell \neq \emptyset$, contributes nothing. With $s = |A_\ell|$ and $r = |B_\ell|$, any other leaf adds to $\phi_j(v_x)$
+$$
+f_\ell\, \frac{(s-1)!\, r!}{(s+r)!} \ \text{ if } j \in A_\ell, \qquad - f_\ell\, \frac{s!\, (r-1)!}{(s+r)!} \ \text{ if } j \in B_\ell .
+$$
+::::
+
+A pass over the leaves costs $O(\text{leaves} \times \text{depth})$ per background point, instead of $2^d$ coalitions, and a forest averages its trees. Lundberg and coauthors (2020) develop exact algorithms of this kind for tree ensembles. Section 8.7 gives the proof.
 
 ### 7.4 Feature selection and mixing assessment
 
 Features with a small mean $|\phi_j|$ can be removed: this is Shapley-based feature selection. For mixing, train a classifier to tell apart the samples of two chains. A cross-validated accuracy near 0.5 means that they are indistinguishable; otherwise Shapley values point to the coordinates that are not mixed.
 
 ::: ex
-[Code 7.12 — A classifier and Shapley values detect a stuck coordinate]{.tag} Two chains sample four coordinates. Coordinates 1 to 3 are well mixed, but coordinate 0 is stuck in a different well in each chain, as in Code 0.9.
+[Code 7.13 — A classifier and Shapley values detect a stuck coordinate]{.tag} Two chains sample four coordinates. Coordinates 1 to 3 are well mixed, but coordinate 0 is stuck in a different well in each chain, as in Code 0.9.
 
 ```python
 import numpy as np
@@ -1865,9 +1878,31 @@ rows = rng.choice(len(X), 30, replace=False)
 Phi = np.array([shapley(f, X[i], bg) for i in rows])
 print("mean |Shapley value| per coordinate:", np.abs(Phi).mean(0).round(3).tolist())
 print("efficiency, sum_j phi_j = f(x) - mean_b f(b):", np.allclose(Phi.sum(1), f(X[rows]) - f(bg).mean()))
+
+# 3. Proposition 7.12: exact Shapley values of a tree for one background point, in one pass over the leaves
+def tree_shap(est, x, b):
+    t, phi = est.tree_, np.zeros(len(x))
+    x, b = x.astype(np.float32), b.astype(np.float32)          # scikit-learn trees compare in float32
+    def walk(node, A, B):
+        if t.children_left[node] < 0:                          # leaf of value f_l = P(class 1)
+            f_l, s, r = t.value[node, 0, 1] / t.value[node, 0].sum(), len(A), len(B)
+            for j in A: phi[j] += f_l * factorial(s - 1) * factorial(r) / factorial(s + r)
+            for j in B: phi[j] -= f_l * factorial(s) * factorial(r - 1) / factorial(s + r)
+            return
+        j, thr = t.feature[node], t.threshold[node]
+        for child, left in ((t.children_left[node], True), (t.children_right[node], False)):
+            px, pb = (x[j] <= thr) == left, (b[j] <= thr) == left   # does each point pass this test?
+            if px and pb: walk(child, A, B)
+            elif px and j not in B: walk(child, A | {j}, B)    # passed by x only: j must be in S
+            elif pb and j not in A: walk(child, A, B | {j})    # passed by b only: j must not be in S
+    walk(0, frozenset(), frozenset())
+    return phi
+Phi_tree = np.array([np.mean([tree_shap(est, X[i], bb) for est in clf.estimators_ for bb in bg], axis=0)
+                     for i in rows[:3]])                       # a forest averages its trees
+print("leaf formula of Proposition 7.12 = enumeration:", np.allclose(Phi_tree, Phi[:3]))
 ```
 
-The indices of Example 7.10 come out as $(0.667, 0.167, 0.167)$. The classifier separates the chains with accuracy 0.99, and the mean $|\phi_j|$ is 0.47 for coordinate 0 against at most 0.005 for the others: the diagnosis names the stuck coordinate.
+The indices of Example 7.10 come out as $(0.667, 0.167, 0.167)$. The classifier separates the chains with accuracy 0.99, and the mean $|\phi_j|$ is 0.47 for coordinate 0 against at most 0.005 for the others: the diagnosis names the stuck coordinate. The leaf formula of Proposition 7.12 reproduces the enumeration.
 :::
 
 ::: recap
@@ -1984,15 +2019,32 @@ which is the disintegration of the law of $\theta$ along the level sets. [∎]{.
 :::
 ::::
 
-The result depends on the coordinates chosen on $SE(3)$ to express closure, an instance of the Borel–Kolmogorov paradox: conditioning on an event of probability zero needs a choice of limit. Combined with Proposition 3.7, the importance weight of a closed loop is $\pi / (J_F\, q)$.
+The result depends on the coordinates chosen on $SE(3)$ to express closure, an instance of the Borel–Kolmogorov paradox: conditioning on an event of probability zero needs a choice of limit. Combined with Proposition 3.7, the importance weight of a closed loop is $\pi / (J_F\, q)$ for one branch chosen uniformly, and $\pi / (J_F\, K q)$ when all $K$ closures are kept (Algorithm 3.8).
 
-### 8.7 Uniqueness of the Shapley value
+### 8.7 Shapley values: uniqueness and decision trees
 
 *Proof of Theorem 7.8.* The formula of Definition 7.7 satisfies the four axioms by inspection.
 
 Conversely, the unanimity games $u_T(S) = \mathbf{1}[T \subseteq S]$, for non-empty $T$, form a basis of the space of games.
 
 In $c\, u_T$, players outside $T$ are null and players in $T$ are symmetric, so efficiency forces $\phi_j(c\, u_T) = c / |T|$ for $j \in T$ and 0 otherwise. Additivity extends the values to every game, which proves uniqueness. [∎]{.qed}
+
+*Proof of Proposition 7.12.*
+
+-   Write $z_S$ for the point equal to $x$ on $S$ and to $b$ elsewhere, so that $v_x(S) = f(z_S) - f(b)$.
+-   At a test on feature $j$, the point $z_S$ behaves like $x$ if $j \in S$ and like $b$ otherwise. A test passed by both points is passed by $z_S$, and a test failed by both is failed. A test passed by $x$ only requires $j \in S$; one passed by $b$ only requires $j \notin S$.
+-   Hence a leaf with a test failed by both points, or with $A_\ell \cap B_\ell \neq \emptyset$, is never reached. Any other leaf is reached exactly when
+    $$
+    A_\ell \subseteq S \quad \text{and} \quad B_\ell \cap S = \emptyset .
+    $$
+-   Let $u_\ell(S)$ be 1 when $z_S$ reaches $\ell$, and 0 otherwise. Then
+    $$
+    v_x(S) = \sum_\ell f_\ell\, u_\ell(S) - f(b).
+    $$
+    The formula of Definition 7.7 is linear in $v$ and ignores additive constants, so $\phi_j(v_x) = \sum_\ell f_\ell\, \phi_j(u_\ell)$.
+-   Features outside $A_\ell \cup B_\ell$ are null for $u_\ell$. So $\phi_j(u_\ell)$ is the average marginal contribution of $j$ over uniform random orders of the $s + r$ features of $A_\ell \cup B_\ell$.
+-   For $j \in A_\ell$, the contribution is 1 exactly when $j$ comes after the other $s - 1$ features of $A_\ell$ and before the $r$ features of $B_\ell$. This has probability $(s-1)!\, r! / (s+r)!$.
+-   For $j \in B_\ell$, the contribution is $-1$ exactly when $j$ comes after the $s$ features of $A_\ell$ and before the other $r - 1$ features of $B_\ell$. This has probability $s!\, (r-1)! / (s+r)!$. [∎]{.qed}
 
 ### 8.8 Maximum likelihood for the von Mises density
 
@@ -2180,7 +2232,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Hints and expected result*: the closure Jacobian is the $9 \times 6$ derivative of the three end atoms with respect to the closure dihedrals; use a least-squares solve for implicit differentiation. Expect weights that vary over at least one order of magnitude, and visible differences between weighted and unweighted histograms. Report the effective sample size $(\sum w)^2 / \sum w^2$.
 
-18. **★★★ A mixing diagnostic.** Use the chains of Code 0.9, for $h = 1$ and $h = 8$, and test whether the first and second halves of each chain are distinguishable. Build a classifier test as in Code 7.12, on lagged features such as $(x_t, x_{t-10})$, and compare with the Gelman–Rubin statistic on four chains.
+18. **★★★ A mixing diagnostic.** Use the chains of Code 0.9, for $h = 1$ and $h = 8$, and test whether the first and second halves of each chain are distinguishable. Build a classifier test as in Code 7.13, on lagged features such as $(x_t, x_{t-10})$, and compare with the Gelman–Rubin statistic on four chains.
 
     *Hints and expected result*: for $h = 1$ the cross-validated accuracy should stay near 0.5. For $h = 8$ it depends on whether a transition happened in one half only. Discuss how the correlation of MCMC samples biases the cross-validated accuracy, and how thinning or block splits correct it.
 

@@ -376,7 +376,9 @@ $$
 ::: proof
 By Theorem 0.2, $A = F^{*} \mathrm{diag}(\hat k) F$ with $F$ the unitary DFT (the DFT divided by $n$). Then $A^{-1} n = F^{*} \mathrm{diag}(1/\hat k) F n$.
 
-The noise has covariance $\sigma^2 I$ and $F$ is unitary, so $Fn$ has covariance $F (\sigma^2 I) F^{*} = \sigma^2 I$: every coordinate satisfies $\mathbb{E}|(Fn)(\omega)|^2 = \sigma^2$. Each coordinate is multiplied by $1/\hat k(\omega)$, and $F^{*}$ preserves the norm. [∎]{.qed}
+The noise has covariance $\sigma^2 I$ and $F$ is unitary, so $Fn$ has covariance $F (\sigma^2 I) F^{*} = \sigma^2 I$: every coordinate satisfies $\mathbb{E}|(Fn)(\omega)|^2 = \sigma^2$.
+
+Each coordinate is multiplied by $1/\hat k(\omega)$, and $F^{*}$ preserves the norm. [∎]{.qed}
 :::
 ::::
 
@@ -412,7 +414,9 @@ PSNR is a decreasing function of the MSE, so maximising the expected PSNR is clo
 The oldest image model is Gaussian: the image is a stationary Gaussian random field, entirely described by its power spectrum. Under this model the best estimator is linear.
 
 :::: thm
-[Theorem 1.4 — Wiener filter]{.tag} Work with the unitary DFT for the images; $\hat k$ remains the transfer function of the blur. Let $X$ be a centred, circularly stationary Gaussian field with power spectrum $S(\omega) = \mathbb{E}|\hat X(\omega)|^2$, and let $Y = k * X + N$ with $N$ white, of variance $\sigma^2$, independent of $X$. Then the MMSE estimator is the Fourier multiplier
+[Theorem 1.4 — Wiener filter]{.tag} Work with the unitary DFT for the images, while $\hat k$ remains the transfer function of the blur.
+
+Let $X$ be a centred, circularly stationary Gaussian field with power spectrum $S(\omega) = \mathbb{E}|\hat X(\omega)|^2$, and let $Y = k * X + N$ with $N$ white, of variance $\sigma^2$, independent of $X$. Then the MMSE estimator is the Fourier multiplier
 $$
 \widehat{\mathbb{E}[X \mid Y]}(\omega) = \frac{\overline{\hat k(\omega)}\, S(\omega)}{|\hat k(\omega)|^2 S(\omega) + \sigma^2}\ \hat Y(\omega).
 $$
@@ -666,11 +670,11 @@ The cross term is $-2\, \mathbb{E} \langle f(Y) - X,\, N' \rangle$. The first fa
 :::
 ::::
 
-Two caveats matter in practice. With finite data, noisy targets increase the variance of the gradient, so training needs more samples. And the result needs zero-mean noise: for impulse noise, which is not centred, the absolute loss (a median, Proposition 2.2) is the right choice (Exercise 6). Chapter 9 lists the methods that go further and learn from a *single* noisy image per scene.
+Two caveats matter in practice. With finite data, noisy targets increase the variance of the gradient, so training needs more samples. And the result needs zero-mean noise: for impulse noise, which is not centred, the absolute loss (a median, Proposition 2.2) is the right choice as long as fewer than half of the pixels are corrupted (Exercise 6). Chapter 9 lists the methods that go further and learn from a *single* noisy image per scene.
 
 ### 2.4 Super-resolution networks
 
-Super-resolution by a factor $s$ inverts $y = (k * x)\!\downarrow_s + n$. The operator has a kernel of dimension $(1 - 1/s^2)\, n^2$, so the prior does most of the work.
+Super-resolution by a factor $s$ inverts $y = (k * x)\!\downarrow_s + n$. The operator maps $n^2$ unknowns to $n^2 / s^2$ measurements, so its kernel has dimension at least $(1 - 1/s^2)\, n^2$, and the prior does most of the work.
 
 ::: def
 [Definition 2.6 — SRCNN (Dong, Loy, He and Tang, 2016)]{.tag} The low-resolution image is first upsampled to the target size by bicubic interpolation; three convolutional layers then map it to the high-resolution image:
@@ -782,7 +786,11 @@ The same gap appears in images. The MAP of the TV prior is piecewise constant, w
 $$
 \mathrm{prox}_{\tau g}(v) = \arg\min_x\ \tfrac12 \|x - v\|^2 + \tau\, g(x).
 $$
-The minimiser exists and is unique, and $\mathrm{prox}_{\tau g}$ is firmly non-expansive.
+The minimiser exists and is unique, and $\mathrm{prox}_{\tau g}$ is *firmly non-expansive*: for all $u, v$,
+$$
+\|\mathrm{prox}_{\tau g}(u) - \mathrm{prox}_{\tau g}(v)\|^2 \le \langle \mathrm{prox}_{\tau g}(u) - \mathrm{prox}_{\tau g}(v),\, u - v \rangle ,
+$$
+so in particular it is 1-Lipschitz.
 :::
 
 ::: prop
@@ -863,13 +871,15 @@ The gradient bound holds for a quadratic data term on a bounded set of images, s
 ::: note
 [Remark 3.9 — What the theorem does not say]{.tag} The convergence comes from the vanishing steps: as $\rho_k \to \infty$, the denoiser is asked to remove less and less noise and eventually does almost nothing. The limit depends on $\rho_0$ and $\gamma$, and it is not shown to minimise any objective or to be close to the true image.
 
-Stronger guarantees need stronger denoisers. Ryu, Liu, Wang, Chen, Wang and Yin (2019) prove convergence for a fixed $\rho$ when the residual $D - I$ is Lipschitz with a small constant, a property they enforce by spectral normalisation. Hurault, Leclaire and Papadakis (2022) train a *gradient-step denoiser* $D = I - \nabla g_\theta$, which turns plug-and-play into a proximal-gradient method on an explicit, non-convex objective.
+Stronger guarantees need stronger denoisers. Ryu, Liu, Wang, Chen, Wang and Yin (2019) prove convergence for a fixed $\rho$ when the data term is strongly convex and the residual $D - I$ is Lipschitz with a small constant, a property they enforce by spectral normalisation. Hurault, Leclaire and Papadakis (2022) train a *gradient-step denoiser* $D = I - \nabla g_\theta$, which turns plug-and-play into a proximal-gradient method on an explicit, non-convex objective.
 :::
 
 ::: ex
 [Example 3.10 — Plug-and-play deblurring]{.tag} On the problem of Example 1.6 (Gaussian blur of standard deviation 2, noise $0.01$), the code below runs Algorithm 3.6 with the TV denoiser of Definition 1.7, solved by Chambolle's algorithm, with $\lambda = 2 \times 10^{-4}$, $\rho_0 = 10^{-3}$ and $\gamma = 1.2$.
 
-After 30 iterations it reaches 21.24 dB, against 20.74 dB for Tikhonov and 21.04 dB for the oracle Wiener filter. The increments $\|v^{k+1} - v^k\|$ are divided by about 5 every 10 iterations, close to the factor $1.2^{10} \approx 6.2$ of the continuation, which is the mechanism of Theorem 3.8.
+After 30 iterations it reaches 21.24 dB, against 20.74 dB for Tikhonov and 21.04 dB for the oracle Wiener filter.
+
+The increments $\|v^{k+1} - v^k\|$ are divided by about 5 every 10 iterations. Theorem 3.8 only guarantees the factor $\sqrt{1.2^{10}} \approx 2.5$. The TV denoiser does better: its output is $f - t\, \mathrm{div}\, p$ with $|p| \le 1$, so it moves the image by $O(t) = O(1/\rho_k)$. The predicted factor is then close to $1.2^{10} \approx 6.2$.
 :::
 
 ```python
@@ -947,7 +957,7 @@ Divide by $p_\sigma(y)$. [∎]{.qed}
 :::
 ::::
 
-The formula goes back to Robbins (1956); Efron (2011) revived it. Read backwards, it turns the residual of an MMSE denoiser $D_\sigma$ into the *score* of the noisy image distribution:
+The formula goes back to Robbins (1956); Efron (2011) revived it. Read backwards, it turns the residual of an MMSE denoiser $D_\sigma$ into the *score* of the noisy image distribution, the gradient $\nabla \log p_\sigma$ of its log-density:
 
 ::: key
 [Key result — a denoiser gives the score]{.tag}
@@ -1089,7 +1099,7 @@ Synthesis starts from white noise and minimises $\mathcal{L}$ by L-BFGS, with gr
 The paper uses the layers of VGG-19 at several depths. The deeper the layers included, the larger the structures reproduced.
 
 :::: prop
-[Proposition 4.5 — Gram matrices are stationary statistics]{.tag} If the feature extractor is fully convolutional with periodic padding, then for every translation $a$,
+[Proposition 4.5 — Gram matrices are stationary statistics]{.tag} Assume the feature extractor is made only of stride-1 convolutions with periodic padding and pointwise non-linearities, with no pooling or striding. Then for every translation $a$,
 $$
 G^l(\tau_a x) = G^l(x) .
 $$
@@ -1099,6 +1109,8 @@ Each entry $G^l_{ij}(x)$ is the spatial average of $F^l_i F^l_j$, an estimator o
 By Proposition 0.8, $F^l(\tau_a x) = \tau_a F^l(x)$: translating the image translates every feature map. A sum over all positions is invariant under a translation of its terms. [∎]{.qed}
 :::
 ::::
+
+VGG-19 has pooling layers. After $k$ poolings by 2, the invariance holds exactly only for translations by multiples of $2^k$ pixels, and approximately for the others.
 
 The averaging is the strength and the weakness of the model. It makes the statistics independent of position, as a texture model should be, but it also forgets *where* things are relative to each other beyond the receptive field. Long-range regularity, such as the alignment of bricks or a periodic grid, is weakly constrained. Ustyuzhaninov, Brendel, Gatys and Bethge (2017) showed that even random, untrained convolutional filters at several scales give convincing textures: much of the model lies in the Gram statistics rather than in the trained weights.
 
@@ -1127,7 +1139,9 @@ For a fixed modulus $r$, the distance $|\hat x(\omega) - r e^{i\psi}|$ is minima
 The synthesis then minimises $\mathcal{L}(x) + \beta\, \|x - P(x)\|^2$. The gradient of $\frac12 \mathrm{dist}(x, \mathcal{A}_u)^2$ is $x - P(x)$ wherever the projection is unique, so in practice $P(x)$ is computed and held fixed during the backward pass.
 
 ::: ex
-[Example 4.7 — Gram statistics lose the spectrum]{.tag} The code below synthesises a $64 \times 64$ periodic texture, a grid of blobs plus fine noise, with the Gram matrices of random filters at four scales. Without the spectrum term the Gram loss is driven to about $10^{-6}$, yet the Fourier modulus stays far from the exemplar's, with a relative error of about $1.25$. With $\beta = 1$ the relative error drops to about $0.001$, while the Gram loss stays of order $10^{-6}$: the two constraints are compatible, and the second one is not implied by the first.
+[Example 4.7 — Gram statistics lose the spectrum]{.tag} The code below synthesises a $64 \times 64$ periodic texture, a grid of blobs plus fine noise, with the Gram matrices of random filters at four scales. Without the spectrum term the Gram loss is driven to about $10^{-6}$, yet the Fourier modulus stays far from the exemplar's, with a relative error of about $1.3$.
+
+With $\beta = 1$, the code putting this weight on the squared distance to $P(x)$ averaged over pixels, the relative error drops to about $0.001$, while the Gram loss stays of order $10^{-6}$. The two constraints are compatible, and the second one is not implied by the first.
 :::
 
 ```python
@@ -1487,7 +1501,7 @@ $$
 $$
 \mathbb{E}_p f - \mathbb{E}_q f = \mathbb{E}_\pi\big[f(X) - f(Y)\big] \le \mathbb{E}_\pi \|X - Y\| .
 $$
-Take the supremum over $f$ and the infimum over $\pi$. The reverse inequality is a convex duality argument; see Villani (2009), Theorem 5.10. [∎]{.qed}
+Take the supremum over $f$ and the infimum over $\pi$. The reverse inequality is a convex duality argument: the Kantorovich duality of Villani (2009), chapter 5, applied to the cost $\|x - y\|$. [∎]{.qed}
 :::
 ::::
 
@@ -1599,9 +1613,9 @@ Chapters 2 to 6 met the same tension several times: the squared loss gives the b
 
 The perceptual index has an operational meaning. An ideal observer sees one image, drawn with probability $\frac12$ from natural images and $\frac12$ from the outputs, and must say which. Its best success rate is
 $$
-\tfrac12 + \tfrac12\, \mathrm{TV}(p_X, p_{\hat X}),
+\tfrac12 + \tfrac12\, d_{\mathrm{TV}}(p_X, p_{\hat X}),
 $$
-where TV is the total variation distance. This is the classical Bayes-optimal test between two hypotheses with equal priors. Outputs that cannot be told apart from real images are those whose law equals $p_X$.
+where $d_{\mathrm{TV}}$ is the total variation distance between probability laws (not the TV regulariser of Definition 1.7). This is the classical Bayes-optimal test between two hypotheses with equal priors. Outputs that cannot be told apart from real images are those whose law equals $p_X$.
 
 ### 7.2 The perception–distortion trade-off
 
@@ -1950,7 +1964,11 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 4.  **★ Soft thresholding as a MAP.** Apply the proximal operator of $\lambda |\cdot|$ with $\lambda = 1$ to $y = (3, -0.5, 1.2)$. For which Laplace prior $e^{-|x|/\beta}$ and noise level $\sigma$ is this the MAP estimator?
 
-    *Solution*: by Proposition 1.8 the result is $(2, 0, 0.2)$. By Proposition 3.2, soft thresholding at $\lambda$ is the MAP estimator whenever $\sigma^2 / \beta = 1$, for instance $\sigma = \beta = 1$.
+    *Solution*: by Proposition 1.8 the result is $(2, 0, 0.2)$.
+
+    By Definition 0.6 with $A = I$, the MAP under the prior $e^{-|x|/\beta}$ minimises $\frac{1}{2\sigma^2}(x - y)^2 + |x|/\beta$. Multiplied by $\sigma^2$, this is Proposition 1.8 with $\lambda = \sigma^2 / \beta$.
+
+    Soft thresholding at 1 is therefore the MAP estimator whenever $\sigma^2 / \beta = 1$, for instance $\sigma = \beta = 1$ (Proposition 3.2 restates this in ch. 3).
 
 5.  **★ Shapes and costs of a sub-pixel layer.** A super-resolution network for a factor $s = 3$ on grey images ends with a $3 \times 3$ convolution from 64 channels, followed by `PixelShuffle(3)`. The input batch has shape $16 \times 64 \times 32 \times 32$. Give the number of output channels of the convolution, the shape after the shuffle, and the ratio of costs between a $3 \times 3$, 64-to-64 convolution applied at low and at high resolution.
 
@@ -1983,13 +2001,13 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     The MMSE never vanishes for $y \neq 0$; for large $y$ both behave like $y - 1$, since the posterior becomes a Gaussian centred at $y - \sigma^2/\beta$.
 
-8.  **★★ Random phase noise of a pure frequency.** Let $u(x) = \cos(2\pi \langle \xi, x \rangle / n)$ with $\xi \neq 0$ and $2\xi \neq 0$ modulo $n$. Show that $\mathrm{RPN}(u)$ is a randomly *translated* copy of $u$. Then prove the spectral identity of Proposition 4.3 directly from Theorem 0.2.
+8.  **★★ Random phase noise of a pure frequency.** Let $u(x) = \cos(2\pi \langle \xi, x \rangle / n)$ with $\xi \neq 0$ and $2\xi \neq 0$ modulo $n$. Show that $\mathrm{RPN}(u)$ is a randomly *shifted* copy of the cosine, translated along $\xi$ by a random, in general non-integer, amount. Then prove the spectral identity of Proposition 4.3 directly from Theorem 0.2.
 
     *Solution*: $\hat u$ is supported on $\{\xi, -\xi\}$ with value $n^2/2$. A Hermitian random phase multiplies these two coefficients by $e^{i\theta}$ and $e^{-i\theta}$, which gives
     $$
     \cos(2\pi \langle \xi, x \rangle / n + \theta),
     $$
-    a translate of $u$.
+    the cosine $u$ translated by any vector $a$ with $2\pi \langle \xi, a \rangle / n = -\theta$, a sub-pixel translation in general.
 
     For ADSN and $\omega \neq 0$, Theorem 0.2 gives $\hat V(\omega) = \hat t(\omega)\, \hat W(\omega)$ with $\hat t = \hat u / \sqrt{|\Omega|}$. White noise has independent unit-variance pixels, so
     $$
@@ -2023,7 +2041,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Hints and expected result*: adapt the code of Example 5.3 with 400 positions. The explained variance is 34.1 % for 1 component, 68.3 % for 2, 89.2 % for 5, 96.1 % for 10 and 99.2 % for 20: translations are even worse for a linear model than dilations.
 
-    The covariance of a translation-invariant family is circulant in the horizontal direction, so its eigenvectors are Fourier modes, which come in cosine–sine pairs with equal eigenvalues.
+    The covariance of a translation-invariant family is circulant in the horizontal direction; the 400 positions sample the translations finely, so it is circulant up to a negligible error. Its eigenvectors are then Fourier modes, which come in cosine–sine pairs with equal eigenvalues (the first two eigenvalues both carry 34.15 % of the variance).
 
 12. **★★ Realism without randomness.** Let $X \sim \mathcal{N}(0, s^2)$ and $Y = X + N$ with independent Gaussian noise of variance $\sigma^2$. Consider the estimators $\hat X = cY + dZ$, with an independent standard Gaussian $Z$, whose variance is $s^2$ (perfect perceptual quality). Find the one with the smallest MSE, and compare it with posterior sampling when both variances equal 1.
 
@@ -2045,13 +2063,13 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 14. **★★★ Plug-and-play with the network of ch. 2.** Train the denoiser of ch. 2 on a range of noise levels, with $\sigma$ drawn uniformly in $[0, 50/255]$ for each batch, and use it as `denoise` in the code of Example 3.10, choosing $\sigma_k = \sqrt{\lambda / \rho_k}$. Compare with the TV denoiser, then run with $\gamma = 1$ (no continuation). Report the PSNR and the increments $\|v^{k+1} - v^k\|$.
 
-    *Hints and expected result*: feed the noise level to the network as a constant extra input channel, as FFDNet does, or train several networks. With continuation, the increments decrease geometrically, as in Theorem 3.8, whatever the denoiser.
+    *Hints and expected result*: feed the noise level to the network as a constant extra input channel, as FFDNet does, or train several networks. Choose $\lambda$ and $\rho_0$ so that $\sigma_0$ lies in the training range, or clip $\sigma_k$ to $[0, 50/255]$. With continuation, the increments decrease geometrically, as in Theorem 3.8, provided the network behaves as a bounded denoiser (Definition 3.7); measure its largest move $\|D_\sigma(v) - v\|$ to check it.
 
     Without continuation, nothing guarantees convergence: monitor the increments and look for oscillations. A PSNR above that of the TV denoiser is the success criterion; report it with the training time.
 
 15. **★★★ Annealing against slow mixing.** In Example 8.5, only 51.8 % of the Langevin chains reach the upper mode, instead of 60 %. Implement an *annealed* Langevin sampler: run the chains successively with smoothing levels $\varepsilon$ decreasing geometrically from $3$ to $0.05$, with a step proportional to $\varepsilon^2$. Measure the fraction of chains in the upper mode, and explain why annealing helps.
 
-    *Hints and expected result*: with 30 levels of 100 steps each and a step $0.01\, (\varepsilon / 0.05)^2$ capped at $0.05$, the fraction is about 0.63, close to the exact 0.6.
+    *Hints and expected result*: with 30 levels of 100 steps each, a step $0.01\, (\varepsilon / 0.05)^2$ capped at $0.05$, and 2000 chains started from $\mathcal{N}(0, I)$, the fraction lies between 0.60 and 0.63 over three seeds, close to the exact 0.6.
 
     At large $\varepsilon$ the smoothed prior is unimodal, so the chains distribute themselves according to the smoothed posterior before the modes separate. This is the principle of the annealed Langevin dynamics of Song and Ermon (2019) and of diffusion samplers.
 
