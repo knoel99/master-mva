@@ -40,33 +40,1988 @@ format:
 
 ## Contents
 
-TODO: one bullet per level-2 heading, in page order.
+-   [Introduction and overview](#intro)
+-   [0. Review: measures, convexity and linear programming](#ch0)
+-   [1. The Monge and Kantorovich problems](#ch1)
+-   [2. Kantorovich duality](#ch2)
+-   [3. Brenier's theorem and Gaussian transport](#ch3)
+-   [4. Discrete optimal transport: linear programming and entropic regularization](#ch4)
+-   [5. Semi-discrete optimal transport](#ch5)
+-   [6. Dynamic formulation and Wasserstein gradient flows](#ch6)
+-   [7. Optimal transport in machine learning](#ch7)
+-   [8. Complements for self-study](#ch8)
+-   [9. Research directions and open problems](#ch9)
+-   [Exercises](#ex)
+-   [Projects and assessment](#projects)
+-   [References](#refs)
 
 ## Introduction and overview {#intro}
 
-  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   Module               Optimal Transport for Machine Learning
   Official title       Optimal Transport for Machine Learning
   Instructors          G. PEYRE, J. DELON (master-mva.com, 2026–2027)
   Period               Semester 1 · period 1 (28/09/2026 – 08/01/2027)
   Credits and volume   5 ECTS · 18 h (lectures 18 h) per the Université Paris-Saclay programme table
   Label                [Learning]{.badge .label} · domains on master-mva.com: Data Science
-  Language             TODO (from the official pages)
-  Assessment           TODO (official “Mode de validation”, in English)
-  Prerequisites        TODO (official “Prérequis”, in English, or “not displayed”)
+  Language             Not displayed (the master-mva.com course description is written in English)
+  Assessment           Attend all courses and do the numerical parts (not graded); final written exam, with no supporting documents allowed (master-mva.com). The description adds that the exam reflects the material of both the numerical and the exercise components. Université Paris-Saclay: “Evaluation Continue non Intégrale” (partial continuous assessment)
+  Prerequisites        Not displayed
   Note on sources      master-mva.com announces 8 courses of 3 h + exam; the Université Paris-Saclay table gives 18 h of lectures — the plan follows the official 18 h and lists the remaining material as self-study
-  -------------------- ------------------------------------------------------------------------------------------------------------------------
+  -------------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-TODO: audience line, empirical-first line, “What you will be able to do”, “Official objectives and syllabus (2026–2027)”, “Where this course fits in the programme”, “Course outline”, “Session plan {#sessions}”, “How to study this module”.
+**Audience**: a student with a good M1 in mathematics, computer science or physics who wants a rigorous way to compare probability distributions, and to understand why that question sits at the centre of generative modelling.
+
+**Empirical first**: two parallel segments in the plane, one shifted by $\theta$, are at Kullback–Leibler divergence $+\infty$ and Jensen–Shannon divergence $\log 2$ for every $\theta \neq 0$, so a generator trained with these divergences gets no gradient, while their Wasserstein distance is $|\theta|$ ([Example 2.6](#ch2)). The Fréchet inception distance that scores image generators is itself a Wasserstein distance between two Gaussians ([ch. 3](#ch3)).
+
+This course builds optimal transport (OT) from its two classical formulations, Monge's maps and Kantorovich's couplings, to its duality theory, Brenier's theorem and the dynamic view of Benamou and Brenier. It then develops the three numerical approaches announced by the course description: linear programming, semi-discrete solvers and entropic regularization.
+
+The last in-class chapter uses Wasserstein gradient flows to read the training of wide neural networks, the token dynamics of transformers, GANs and diffusion models.
+
+It shares tools with [Convex Optimization](../s1-convex-optimization/index.html) (duality), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (Langevin dynamics, diffusion models), [Computational Statistics](../s1-computational-statistics/index.html) and [Kernel Methods](../s2-kernel-methods/index.html) (the maximum mean discrepancy).
+
+### What you will be able to do
+
+-   Formulate the Monge and Kantorovich problems, prove that optimal couplings exist, and compute Wasserstein distances on the line by sorting.
+-   Derive the dual of a transport problem, use c-transforms, and apply the Kantorovich–Rubinstein formula for $W_1$.
+-   State and use Brenier's theorem, and recognize an optimal map as the gradient of a convex function.
+-   Compute the optimal map and the Wasserstein distance between two Gaussians with the Bures metric.
+-   Solve discrete transport problems exactly by linear programming, and approximately with Sinkhorn's algorithm in PyTorch, with error bounds.
+-   Solve semi-discrete problems by gradient ascent on the concave dual, deterministic or stochastic.
+-   Explain the Benamou–Brenier formula and write the Wasserstein gradient flow of a functional, including the Fokker–Planck equation.
+-   Read the training of a two-layer network, the dynamics of self-attention, GANs and diffusion models as transport problems.
+-   Use entropic transport and Sinkhorn divergences as differentiable losses, and know their statistical behaviour in high dimension.
+
+### Official objectives and syllabus (2026–2027)
+
+The course description on master-mva.com presents optimal transport as a foundational mathematical theory that connects optimization, partial differential equations and probability. It offers a powerful framework for comparing probability distributions, and the description notes that it has become an important tool in machine learning, especially for designing and evaluating generative models.
+
+The announced mathematical content is the Monge and Kantorovich formulations, Brenier's theorem, the dual and dynamic formulations, the Bures metric on Gaussian distributions, and gradient flows. The announced numerical methods are linear programming, semi-discrete solvers and entropic regularization.
+
+The announced applications are the training of neural networks via gradient flows, token dynamics in transformers, and the structure of GANs and diffusion models. The description states that the course focuses primarily on mathematical content rather than deep learning techniques.
+
+It includes hands-on numerical programming sessions using PyTorch, along with exercise sessions, and the written exam reflects both components. The organisation announced is 8 courses of 3 h plus the exam. The Université Paris-Saclay course detail gives only the assessment type, with no programme of its own.
+
+| Official topic | Course section |
+|---|---|
+| Comparing probability distributions | [ch. 1](#ch1): Definition 1.6, Proposition 1.7, Theorem 1.8; Example 2.6 |
+| Monge formulation | [ch. 1](#ch1): Definition 1.1, Example 1.2; Monge maps in Theorem 3.2 and Theorem 5.3 |
+| Kantorovich formulation | [ch. 1](#ch1): Definition 1.3, Theorem 1.4 (existence), Proposition 1.5 (assignment) |
+| Brenier's theorem | [ch. 3](#ch3): Proposition 3.1, Theorem 3.2 |
+| Dual formulation | [ch. 2](#ch2): Theorem 2.1, Definition 2.2, Theorem 2.4, Proposition 2.5 (Kantorovich–Rubinstein); entropic dual (Proposition 4.3), semi-discrete dual (Proposition 5.2) |
+| Dynamic formulation | [ch. 6](#ch6): Definition 6.1, Proposition 6.2, Theorem 6.3 (Benamou–Brenier) |
+| Bures metric on Gaussian distributions | [ch. 3](#ch3): Theorem 3.3, Definition 3.4, Example 3.5; Gaussian barycenters and mixtures in [ch. 8](#ch8) (8.4) |
+| Gradient flows | [ch. 6](#ch6): Definitions 6.4–6.5, Proposition 6.6, Theorem 6.7, Proposition 6.8, Example 6.9; numerical methods in ch. 8.6 |
+| Numerical methods: linear programming | [ch. 4](#ch4): Proposition 4.1 and exact solvers; the LP code of ch. 1 |
+| Numerical methods: semi-discrete solvers | [ch. 5](#ch5): Definition 5.1, Proposition 5.2, Theorem 5.3, Algorithm 5.4, Example 5.5 |
+| Numerical methods: entropic regularization | [ch. 4](#ch4): Definition 4.2 to Proposition 4.7; convergence proof and Sinkhorn divergences in ch. 8.1–8.2 |
+| Training neural networks via gradient flows | [ch. 7](#ch7).1: Proposition 7.1, Theorem 7.2 |
+| Token dynamics in transformers | ch. 7.2: Proposition 7.3, clustering and doubly stochastic attention |
+| The structure of GANs | ch. 7.3: dual formulas, Proposition 7.4; ch. 8.5: Proposition 8.9 and the gradient penalty |
+| The structure of diffusion models | ch. 7.4: forward process as a gradient flow, probability-flow ODE, Proposition 7.5 (flow matching) |
+| Designing and evaluating generative models | FID after Example 3.5; ch. 7.3; critic-free generator with a Sinkhorn divergence in ch. 8.2 |
+| OT as a link between optimization, PDEs and probability | ch. 2 and 4 (linear programming and convex duality); ch. 6 (continuity and Fokker–Planck equations); ch. 6.2 (Langevin diffusion) |
+| Hands-on numerical sessions using PyTorch | PyTorch code in ch. 4 (Sinkhorn and autograd), ch. 7 (mean-field training, attention dynamics) and ch. 8.2 (generator); Exercises 6, 13, 14, 16 |
+| Exercise sessions | [Exercises](#ex), assigned to sessions in the [session plan](#sessions) |
+| Organisation: 8 courses of 3 h + exam | [Session plan](#sessions): 6 sessions of 3 h for the official 18 h; the material of the two other announced sessions is the self-study ch. 8 |
+| Assessment: attendance and numerical parts (not graded); final written exam without documents | [Projects and assessment](#projects); [written exam proposal](#projects-exam) |
+| Université Paris-Saclay: “Evaluation Continue non Intégrale” | [Projects and assessment](#projects) |
+
+Every official topic has a section in these notes. The extensions beyond the syllabus are the review of ch. 0, flow matching with OT couplings in ch. 7.4, and two self-study chapters: the complements of ch. 8 (convergence of Sinkhorn, Sinkhorn divergences, statistical OT and sliced distances, barycenters, WGAN practice, numerical gradient flows) and the research directions of ch. 9.
+
+### Where this course fits in the programme
+
+Official prerequisites: not displayed. In practice the course uses measure-theoretic probability, convex analysis, linear algebra, a little differential calculus and Python; ch. 0 reviews the essentials.
+
+-   **Refreshers** — [Probability and Statistics](../s0-refresher-probability-statistics/index.html) (measures, laws, convergence), [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) (convexity, duality, matrix square roots) and [Scientific Python, NumPy and PyTorch](../s0-refresher-python-scientific-computing/index.html) (the code of every chapter).
+-   **Related courses of semester 1** — [Convex Optimization](../s1-convex-optimization/index.html) (linear programming and Lagrange duality, ch. 2 and 4), [Stochastic Calculus in Machine Learning](../s1-stochastic-calculus-ml/index.html) (Langevin diffusions and diffusion models, ch. 6–7), [Computational Statistics](../s1-computational-statistics/index.html) (Langevin sampling), [Probabilistic Graphical Models and Deep Generative Models](../s1-probabilistic-graphical-models/index.html) (GANs, VAEs), [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html) (training dynamics, ch. 7.1), [Foundations of Large Language Models](../s1-foundations-llms/index.html) (transformers, ch. 7.2) and [Geometric Data Analysis](../s1-geometric-data-analysis/index.html).
+-   **Semester 2 courses that build on it** — [Generative Models for Images](../s2-generative-models-images/index.html) and [Diffusion and Multiscale Models in AI](../s2-diffusion-multiscale/index.html) (GANs, diffusion and flow models), [Kernel Methods](../s2-kernel-methods/index.html) (the MMD at the other end of the Sinkhorn divergence), [Geometry and Shape Spaces](../s2-shape-spaces/index.html) and [Deformable Models and Geodesic Methods](../s2-deformable-models-geodesics/index.html) (geodesics and shape matching), [Point Clouds and 3D Modelling](../s2-point-clouds-3d/index.html) (matching point clouds), and [Deep Learning for Image Restoration and Synthesis](../s2-dl-image-restoration-synthesis/index.html).
+
+### Course outline
+
+-   **0. Review** — push-forwards, weak convergence, convex conjugates, linear programming duality.
+-   **1. The Monge and Kantorovich problems** — maps and couplings, existence, Wasserstein distances, the one-dimensional case.
+-   **2. Kantorovich duality** — the discrete and continuous duals, c-transforms, the Kantorovich–Rubinstein formula.
+-   **3. Brenier's theorem and Gaussian transport** — optimal maps as gradients of convex functions; the Bures metric.
+-   **4. Discrete optimal transport** — exact linear programming, entropic regularization, Sinkhorn's algorithm in PyTorch.
+-   **5. Semi-discrete optimal transport** — Laguerre cells, the concave dual, deterministic and stochastic solvers.
+-   **6. Dynamic formulation and Wasserstein gradient flows** — displacement interpolation, Benamou–Brenier, JKO, Fokker–Planck.
+-   **7. Optimal transport in machine learning** — mean-field training, token dynamics, GANs, diffusion and flow matching.
+-   **8. Complements for self-study** — the material of the two announced sessions beyond the 18 h: proofs and practical tools.
+-   **9. Research directions and open problems** — a self-study tour of current work.
+
+### Session plan {#sessions}
+
+**18 h in class = 6 sessions of 3 h.** The volume of 18 h of lectures comes from the Université Paris-Saclay programme table, while master-mva.com announces 8 courses of 3 h plus the exam. The plan follows the official 18 h; the split into six sessions is a proposal, and the material of the two other announced sessions is gathered in the self-study chapter 8.
+
+Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material. The level never goes down from one session to the next.
+
+| Session | Hours | Level | Content | Practice |
+|---|---|---|---|---|
+| 1 | 3 h | 1 | ch. 0 Review: push-forwards, conjugates, LP duality; ch. 1 Monge and Kantorovich problems, existence, Wasserstein distances, sorting on the line | Ex. 1, 2, 3; lab: code of ch. 1 |
+| 2 | 3 h | 2 | ch. 2 Discrete and continuous duality, c-transforms, Kantorovich–Rubinstein; ch. 3 Brenier's theorem, Gaussian transport and the Bures metric | Ex. 4, 7, 8 |
+| 3 | 3 h | 2 | ch. 4 Linear programming, entropic regularization, Sinkhorn's algorithm, gradients of entropic OT | Ex. 5, 6, 9; PyTorch lab: code of ch. 4 |
+| 4 | 3 h | 2 | ch. 5 Laguerre cells, the semi-discrete dual, mass balance, gradient ascent, Newton and stochastic gradient | Ex. 10; lab: code of ch. 5 |
+| 5 | 3 h | 3 | ch. 6 Displacement interpolation, Benamou–Brenier, JKO scheme, Fokker–Planck as a gradient flow, contraction | Ex. 11, 12; lab: code of ch. 6 |
+| 6 | 3 h | 3 | ch. 7 Mean-field training of two-layer networks, token dynamics in transformers, GANs, diffusion models and flow matching | Ex. 13, 14, 15; PyTorch lab: code of ch. 7 |
+
+**Self-study, outside the 18 h** (about 8 h in total): ch. 8 Complements: convergence of Sinkhorn, Sinkhorn divergences, statistical OT and sliced distances, barycenters, WGAN practice, numerical gradient flows (≈ 6 h, with Ex. 16) · ch. 9 Research directions and open problems (≈ 2 h).
+
+### How to study this module
+
+-   Read ch. 0 before session 1 if push-forwards or convex conjugates feel distant; ch. 1–3 use them without warning.
+-   After each session, do the exercises of its row, then run the code of the chapter and change one parameter: $\varepsilon$, the number of points, the step size, the temperature $\beta$.
+-   Implement Sinkhorn's algorithm and the semi-discrete dual ascent yourself once before using a library; each is a dozen lines.
+-   The code uses NumPy, SciPy and PyTorch on the CPU, with synthetic data; every block runs in under half a minute on a laptop.
+-   The written exam allows no documents: learn the statements of Theorems 2.4, 3.2, 3.3 and 6.3, and the proof of Proposition 4.5, well enough to reproduce them.
+
+## 0. Review: measures, convexity and linear programming {#ch0}
+
+Optimal transport moves probability measures, so the course computes with push-forwards, convex conjugates and linear programs from the first session. This chapter collects the M1-level facts used later.
+
+The [Probability and Statistics](../s0-refresher-probability-statistics/index.html) and [Linear Algebra, Analysis and Optimization](../s0-refresher-linear-algebra-optimization/index.html) refreshers cover the same ground at a slower pace.
+
+### 0.1 Measures and push-forwards
+
+::: def
+[Definition 0.1 — Push-forward of a measure]{.tag} Let $\mu$ be a probability measure on $\mathcal{X}$ and $T : \mathcal{X} \to \mathcal{Y}$ a measurable map. The **push-forward** $T_\sharp \mu$ is the probability measure on $\mathcal{Y}$ defined by
+$$
+T_\sharp \mu(B) = \mu\big(T^{-1}(B)\big), \qquad \text{equivalently} \qquad \int \varphi \, d(T_\sharp \mu) = \int \varphi \circ T \, d\mu
+$$
+for every bounded measurable $\varphi$. If $X \sim \mu$, then $T(X) \sim T_\sharp\mu$.
+:::
+
+Two cases are used constantly.
+
+-   For a discrete measure, the push-forward moves each atom:
+$$
+T_\sharp \Big( \sum_i a_i \delta_{x_i} \Big) = \sum_i a_i \delta_{T(x_i)} .
+$$
+-   For densities $\rho_0, \rho_1$ and a diffeomorphism $T$ with $T_\sharp \rho_0 = \rho_1$, the change of variables formula gives the **Jacobian equation**
+$$
+\rho_0(x) = \rho_1\big(T(x)\big)\, |\det DT(x)| .
+$$
+
+::: def
+[Definition 0.2 — Weak convergence and tightness]{.tag} A sequence $(\mu_n)$ **converges weakly** to $\mu$ when $\int \varphi \, d\mu_n \to \int \varphi \, d\mu$ for every continuous bounded function $\varphi$.
+
+A family of measures is **tight** when, for every $\eta > 0$, one compact set $K$ satisfies $\mu(K) \geq 1 - \eta$ for all its members.
+:::
+
+::: thm
+[Theorem 0.3 — Prokhorov]{.tag} On a Polish space, a tight family of probability measures is relatively compact for weak convergence: every sequence has a weakly converging subsequence. On a compact space every family is tight. (Proof: Billingsley, 1999, ch. 1.)
+:::
+
+### 0.2 Convex conjugates
+
+::: def
+[Definition 0.4 — Legendre–Fenchel conjugate]{.tag} For $\varphi : \mathbb{R}^d \to \mathbb{R} \cup \{+\infty\}$, the **convex conjugate** is
+$$
+\varphi^*(y) = \sup_{x \in \mathbb{R}^d} \; \langle x, y \rangle - \varphi(x) .
+$$
+It is convex and lower semicontinuous, as a supremum of affine functions of $y$.
+:::
+
+:::: prop
+[Proposition 0.5 — Fenchel–Young]{.tag} For all $x, y \in \mathbb{R}^d$,
+$$
+\varphi(x) + \varphi^*(y) \geq \langle x, y \rangle ,
+$$
+with equality if and only if $y \in \partial \varphi(x)$, the subdifferential of $\varphi$ at $x$.
+
+::: proof
+The inequality is the definition of $\varphi^*$, with the supremum replaced by the value at $x$.
+
+Equality means that $x$ maximizes $z \mapsto \langle z, y \rangle - \varphi(z)$. Rearranged, this says $\varphi(z) \geq \varphi(x) + \langle y, z - x \rangle$ for every $z$, which is the definition of $y \in \partial\varphi(x)$. [∎]{.qed}
+:::
+::::
+
+Two more facts are quoted without proof. A proper, convex, lower semicontinuous function satisfies $\varphi^{**} = \varphi$. A convex function that is finite on an open set is differentiable Lebesgue-almost everywhere there (Rockafellar, 1970, Theorem 25.5), and at such points $\partial\varphi(x) = \{\nabla\varphi(x)\}$.
+
+### 0.3 Linear programming duality
+
+:::: thm
+[Theorem 0.6 — Linear programming duality]{.tag} Consider the primal and dual problems
+$$
+\min_{x \geq 0,\; Ax = b} \langle c, x \rangle \qquad \text{and} \qquad \max_{A^\top y \leq c} \langle b, y \rangle .
+$$
+If the primal is feasible and bounded, both optima are attained and their values coincide. A feasible pair $(x, y)$ is optimal if and only if **complementary slackness** holds:
+$$
+x_k > 0 \implies (A^\top y)_k = c_k .
+$$
+If the feasible set is a bounded polytope, the minimum is attained at one of its vertices.
+
+::: proof
+*Weak duality.* For feasible $x$ and $y$, using $x \geq 0$ and $c - A^\top y \geq 0$,
+$$
+\langle c, x \rangle \geq \langle A^\top y, x \rangle = \langle y, Ax \rangle = \langle b, y \rangle .
+$$
+The gap $\langle c - A^\top y, x\rangle$ vanishes exactly under complementary slackness.
+
+Strong duality follows from Farkas' lemma, a separating-hyperplane argument. The vertex property holds because a linear function on a polytope reaches its minimum at an extreme point (Bertsimas and Tsitsiklis, 1997, ch. 2 and 4). [∎]{.qed}
+:::
+::::
+
+::: recap
+Key takeaways — chapter 0
+
+-   The push-forward $T_\sharp\mu$ is the law of $T(X)$ when $X \sim \mu$; with densities it obeys the Jacobian equation.
+-   Prokhorov's theorem turns tightness into compactness; ch. 1 uses it to prove that optimal plans exist.
+-   Fenchel–Young equality characterizes $y \in \partial\varphi(x)$; it is the heart of Brenier's theorem in ch. 3.
+-   A linear program and its dual have the same value, certified by complementary slackness; discrete optimal transport is such a program.
+:::
+
+## 1. The Monge and Kantorovich problems {#ch1}
+
+How much does it cost to move a pile of sand into a hole of the same volume? This chapter states the question in Monge's form, with a map, and in Kantorovich's form, with a coupling. It proves that the second always has a solution and solves it explicitly on the real line.
+
+### 1.1 Monge's problem
+
+Throughout, $\mu$ and $\nu$ are probability measures on spaces $\mathcal{X}$ and $\mathcal{Y}$.
+
+The cost of moving a unit of mass from $x$ to $y$ is $c(x, y) \geq 0$.
+
+The running example is the cost $|x - y|^p$ on $\mathbb{R}^d$.
+
+::: def
+[Definition 1.1 — Monge problem (1781)]{.tag} A measurable map $T$ is a **transport map** from $\mu$ to $\nu$ when $T_\sharp\mu = \nu$. The **Monge problem** is
+$$
+\inf_{T :\; T_\sharp \mu = \nu} \; \int c\big(x, T(x)\big) \, d\mu(x) .
+$$
+:::
+
+::: ex
+[Example 1.2 — Where Monge's formulation breaks down]{.tag}
+
+-   *No map at all.* With $\mu = \delta_0$ and $\nu = \frac12 \delta_{-1} + \frac12\delta_1$, any map sends the single atom to a single point, so $T_\sharp \mu$ is a Dirac mass. The constraint set is empty.
+-   *A non-convex constraint.* For $n$ points against $n$ points, all with weight $1/n$, the transport maps are the permutations $\sigma$. The problem becomes the **assignment problem**, a search over $n!$ candidates:
+$$
+\min_{\sigma \in \mathfrak{S}_n} \frac1n \sum_{i=1}^n c(x_i, y_{\sigma(i)}) .
+$$
+:::
+
+### 1.2 Kantorovich's relaxation
+
+Kantorovich (1942) allowed the mass at $x$ to be split between several destinations. A transport plan is then a joint distribution of departures and arrivals.
+
+::: def
+[Definition 1.3 — Couplings and the Kantorovich problem]{.tag} The set of **couplings** $\Pi(\mu, \nu)$ contains the probability measures $\pi$ on $\mathcal{X} \times \mathcal{Y}$ with marginals $\mu$ and $\nu$. The **Kantorovich problem** is
+$$
+\mathrm{OT}_c(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \int c(x, y) \, d\pi(x, y) .
+$$
+For discrete measures $\mu = \sum_i a_i \delta_{x_i}$ and $\nu = \sum_j b_j \delta_{y_j}$, a coupling is a matrix of the transport polytope
+$$
+U(a, b) = \{ P \in \mathbb{R}_+^{n \times m} : P \mathbf{1}_m = a, \; P^\top \mathbf{1}_n = b \},
+$$
+and the cost is linear: $\langle C, P \rangle = \sum_{ij} C_{ij} P_{ij}$, with $C_{ij} = c(x_i, y_j)$.
+:::
+
+The relaxation is consistent with Monge's problem. The product $\mu \otimes \nu$ is always a coupling, so $\Pi(\mu,\nu)$ is never empty. A map $T$ with $T_\sharp\mu = \nu$ defines the coupling $(\mathrm{Id}, T)_\sharp \mu$ with the same cost. Hence the Kantorovich value is at most the Monge value.
+
+:::: thm
+[Theorem 1.4 — Existence of an optimal plan]{.tag} Let $\mathcal{X}$ and $\mathcal{Y}$ be compact metric spaces and $c$ continuous. Then the Kantorovich problem has a minimizer.
+
+::: proof
+-   $\Pi(\mu, \nu)$ is tight, because $\mathcal{X} \times \mathcal{Y}$ is compact; by Prokhorov's theorem (Theorem 0.3) it is relatively compact.
+-   It is weakly closed: the constraint $\int \varphi(x) \, d\pi(x, y) = \int \varphi \, d\mu$ passes to weak limits, since $(x, y) \mapsto \varphi(x)$ is continuous and bounded.
+-   The cost $\pi \mapsto \int c \, d\pi$ is weakly continuous, because $c$ is continuous and bounded.
+
+A continuous function on a compact set reaches its minimum. [∎]{.qed}
+:::
+
+The same proof works on Polish spaces for a lower semicontinuous cost bounded from below (Villani, 2009, Theorem 4.1).
+::::
+
+:::: prop
+[Proposition 1.5 — Assignment: Kantorovich equals Monge]{.tag} If $n = m$ and $a = b = \mathbf{1}_n / n$, some optimal plan is a permutation matrix divided by $n$. Hence the Kantorovich and Monge values coincide, and the assignment problem is a linear program.
+
+::: proof
+$U(\mathbf{1}/n, \mathbf{1}/n)$ is $\frac1n$ times the set of doubly stochastic matrices. By the Birkhoff–von Neumann theorem, its vertices are the permutation matrices. A linear function on a polytope reaches its minimum at a vertex (Theorem 0.6). [∎]{.qed}
+:::
+::::
+
+### 1.3 Wasserstein distances
+
+::: def
+[Definition 1.6 — Wasserstein distance]{.tag} On the set $\mathcal{P}_p(\mathbb{R}^d)$ of probability measures with a finite moment of order $p \geq 1$,
+$$
+W_p(\mu, \nu) = \Big( \min_{\pi \in \Pi(\mu,\nu)} \int |x - y|^p \, d\pi(x, y) \Big)^{1/p} .
+$$
+:::
+
+:::: prop
+[Proposition 1.7 — $W_p$ is a distance]{.tag} $W_p$ is a distance on $\mathcal{P}_p(\mathbb{R}^d)$. Moreover, $W_p(\mu_n, \mu) \to 0$ if and only if $\mu_n \to \mu$ weakly and the moments of order $p$ converge.
+
+::: proof
+Symmetry is clear. If $W_p(\mu,\nu) = 0$, an optimal plan lives on the diagonal, hence $\mu = \nu$.
+
+For the triangle inequality, take optimal plans $\pi_{12}$ between $\mu_1, \mu_2$ and $\pi_{23}$ between $\mu_2, \mu_3$.
+
+The **gluing lemma** builds random variables with $(X_1, X_2) \sim \pi_{12}$ and $(X_2, X_3) \sim \pi_{23}$: draw $X_2$, then draw the other two independently given $X_2$.
+
+The pair $(X_1, X_3)$ couples $\mu_1$ and $\mu_3$, and Minkowski's inequality in $L^p$ gives
+$$
+W_p(\mu_1, \mu_3) \leq \|X_1 - X_3\|_{L^p} \leq \|X_1 - X_2\|_{L^p} + \|X_2 - X_3\|_{L^p} .
+$$
+The right-hand side is $W_p(\mu_1,\mu_2) + W_p(\mu_2, \mu_3)$. The characterization of convergence is Theorem 6.9 of Villani (2009). [∎]{.qed}
+:::
+::::
+
+Unlike the Kullback–Leibler divergence, $W_p$ sees the geometry of the ground space. Two Dirac masses are at distance
+$$
+W_p(\delta_x, \delta_y) = |x - y| ,
+$$
+however far apart their supports are. Ch. 2 turns this remark into the argument behind Wasserstein GANs.
+
+### 1.4 Dimension one: sorting
+
+On the real line, optimal transport has a closed form. It uses the cumulative distribution function $F_\mu(t) = \mu((-\infty, t])$ and the quantile function $F_\mu^{-1}(s) = \inf\{t : F_\mu(t) \geq s\}$.
+
+:::: thm
+[Theorem 1.8 — Optimal transport on the line]{.tag} Let $c(x, y) = h(x - y)$ with $h$ convex. The **monotone coupling**, the law of $(F_\mu^{-1}(U), F_\nu^{-1}(U))$ with $U$ uniform on $[0, 1]$, is optimal. In particular:
+
+::: key
+[Key formula — the one-dimensional Wasserstein distance]{.tag}
+$$
+W_p^p(\mu, \nu) = \int_0^1 \big| F_\mu^{-1}(s) - F_\nu^{-1}(s) \big|^p \, ds
+$$
+:::
+
+::: proof
+We prove it for $n$ points against $n$ points with equal weights and the quadratic cost; the general case follows by approximation (Santambrogio, 2015, ch. 2).
+
+-   By Proposition 1.5, some optimal plan is a permutation.
+-   Suppose it crosses: it sends $x_1 < x_2$ to $y' > y$ respectively. Uncrossing the two pairs changes the cost by
+$$
+(x_1 - y)^2 + (x_2 - y')^2 - (x_1 - y')^2 - (x_2 - y)^2 = -2 (x_2 - x_1)(y' - y) < 0 .
+$$
+-   So an optimal permutation has no crossing: it matches the $k$-th smallest $x$ with the $k$-th smallest $y$. For empirical measures this is exactly the monotone coupling. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 1.9 — Three points against three points]{.tag} Take $x = (0, 1, 3)$ and $y = (6, 2, 5)$ with weights $1/3$. Sorting $y$ into $(2, 5, 6)$ gives the optimal pairing and
+$$
+W_2^2 = \tfrac13 \big( 2^2 + 4^2 + 3^2 \big) = \tfrac{29}{3} \approx 9.67 .
+$$
+The pairing in the given order costs $\frac13(36 + 1 + 4) = \frac{41}{3}$, which is worse.
+:::
+
+The code checks Example 1.9, then solves random instances in three ways: sorting (Theorem 1.8), the assignment solver of SciPy (Proposition 1.5) and a generic linear-programming solver applied to Definition 1.3.
+
+```python
+import numpy as np
+from scipy.optimize import linear_sum_assignment, linprog
+
+def ot_lp(a, b, C):
+    """Kantorovich problem as a linear program (Definition 1.3)."""
+    n, m = C.shape
+    A_eq = np.vstack([np.kron(np.eye(n), np.ones(m)),     # row sums = a
+                      np.kron(np.ones(n), np.eye(m))])    # column sums = b
+    res = linprog(C.ravel(), A_eq=A_eq, b_eq=np.concatenate([a, b]),
+                  bounds=(0, None), method="highs")
+    return res.fun, res.x.reshape(n, m)
+
+# Example 1.9: three points against three points, quadratic cost
+x, y = np.array([0.0, 1.0, 3.0]), np.array([6.0, 2.0, 5.0])
+print("sorted pairing:", np.mean((np.sort(x) - np.sort(y)) ** 2))   # 29/3
+
+rng = np.random.default_rng(0)
+n = 40
+for d in (1, 2):
+    X, Y = rng.normal(size=(n, d)), rng.normal(size=(n, d)) + 1.0
+    C = ((X[:, None, :] - Y[None, :, :]) ** 2).sum(-1)
+    r, c = linear_sum_assignment(C)                      # Monge: a permutation
+    w_lp, P = ot_lp(np.full(n, 1 / n), np.full(n, 1 / n), C)
+    line = f"d={d}: assignment {C[r, c].mean():.6f}  LP {w_lp:.6f}"
+    if d == 1:
+        line += f"  sorting {np.mean((np.sort(X[:, 0]) - np.sort(Y[:, 0])) ** 2):.6f}"
+    print(line, " nonzeros in P:", int((P > 1e-12).sum()))
+```
+
+The three values agree (1.980791 in dimension 1, 2.369378 in dimension 2), and the linear program returns a plan with exactly 40 nonzero entries: a permutation, as Proposition 1.5 predicts.
+
+::: recap
+Key takeaways — chapter 1
+
+-   Monge looks for a map $T$ with $T_\sharp\mu = \nu$; such a map may not exist, and the constraint is not convex.
+-   Kantorovich looks for a coupling; the problem is linear in $\pi$, and an optimal plan exists for a continuous cost on compact spaces.
+-   For uniform weights on $n$ points against $n$ points, Kantorovich's optimum is a permutation, so the two problems agree.
+-   $W_p$ is a distance on measures with $p$ moments, and it metrizes weak convergence plus convergence of moments.
+-   On the line, optimal transport sorts: $W_p$ is the $L^p$ distance between quantile functions.
+:::
+
+## 2. Kantorovich duality {#ch2}
+
+The Kantorovich problem is a linear program, so it has a dual. The dual variables are prices: they certify optimality, and for the distance cost they turn $W_1$ into a supremum over Lipschitz functions, the formula behind Wasserstein GANs.
+
+### 2.1 The discrete dual
+
+:::: thm
+[Theorem 2.1 — Discrete duality]{.tag} For probability vectors $a \in \mathbb{R}^n$, $b \in \mathbb{R}^m$ and a cost matrix $C \geq 0$,
+$$
+\min_{P \in U(a, b)} \langle C, P \rangle \;=\; \max_{f, g} \Big\{ \langle f, a \rangle + \langle g, b \rangle \;:\; f_i + g_j \leq C_{ij} \ \text{for all } i, j \Big\} .
+$$
+An admissible pair $P$, $(f, g)$ is optimal if and only if
+$$
+P_{ij} > 0 \implies f_i + g_j = C_{ij} .
+$$
+
+::: proof
+The primal is the linear program of Theorem 0.6, with unknown $x = \mathrm{vec}(P) \geq 0$ and the $n + m$ equality constraints $P\mathbf{1} = a$ and $P^\top\mathbf{1} = b$.
+
+The dual variable of the first block is $f$, that of the second block is $g$, and the dual constraint $A^\top y \leq c$ reads $f_i + g_j \leq C_{ij}$. The primal is feasible, since $a b^\top \in U(a, b)$, and bounded below by $0$. Theorem 0.6 concludes. [∎]{.qed}
+:::
+::::
+
+The dual has an economic reading (Villani, 2003, Introduction). A shipping company offers to do the transport. It charges $f_i$ to pick up a unit of mass at $x_i$ and $g_j$ to deliver it at $y_j$.
+
+The constraint $f_i + g_j \leq C_{ij}$ keeps the offer competitive with doing the transport yourself. Duality says that the company, maximizing its revenue, earns exactly the optimal transport cost.
+
+### 2.2 c-transforms and the general dual
+
+::: def
+[Definition 2.2 — c-transform]{.tag} For $f : \mathcal{X} \to \mathbb{R}$, the **c-transform** of $f$ is the function on $\mathcal{Y}$
+$$
+f^c(y) = \inf_{x \in \mathcal{X}} \; c(x, y) - f(x) .
+$$
+A function is **c-concave** when it is the c-transform of some function (with the roles of $x$ and $y$ exchanged).
+:::
+
+:::: prop
+[Proposition 2.3 — c-transforms improve dual pairs]{.tag} If $f(x) + g(y) \leq c(x, y)$ for all $x, y$, then $g \leq f^c$ and the pair $(f, f^c)$ is still admissible. The dual value is therefore unchanged when it is restricted to pairs of the form $(f, f^c)$.
+
+::: proof
+For fixed $y$, $g(y) \leq c(x, y) - f(x)$ for every $x$; the infimum over $x$ gives $g(y) \leq f^c(y)$.
+
+The pair $(f, f^c)$ is admissible because $f^c(y) \leq c(x, y) - f(x)$ for every $x$.
+
+Since $\nu$ is a positive measure, replacing $g$ by the larger function $f^c$ can only increase $\int g \, d\nu$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 2.4 — Kantorovich duality]{.tag} Let $\mathcal{X}$ and $\mathcal{Y}$ be compact metric spaces and $c$ continuous. Then
+$$
+\mathrm{OT}_c(\mu, \nu) = \max_{f \in C(\mathcal{X})} \; \int_{\mathcal{X}} f \, d\mu + \int_{\mathcal{Y}} f^c \, d\nu ,
+$$
+the maximum being reached at a c-concave $f$, called a **Kantorovich potential**. A coupling $\pi$ is optimal if and only if it is supported in the set
+$$
+\Gamma_f = \{ (x, y) : f(x) + f^c(y) = c(x, y) \} .
+$$
+
+::: proof
+*Weak duality.* For any coupling $\pi$ and admissible $(f, g)$, integrating $f(x) + g(y) \leq c(x, y)$ against $\pi$ gives
+$$
+\int f \, d\mu + \int g \, d\nu \leq \int c \, d\pi .
+$$
+Equality forces $f(x) + g(y) = c(x, y)$ for $\pi$-almost every $(x, y)$, which is the support condition.
+
+*Strong duality* (sketch; details in Santambrogio, 2015, ch. 1).
+
+1.  Approximate $\mu$ and $\nu$ weakly by discrete measures $\mu_k$ and $\nu_k$.
+2.  Theorem 2.1 gives optimal discrete potentials. Two c-transforms extend them to a pair $(\varphi_k, \varphi_k^c)$ defined everywhere, with at least the same dual value (Proposition 2.3).
+3.  An infimum of functions sharing a modulus of continuity has that modulus, so all $\varphi_k$ and $\varphi_k^c$ share the modulus of continuity of $c$. After normalizing $\varphi_k$ at one point, Arzelà–Ascoli extracts a uniformly converging subsequence, with an admissible limit $(\varphi, \psi)$.
+4.  The discrete optimal values converge to $\mathrm{OT}_c(\mu, \nu)$ (stability of optimal plans, by the compactness argument of Theorem 1.4), and the dual values converge to $\int \varphi \, d\mu + \int \psi \, d\nu$. The dual therefore reaches the primal value. [∎]{.qed}
+:::
+::::
+
+### 2.3 The case of $W_1$: Kantorovich–Rubinstein
+
+:::: prop
+[Proposition 2.5 — Kantorovich–Rubinstein formula]{.tag} Let the cost be the distance $d$ of a compact metric space. Then
+$$
+W_1(\mu, \nu) = \max_{\mathrm{Lip}(f) \leq 1} \; \int f \, d\mu - \int f \, d\nu .
+$$
+
+::: proof
+-   For any $f$, the c-transform $f^c(y) = \inf_x d(x, y) - f(x)$ is 1-Lipschitz, as an infimum of 1-Lipschitz functions of $y$.
+-   If $f$ is 1-Lipschitz, then $f^c = -f$. Taking $x = y$ gives $f^c(y) \leq -f(y)$, and $f(y) - f(x) \leq d(x, y)$ gives $f^c(y) \geq -f(y)$.
+-   Start from any admissible pair $(f, f^c)$ and set $\varphi = -f^c$. Then $\varphi$ is 1-Lipschitz, and taking $y = x$ in the infimum shows $\varphi \geq f$.
+-   So the pair $(\varphi, -\varphi)$ is admissible and at least as good as $(f, f^c)$. The maximum in Theorem 2.4 can be restricted to such pairs, which is the formula. [∎]{.qed}
+:::
+::::
+
+::: ex
+[Example 2.6 — Disjoint supports]{.tag} On the plane, let $Z$ be uniform on $[0, 1]$.
+
+Let $\nu$ be the law of $(0, Z)$ and $\mu_\theta$ the law of $(\theta, Z)$: two parallel segments.
+
+-   For $\theta \neq 0$ the supports are disjoint, so $\mathrm{KL}(\mu_\theta \,|\, \nu) = +\infty$ and the Jensen–Shannon divergence equals $\log 2$.
+-   The translation by $(\theta, 0)$ costs $|\theta|$, and the 1-Lipschitz function $f(x) = \mathrm{sign}(\theta)\, x_1$ certifies the lower bound in Proposition 2.5. Hence
+$$
+W_1(\mu_\theta, \nu) = |\theta| .
+$$
+
+Only the Wasserstein distance varies with $\theta$; it is the example of Arjovsky, Chintala and Bottou (2017), revisited in ch. 7.
+:::
+
+::: recap
+Key takeaways — chapter 2
+
+-   Discrete OT is a linear program whose dual maximizes $\langle f, a \rangle + \langle g, b \rangle$ under $f_i + g_j \leq C_{ij}$.
+-   The c-transform $f^c$ is the best partner of $f$; the dual can be restricted to pairs $(f, f^c)$.
+-   Kantorovich duality holds for continuous costs on compact spaces; optimal plans live where $f(x) + f^c(y) = c(x, y)$.
+-   For a distance cost, $W_1$ is a supremum over 1-Lipschitz functions (Kantorovich–Rubinstein).
+-   Wasserstein distances stay informative when supports are disjoint, where KL and Jensen–Shannon saturate.
+:::
+
+## 3. Brenier's theorem and Gaussian transport {#ch3}
+
+For the quadratic cost, the dual of ch. 2 becomes a problem over convex functions. Fenchel–Young equality then forces the optimal plan to be a map, the gradient of a convex function. Between Gaussian measures this map is affine, and the distance has a closed form built on the Bures metric.
+
+### 3.1 Brenier's theorem
+
+:::: prop
+[Proposition 3.1 — Quadratic cost and convex potentials]{.tag} Let $\mu, \nu \in \mathcal{P}_2(\mathbb{R}^d)$ with second moments $M_2(\mu)$ and $M_2(\nu)$. For every coupling $\pi$,
+$$
+\int \tfrac12 |x - y|^2 \, d\pi = \tfrac12 M_2(\mu) + \tfrac12 M_2(\nu) - \int \langle x, y \rangle \, d\pi .
+$$
+Minimizing the quadratic cost is therefore maximizing the correlation $\int \langle x, y\rangle \, d\pi$.
+
+In the dual, the change of unknowns $\varphi(x) = \frac12|x|^2 - f(x)$ turns the c-transform into the convex conjugate:
+$$
+\tfrac12 |y|^2 - f^c(y) = \varphi^*(y) .
+$$
+
+::: proof
+Expand the square and integrate. For the dual, write the c-transform for the cost $\frac12 |x - y|^2$:
+$$
+f^c(y) = \inf_x \tfrac12|x|^2 - f(x) - \langle x, y \rangle + \tfrac12|y|^2 = \tfrac12|y|^2 - \sup_x \big( \langle x, y\rangle - \varphi(x) \big) .
+$$
+[∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 3.2 — Brenier (1991)]{.tag} Let $\mu, \nu \in \mathcal{P}_2(\mathbb{R}^d)$ and let $\mu$ have a density. For the quadratic cost there is a unique optimal coupling. It is induced by a map, the gradient of a convex function $\varphi$:
+$$
+\pi^\star = (\mathrm{Id}, \nabla \varphi)_\sharp \mu, \qquad (\nabla\varphi)_\sharp\mu = \nu ,
+$$
+and $\nabla\varphi$ is uniquely determined $\mu$-almost everywhere. Conversely, if $\varphi$ is convex and $(\nabla\varphi)_\sharp\mu = \nu$, then $\nabla\varphi$ is an optimal map.
+
+::: proof
+*Converse (complete).* Let $\varphi$ be convex with $(\nabla\varphi)_\sharp\mu = \nu$. For any coupling $\pi$, Fenchel–Young (Proposition 0.5) gives a bound that does not depend on $\pi$:
+$$
+\int \langle x, y \rangle \, d\pi \leq \int \varphi \, d\mu + \int \varphi^* \, d\nu .
+$$
+For $\pi = (\mathrm{Id}, \nabla\varphi)_\sharp \mu$, equality holds pointwise, since $\nabla\varphi(x) \in \partial\varphi(x)$. This coupling maximizes the correlation, so it is optimal by Proposition 3.1.
+
+*Direct part (sketch).*
+
+1.  By Theorem 2.4 and Proposition 3.1, extended to $\mathcal{P}_2$ (Villani, 2003, ch. 2), the dual has a maximizer of the form $(\varphi, \varphi^*)$ with $\varphi$ convex.
+2.  Every optimal $\pi$ is supported where $\varphi(x) + \varphi^*(y) = \langle x, y\rangle$, that is, where $y \in \partial\varphi(x)$ (Proposition 0.5).
+3.  A convex function is differentiable Lebesgue-almost everywhere, hence $\mu$-almost everywhere because $\mu$ has a density. There, $\partial\varphi(x) = \{\nabla\varphi(x)\}$, so $y = \nabla\varphi(x)$ for $\pi$-almost every $(x, y)$.
+4.  Steps 2–3 hold for every optimal plan with the same $\varphi$, so all optimal plans equal $(\mathrm{Id}, \nabla\varphi)_\sharp\mu$. [∎]{.qed}
+:::
+::::
+
+Three remarks place the theorem.
+
+-   The density assumption cannot be dropped: Example 1.2 has no map at all.
+-   On the line, gradients of convex functions are the non-decreasing maps, and Theorem 1.8 is recovered.
+-   With densities $\rho_0$ and $\rho_1$, the Jacobian equation (Definition 0.1) for $T = \nabla\varphi$ becomes the **Monge–Ampère equation**
+$$
+\rho_0(x) = \rho_1\big(\nabla\varphi(x)\big) \det D^2\varphi(x) .
+$$
+
+### 3.2 Gaussian measures and the Bures metric
+
+:::: thm
+[Theorem 3.3 — Optimal transport between Gaussians]{.tag} Let $\mu_0 = \mathcal{N}(m_0, \Sigma_0)$ and $\mu_1 = \mathcal{N}(m_1, \Sigma_1)$, with $\Sigma_0$ positive definite. Set
+$$
+M = \big(\Sigma_0^{1/2} \Sigma_1 \Sigma_0^{1/2}\big)^{1/2}, \qquad A = \Sigma_0^{-1/2} M \, \Sigma_0^{-1/2} .
+$$
+The optimal map is $T(x) = m_1 + A(x - m_0)$, and
+
+::: key
+[Key formula — Wasserstein distance between Gaussians]{.tag}
+$$
+W_2^2(\mu_0, \mu_1) = |m_0 - m_1|^2 + \mathrm{tr}\,\Sigma_0 + \mathrm{tr}\,\Sigma_1 - 2\, \mathrm{tr} \big(\Sigma_0^{1/2} \Sigma_1 \Sigma_0^{1/2}\big)^{1/2}
+$$
+:::
+
+::: proof
+1.  $A$ is symmetric positive semidefinite, as a congruence of $M$. So $T$ is the gradient of the convex function
+$$
+\varphi(x) = \langle m_1, x \rangle + \tfrac12 \langle x - m_0, A (x - m_0) \rangle .
+$$
+2.  $T_\sharp\mu_0$ is Gaussian with mean $m_1$ and covariance $A \Sigma_0 A$, and
+$$
+A \Sigma_0 A = \Sigma_0^{-1/2} M \, \Sigma_0^{-1/2} \, \Sigma_0 \, \Sigma_0^{-1/2} M \, \Sigma_0^{-1/2} = \Sigma_0^{-1/2} M^2 \, \Sigma_0^{-1/2} = \Sigma_1 .
+$$
+3.  By the converse part of Theorem 3.2, $T$ is optimal.
+4.  Write $X = m_0 + Z$ with $Z \sim \mathcal{N}(0, \Sigma_0)$. Then $X - T(X) = m_0 - m_1 + (I - A) Z$, and
+$$
+\mathbb{E}\,|X - T(X)|^2 = |m_0 - m_1|^2 + \mathrm{tr}\,\Sigma_0 + \mathrm{tr}(A\Sigma_0 A) - 2\, \mathrm{tr}(A \Sigma_0) .
+$$
+Finally, since $\Sigma_0^{1/2} A \Sigma_0^{1/2} = M$,
+$$
+\mathrm{tr}(A\Sigma_0) = \mathrm{tr}(\Sigma_0^{1/2} A \Sigma_0^{1/2}) = \mathrm{tr}\, M .
+$$
+[∎]{.qed}
+:::
+::::
+
+::: def
+[Definition 3.4 — Bures metric]{.tag} On symmetric positive semidefinite matrices, the **Bures metric** is
+$$
+\mathcal{B}(\Sigma_0, \Sigma_1)^2 = \mathrm{tr}\,\Sigma_0 + \mathrm{tr}\,\Sigma_1 - 2\, \mathrm{tr} \big(\Sigma_0^{1/2} \Sigma_1 \Sigma_0^{1/2}\big)^{1/2} .
+$$
+By Theorem 3.3 it is the Wasserstein distance between centred Gaussians, hence a distance. For commuting matrices it reduces to the Frobenius distance between square roots:
+$$
+\mathcal{B}(\Sigma_0, \Sigma_1) = \| \Sigma_0^{1/2} - \Sigma_1^{1/2} \|_F .
+$$
+In dimension one, $W_2^2 = (m_0 - m_1)^2 + (\sigma_0 - \sigma_1)^2$.
+:::
+
+::: ex
+[Example 3.5 — A non-commuting pair]{.tag} Take $m_0 = 0$, $m_1 = (1, 0)$, $\Sigma_0 = \mathrm{diag}(1, 4)$ and $\Sigma_1$ with rows $(2, 1)$ and $(1, 2)$.
+
+-   $\Sigma_0^{1/2} \Sigma_1 \Sigma_0^{1/2}$ has rows $(2, 2)$ and $(2, 8)$: trace 10, determinant 12.
+-   For a $2 \times 2$ positive matrix $S$ with eigenvalues $\lambda_1, \lambda_2$,
+$$
+\big(\sqrt{\lambda_1} + \sqrt{\lambda_2}\big)^2 = \mathrm{tr}\, S + 2 \sqrt{\det S} ,
+$$
+    hence $\mathrm{tr}\, M = \sqrt{10 + 2\sqrt{12}} \approx 4.114$.
+-   The result:
+$$
+W_2^2 = 1 + 5 + 4 - 2 \times 4.114 \approx 1.771 .
+$$
+:::
+
+The **Fréchet inception distance** (FID) used to evaluate image generators (Heusel et al., 2017) is exactly this formula. It fits a Gaussian to the features of real images and another to the features of generated images, then reports $W_2^2$ between the two fits.
+
+The code computes the closed form of Example 3.5, checks that $A$ is symmetric with $A \Sigma_0 A = \Sigma_1$, and compares with the optimal assignment between samples.
+
+```python
+import numpy as np
+from scipy.linalg import sqrtm
+from scipy.optimize import linear_sum_assignment
+
+def gaussian_w2(m0, S0, m1, S1):
+    """Squared W2 between Gaussians and the Brenier map matrix (Theorem 3.3)."""
+    r0 = np.real(sqrtm(S0))
+    M = np.real(sqrtm(r0 @ S1 @ r0))
+    bures2 = np.trace(S0) + np.trace(S1) - 2 * np.trace(M)
+    r0inv = np.linalg.inv(r0)
+    A = r0inv @ M @ r0inv
+    return np.sum((m0 - m1) ** 2) + bures2, A
+
+m0, S0 = np.zeros(2), np.array([[1.0, 0.0], [0.0, 4.0]])
+m1, S1 = np.array([1.0, 0.0]), np.array([[2.0, 1.0], [1.0, 2.0]])
+w2, A = gaussian_w2(m0, S0, m1, S1)
+print("closed form W2^2:", round(w2, 4))
+print("A symmetric:", np.allclose(A, A.T), " A S0 A = S1:", np.allclose(A @ S0 @ A, S1))
+
+rng = np.random.default_rng(0)
+for n in (200, 800, 2000):                  # empirical OT between samples
+    X = rng.multivariate_normal(m0, S0, n)
+    Y = rng.multivariate_normal(m1, S1, n)
+    C = ((X[:, None] - Y[None]) ** 2).sum(-1)
+    r, c = linear_sum_assignment(C)
+    print(f"n={n:5d}  empirical W2^2 = {C[r, c].mean():.4f}")
+```
+
+The closed form gives 1.7712. The empirical values (1.9386, 1.9208, 1.8143) approach it slowly from above: estimating $W_2$ from samples suffers from the curse of dimensionality studied in [ch. 8](#ch8).
+
+::: recap
+Key takeaways — chapter 3
+
+-   For the quadratic cost, OT maximizes correlation, and the dual potentials become a convex function and its conjugate.
+-   Brenier: if $\mu$ has a density, the optimal plan is unique and given by a map $\nabla\varphi$ with $\varphi$ convex; conversely every such gradient pushing $\mu$ to $\nu$ is optimal.
+-   Between Gaussians the map is affine, and $W_2^2$ is the squared distance of the means plus the squared Bures distance of the covariances.
+-   The FID score of generative models is this Gaussian formula on network features.
+:::
+
+## 4. Discrete optimal transport: linear programming and entropic regularization {#ch4}
+
+Numerical optimal transport starts with two point clouds. This chapter first solves the linear program exactly, then regularizes it with entropy. The regularized problem is solved by Sinkhorn's algorithm: a few lines of PyTorch, parallel on a GPU and differentiable.
+
+### 4.1 Exact solvers
+
+:::: prop
+[Proposition 4.1 — Vertices of the transport polytope are sparse]{.tag} Every vertex of $U(a, b)$ has at most $n + m - 1$ nonzero entries. Hence some optimal plan has at most $n + m - 1$ nonzero entries.
+
+::: proof
+View the support of $P$ as edges of the bipartite graph between $\{1, \dots, n\}$ and $\{1, \dots, m\}$. Suppose this support contains a cycle $i_1 j_1 i_2 j_2 \dots i_k j_k i_1$.
+
+Let $E$ put $+1$ on the edges $(i_r, j_r)$ and $-1$ on the edges $(i_{r+1}, j_r)$ of the cycle. Its row and column sums vanish.
+
+So $P \pm tE \in U(a, b)$ for small $t > 0$, and $P$ is the midpoint of two feasible plans: it is not a vertex.
+
+So the support of a vertex is a forest on $n + m$ nodes, which has at most $n + m - 1$ edges. [∎]{.qed}
+:::
+::::
+
+Exact solvers exploit this structure. The **network simplex** moves from vertex to vertex of $U(a, b)$; the **Hungarian method** (Kuhn, 1955) solves the assignment problem in $O(n^3)$ operations; the **auction algorithm** (Bertsekas, 1988) is a parallel alternative. The code of ch. 1 used the HiGHS solver through `scipy.optimize.linprog`. All of them cost at least cubic time in practice, which is prohibitive beyond a few thousand points.
+
+### 4.2 Entropic regularization
+
+::: def
+[Definition 4.2 — Entropic optimal transport]{.tag} For $\varepsilon > 0$,
+$$
+\mathrm{OT}_\varepsilon(a, b) = \min_{P \in U(a, b)} \; \langle C, P \rangle + \varepsilon \, \mathrm{KL}(P \,|\, a \otimes b), \qquad \mathrm{KL}(P \,|\, Q) = \sum_{ij} P_{ij} \log \frac{P_{ij}}{Q_{ij}} .
+$$
+On $U(a, b)$, $\mathrm{KL}(P \,|\, a \otimes b) = H(a) + H(b) - H(P)$, where $H$ is the Shannon entropy. This is the entropic regularization of Cuturi (2013), up to an additive constant.
+:::
+
+:::: prop
+[Proposition 4.3 — Gibbs form and smooth dual]{.tag} The problem has a unique solution, of the form
+$$
+P^\varepsilon_{ij} = a_i b_j \exp\Big( \frac{f_i + g_j - C_{ij}}{\varepsilon} \Big) ,
+$$
+where $(f, g)$ maximizes the smooth, concave and unconstrained dual
+$$
+D_\varepsilon(f, g) = \langle f, a \rangle + \langle g, b \rangle - \varepsilon \sum_{ij} a_i b_j \Big( e^{(f_i + g_j - C_{ij})/\varepsilon} - 1 \Big) .
+$$
+
+::: proof
+The objective is strictly convex in $P$, so the minimizer is unique. Introduce multipliers $f$ and $g$ for the two marginal constraints.
+
+The derivative of the Lagrangian with respect to $P_{ij}$ is
+$$
+C_{ij} + \varepsilon \log \frac{P_{ij}}{a_i b_j} + \varepsilon - f_i - g_j .
+$$
+Setting it to zero, and absorbing the constant $\varepsilon$ into $f$, gives the Gibbs form; positivity is automatic. Substituting it back into the Lagrangian gives $D_\varepsilon$. [∎]{.qed}
+:::
+::::
+
+The hard constraint $f_i + g_j \leq C_{ij}$ of Theorem 2.1 has become a soft exponential penalty. Maximizing $D_\varepsilon$ in $f$ with $g$ fixed has a closed form, and so has the maximization in $g$.
+
+::: thm
+[Algorithm 4.4 — Sinkhorn's algorithm, in the log domain]{.tag} Start from $g = 0$ and repeat
+$$
+f_i \leftarrow -\varepsilon \log \sum_j b_j \, e^{(g_j - C_{ij})/\varepsilon}, \qquad g_j \leftarrow -\varepsilon \log \sum_i a_i \, e^{(f_i - C_{ij})/\varepsilon} .
+$$
+Each update is a **soft-min c-transform**: as $\varepsilon \to 0$ the first one tends to the c-transform $\min_j \, (C_{ij} - g_j)$ of Definition 2.2.
+
+In the variables $u = a \odot e^{f/\varepsilon}$, $v = b \odot e^{g/\varepsilon}$ and $K = e^{-C/\varepsilon}$, the updates are the classical matrix scalings
+$$
+u \leftarrow a \oslash (K v), \qquad v \leftarrow b \oslash (K^\top u), \qquad P^\varepsilon = \mathrm{diag}(u)\, K \, \mathrm{diag}(v) .
+$$
+:::
+
+Each iteration costs $O(nm)$ operations, all of them matrix–vector products or log-sum-exp reductions, which run in parallel on a GPU. The log domain avoids the underflow of $e^{-C/\varepsilon}$ when $\varepsilon$ is small.
+
+:::: prop
+[Proposition 4.5 — The price of regularization]{.tag} Let $\mathrm{OT}(a, b)$ be the unregularized optimum. Then
+$$
+0 \leq \langle C, P^\varepsilon \rangle - \mathrm{OT}(a, b) \leq \varepsilon \log \min(n, m) .
+$$
+
+::: proof
+The lower bound holds because $P^\varepsilon \in U(a, b)$. Let $P^0$ be an unregularized optimal plan. Optimality of $P^\varepsilon$ gives
+$$
+\langle C, P^\varepsilon \rangle + \varepsilon\, \mathrm{KL}(P^\varepsilon | a \otimes b) \leq \langle C, P^0 \rangle + \varepsilon\, \mathrm{KL}(P^0 | a \otimes b) .
+$$
+KL is non-negative, so the gap is at most $\varepsilon\, \mathrm{KL}(P^0 | a \otimes b)$. This KL is the mutual information of a pair $(X, Y) \sim P^0$, bounded by $\min(H(a), H(b)) \leq \log \min(n, m)$. [∎]{.qed}
+:::
+::::
+
+::: thm
+[Theorem 4.6 — Linear convergence of Sinkhorn (Franklin and Lorenz, 1989)]{.tag} The iterates of Algorithm 4.4 converge linearly to the optimal scalings, at the rate $\lambda(K)^2$ per iteration in Hilbert's projective metric, where
+$$
+\lambda(K) = \frac{\sqrt{\eta(K)} - 1}{\sqrt{\eta(K)} + 1} < 1, \qquad \eta(K) = \max_{i, j, k, l} \frac{K_{ik} K_{jl}}{K_{jk} K_{il}} .
+$$
+The proof is given in [ch. 8](#ch8).
+:::
+
+Since $\eta(K)$ grows like $e^{2\max C / \varepsilon}$, the rate degrades as $\varepsilon \to 0$: accuracy and speed trade off.
+
+:::: prop
+[Proposition 4.7 — Gradients of entropic OT]{.tag} For the cost $C_{ij} = |x_i - y_j|^2$, the function $x \mapsto \mathrm{OT}_\varepsilon$ is differentiable, with
+$$
+\nabla_{x_i} \mathrm{OT}_\varepsilon = 2 \sum_j P^\varepsilon_{ij} (x_i - y_j) = 2 a_i \big( x_i - T_\varepsilon(x_i) \big), \qquad T_\varepsilon(x_i) = \frac{1}{a_i} \sum_j P^\varepsilon_{ij} \, y_j .
+$$
+$T_\varepsilon$ is the **barycentric projection** of the plan. Similarly, $\nabla_a \mathrm{OT}_\varepsilon = f$, up to an additive constant.
+
+::: proof
+$\mathrm{OT}_\varepsilon$ is the minimum over $P$ of a function that is smooth in the positions and has a unique minimizer; the KL term does not depend on the positions.
+
+By the envelope (Danskin) theorem, the gradient is the partial gradient of $\langle C(x), P \rangle$ at $P = P^\varepsilon$. The gradient in $a$ follows in the same way from the dual of Proposition 4.3. [∎]{.qed}
+:::
+::::
+
+The PyTorch code compares Sinkhorn with the exact assignment for three values of $\varepsilon$, then differentiates the dual value through the iterations with autograd and checks Proposition 4.7.
+
+```python
+import math, numpy as np, torch
+from scipy.optimize import linear_sum_assignment
+torch.set_num_threads(1)
+torch.manual_seed(0)
+
+def sinkhorn_log(a, b, C, eps, iters=2000):
+    """Log-domain Sinkhorn (Algorithm 4.4): block ascent on the dual (f, g)."""
+    f, g = torch.zeros_like(a), torch.zeros_like(b)
+    for _ in range(iters):
+        f = -eps * torch.logsumexp((g[None, :] - C) / eps + torch.log(b)[None, :], dim=1)
+        g = -eps * torch.logsumexp((f[:, None] - C) / eps + torch.log(a)[:, None], dim=0)
+    P = torch.exp((f[:, None] + g[None, :] - C) / eps) * a[:, None] * b[None, :]
+    return P, f, g
+
+n = 100
+x = torch.randn(n, 2, dtype=torch.float64)
+y = torch.randn(n, 2, dtype=torch.float64) * 0.5 + torch.tensor([2.0, 0.0], dtype=torch.float64)
+a = b = torch.full((n,), 1.0 / n, dtype=torch.float64)
+C = torch.cdist(x, y) ** 2
+r, c = linear_sum_assignment(C.numpy())
+exact = C.numpy()[r, c].mean()
+for eps in (1.0, 0.1, 0.01):
+    P, f, g = sinkhorn_log(a, b, C, eps)
+    gap = (P * C).sum().item() - exact
+    print(f"eps={eps:5.2f}  <C,P>-OT = {gap:.4f}   bound eps*log(n) = {eps*math.log(n):.4f}"
+          f"   marginal error = {(P.sum(1)-a).abs().sum().item():.1e}")
+
+# Gradient of the entropic cost with respect to the source positions (Proposition 4.7)
+xs = x.clone().requires_grad_(True)
+P, f, g = sinkhorn_log(a, b, torch.cdist(xs, y) ** 2, eps=0.1, iters=300)
+dual_value = (f * a).sum() + (g * b).sum()        # = OT_eps at convergence
+dual_value.backward()                              # autograd through 300 iterations
+bary = (P @ y) / P.sum(1, keepdim=True)            # barycentric projection
+print("grad = 2 a_i (x_i - T(x_i)):", torch.allclose(xs.grad, 2 * a[:, None] * (x - bary), atol=1e-6))
+```
+
+The gaps are 0.6729, 0.0670 and 0.0029 for $\varepsilon = 1, 0.1, 0.01$, well inside the bounds 4.61, 0.46 and 0.046 of Proposition 4.5. For $\varepsilon = 0.01$ the marginal error after 2000 iterations is still $9 \times 10^{-5}$, the slowdown predicted by Theorem 4.6. The autograd gradient matches the barycentric formula.
+
+::: recap
+Key takeaways — chapter 4
+
+-   Exact discrete OT is a linear program with sparse vertices ($n + m - 1$ nonzeros); its solvers cost about $n^3$.
+-   Entropic regularization gives a unique plan of Gibbs form $a_i b_j e^{(f_i + g_j - C_{ij})/\varepsilon}$ and a smooth unconstrained dual.
+-   Sinkhorn alternates closed-form soft c-transforms; each iteration is a matrix–vector product, and the log domain keeps it stable.
+-   The regularization bias is at most $\varepsilon \log \min(n, m)$; convergence is linear but slows down as $\varepsilon \to 0$.
+-   Entropic OT is differentiable, with gradient given by the barycentric projection: it can serve as a loss in PyTorch.
+:::
+
+## 5. Semi-discrete optimal transport {#ch5}
+
+Between a density and a finite set of points, optimal transport partitions space into cells, one per point. The dual becomes a concave maximization over $m$ numbers, solved by gradient ascent, Newton's method or stochastic gradient. Applications include quantization, matching a continuous model to a finite data set, and the semi-discrete view of generative models.
+
+Throughout, $\mu$ has a density on a compact convex set $\mathcal{X} \subset \mathbb{R}^d$, $\nu = \sum_{j=1}^m b_j \delta_{y_j}$ with distinct $y_j$, and $c(x, y) = |x - y|^2$.
+
+::: def
+[Definition 5.1 — Laguerre cells]{.tag} For $g \in \mathbb{R}^m$, the **Laguerre cell** of $y_j$ is
+$$
+L_j(g) = \{ x \in \mathcal{X} : c(x, y_j) - g_j \leq c(x, y_k) - g_k \ \text{for all } k \} .
+$$
+For $g = 0$ these are the Voronoi cells. For the quadratic cost, the comparison between $j$ and $k$ is linear in $x$:
+$$
+2 \langle x, y_k - y_j \rangle \leq |y_k|^2 - |y_j|^2 + g_j - g_k ,
+$$
+so the cells are convex polyhedra (a **power diagram**), and raising $g_j$ enlarges the cell of $y_j$.
+:::
+
+:::: prop
+[Proposition 5.2 — The semi-discrete dual]{.tag} The optimal transport cost is the maximum of the concave function
+$$
+F(g) = \sum_{j=1}^m g_j b_j + \int_{\mathcal{X}} \min_{j} \big( c(x, y_j) - g_j \big) \, d\mu(x) .
+$$
+$F$ is differentiable, with
+$$
+\frac{\partial F}{\partial g_j}(g) = b_j - \mu\big(L_j(g)\big) .
+$$
+
+::: proof
+1.  In Theorem 2.4 with the roles of $\mu$ and $\nu$ exchanged, the potential on the target side only matters through its values $g_j$ at the points $y_j$, and its partner is the c-transform $\min_j (c(x, y_j) - g_j)$. Substituting gives $F$.
+2.  For each $x$, the integrand is a minimum of affine functions of $g$, hence concave; so is $F$.
+3.  If $x$ lies in the interior of $L_j(g)$, the integrand equals $c(x, y_j) - g_j$ near $g$, with gradient $-e_j$. The cell boundaries lie in finitely many hyperplanes, a $\mu$-negligible set.
+4.  The integrand is 1-Lipschitz in $g$ for the sup norm, so dominated convergence differentiates under the integral. The gradient of the integral is $-\big(\mu(L_1(g)), \dots, \mu(L_m(g))\big)$. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 5.3 — Optimality is mass balance]{.tag} A vector $g^\star$ maximizes $F$ if and only if every cell has the prescribed mass:
+$$
+\mu\big(L_j(g^\star)\big) = b_j \qquad \text{for } j = 1, \dots, m .
+$$
+Then the map $T$ equal to $y_j$ on $L_j(g^\star)$ is an optimal transport map, so the Monge problem has a solution.
+
+::: proof
+$F$ is concave and differentiable, so $g^\star$ is a maximizer if and only if $\nabla F(g^\star) = 0$, which is mass balance. Then $T_\sharp\mu = \sum_j \mu(L_j)\, \delta_{y_j} = \nu$. Splitting the integral over the cells,
+$$
+\int c\big(x, T(x)\big) \, d\mu = \sum_j \int_{L_j} \big( c(x, y_j) - g^\star_j \big) \, d\mu + \sum_j g^\star_j b_j = F(g^\star) .
+$$
+By weak duality $F(g^\star) \leq \mathrm{OT} \leq \int c(x, T(x))\, d\mu$, so all three are equal and $T$ is optimal. A maximizer exists because $F$ is invariant along $\mathbf{1}$ and tends to $-\infty$ in the other directions (Mérigot and Thibert, 2021). [∎]{.qed}
+:::
+::::
+
+Three algorithms follow.
+
+-   **Gradient ascent**: $g \leftarrow g + \tau\,(b - \mu(L(g)))$. Each step computes a power diagram and the masses of its cells, exactly in 2D and 3D with computational geometry (Aurenhammer, Hoffmann and Aronov, 1998; Lévy, 2015).
+-   **Damped Newton**: the Hessian is a weighted graph Laplacian whose entry $(j, k)$ is the $\mu$-mass of the common facet of $L_j$ and $L_k$, divided by $2|y_j - y_k|$. Kitagawa, Mérigot and Thibert (2019) prove global convergence, quadratic near the solution.
+-   **Stochastic gradient** (Genevay, Cuturi, Peyré and Bach, 2016): sample $x \sim \mu$, find the index $j^\star$ of its cell, and use the unbiased gradient $b - e_{j^\star}$. Only samples of $\mu$ are needed, as with a generative model.
+
+::: thm
+[Algorithm 5.4 — Averaged stochastic gradient ascent]{.tag} For $k = 1, 2, \dots$: draw $x_k \sim \mu$, set $j^\star = \arg\min_j \, c(x_k, y_j) - g_j$, update $g \leftarrow g + \frac{\tau}{\sqrt{k}} (b - e_{j^\star})$, and return the running average of the iterates.
+
+For a concave objective with bounded stochastic gradients, the averaged iterate $\bar g_k$ satisfies the standard guarantee
+$$
+F(g^\star) - \mathbb{E}\, F(\bar g_k) = O\big(\log k / \sqrt{k}\big) .
+$$
+:::
+
+::: ex
+[Example 5.5 — Two points on a segment]{.tag} Let $\mu$ be uniform on $[0, 1]$, $y = (0, 1)$ and $b = (\frac14, \frac34)$.
+
+-   The two cells meet at the point $s$ where $s^2 - g_1 = (1 - s)^2 - g_2$, that is $s = \frac12 (1 + g_1 - g_2)$.
+-   Mass balance requires $s = \frac14$, hence $g_1 - g_2 = -\frac12$. The optimal map sends $[0, \frac14)$ to $0$ and $[\frac14, 1]$ to $1$: it is non-decreasing, as Theorem 1.8 predicts.
+-   The cost is
+$$
+\int_0^{1/4} x^2 \, dx + \int_{1/4}^1 (1 - x)^2 \, dx = \frac{1}{192} + \frac{27}{192} = \frac{7}{48} \approx 0.146 .
+$$
+:::
+
+The code discretizes the uniform measure on $[0, 1]^2$ by a $200 \times 200$ grid, runs gradient ascent on $F$ for five weighted points, then Algorithm 5.4 with fresh uniform samples.
+
+```python
+import numpy as np
+rng = np.random.default_rng(1)
+
+# mu = uniform density on [0,1]^2, discretised on a fine grid; nu = 5 weighted Diracs
+s = (np.arange(200) + 0.5) / 200
+X = np.stack(np.meshgrid(s, s), -1).reshape(-1, 2)          # 40 000 grid points
+Y = rng.uniform(0.2, 0.8, size=(5, 2))
+b = np.array([0.1, 0.15, 0.2, 0.25, 0.3])
+C = ((X[:, None, :] - Y[None, :, :]) ** 2).sum(-1)          # c(x, y_j)
+
+def dual_and_masses(g):
+    """F(g) and the masses mu(L_j(g)) of the Laguerre cells (Proposition 5.2)."""
+    vals = C - g[None, :]
+    F = g @ b + vals.min(1).mean()
+    return F, np.bincount(vals.argmin(1), minlength=len(b)) / len(X)
+
+g = np.zeros(5)
+for k in range(301):                                        # gradient ascent
+    F, mass = dual_and_masses(g)
+    if k in (0, 10, 50, 300):
+        print(f"iter {k:3d}  F(g) = {F:.5f}  max |mu(L_j) - b_j| = {np.abs(mass - b).max():.4f}")
+    g += 0.2 * (b - mass)
+
+# Stochastic version (Algorithm 5.4): one fresh sample x ~ mu per step, averaged iterates
+h, h_avg = np.zeros(5), np.zeros(5)
+for k in range(1, 20001):
+    x = rng.uniform(size=2)
+    j = np.argmin(((x - Y) ** 2).sum(1) - h)
+    grad = b.copy(); grad[j] -= 1.0                         # unbiased gradient of F
+    h += 0.5 / np.sqrt(k) * grad
+    h_avg += (h - h_avg) / k
+F_sgd, mass_sgd = dual_and_masses(h_avg)
+print(f"SGD:      F(h) = {F_sgd:.5f}  max |mu(L_j) - b_j| = {np.abs(mass_sgd - b).max():.4f}")
+```
+
+Gradient ascent raises $F$ from 0.05908 to 0.06502 and balances the masses to grid precision within 50 iterations. The stochastic version, which never sees the grid, reaches $F = 0.06501$ with a largest mass error of 0.006 after 20 000 samples.
+
+::: recap
+Key takeaways — chapter 5
+
+-   Semi-discrete OT partitions space into Laguerre cells, polyhedra for the quadratic cost.
+-   Its dual is a concave function of $m$ numbers, with gradient $b_j - \mu(L_j(g))$: the excess mass of each cell.
+-   Optimality is mass balance, and the optimal map sends each cell to its point; Monge's problem is solved.
+-   Gradient ascent, damped Newton and stochastic gradient all apply; the last one only needs samples of $\mu$.
+:::
+
+## 6. Dynamic formulation and Wasserstein gradient flows {#ch6}
+
+Static optimal transport says where the mass goes; the dynamic view says how it travels. This makes $\mathcal{P}_2(\mathbb{R}^d)$ a geodesic space with a formal Riemannian structure, in which partial differential equations such as the Fokker–Planck equation are gradient flows.
+
+### 6.1 Displacement interpolation and the Benamou–Brenier formula
+
+::: def
+[Definition 6.1 — Displacement interpolation (McCann, 1997)]{.tag} Let $\mu_0$ have a density and let $T$ be the Brenier map from $\mu_0$ to $\mu_1$. For $t \in [0, 1]$,
+$$
+\mu_t = \big( (1 - t)\,\mathrm{Id} + t\, T \big)_\sharp \, \mu_0 .
+$$
+Each particle moves at constant speed on a straight line. This is not the mixture $(1 - t)\mu_0 + t\mu_1$: between $\delta_0$ and $\delta_1$ it gives $\delta_t$.
+:::
+
+:::: prop
+[Proposition 6.2 — Constant-speed geodesics]{.tag} For all $s, t \in [0, 1]$,
+$$
+W_2(\mu_s, \mu_t) = |t - s| \, W_2(\mu_0, \mu_1) .
+$$
+
+::: proof
+With $T_t = (1 - t)\mathrm{Id} + tT$, the coupling $(T_s, T_t)_\sharp\mu_0$ costs $(t - s)^2 \int |T - \mathrm{Id}|^2 \, d\mu_0$, which gives "$\leq$".
+
+If the inequality were strict for some $s < t$, the triangle inequality along $\mu_0, \mu_s, \mu_t, \mu_1$ would give $W_2(\mu_0, \mu_1) < W_2(\mu_0, \mu_1)$. [∎]{.qed}
+:::
+::::
+
+A family $(\rho_t, v_t)$ solves the **continuity equation** $\partial_t \rho_t + \mathrm{div}(\rho_t v_t) = 0$ when, for every smooth compactly supported $\varphi$,
+$$
+\frac{d}{dt} \int \varphi \, d\rho_t = \int \langle \nabla\varphi, v_t \rangle \, d\rho_t .
+$$
+If particles follow $\dot X_t = v_t(X_t)$, the law of $X_t$ solves it: differentiate $\mathbb{E}\,\varphi(X_t)$ in time.
+
+:::: thm
+[Theorem 6.3 — Benamou–Brenier formula]{.tag}
+$$
+W_2^2(\mu_0, \mu_1) = \min \Big\{ \int_0^1 \!\! \int |v_t|^2 \, d\rho_t \, dt \; : \; \partial_t \rho_t + \mathrm{div}(\rho_t v_t) = 0, \ \rho_0 = \mu_0, \ \rho_1 = \mu_1 \Big\} .
+$$
+
+::: proof
+We give the proof for smooth velocity fields; the general case is in Ambrosio, Gigli and Savaré (2005, ch. 8).
+
+-   *Every path costs at least $W_2^2$.* Let $X_t$ follow $v_t$ with $X_0 \sim \mu_0$, so $X_1 \sim \mu_1$. By Cauchy–Schwarz in time,
+$$
+|X_1 - X_0|^2 = \Big| \int_0^1 v_t(X_t) \, dt \Big|^2 \leq \int_0^1 |v_t(X_t)|^2 \, dt .
+$$
+Taking expectations,
+$$
+W_2^2(\mu_0, \mu_1) \leq \mathbb{E}\,|X_1 - X_0|^2 \leq \int_0^1 \!\! \int |v_t|^2 \, d\rho_t \, dt .
+$$
+-   *McCann's path reaches it.* Along $X_t = (1 - t) X_0 + t\, T(X_0)$ the velocity $T(X_0) - X_0$ is constant in time, so Cauchy–Schwarz is an equality, and the action is $\mathbb{E}\,|T(X_0) - X_0|^2 = W_2^2$. The Eulerian field $v_t = (T - \mathrm{Id}) \circ T_t^{-1}$ is well defined because $T_t$ is the gradient of a strictly convex function for $t < 1$. [∎]{.qed}
+:::
+::::
+
+With the momentum $m = \rho v$, the action $\int\!\!\int |m|^2 / \rho$ is jointly convex and the constraint is linear, so the formula is a convex problem, which Benamou and Brenier (2000) solve numerically. Otto (2001) read it as a Riemannian metric: the squared norm of a tangent vector $\dot\rho$ is the least kinetic energy $\int |v|^2 \, d\rho$ of a velocity that produces it.
+
+### 6.2 Wasserstein gradient flows
+
+In $\mathbb{R}^d$, the gradient flow $\dot x = -\nabla F(x)$ is the limit of the implicit Euler scheme $x_{k+1} \in \arg\min_x F(x) + |x - x_k|^2 / (2\tau)$. Replacing the Euclidean distance by $W_2$ gives a scheme on measures.
+
+::: def
+[Definition 6.4 — JKO scheme]{.tag} For a functional $F$ on $\mathcal{P}_2(\mathbb{R}^d)$ and a time step $\tau > 0$, the **Jordan–Kinderlehrer–Otto scheme** is
+$$
+\rho_{k+1} \in \arg\min_{\rho} \; F(\rho) + \frac{1}{2\tau} W_2^2(\rho, \rho_k) .
+$$
+:::
+
+::: def
+[Definition 6.5 — First variation]{.tag} The **first variation** $\frac{\delta F}{\delta \rho}(\rho)$ is the function such that, for every perturbation $\chi$ of total mass zero,
+$$
+\frac{d}{dh} F(\rho + h\chi) \Big|_{h=0} = \int \frac{\delta F}{\delta\rho} \, d\chi .
+$$
+Three examples:
+
+-   potential energy $\int V \, d\rho$: first variation $V$;
+-   interaction energy $\frac12 \iint W(x - y) \, d\rho(x) \, d\rho(y)$, with $W$ even: first variation $W * \rho$;
+-   entropy $\int \rho \log \rho$: first variation $\log \rho + 1$.
+:::
+
+:::: prop
+[Proposition 6.6 — Wasserstein gradient flow (formal)]{.tag} The gradient flow of $F$ for the metric $W_2$ is the continuity equation with velocity $v_t = -\nabla \frac{\delta F}{\delta\rho}(\rho_t)$:
+$$
+\partial_t \rho_t = \mathrm{div}\Big( \rho_t \, \nabla \frac{\delta F}{\delta \rho}(\rho_t) \Big), \qquad \frac{d}{dt} F(\rho_t) = -\int \Big| \nabla \frac{\delta F}{\delta\rho} \Big|^2 d\rho_t \leq 0 .
+$$
+
+::: proof
+For smooth positive densities, an integration by parts gives, along any curve with velocity $v$,
+$$
+\frac{d}{dt} F(\rho_t) = -\int \frac{\delta F}{\delta\rho} \, \mathrm{div}(\rho_t v_t) = \int \Big\langle \nabla \frac{\delta F}{\delta\rho}, v_t \Big\rangle \, d\rho_t .
+$$
+At fixed kinetic energy $\int |v|^2 d\rho$, Cauchy–Schwarz in $L^2(\rho)$ makes $v = -\nabla \frac{\delta F}{\delta\rho}$ the steepest descent. [∎]{.qed}
+:::
+::::
+
+:::: thm
+[Theorem 6.7 — Fokker–Planck as a gradient flow (Jordan, Kinderlehrer and Otto, 1998)]{.tag} Let $F(\rho) = \int V \, d\rho + \int \rho \log \rho$, for a smooth potential $V$ with suitable growth. As $\tau \to 0$, the JKO scheme converges to the solution of the **Fokker–Planck equation**
+$$
+\partial_t \rho = \Delta \rho + \mathrm{div}(\rho \nabla V) ,
+$$
+which is the law of the Langevin diffusion $dX_t = -\nabla V(X_t)\, dt + \sqrt{2}\, dB_t$.
+
+With $\pi \propto e^{-V}$, $F(\rho) = \mathrm{KL}(\rho \,|\, \pi)$ up to a constant: the Fokker–Planck equation is the gradient flow of the relative entropy to its stationary law.
+:::
+
+The formula agrees with Proposition 6.6. The first variation is $V + \log\rho + 1$, and its gradient times $\rho$ is $\rho\nabla V + \nabla\rho$, whose divergence is the right-hand side.
+
+:::: prop
+[Proposition 6.8 — Contraction for convex potentials]{.tag} If $D^2 V \succeq \lambda I$ with $\lambda > 0$, two solutions of the Fokker–Planck equation satisfy
+$$
+W_2(\rho_t, \rho'_t) \leq e^{-\lambda t} \, W_2(\rho_0, \rho'_0) .
+$$
+Taking $\rho'_0 = \pi$ gives exponential convergence to equilibrium.
+
+::: proof
+Drive two Langevin diffusions by the same Brownian motion, starting from an optimal coupling of $\rho_0$ and $\rho'_0$. The noise cancels in the difference, and strong convexity gives
+$$
+\frac{d}{dt} |X_t - X'_t|^2 = -2 \big\langle X_t - X'_t, \nabla V(X_t) - \nabla V(X'_t) \big\rangle \leq -2\lambda |X_t - X'_t|^2 .
+$$
+So $|X_t - X'_t| \leq e^{-\lambda t} |X_0 - X'_0|$. Take the $L^2$ norm, and use that $(X_t, X'_t)$ couples $\rho_t$ and $\rho'_t$. [∎]{.qed}
+:::
+::::
+
+For potential and interaction energies, particles give exact solutions. If
+$$
+\dot x_i = -\nabla V(x_i) - \frac1N \sum_j \nabla W(x_i - x_j) ,
+$$
+the empirical measure of the $x_i$ solves the equation of Proposition 6.6. The entropy has no particle version, because it is infinite on discrete measures; the Brownian noise of the Langevin diffusion plays its role.
+
+::: ex
+[Example 6.9 — The Ornstein–Uhlenbeck process]{.tag} Take $V(x) = |x|^2/2$, so $\lambda = 1$ and $\pi = \mathcal{N}(0, I)$. In dimension one, starting from $\mathcal{N}(m, s^2)$, the solution stays Gaussian:
+$$
+\rho_t = \mathcal{N}\big( m e^{-t}, \; s^2 e^{-2t} + 1 - e^{-2t} \big) .
+$$
+Its distance to $\pi$ follows from Definition 3.4 and stays below $e^{-t} W_2(\rho_0, \pi)$.
+:::
+
+The code runs 100 000 Langevin particles from $\mathcal{N}(3, 0.25)$ and measures $W_2$ to the standard Gaussian by sorting (Theorem 1.8).
+
+```python
+import numpy as np
+from scipy.stats import norm
+rng = np.random.default_rng(0)
+
+def w2_1d(samples, q):
+    """W2 between an empirical measure and a law with quantile function q (Theorem 1.8)."""
+    n = len(samples)
+    return np.sqrt(np.mean((np.sort(samples) - q((np.arange(n) + 0.5) / n)) ** 2))
+
+# Langevin dX = -X dt + sqrt(2) dB: the law follows the Fokker-Planck equation (Theorem 6.7)
+n, dt, m, s = 100_000, 0.01, 3.0, 0.5
+X = m + s * rng.standard_normal(n)                        # rho_0 = N(3, 0.25)
+for k in range(301):
+    t = k * dt
+    if k % 100 == 0:
+        mt, st = m * np.exp(-t), np.sqrt(s**2 * np.exp(-2*t) + 1 - np.exp(-2*t))
+        exact = np.sqrt(mt**2 + (st - 1) ** 2)            # W2(rho_t, N(0,1)), Gaussian formula
+        print(f"t={t:.1f}  W2(particles, N(0,1)) = {w2_1d(X, norm.ppf):.3f}"
+              f"  exact = {exact:.3f}  e^-t W2(rho_0, N(0,1)) = {np.exp(-t) * np.sqrt(m**2 + (s-1)**2):.3f}")
+    X += -X * dt + np.sqrt(2 * dt) * rng.standard_normal(n)
+```
+
+At $t = 1, 2, 3$ the particles give 1.096, 0.404 and 0.150, against the exact 1.105, 0.406 and 0.149, all below the contraction bound of Proposition 6.8 (1.119, 0.412, 0.151).
+
+::: recap
+Key takeaways — chapter 6
+
+-   Displacement interpolation moves each particle on a straight line at constant speed; it is a geodesic for $W_2$.
+-   Benamou–Brenier: $W_2^2$ is the least kinetic energy of a flow that carries $\mu_0$ to $\mu_1$.
+-   The JKO scheme is implicit Euler in $W_2$; its limit moves mass with the velocity $-\nabla \frac{\delta F}{\delta\rho}$.
+-   The Fokker–Planck equation is the gradient flow of $\mathrm{KL}(\cdot \,|\, e^{-V}/Z)$; for $\lambda$-convex $V$ it contracts $W_2$ at rate $e^{-\lambda t}$.
+:::
+
+## 7. Optimal transport in machine learning {#ch7}
+
+Four mechanisms of modern machine learning are optimal transport in disguise. Training a wide network is a Wasserstein gradient flow; the tokens of a transformer form an interacting particle system; a GAN minimizes a dual formula; diffusion and flow-matching models build transport paths.
+
+### 7.1 Training two-layer networks as a Wasserstein gradient flow
+
+A two-layer network with $N$ neurons is an average over particles $\theta_i = (a_i, w_i)$:
+$$
+f_\mu(x) = \int \Phi(\theta, x) \, d\mu(\theta), \qquad \Phi(\theta, x) = a\, \sigma(\langle w, x \rangle), \qquad \mu_N = \frac1N \sum_{i=1}^N \delta_{\theta_i} .
+$$
+The risk $R(\mu) = \frac12 \mathbb{E}\, (f_\mu(X) - Y)^2$ is **convex in $\mu$**, since $f_\mu$ is linear in $\mu$, even though it is not convex in the $\theta_i$.
+
+:::: prop
+[Proposition 7.1 — Gradient descent moves particles along a Wasserstein gradient flow]{.tag} The first variation of $R$ is
+$$
+J_\mu(\theta) = \frac{\delta R}{\delta\mu}(\theta) = \mathbb{E}\big[ (f_\mu(X) - Y)\, \Phi(\theta, X) \big] ,
+$$
+and
+$$
+N \nabla_{\theta_i} R(\mu_N) = \nabla J_{\mu_N}(\theta_i) .
+$$
+Gradient flow on the parameters, with time scaled by $N$, is the particle system of the Wasserstein gradient flow of $R$ (Proposition 6.6):
+$$
+\dot\theta_i = -\nabla J_{\mu_N}(\theta_i), \qquad \partial_t \mu = \mathrm{div}\big( \mu \, \nabla J_\mu \big) .
+$$
+
+::: proof
+By the chain rule,
+$$
+\nabla_{\theta_i} R = \mathbb{E}\Big[(f_{\mu_N}(X) - Y)\, \tfrac1N \nabla_\theta \Phi(\theta_i, X)\Big] = \tfrac1N \nabla J_{\mu_N}(\theta_i) .
+$$
+The particle remark after Proposition 6.8 identifies the empirical measure with a solution of the continuity equation. [∎]{.qed}
+:::
+::::
+
+::: thm
+[Theorem 7.2 — Mean-field limit and global convergence (informal)]{.tag} If the initial $\theta_i$ are i.i.d. from $\mu_0$, then as $N \to \infty$ the empirical measure converges, on bounded time intervals, to the solution of the Wasserstein gradient flow (Mei, Montanari and Nguyen, 2018; Sirignano and Spiliopoulos, 2020).
+
+For $\Phi$ positively 2-homogeneous in $\theta$, as with ReLU, and $\mu_0$ spreading over all directions: if $\mu_t$ converges, its limit minimizes $R$ globally (Chizat and Bach, 2018).
+:::
+
+The code trains networks of increasing width, with the mean-field scaling, on a target made of six ReLU units.
+
+```python
+import torch
+torch.set_num_threads(1)
+torch.manual_seed(0)
+
+d, n_train = 2, 300
+X = torch.randn(n_train, d)
+teacher_w = torch.randn(6, d)
+teacher_a = torch.tensor([1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
+Y = torch.relu(X @ teacher_w.T) @ teacher_a                   # target: 6 ReLU units
+
+def train(N, steps=1500, lr=0.1, seed=0):
+    """Two-layer net f(x) = (1/N) sum_i a_i relu(<w_i, x>): particles theta_i = (a_i, w_i)."""
+    g = torch.Generator().manual_seed(seed)
+    theta = torch.randn(N, d + 1, generator=g).requires_grad_(True)
+    for k in range(steps):
+        a, w = theta[:, 0], theta[:, 1:]
+        risk = 0.5 * ((torch.relu(X @ w.T) @ a / N - Y) ** 2).mean()
+        grad, = torch.autograd.grad(risk, theta)
+        with torch.no_grad():
+            theta -= lr * N * grad          # each particle follows -grad of dR/dmu (Prop. 7.1)
+    return risk.item()
+
+for N in (2, 6, 50, 500):
+    risks = [train(N, seed=s) for s in range(3)]
+    print(f"N = {N:3d} particles   final risk over 3 seeds: " + "  ".join(f"{r:.4f}" for r in risks))
+```
+
+With 2 particles the final risk depends on the seed (0.18, 3.81, 0.18); with 500 particles all three seeds reach 0.0002, as the mean-field picture predicts.
+
+### 7.2 Token dynamics in transformers
+
+A self-attention layer with a residual connection updates $n$ tokens $x_i \in \mathbb{R}^d$ by
+$$
+x_i \leftarrow x_i + \sum_{j} A_{ij} \, V x_j, \qquad A_{ij} = \frac{e^{\langle Q x_i, K x_j \rangle}}{\sum_k e^{\langle Q x_i, K x_k \rangle}} .
+$$
+With weights shared across layers and depth read as time, this is an Euler step of an ODE. The velocity of token $x$ depends on the others only through their empirical measure $\mu$:
+$$
+\dot x = \Gamma_\mu(x), \qquad \Gamma_\mu(x) = \frac{\int e^{\langle Qx, Ky\rangle} \, V y \, d\mu(y)}{\int e^{\langle Qx, Ky \rangle} \, d\mu(y)} .
+$$
+
+:::: prop
+[Proposition 7.3 — Attention acts on measures]{.tag} The layer is equivariant under permutations of the tokens, and the empirical measure of the tokens solves the continuity equation
+$$
+\partial_t \mu_t + \mathrm{div}\big( \mu_t \, \Gamma_{\mu_t} \big) = 0 .
+$$
+The equation makes sense for any number of tokens, including a continuum (the mean-field limit).
+
+::: proof
+$\Gamma_\mu$ only involves integrals against $\mu$, which do not see the order of the tokens. Each token follows the field $\Gamma_{\mu_t}$, and the Lagrangian remark of ch. 6.1 gives the equation. [∎]{.qed}
+:::
+::::
+
+Geshkovski, Letrouit, Polyanskiy and Rigollet (2023) study $Q = K = V = I$, with tokens kept on the unit sphere by layer normalization and an inverse temperature $\beta$ in the exponent. They prove that, in dimension $d \geq 3$ and in several regimes of $\beta$, almost every initial configuration converges to a **single cluster**. For large $\beta$ the convergence passes through long **metastable** states with several clusters.
+
+Sander, Ablin, Blondel and Peyré (2022) replace the row normalization by Sinkhorn's algorithm (ch. 4), which makes $A$ doubly stochastic. They show that, unlike the softmax, this normalization lets the attention iterations be read as a discretized Wasserstein gradient flow.
+
+```python
+import torch
+torch.set_num_threads(1)
+torch.manual_seed(0)
+
+def n_clusters(x, tol=0.99):
+    """Greedy count of groups of tokens with pairwise inner product above tol."""
+    left, count = torch.ones(len(x), dtype=torch.bool), 0
+    while left.any():
+        i = int(torch.nonzero(left)[0])
+        left &= (x @ x[i]) < tol
+        count += 1
+    return count
+
+def attention_flow(x, beta, dt=0.1, steps=2000, report=(0, 50, 200, 2000)):
+    """Tokens on the sphere: x_i' = P_{x_i}^perp( sum_j softmax_j(beta <x_i,x_j>) x_j )."""
+    for k in range(steps + 1):
+        if k in report:
+            print(f"  time {k * dt:6.1f}  clusters = {n_clusters(x)}")
+        A = torch.softmax(beta * x @ x.T, dim=1)           # row-stochastic attention
+        v = A @ x
+        v = v - (v * x).sum(1, keepdim=True) * x          # project on the tangent space
+        x = x + dt * v
+        x = x / x.norm(dim=1, keepdim=True)               # layer normalisation
+    return x
+
+x0 = torch.nn.functional.normalize(torch.randn(64, 3), dim=1)
+for beta in (1.0, 9.0):
+    print(f"beta = {beta}")
+    attention_flow(x0.clone(), beta)
+```
+
+With 64 tokens on the sphere of $\mathbb{R}^3$: for $\beta = 1$ there is a single cluster from time 20 on; for $\beta = 9$, three clusters are still present at time 200.
+
+### 7.3 GANs: generators, critics and dual formulas
+
+A generator $g_\theta$ pushes a latent law $\zeta$, for instance $\mathcal{N}(0, I)$, to the model $\mu_\theta = (g_\theta)_\sharp \zeta$. The model has no density when the latent dimension is small, so its likelihood is not available. One minimizes instead a divergence $D(\mu_\theta, \nu)$ to the data law $\nu$ that has a **dual formula**, estimated with samples:
+
+-   Goodfellow et al. (2014): a discriminator $\delta$ with values in $(0, 1)$ reaches
+$$
+\max_\delta \; \mathbb{E}_\nu \log \delta + \mathbb{E}_{\mu_\theta} \log(1 - \delta) = 2\,\mathrm{JS}(\mu_\theta, \nu) - \log 4 .
+$$
+-   Wasserstein GAN (Arjovsky, Chintala and Bottou, 2017): by Proposition 2.5,
+$$
+\min_\theta W_1(\mu_\theta, \nu) = \min_\theta \; \max_{\mathrm{Lip}(f) \leq 1} \; \mathbb{E}_{z \sim \zeta} f\big(g_\theta(z)\big) - \mathbb{E}_{y \sim \nu} f(y) .
+$$
+
+The critic $f$ is the Kantorovich potential, and GAN training alternates ascent on the dual variable with descent on the generator.
+
+::: prop
+[Proposition 7.4 — Gradient of the generator]{.tag} If $f^\star$ is an optimal critic for $\theta$, differentiable, and the problem is regular enough for the envelope theorem (Arjovsky, Chintala and Bottou, 2017, Theorem 3), then
+$$
+\nabla_\theta W_1(\mu_\theta, \nu) = \mathbb{E}_{z \sim \zeta} \Big[ \partial_\theta g_\theta(z)^\top \, \nabla f^\star\big(g_\theta(z)\big) \Big] .
+$$
+:::
+
+Example 2.6 explains the gain. When the supports are disjoint, the Jensen–Shannon divergence is constant and gives no gradient, while $W_1$ gives a gradient of norm one. In practice the Lipschitz constraint is imposed by weight clipping or by a gradient penalty (ch. 8). The FID used to evaluate the samples is the Gaussian formula of Theorem 3.3.
+
+### 7.4 Diffusion models and flow matching
+
+**Diffusion models.** The forward noising process of a diffusion model is the Ornstein–Uhlenbeck process of Example 6.9. By Theorem 6.7, the law $\rho_t$ of the noised data follows the Wasserstein gradient flow of $\mathrm{KL}(\cdot \,|\, \mathcal{N}(0, I))$ and converges exponentially fast.
+
+The Fokker–Planck equation can be rewritten as a continuity equation:
+$$
+\partial_t \rho_t + \mathrm{div}(\rho_t v_t) = 0, \qquad v_t(x) = -x - \nabla \log \rho_t(x) .
+$$
+So the deterministic **probability-flow ODE** $\dot x = v_t(x)$ has the same marginals. Integrated backwards from $\mathcal{N}(0, I)$, it generates data. The only unknown is the score $\nabla\log\rho_t$, learned by denoising (Ho, Jain and Abbeel, 2020; Song et al., 2021).
+
+**Flow matching.** Lipman et al. (2023) and Liu, Gong and Liu (2023) learn the velocity directly. Take a coupling of $X_0 \sim \mathcal{N}(0, I)$ and data $X_1$, set $X_t = (1 - t) X_0 + t X_1$, and regress $X_1 - X_0$ on $(X_t, t)$.
+
+:::: prop
+[Proposition 7.5 — The regression target transports the marginals]{.tag} Let $v_t(x) = \mathbb{E}[X_1 - X_0 \mid X_t = x]$, the minimizer of $\mathbb{E}\,|v(X_t, t) - (X_1 - X_0)|^2$. Then the law $\rho_t$ of $X_t$ solves
+$$
+\partial_t \rho_t + \mathrm{div}(\rho_t v_t) = 0 ,
+$$
+so the ODE $\dot x = v_t(x)$, started from $\mathcal{N}(0, I)$, reaches the data law at $t = 1$.
+
+::: proof
+For a test function $\varphi$, the tower property gives
+$$
+\frac{d}{dt} \mathbb{E}\, \varphi(X_t) = \mathbb{E} \big\langle \nabla\varphi(X_t), X_1 - X_0 \big\rangle = \mathbb{E} \big\langle \nabla\varphi(X_t), v_t(X_t) \big\rangle .
+$$
+This is the weak form of the continuity equation. [∎]{.qed}
+:::
+::::
+
+Optimal transport enters through the coupling. With the Brenier coupling, $X_t$ is McCann's interpolation (Definition 6.1). Paths do not cross, $X_1 - X_0$ is a function of $X_t$, and the learned flow is straight, with action $W_2^2$, the minimum of Theorem 6.3; one Euler step is then exact.
+
+With independent pairs, paths cross, the velocity averages directions, and trajectories bend. Mini-batch OT couplings (Pooladian et al., 2023; Tong et al., 2024) straighten them; Exercise 14 measures the effect.
+
+::: recap
+Key takeaways — chapter 7
+
+-   A wide two-layer network is a measure on parameters; gradient descent is the Wasserstein gradient flow of a convex risk, which explains global convergence results.
+-   Self-attention moves tokens by a velocity field that depends on their empirical measure; tokens cluster, sometimes after long metastable phases.
+-   GANs minimize a divergence through its dual; the Wasserstein GAN uses Kantorovich–Rubinstein, with the critic as Kantorovich potential.
+-   Diffusion noising is the Wasserstein gradient flow of the KL to a Gaussian; flow matching learns a velocity field, and OT couplings make its paths straight.
+:::
+
+## 8. Complements for self-study {#ch8}
+
+master-mva.com announces eight sessions of 3 h, while the official volume used for the session plan is 18 h. This chapter holds the material that the two extra sessions would cover: the proofs left out in class, and the tools that turn the core theory into working machine-learning losses. Each section can be read after the chapter it extends.
+
+### 8.1 Why Sinkhorn converges: Hilbert's projective metric
+
+::: def
+[Definition 8.1 — Hilbert projective metric]{.tag} For vectors $u, u'$ with positive entries,
+$$
+d_H(u, u') = \log \max_i \frac{u_i}{u'_i} + \log \max_j \frac{u'_j}{u_j} .
+$$
+It vanishes exactly when $u' = t u$ for some $t > 0$, and it is a distance on the rays of the positive orthant.
+:::
+
+::: thm
+[Theorem 8.2 — Birkhoff's contraction theorem (1957)]{.tag} A matrix $K$ with positive entries is a strict contraction for $d_H$:
+$$
+d_H(K u, K u') \leq \lambda(K) \, d_H(u, u'), \qquad \lambda(K) = \frac{\sqrt{\eta(K)} - 1}{\sqrt{\eta(K)} + 1} ,
+$$
+with $\eta(K)$ as in Theorem 4.6. (Proof: Birkhoff, 1957; see also Peyré and Cuturi, 2019, ch. 4.)
+:::
+
+::: proof
+*Proof of Theorem 4.6 from Theorem 8.2.*
+
+1.  Entrywise inversion swaps the two maxima in Definition 8.1, and multiplying by a fixed positive vector cancels in the ratios. So $d_H(a \oslash x, a \oslash x') = d_H(x, x')$.
+2.  Let $(u^\star, v^\star)$ be the fixed point. One iteration computes $v \leftarrow b \oslash K^\top u$, then $u \leftarrow a \oslash K v$. By step 1 and Theorem 8.2, applied to $K$ and to $K^\top$, which has the same $\eta$,
+$$
+d_H(u_{k+1}, u^\star) = d_H(K v_{k+1}, K v^\star) \leq \lambda \, d_H(K^\top u_k, K^\top u^\star) \leq \lambda^2 \, d_H(u_k, u^\star) .
+$$
+3.  So the error decreases geometrically at rate $\lambda(K)^2$ (Franklin and Lorenz, 1989). [∎]{.qed}
+:::
+
+For $K = e^{-C/\varepsilon}$,
+$$
+\log \eta(K) = \frac1\varepsilon \max_{i, j, k, l} \big( C_{jk} + C_{il} - C_{ik} - C_{jl} \big) ,
+$$
+so $\lambda(K) \to 1$ as $\varepsilon \to 0$. Two practical remedies follow.
+
+-   **$\varepsilon$-scaling**: solve with a large $\varepsilon$, then decrease it, warm-starting the potentials each time (Schmitzer, 2019).
+-   **Accuracy targets**: a plan with transport cost within $\delta$ of the optimum is obtained in a number of operations that is $n^2$ times a polynomial in $\|C\|_\infty / \delta$, up to logarithmic factors (Altschuler, Weed and Rigollet, 2017).
+
+Sinkhorn is also a special case of iterative Bregman projections: each half-step is the KL projection of the current plan onto one marginal constraint (Benamou et al., 2015). Exercise 9 checks it.
+
+### 8.2 Sinkhorn divergences: a debiased loss between OT and MMD
+
+The entropic cost of Definition 4.2 is biased: $\mathrm{OT}_\varepsilon(\alpha, \alpha) > 0$ unless $\alpha$ is a Dirac mass. Minimizing $\beta \mapsto \mathrm{OT}_\varepsilon(\alpha, \beta)$ therefore does not return $\alpha$; it returns a shrunken version of it.
+
+::: def
+[Definition 8.3 — Sinkhorn divergence]{.tag} For measures $\alpha, \beta$,
+$$
+S_\varepsilon(\alpha, \beta) = \mathrm{OT}_\varepsilon(\alpha, \beta) - \tfrac12 \mathrm{OT}_\varepsilon(\alpha, \alpha) - \tfrac12 \mathrm{OT}_\varepsilon(\beta, \beta) .
+$$
+:::
+
+::: thm
+[Theorem 8.4 — Properties of the Sinkhorn divergence (Feydy et al., 2019)]{.tag} On a compact domain, for a Lipschitz cost whose Gibbs kernel $e^{-c/\varepsilon}$ is positive definite and universal (for instance $c = |x - y|$ or $c = \frac12 |x - y|^2$):
+
+-   $S_\varepsilon(\alpha, \beta) \geq 0$, with equality if and only if $\alpha = \beta$;
+-   $S_\varepsilon$ is convex in each argument and metrizes weak convergence;
+-   as $\varepsilon \to 0$, $S_\varepsilon$ tends to the unregularized $\mathrm{OT}$; as $\varepsilon \to \infty$, it tends to half the squared maximum mean discrepancy with kernel $-c$.
+:::
+
+The last point (Ramdas, García Trillos and Cuturi, 2017; Genevay, Peyré and Cuturi, 2018) explains the role of $\varepsilon$. Small values keep the geometry of optimal transport; large values give the statistical behaviour of kernel methods.
+
+Estimated from $n$ samples, entropic costs converge at the parametric rate $n^{-1/2}$, with a constant that blows up as $\varepsilon \to 0$ and grows with the dimension (Genevay et al., 2019; Mena and Niles-Weed, 2019). Unregularized $W_p$ does much worse, as section 8.3 shows.
+
+Genevay, Peyré and Cuturi (2018) train generators by minimizing a Sinkhorn divergence on mini-batches, with no critic to learn. The code fits an affine generator $g(z) = Az + m$ to a correlated Gaussian. It runs Sinkhorn without building the autograd graph, then performs one differentiable update: by the envelope theorem (Proposition 4.7), this gives the exact gradient at convergence.
+
+```python
+import math, torch
+torch.set_num_threads(1)
+torch.manual_seed(0)
+
+def ot_eps(x, y, eps, iters=50):
+    """Entropic OT between uniform point clouds (log-domain Sinkhorn, dual value)."""
+    la, lb = -math.log(len(x)), -math.log(len(y))
+    softmin = lambda C, h, lw: -eps * torch.logsumexp((h[None, :] - C) / eps + lw, dim=1)
+    with torch.no_grad():                                  # iterate without the graph
+        C = torch.cdist(x, y) ** 2
+        f, g = torch.zeros(len(x)), torch.zeros(len(y))
+        for _ in range(iters):
+            f = softmin(C, g, lb)
+            g = softmin(C.T, f, la)
+    # one differentiable update: the envelope theorem gives the exact gradient at convergence
+    f = softmin(torch.cdist(x, y) ** 2, g, lb)
+    return f.mean() + g.mean()
+
+def sinkhorn_div(x, y, eps):
+    """Debiased Sinkhorn divergence S_eps (Definition 8.3)."""
+    return ot_eps(x, y, eps) - 0.5 * ot_eps(x, x, eps) - 0.5 * ot_eps(y, y, eps)
+
+m_true = torch.tensor([2.0, -1.0])
+L_true = torch.tensor([[1.0, 0.0], [0.8, 0.5]])           # target N(m, L L^T)
+A = torch.eye(2, requires_grad=True)                     # generator g(z) = A z + m
+m = torch.zeros(2, requires_grad=True)
+opt = torch.optim.Adam([A, m], lr=0.05)
+sched = torch.optim.lr_scheduler.StepLR(opt, step_size=150, gamma=0.2)
+for step in range(301):
+    z, data = torch.randn(128, 2), torch.randn(128, 2) @ L_true.T + m_true
+    loss = sinkhorn_div(z @ A.T + m, data, eps=0.1)
+    opt.zero_grad(); loss.backward(); opt.step(); sched.step()
+    if step % 100 == 0:
+        print(f"step {step:3d}  S_eps = {loss.item():.4f}")
+print("learned mean:", m.detach().numpy().round(2), " target:", m_true.numpy())
+print("learned covariance:\n", (A @ A.T).detach().numpy().round(2))
+print("target covariance:\n", (L_true @ L_true.T).numpy().round(2))
+```
+
+The learned mean is $(1.97, -1.03)$ and the learned covariance has rows $(0.97, 0.78)$ and $(0.78, 0.84)$, against the target $(2, -1)$ with rows $(1, 0.8)$ and $(0.8, 0.89)$. The remaining gap comes from the mini-batches of 128 points and the finite number of steps. The divergence values printed during training are noisy for the same reason.
+
+### 8.3 Statistical optimal transport and sliced distances
+
+How fast does the empirical measure $\mu_n = \frac1n \sum_i \delta_{X_i}$ approach $\mu$ in Wasserstein distance? In high dimension, very slowly.
+
+:::: thm
+[Theorem 8.5 — The curse of dimensionality]{.tag} Let $\mu$ have a density bounded by $\rho_{\max}$ on $\mathbb{R}^d$. For every measure $\nu_n$ supported on $n$ points,
+$$
+W_1(\nu_n, \mu) \geq c_d \, \rho_{\max}^{-1/d} \, n^{-1/d}
+$$
+for a constant $c_d > 0$ depending only on $d$. Conversely, for $\mu$ supported in $[0, 1]^d$ with $d \geq 3$, $\mathbb{E}\, W_1(\mu_n, \mu) \leq C_d \, n^{-1/d}$ (Dudley, 1969; Fournier and Guillin, 2015).
+
+::: proof
+*Lower bound.* Let $x_1, \dots, x_n$ be the atoms of $\nu_n$ and $r > 0$. Any coupling sends each $x$ to one of the atoms, so
+$$
+W_1(\nu_n, \mu) \geq \int \min_i |x - x_i| \, d\mu(x) \geq r \, \mu\Big( \big\{ x : \min_i |x - x_i| \geq r \big\} \Big) .
+$$
+The union of the balls $B(x_i, r)$ has $\mu$-mass at most $n \, \omega_d \, r^d \rho_{\max}$, where $\omega_d$ is the volume of the unit ball.
+
+Choose $r$ so that this mass is $\frac12$. Then $W_1 \geq r / 2$, with $r = (2 n \omega_d \rho_{\max})^{-1/d}$. The upper bound uses a dyadic partition of the cube; see the references. [∎]{.qed}
+:::
+::::
+
+So the empirical $W_2^2$ of Example 3.5 converges slowly, and a loss built on sample $W_p$ needs a number of samples exponential in $d$ to reach a fixed accuracy. Weed and Bach (2019) show that the rate depends on the intrinsic dimension of the data rather than the ambient one. Entropic regularization (section 8.2) and slicing are the two standard remedies.
+
+::: def
+[Definition 8.6 — Sliced Wasserstein distance]{.tag} With $P_\theta(x) = \langle \theta, x \rangle$ and $\sigma$ the uniform measure on the unit sphere,
+$$
+SW_2^2(\mu, \nu) = \int_{\mathbb{S}^{d-1}} W_2^2\big( (P_\theta)_\sharp \mu, \, (P_\theta)_\sharp \nu \big) \, d\sigma(\theta) .
+$$
+:::
+
+Each slice is a one-dimensional problem, solved by sorting (Theorem 1.8). A Monte Carlo average over $L$ directions costs $O(L\, n \log n)$. Since $P_\theta$ is 1-Lipschitz, $SW_2 \leq W_2$.
+
+$SW_2$ is a distance, because a measure is determined by its one-dimensional projections (Cramér–Wold). It was introduced for texture mixing by Rabin, Peyré, Delon and Bernot (2011) and studied for barycenters by Bonneel, Rabin, Peyré and Pfister (2015). In dimension one, empirical measures converge at the rate $n^{-1/2}$ under mild conditions on $\mu$ (Bobkov and Ledoux, 2019), which is what slicing exploits.
+
+### 8.4 Barycenters and Gaussian mixtures
+
+::: def
+[Definition 8.7 — Wasserstein barycenter (Agueh and Carlier, 2011)]{.tag} Given measures $\mu_1, \dots, \mu_K$ and weights $\lambda_k \geq 0$ summing to one, a **barycenter** minimizes
+$$
+\nu \mapsto \sum_{k=1}^K \lambda_k \, W_2^2(\nu, \mu_k) .
+$$
+:::
+
+:::: prop
+[Proposition 8.8 — Barycenters on the line]{.tag} In dimension one, the barycenter is the measure whose quantile function is the average of the quantile functions:
+$$
+F_\nu^{-1} = \sum_k \lambda_k \, F_{\mu_k}^{-1} .
+$$
+
+::: proof
+By Theorem 1.8, $W_2(\nu, \mu_k)$ is the $L^2(0, 1)$ distance between quantile functions. The objective is a weighted sum of squared distances in a Hilbert space, minimized by the weighted mean of the $F_{\mu_k}^{-1}$.
+
+The average of non-decreasing, left-continuous functions is again non-decreasing and left-continuous, so it is the quantile function of some measure, which is therefore the barycenter. [∎]{.qed}
+:::
+::::
+
+For instance, the equal-weight barycenter of $\mathcal{N}(-2, 0.25)$ and $\mathcal{N}(2, 1)$ is $\mathcal{N}(0, 0.75^2)$: the means and the standard deviations are averaged. The mixture of the two, with equal weights, is bimodal instead.
+
+In any dimension, the barycenter of Gaussians is Gaussian. Its covariance solves the fixed-point equation
+$$
+\Sigma = \sum_k \lambda_k \big( \Sigma^{1/2} \Sigma_k \Sigma^{1/2} \big)^{1/2} ,
+$$
+which the iteration of Álvarez-Esteban, del Barrio, Cuesta-Albertos and Matrán (2016) solves.
+
+For Gaussian mixture models, Delon and Desolneux (2020) restrict the couplings to Gaussian mixtures. The resulting distance $MW_2$ is a discrete optimal transport problem between the mixture weights, with the ground cost $W_2^2$ between components given by Theorem 3.3. It is an upper bound on $W_2$ between the mixtures, cheap to compute, and it combines ch. 3 and ch. 4.
+
+### 8.5 Wasserstein GANs in practice
+
+The Lipschitz constraint of Proposition 2.5 is the hard part of a Wasserstein GAN. Arjovsky, Chintala and Bottou (2017) clip the critic's weights; Gulrajani et al. (2017) penalize its gradient instead, guided by the following property.
+
+:::: prop
+[Proposition 8.9 — Optimal critics have unit gradient on transport segments]{.tag} Let $f$ be an optimal 1-Lipschitz critic for $W_1(\mu, \nu)$ and $\pi$ an optimal coupling.
+
+For $\pi$-almost every pair $(x, y)$ of distinct points, $f$ grows at unit rate along the segment from $y$ to $x$. Where $f$ is differentiable on that segment,
+$$
+|\nabla f| = 1 .
+$$
+
+::: proof
+By Theorem 2.4 with $f^c = -f$ (Proposition 2.5), $f(x) - f(y) = |x - y|$ for $\pi$-almost every $(x, y)$.
+
+Let $z_t = y + t(x - y)$. The Lipschitz bounds give $f(z_t) - f(y) \leq t|x - y|$ and $f(x) - f(z_t) \leq (1 - t)|x - y|$. Their sum is an equality, so both are equalities.
+
+The directional derivative along $(x - y)/|x - y|$ is therefore 1. Since $f$ is 1-Lipschitz, the gradient has norm exactly 1. [∎]{.qed}
+:::
+::::
+
+The WGAN-GP critic loss adds $\lambda\, \mathbb{E}\, (|\nabla f(\hat x)| - 1)^2$, where $\hat x$ is drawn uniformly on segments between generated and real samples. It replaces the coupling of Proposition 8.9, which is unknown, by random pairs.
+
+### 8.6 Computing Wasserstein gradient flows
+
+-   **Entropic JKO**: replacing $W_2^2$ by its entropic version turns each JKO step into a KL-proximal problem, solved by Sinkhorn-like scalings on a grid (Peyré, 2015).
+-   **Particles**: potential and interaction energies are simulated exactly by particles (ch. 6), and the entropy by Brownian noise (Langevin).
+-   **Mean-field Langevin**: adding noise to the training of a two-layer network (ch. 7) gives the gradient flow of the risk plus an entropy. This regularized flow converges exponentially fast to its unique minimizer under log-Sobolev-type conditions (Mei, Montanari and Nguyen, 2018; Chizat, 2022; Nitanda, Wu and Suzuki, 2022).
+
+::: recap
+Key takeaways — chapter 8
+
+-   Sinkhorn is a contraction in Hilbert's projective metric with rate $\lambda(K)^2$; the rate degrades as $\varepsilon \to 0$, hence $\varepsilon$-scaling.
+-   The Sinkhorn divergence removes the entropic bias; it interpolates between OT and MMD and serves as a critic-free generative loss.
+-   Sample $W_p$ converges like $n^{-1/d}$; slicing and entropic regularization restore dimension-free rates.
+-   One-dimensional barycenters average quantile functions; Gaussian barycenters solve a fixed-point equation; Gaussian mixtures get a cheap discrete OT distance.
+-   Optimal WGAN critics have unit gradient along transport segments, which motivates the gradient penalty.
+:::
+
+## 9. Research directions and open problems {#ch9}
+
+This chapter is a self-study tour of current research that builds on the course. It reports results with their authors and years; it is not a complete survey.
+
+### 9.1 Estimating transport maps in high dimension
+
+The curse of dimensionality of Theorem 8.5 concerns distances. Estimating the Brenier map itself is harder still. Hütter and Rigollet (2021) give minimax rates for maps of given smoothness, which improve with the smoothness and degrade with the dimension.
+
+Entropic estimators, which apply the barycentric projection of Proposition 4.7 to samples, are computationally simple. Pooladian and Niles-Weed (2021) give rates for them. The lecture notes of Chewi, Niles-Weed and Rigollet (2024) survey the field.
+
+A recurring open question is which estimators adapt, at once, to the smoothness of the map and to a low intrinsic dimension of the data (Weed and Bach, 2019).
+
+### 9.2 Neural optimal transport solvers
+
+Brenier's theorem suggests parametrizing the potential $\varphi$ by an input convex neural network (Amos, Xu and Kolter, 2017) and solving the dual of Proposition 3.1 by stochastic optimization (Makkuva, Taghvaei, Oh and Lee, 2020).
+
+The benchmark of Korotin et al. (2021), built on pairs of measures with known optimal maps, shows that such solvers can generate good samples while recovering the true map poorly. Training neural OT solvers reliably remains open.
+
+### 9.3 Transport paths for generative models
+
+-   **Flow matching with OT couplings.** Mini-batch couplings (Pooladian et al., 2023; Tong et al., 2024) straighten the paths of ch. 7.4. Their bias, and its cost at large scale, are active questions.
+-   **Schrödinger bridges.** The Schrödinger problem is entropic optimal transport on path space (Léonard, 2014). De Bortoli, Thornton, Heng and Doucet (2021) solve it with score-based models, which gives diffusion models with a prescribed endpoint.
+-   **Is the diffusion map an OT map?** Khrulkov et al. (2023) observed that the probability-flow map of a diffusion model is close to the optimal transport map. Lavenant and Santambrogio (2022) proved that the flow map of the Fokker–Planck equation is not optimal in general. For Gaussian data it is (Exercise 15); how close it is for real data is open.
+
+### 9.4 Mean-field theory of neural networks
+
+The two-layer results of ch. 7.1 raise several questions.
+
+-   **Which regime?** Chizat, Oyallon and Bach (2019) separate the "lazy" regime, where parameters barely move and the network behaves like a kernel method, from the mean-field regime, where features are learned.
+-   **Quantitative rates.** Entropic regularization gives exponential convergence (section 8.6). Without it, rates for the noiseless mean-field flow and finite-$N$ corrections are largely open.
+-   **Depth.** Extending the measure-valued description beyond two layers is an open research programme.
+
+### 9.5 Transformers as interacting particles
+
+The clustering results of Geshkovski, Letrouit, Polyanskiy and Rigollet (2023) concern simplified dynamics: shared weights, identity matrices, no MLP block.
+
+-   How do learned $Q$, $K$, $V$, causal masks and the MLP layers change the picture?
+-   What are the time scales of the metastable states, and do they explain how trained transformers behave at finite depth?
+
+Doubly stochastic attention (Sander et al., 2022) offers a variational structure that softmax attention lacks; whether it helps at scale is open.
+
+### 9.6 Beyond balanced Euclidean transport
+
+-   **Unbalanced OT** relaxes the marginal constraints with divergence penalties, to compare measures of different masses. Its scaling algorithms extend Sinkhorn (Chizat, Peyré, Schmitzer and Vialard, 2018), and its geometry is studied by Liero, Mielke and Savaré (2018).
+-   **Gromov–Wasserstein** distances compare metric measure spaces that live in different spaces, by matching distances rather than points (Mémoli, 2011). Peyré, Cuturi and Solomon (2016) compute them with entropic regularization.
+-   **Gaussian mixture models** get their own transport distance (Delon and Desolneux, 2020; section 8.4).
+
+### 9.7 A short list of open problems
+
+1.  Regularity of the Brenier map (Caffarelli, 1992) under assumptions that real data satisfy, and its use for estimation.
+2.  Global convergence of the noiseless mean-field dynamics of two-layer networks, with rates and finite-width corrections.
+3.  Convergence of GAN training, a min–max problem in which the dual variable is itself learned.
+4.  The best computational complexity of exact and approximate discrete optimal transport.
+5.  The time scales of metastable clusters in attention dynamics, and their role in trained models.
+6.  Straight generative flows at scale: unbiased OT couplings that remain cheap with mini-batches.
+
+::: recap
+Key takeaways — chapter 9
+
+-   Estimating OT maps is statistically hard in high dimension; smoothness, entropic regularization and low intrinsic dimension are the levers.
+-   Neural solvers parametrize Brenier potentials with convex networks but remain hard to train accurately.
+-   OT couplings straighten generative flows; Schrödinger bridges are entropic OT on paths; diffusion maps are not optimal in general.
+-   Mean-field analyses of networks and transformers are young theories with many open questions.
+:::
 
 ## Exercises {#ex}
 
-TODO
+The exercises are sorted by level: ★ applies the course, ★★ combines results or proves a short statement, ★★★ is open-ended. Exercises 6, 13, 14 and 16 are computational.
+
+1.  **★ Monotone transport by hand.** Let $\mu = \frac12 \delta_0 + \frac12 \delta_2$ and $\nu = \frac13 (\delta_1 + \delta_3 + \delta_4)$. Compute the optimal plan, $W_1(\mu, \nu)$ and $W_2^2(\mu, \nu)$ with Theorem 1.8.
+
+    *Solution*: the quantile function of $\mu$ is 0 on $(0, \frac12]$ and 2 after; that of $\nu$ is 1, 3, 4 on the thirds of $(0, 1]$.
+
+    The points $\frac13, \frac12, \frac23$ cut the unit interval into four pieces. On them, the pairs are $(0, 1)$, $(0, 3)$, $(2, 3)$, $(2, 4)$, with masses $\frac13, \frac16, \frac16, \frac13$: this is the optimal plan.
+
+    Integrating the distances and their squares against these masses gives
+    $$
+    W_1 = \tfrac13 + \tfrac36 + \tfrac16 + \tfrac23 = \tfrac53, \qquad W_2^2 = \tfrac13 + \tfrac96 + \tfrac16 + \tfrac43 = \tfrac{10}{3} .
+    $$
+
+2.  **★ Book shifting.** Let $\mu$ be uniform on $[0, 1]$ and $\nu$ uniform on $[1, 2]$.
+
+    Compare the translation $x \mapsto x + 1$ and the flip $x \mapsto 2 - x$ for the costs $|x - y|$ and $|x - y|^2$.
+
+    *Solution*: both maps push $\mu$ to $\nu$. For $|x - y|$, the translation costs 1 and the flip costs $\int_0^1 (2 - 2x) \, dx = 1$. Since $W_1 = 1$ by Theorem 1.8, both are optimal: optimal maps need not be unique for $W_1$.
+
+    For the quadratic cost, the translation costs 1 and the flip $\int_0^1 (2 - 2x)^2 \, dx = \frac43$. Only the translation, which is non-decreasing, is optimal, in line with Theorem 3.2.
+
+3.  **★ A Brenier map on the line.** Let $U$ be uniform on $[0, 1]$ and let $\nu$ be the law of $U^2$.
+
+    Find the density of $\nu$. Show that $T(x) = x^2$ is the optimal map from the uniform law to $\nu$, and compute $W_2^2$.
+
+    *Solution*: the Jacobian equation (ch. 0) gives the density $\frac{1}{2\sqrt{y}}$ on $(0, 1]$. On $[0, 1]$, $T$ is the derivative of the convex function $x^3/3$, extended by $0$ on the negative half-line; by the converse of Theorem 3.2 it is optimal. Then
+    $$
+    W_2^2 = \int_0^1 (x - x^2)^2 \, dx = \tfrac13 - \tfrac12 + \tfrac15 = \tfrac{1}{30} .
+    $$
+
+4.  **★ Bures distance by hand.** (a) Compute the optimal map and $W_2^2$ between $\mathcal{N}(0, \mathrm{diag}(1, 4))$ and $\mathcal{N}((1, 0), \mathrm{diag}(4, 1))$.
+
+    (b) Compute $W_2^2$ between $\mathcal{N}(0, I_2)$ and $\mathcal{N}(0, \Sigma)$, where $\Sigma$ has rows $(2, 1)$ and $(1, 2)$.
+
+    *Solution*: (a) the covariances commute, so $A = \mathrm{diag}(2, \frac12)$ and $T(x) = (1, 0) + A x$. Definition 3.4 gives
+    $$
+    W_2^2 = 1 + (1 - 2)^2 + (2 - 1)^2 = 3 .
+    $$
+    (b) $I$ commutes with $\Sigma$, whose eigenvalues are 3 and 1. Hence $W_2^2 = (1 - \sqrt3)^2 + (1 - 1)^2 = 4 - 2\sqrt3 \approx 0.536$.
+
+5.  **★ Sinkhorn on a 2 × 2 problem.** Let $a = b = (\frac12, \frac12)$ and let $C$ have rows $(0, 1)$ and $(1, 0)$. Compute $P^\varepsilon$, its transport cost, and the number of Sinkhorn iterations needed from $v = \mathbf{1}$.
+
+    *Solution*: by symmetry $P^\varepsilon$ has $p$ on the diagonal and $\frac12 - p$ off it. The Gibbs form (Proposition 4.3) with constant potentials gives the ratio $p / (\frac12 - p) = e^{1/\varepsilon}$, so
+    $$
+    p = \frac{1}{2 (1 + e^{-1/\varepsilon})}, \qquad \langle C, P^\varepsilon \rangle = 1 - 2p = \frac{1}{1 + e^{1/\varepsilon}} .
+    $$
+    This is 0.269 for $\varepsilon = 1$, below the bound $\log 2 \approx 0.693$ of Proposition 4.5, and exponentially small as $\varepsilon \to 0$.
+
+    One iteration suffices: from $v = \mathbf{1}$, $u$ is a constant vector, and the next $v$ is again $\mathbf{1}$.
+
+6.  **★ The price of regularization (Python).** With the code of ch. 4, plot $\langle C, P^\varepsilon \rangle - \mathrm{OT}$ against $\varepsilon$ on a log–log scale, together with the bound $\varepsilon \log n$. Then count the iterations needed to reach a marginal error of $10^{-6}$ for $\varepsilon \in \{1, 0.3, 0.1, 0.03, 0.01\}$.
+
+    *Hints and expected result*: the gap stays well below the bound and decreases roughly linearly in $\varepsilon$. With the point clouds of the code, the iteration counts are about 18, 66 and 280 for $\varepsilon = 1, 0.3, 0.1$, then tens of thousands for $\varepsilon = 0.03$ and $0.01$: Theorem 4.6 in action. $\varepsilon$-scaling (ch. 8.1) reduces them.
+
+7.  **★★ $W_1$ on the line.** Show that for measures with bounded support on $\mathbb{R}$,
+    $$
+    W_1(\mu, \nu) = \int_{\mathbb{R}} |F_\mu(t) - F_\nu(t)| \, dt .
+    $$
+    Check it on Exercise 1.
+
+    *Solution*: for a 1-Lipschitz $f$, integration by parts gives $\int f \, d(\mu - \nu) = -\int f'(t)\, (F_\mu - F_\nu)(t) \, dt$. Since $|f'| \leq 1$, this is at most $\int |F_\mu - F_\nu|$, with equality for $f' = -\mathrm{sign}(F_\mu - F_\nu)$. Proposition 2.5 concludes.
+
+    In Exercise 1, $|F_\mu - F_\nu|$ equals $\frac12, \frac16, \frac23, \frac13$ on the unit intervals between 0 and 4. The sum is $\frac53$, as found there.
+
+8.  **★★ The Gelbrich bound.** Let $\mu, \nu \in \mathcal{P}_2(\mathbb{R}^d)$ have means $m, m'$ and covariances $\Sigma, \Sigma'$. Show that
+    $$
+    W_2^2(\mu, \nu) \geq |m - m'|^2 + \mathcal{B}(\Sigma, \Sigma')^2 ,
+    $$
+    with equality for Gaussians.
+
+    *Solution*: for a coupling $(X, Y)$ with cross-covariance $K$,
+    $$
+    \mathbb{E}\,|X - Y|^2 = |m - m'|^2 + \mathrm{tr}\,\Sigma + \mathrm{tr}\,\Sigma' - 2\, \mathrm{tr}\, K .
+    $$
+    The joint covariance is positive semidefinite, which forces $K = \Sigma^{1/2} R\, \Sigma'^{1/2}$ with $\|R\|_{\mathrm{op}} \leq 1$.
+
+    Hence $\mathrm{tr}\, K \leq \|\Sigma'^{1/2} \Sigma^{1/2}\|_*$, the nuclear norm, which equals $\mathrm{tr} (\Sigma^{1/2} \Sigma' \Sigma^{1/2})^{1/2}$. Theorem 3.3 gives equality for Gaussians (Gelbrich, 1990).
+
+9.  **★★ Sinkhorn as alternating KL projections.** For a positive matrix $Q$, show that the solution of $\min \{ \mathrm{KL}(P \,|\, Q) : P \mathbf{1} = a \}$ is $\mathrm{diag}(a \oslash Q\mathbf{1})\, Q$. Deduce that each half-step of Algorithm 4.4 is such a projection.
+
+    *Solution*: the Lagrangian condition $\log(P_{ij}/Q_{ij}) + 1 = \lambda_i$ gives $P_{ij} = Q_{ij}\, e^{\lambda_i - 1}$, a row rescaling. The constraint fixes the factor of row $i$ to $a_i / (Q\mathbf{1})_i$.
+
+    With $Q = \mathrm{diag}(u) K \mathrm{diag}(v)$, the new row factors give $u \leftarrow a \oslash (Kv)$, the first Sinkhorn update. The column update is the projection onto $\{P^\top \mathbf{1} = b\}$ (Benamou et al., 2015).
+
+10. **★★ Semi-discrete transport on a segment.** Let $\mu$ be uniform on $[0, 1]$ and $\nu = \sum_j b_j \delta_{y_j}$ with $y_1 < \dots < y_m$.
+
+    Show that the optimal cells are the intervals $[s_{j-1}, s_j]$, where $s_j = b_1 + \dots + b_j$.
+
+    Find $g$ for $y = (0, \frac12, 1)$ and $b = (\frac12, \frac14, \frac14)$.
+
+    *Solution*: the optimal map is non-decreasing (Theorem 1.8), so the cells are consecutive intervals of lengths $b_j$. As in Example 5.5, the boundary between cells $j$ and $j + 1$ is
+    $$
+    s_j = \frac{y_j + y_{j+1}}{2} + \frac{g_j - g_{j+1}}{2\, (y_{j+1} - y_j)} .
+    $$
+    Here $s_1 = \frac12$ and $s_2 = \frac34$ give $g_1 - g_2 = \frac14$ and $g_2 - g_3 = 0$, up to an additive constant.
+
+11. **★★ Interpolating Gaussians on the line.** Compute the displacement interpolation (Definition 6.1) between $\mathcal{N}(m_0, \sigma_0^2)$ and $\mathcal{N}(m_1, \sigma_1^2)$, and check Proposition 6.2. Compare its variance at $t = \frac12$ with that of the mixture, for $m_0 = -2$, $m_1 = 2$ and $\sigma_0 = \sigma_1 = \frac12$.
+
+    *Solution*: the Brenier map is $T(x) = m_1 + \frac{\sigma_1}{\sigma_0}(x - m_0)$, so $\mu_t$ is Gaussian with mean $(1 - t) m_0 + t m_1$ and standard deviation $(1 - t)\sigma_0 + t \sigma_1$. Definition 3.4 gives
+    $$
+    W_2(\mu_0, \mu_t) = t \sqrt{(m_1 - m_0)^2 + (\sigma_1 - \sigma_0)^2} .
+    $$
+    At $t = \frac12$, $\mu_t = \mathcal{N}(0, \frac14)$, while the mixture has variance $\frac14 + 4 = 4.25$ and two modes.
+
+12. **★★ One JKO step for a potential energy.** Let $F(\rho) = \int V \, d\rho$. Show that the JKO step (Definition 6.4) is $\rho_{k+1} = (S_\tau)_\sharp \rho_k$, where $S_\tau(x)$ minimizes $V(y) + \frac{1}{2\tau}|y - x|^2$. Make it explicit for $V(x) = \frac{\lambda}{2}|x|^2$ and let $\tau \to 0$.
+
+    *Solution*: take any $\rho$ and an optimal coupling $\pi$ of $\rho_k$ and $\rho$. Since the second marginal of $\pi$ is $\rho$, the JKO objective satisfies
+    $$
+    \int \Big[ V(y) + \frac{1}{2\tau}|x - y|^2 \Big] \, d\pi(x, y) \;\geq\; \int \min_{y} \Big[ V(y) + \frac{1}{2\tau}|x - y|^2 \Big] \, d\rho_k(x) .
+    $$
+    The measure $(S_\tau)_\sharp\rho_k$, with the coupling $(\mathrm{Id}, S_\tau)_\sharp\rho_k$, reaches this lower bound.
+
+    For the quadratic potential, $S_\tau(x) = x / (1 + \tau\lambda)$. After $t / \tau$ steps, each point is multiplied by $(1 + \tau\lambda)^{-t/\tau} \to e^{-\lambda t}$: particles follow $\dot x = -\nabla V(x)$.
+
+13. **★★ Doubly stochastic attention (Python).** Modify the code of ch. 7.2 to normalize the attention matrix with 50 log-domain Sinkhorn iterations instead of the softmax. Compare the number of clusters over time for $\beta = 1$ and $\beta = 9$.
+
+    *Hints and expected result*: replace `torch.softmax` by alternate row and column normalizations of `beta * x @ x.T` with `torch.logsumexp`. Both normalizations cluster the tokens. With the seed of the code, the softmax gives 12 then 3 clusters at times 5 and 20 for $\beta = 9$; the Sinkhorn version gives 18 then 4, and both give 3 clusters at time 200. Relate the slower merging to the doubly stochastic constraint (Sander et al., 2022).
+
+14. **★★ Flow matching with and without OT couplings (Python).** Train a small MLP velocity field $v(x, t)$ by flow matching (Proposition 7.5), from $\mathcal{N}(0, I_2)$ to a mixture of 8 Gaussians of standard deviation 0.3 on the circle of radius 4. Use either independent pairs or pairs coupled by an exact assignment within each mini-batch of 256. Generate with $K = 1, 2, 4, 16$ Euler steps and measure $W_2$ to 1000 test samples.
+
+    *Hints and expected result*: use `linear_sum_assignment` for the coupling and for the evaluation. After 3000 Adam steps, $W_2$ is about 3.4, 1.9, 0.8 and 0.45 with independent pairs, and about 0.8, 0.65, 0.56 and 0.56 with OT pairs. OT couplings make one-step generation possible; the small floor comes from the bias of mini-batch couplings.
+
+15. **★★★ Is the diffusion map optimal?** Let $\rho_0 = \mathcal{N}(0, \Sigma_0)$ evolve by the Ornstein–Uhlenbeck process, and let $X_t$ follow the probability-flow ODE of ch. 7.4 from $X_0 \sim \rho_0$. Show that $X_0 \mapsto X_t$ is the optimal map from $\rho_0$ to $\rho_t$. Then discuss non-Gaussian data.
+
+    *Hints and expected result*: $\rho_t = \mathcal{N}(0, \Sigma_t)$ with $\Sigma_t = e^{-2t} \Sigma_0 + (1 - e^{-2t}) I$, and the velocity is $v_t(x) = (\Sigma_t^{-1} - I)\, x$. All the $\Sigma_t$ are functions of $\Sigma_0$, so they commute, and the flow map is $M_t = \exp \int_0^t (\Sigma_s^{-1} - I) \, ds$, symmetric positive definite.
+
+    By the converse of Theorem 3.2, $x \mapsto M_t x$ is optimal. In dimension one every flow map is increasing, hence optimal, so counterexamples need $d \geq 2$. Lavenant and Santambrogio (2022) construct one for the Fokker–Planck flow; measuring the gap on real data is open (ch. 9.3).
+
+16. **★★★ The curse of dimensionality, measured (Python).** For $d \in \{1, 2, 5, 10\}$ and $n \in \{64, \dots, 1024\}$, estimate $\mathbb{E}\, W_2^2$ between two independent $n$-samples of the uniform law on $[0, 1]^d$ with `linear_sum_assignment`, and fit the slope in log–log scale. Repeat with $SW_2^2$ (50 random directions) and with the Sinkhorn divergence; explain the results with Theorem 8.5.
+
+    *Hints and expected result*: with 3 repetitions per point, the fitted slopes of $W_2^2$ are about −0.9, −0.45 and −0.25 for $d = 2, 5, 10$, close to $-2/d$. The sliced slopes stay near $-1$ in every dimension. Discuss what this implies for losses built on sample Wasserstein distances.
 
 ## Projects and assessment {#projects}
 
-TODO
+The official assessment, on master-mva.com, asks students to attend all courses and do the numerical parts, which are not graded. The grade comes from a final written exam, with no supporting documents allowed, which reflects both the numerical and the exercise components. The Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale”.
+
+No project is graded in the official format. The subjects below extend the numerical sessions for students who want to go further, or prepare the research internship. The written exam is a model of the final exam, and the rubric applies to the projects.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Sinkhorn divergences between optimal transport and MMD.** Does the debiased Sinkhorn divergence really interpolate between $W$ and the energy distance, and does the bias of $\mathrm{OT}_\varepsilon$ matter for gradient flows? A paper study of Feydy, Séjourné, Vialard, Amari, Trouvé and Peyré (2019).
+    -   *Implement*: log-domain Sinkhorn with $\varepsilon$-scaling (ch. 8.1); $S_\varepsilon$ for $c = |x - y|$; the energy distance, which is the MMD with kernel $-|x - y|$.
+    -   *Data*: synthetic point clouds in 2D (a Gaussian, a ring, two moons from `sklearn.datasets.make_moons`).
+    -   *Experiments*: $S_\varepsilon$ against $\varepsilon$ from $10^{-2}$ to $10^{2}$; particle gradient flows of $S_\varepsilon$ and of $\mathrm{OT}_\varepsilon$ toward a fixed target.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 4, 8.1–8.2.
+    -   *Success*: $S_\varepsilon$ within 5 % of the exact $W_1$ (linear program of ch. 1) at the smallest $\varepsilon$ and of half the energy distance at the largest; the flow of $S_\varepsilon$ matches the target variance within 5 %, while $\mathrm{OT}_\varepsilon$ shrinks it.
+2.  **[Solo · ≈ 20 h] A transport distance between Gaussian mixtures.** How far is the cheap distance $MW_2$ above the true $W_2$ between two mixtures? A paper study of Delon and Desolneux (2020).
+    -   *Implement*: $MW_2$ as the discrete OT problem between mixture weights with the ground cost of Theorem 3.3; the Gelbrich lower bound of Exercise 8; $W_2$ between samples of 2000 points by exact assignment.
+    -   *Data*: mixtures fitted with `sklearn.mixture.GaussianMixture` to synthetic data in dimensions 2 and 5, with 2 to 6 components.
+    -   *Deliverables*: code, a 4–6 page report with the geodesic between two mixtures drawn at five times, a 10-minute talk. *Chapters*: ch. 3, 4, 6.1, 8.4.
+    -   *Success*: the chain Gelbrich ≤ $W_2$ ≤ $MW_2$ checked on 20 random pairs, up to the sampling error measured by repetition; the ratio $MW_2 / W_2$ plotted against the separation of the components.
+3.  **[Solo · ≈ 15 h] The unadjusted Langevin algorithm in Wasserstein distance.** How much does discretizing the Langevin diffusion of Theorem 6.7 cost? A proof-and-experiment project after Dalalyan (2017) and Durmus and Moulines (2017).
+    -   *Prove*: for $V$ with $\lambda I \preceq D^2 V \preceq L I$, the chain below contracts $W_2$ by the factor $\max(|1 - h\lambda|, |1 - hL|)$ per step, by synchronous coupling as in Proposition 6.8:
+        $$
+        x_{k+1} = x_k - h \nabla V(x_k) + \sqrt{2h}\, \xi_k .
+        $$
+    -   *Compute*: for $V(x) = \lambda |x|^2 / 2$, the stationary law $\mathcal{N}(0, \frac{2}{\lambda(2 - h\lambda)} I)$ and its exact $W_2$ bias (Definition 3.4).
+    -   *Experiment*: the bias against $h$ in 1D by sorting (Theorem 1.8), for the Gaussian and for the double well $x^4/4 - x^2/2$, with a quadrature of $e^{-V}$ as reference.
+    -   *Deliverables*: a written proof, code, a 4-page report. *Chapters*: ch. 1.4, 3.2, 6.2. *Success*: the Gaussian bias matches the closed form within Monte Carlo error, with log–log slope 1 in $h$.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 3 · ≈ 30 h each] Straight generative flows with mini-batch OT couplings.** How much do OT couplings straighten flow-matching paths, and what does the mini-batch bias cost? A paper study of Tong et al. (2024), with Pooladian et al. (2023).
+    -   *Implement*: flow matching (Proposition 7.5) with independent pairs, exact mini-batch assignment and mini-batch Sinkhorn couplings; Euler sampling with $K$ steps.
+    -   *Data*: 8 Gaussians on a circle, two moons and a 2D Swiss roll (`sklearn.datasets`); a Gaussian pair, whose Brenier map is known by Theorem 3.3, as sanity check.
+    -   *Split*: member A writes the couplings and the Gaussian check; member B the velocity networks and samplers; member C the metrics (exact $W_2$ to test samples, $SW_2$, path straightness against the action of Theorem 6.3).
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 3, 4, 6, 7.4.
+    -   *Success*: one-step generation with OT couplings at least twice as close in $W_2$ as with independent pairs, as in Exercise 14; the bias plotted against the batch size.
+2.  **[Group of 3 · ≈ 30 h each] Critics and losses for Wasserstein GANs.** Does the critic of a WGAN estimate $W_1$, and which way of imposing the Lipschitz constraint works best? A paper study of Arjovsky, Chintala and Bottou (2017) and Gulrajani et al. (2017), with the critic-free loss of Genevay, Peyré and Cuturi (2018).
+    -   *Implement*: weight clipping, gradient penalty (ch. 8.5) and a Sinkhorn-divergence generator (ch. 8.2), all with small MLPs.
+    -   *Data*: 8 and 25 Gaussians in 2D, and the 2D Swiss roll.
+    -   *Split*: one member per method; each one also owns one shared metric: the exact $W_1$ by the LP of ch. 1 on 500 samples, the exact $W_2$ by assignment, and the critic's gradient norm along transport segments (Proposition 8.9).
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 2, 4, 7.3, 8.2, 8.5.
+    -   *Success*: on a fixed pair of measures, the gradient-penalty critic estimates $W_1$ within 10 % of the LP value; the three generators compared by $W_2$ over 3 seeds.
+3.  **[Group of 2 · ≈ 25 h each] Clusters and metastability in attention dynamics.** When do tokens driven by self-attention form one cluster, and how long do multi-cluster states last? A paper study of Geshkovski, Letrouit, Polyanskiy and Rigollet (2023), with Sander, Ablin, Blondel and Peyré (2022).
+    -   *Implement*: the sphere dynamics of ch. 7.2 for 32 to 256 tokens in dimensions 2, 3 and 8, with softmax and with Sinkhorn normalization (Exercise 13).
+    -   *Split*: member A writes the simulations and the cluster detection; member B proves that for $\beta = 0$ the dynamics is a projected gradient ascent of $|\bar x|^2$, where $\bar x$ is the mean token, and analyses the plateaus.
+    -   *Deliverables*: code, a 6-page report, a 15-minute joint talk. *Chapters*: ch. 4, 6.2, 7.2.
+    -   *Success*: the proof for $\beta = 0$; the number of clusters against $\log t$ for five values of $\beta$; the plateau length plotted against $\beta$.
+
+### Written exam (proposal) {#projects-exam}
+
+Three hours, no documents allowed (as announced on master-mva.com), no electronic device; four independent questions, 20 points. The last question covers the numerical sessions, as the course description announces.
+
+1.  **Question (4 points).** State the Monge and Kantorovich problems between two discrete measures. Give an example where Monge's problem has no admissible map. Write the dual of the discrete Kantorovich problem and the complementary slackness conditions.
+
+    *Expected*:
+
+    -   Definitions 1.1 and 1.3, with the transport polytope $U(a, b)$ (1 pt).
+    -   One Dirac mass against two Dirac masses: a map sends an atom to a single point (Example 1.2) (1 pt).
+    -   The dual of Theorem 2.1, with constraints $f_i + g_j \leq C_{ij}$ (1 pt).
+    -   Slackness: $P_{ij} > 0$ implies $f_i + g_j = C_{ij}$, with the shipping-company reading (1 pt).
+2.  **Question (5 points).** Let $\mu_0 = \mathcal{N}(0, \mathrm{diag}(4, 1))$ and $\mu_1 = \mathcal{N}((3, 0), \mathrm{diag}(1, 9))$.
+
+    (a) Give the optimal map from $\mu_0$ to $\mu_1$ and justify its optimality. (b) Compute $W_2^2(\mu_0, \mu_1)$. (c) Describe the displacement interpolation at $t = \frac12$ and compute $W_2(\mu_0, \mu_{1/2})$.
+
+    *Expected*:
+
+    -   (a) The covariances commute, so $A = \mathrm{diag}(\frac12, 3)$ and $T(x) = (3, 0) + A x$. $T$ is the gradient of a convex quadratic function, hence optimal by the converse of Theorem 3.2 (2 pts).
+    -   (b) By Definition 3.4 (1.5 pts),
+        $$
+        W_2^2 = 9 + (2 - 1)^2 + (1 - 3)^2 = 14 .
+        $$
+    -   (c) $\mu_{1/2}$ is Gaussian with mean $(1.5, 0)$ and standard deviations $1.5$ and $2$. By Proposition 6.2, $W_2(\mu_0, \mu_{1/2}) = \sqrt{14} / 2 \approx 1.87$ (1.5 pts).
+3.  **Question (5 points).** For the entropic problem of Definition 4.2: (a) show that, for fixed $g$, the maximizer of the dual $D_\varepsilon$ in $f$ is the Sinkhorn update of Algorithm 4.4; (b) prove that the transport cost of the entropic plan exceeds the optimal cost by at most $\varepsilon \log \min(n, m)$.
+
+    *Expected*:
+
+    -   (a) $D_\varepsilon$ is concave and separable in the $f_i$. Setting the partial derivative in $f_i$ to zero gives
+        $$
+        a_i = a_i \, e^{f_i / \varepsilon} \sum_j b_j \, e^{(g_j - C_{ij})/\varepsilon} ,
+        $$
+        hence the log-sum-exp formula (2 pts).
+    -   (b) Compare the entropic objectives at $P^\varepsilon$ and at an unregularized optimum $P^0$; KL is non-negative, and $\mathrm{KL}(P^0 | a \otimes b)$ is a mutual information, at most $\min(H(a), H(b)) \leq \log \min(n, m)$. This is Proposition 4.5 (3 pts).
+4.  **Question (6 points).** A student writes the following solver.
+
+    ```python
+    import numpy as np
+
+    def solve(a, b, C, eps, iters):
+        K = np.exp(-C / eps)
+        v = np.ones(len(b))
+        for _ in range(iters):
+            u = a / (K @ v)
+            v = b / (K.T @ u)
+        return u[:, None] * K * v[None, :]
+    ```
+
+    (a) Which problem does it solve, and which marginal constraint holds exactly when it returns? (b) Why does it return `nan` for costs of order 100 and $\varepsilon = 0.1$, and how is it fixed? (c) The student needs the gradient of the entropic cost with respect to the source positions $x_i$, for $C_{ij} = |x_i - y_j|^2$. How can it be computed without differentiating through the loop?
+
+    *Expected*:
+
+    -   (a) Entropic OT (Definition 4.2) by Sinkhorn's matrix scaling. The last update is in $v$, so the column sums equal $b$ exactly; the row sums converge linearly (Theorem 4.6) (2 pts).
+    -   (b) $e^{-1000}$ underflows to 0, so $K v$ vanishes and $a / 0$ appears. The fix is the log-domain iteration of Algorithm 4.4 with log-sum-exp, and $\varepsilon$-scaling for speed (2 pts).
+    -   (c) Envelope theorem (Proposition 4.7): the gradient is $2 a_i (x_i - T_\varepsilon(x_i))$, with the barycentric projection of the returned plan (2 pts).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Question and baselines | 15 % | One precise question; exact solvers (linear program, assignment, sorting, Gaussian formula) used as references before any approximation |
+| Mathematical correctness | 25 % | Statements, derivations and proofs right; every formula checked on a case with a closed form (ch. 1.4, 3.2, Example 6.9) |
+| Numerical protocol | 20 % | Convergence of each solver monitored (marginal errors, dual values); fixed seeds, at least 3 repetitions, error bars |
+| Analysis | 20 % | Results read against the theorems of the course; failure cases and negative results reported |
+| Reproducibility | 10 % | One command reruns everything on a laptop CPU; library versions and seeds recorded |
+| Communication | 10 % | Report and talk clear within the page and time limits; figures readable on a projector |
 
 ## References {#refs}
 
-TODO
+**Official references** (bibliography of the master-mva.com course page).
+
+-   G. Peyré, *Optimal Transport for Machine Learners*, course notes, 2025 — [PDF](https://mathematical-tours.github.io/book-sources/optimal-transport/CourseOT.pdf).
+-   G. Peyré, M. Cuturi, *Computational Optimal Transport*, Foundations and Trends in Machine Learning, Now Publishers, 2019 — [arXiv:1803.00567](https://arxiv.org/abs/1803.00567).
+-   F. Santambrogio, *Optimal Transport for Applied Mathematicians: Calculus of Variations, PDEs, and Modeling*, Birkhäuser, 2015 — [PDF](https://math.univ-lyon1.fr/~santambrogio/OTAM-cvgmt.pdf).
+
+**Textbooks and surveys**
+
+-   C. Villani, *Topics in Optimal Transportation*, Graduate Studies in Mathematics 58, American Mathematical Society, 2003.
+-   C. Villani, *Optimal Transport: Old and New*, Grundlehren der mathematischen Wissenschaften 338, Springer, 2009.
+-   L. Ambrosio, N. Gigli, G. Savaré, *Gradient Flows in Metric Spaces and in the Space of Probability Measures*, Birkhäuser, 2005.
+-   Q. Mérigot, B. Thibert, “Optimal transport: discretization and algorithms”, in *Handbook of Numerical Analysis*, vol. 22, Elsevier, 2021.
+-   P. Billingsley, *Convergence of Probability Measures*, 2nd ed., Wiley, 1999 — ch. 0.
+-   R. T. Rockafellar, *Convex Analysis*, Princeton University Press, 1970 — ch. 0.
+-   D. Bertsimas, J. N. Tsitsiklis, *Introduction to Linear Optimization*, Athena Scientific, 1997 — ch. 0, 4.
+
+**Foundations (ch. 1–3, 6)**
+
+-   G. Monge, “Mémoire sur la théorie des déblais et des remblais”, *Histoire de l'Académie Royale des Sciences de Paris*, 1781.
+-   L. Kantorovich, “On the translocation of masses”, *Doklady Akademii Nauk SSSR*, 1942.
+-   Y. Brenier, “Polar factorization and monotone rearrangement of vector-valued functions”, *Communications on Pure and Applied Mathematics*, 1991.
+-   M. Gelbrich, “On a formula for the L2 Wasserstein metric between measures on Euclidean and Hilbert spaces”, *Mathematische Nachrichten*, 1990.
+-   L. Caffarelli, “The regularity of mappings with a convex potential”, *Journal of the American Mathematical Society*, 1992.
+-   R. J. McCann, “A convexity principle for interacting gases”, *Advances in Mathematics*, 1997.
+-   J.-D. Benamou, Y. Brenier, “A computational fluid mechanics solution to the Monge–Kantorovich mass transfer problem”, *Numerische Mathematik*, 2000.
+-   R. Jordan, D. Kinderlehrer, F. Otto, “The variational formulation of the Fokker–Planck equation”, *SIAM Journal on Mathematical Analysis*, 1998.
+-   F. Otto, “The geometry of dissipative evolution equations: the porous medium equation”, *Communications in Partial Differential Equations*, 2001.
+-   H. Lavenant, F. Santambrogio, “The flow map of the Fokker–Planck equation does not provide optimal transport”, *Applied Mathematics Letters*, 2022.
+
+**Algorithms (ch. 4, 5, 8)**
+
+-   H. W. Kuhn, “The Hungarian method for the assignment problem”, *Naval Research Logistics Quarterly*, 1955.
+-   D. P. Bertsekas, “The auction algorithm: a distributed relaxation method for the assignment problem”, *Annals of Operations Research*, 1988.
+-   G. Birkhoff, “Extensions of Jentzsch's theorem”, *Transactions of the American Mathematical Society*, 1957.
+-   J. Franklin, J. Lorenz, “On the scaling of multidimensional matrices”, *Linear Algebra and its Applications*, 1989.
+-   M. Cuturi, “Sinkhorn distances: lightspeed computation of optimal transport”, *Advances in Neural Information Processing Systems*, 2013.
+-   J.-D. Benamou, G. Carlier, M. Cuturi, L. Nenna, G. Peyré, “Iterative Bregman projections for regularized transportation problems”, *SIAM Journal on Scientific Computing*, 2015.
+-   J. Altschuler, J. Weed, P. Rigollet, “Near-linear time approximation algorithms for optimal transport via Sinkhorn iteration”, *Advances in Neural Information Processing Systems*, 2017.
+-   B. Schmitzer, “Stabilized sparse scaling algorithms for entropy regularized transport problems”, *SIAM Journal on Scientific Computing*, 2019.
+-   F. Aurenhammer, F. Hoffmann, B. Aronov, “Minkowski-type theorems and least-squares clustering”, *Algorithmica*, 1998.
+-   B. Lévy, “A numerical algorithm for L2 semi-discrete optimal transport in 3D”, *ESAIM: Mathematical Modelling and Numerical Analysis*, 2015.
+-   J. Kitagawa, Q. Mérigot, B. Thibert, “Convergence of a Newton algorithm for semi-discrete optimal transport”, *Journal of the European Mathematical Society*, 2019.
+-   A. Genevay, M. Cuturi, G. Peyré, F. Bach, “Stochastic optimization for large-scale optimal transport”, *Advances in Neural Information Processing Systems*, 2016.
+-   G. Peyré, “Entropic approximation of Wasserstein gradient flows”, *SIAM Journal on Imaging Sciences*, 2015.
+
+**Statistics, barycenters and Gaussian mixtures (ch. 8)**
+
+-   R. M. Dudley, “The speed of mean Glivenko–Cantelli convergence”, *Annals of Mathematical Statistics*, 1969.
+-   N. Fournier, A. Guillin, “On the rate of convergence in Wasserstein distance of the empirical measure”, *Probability Theory and Related Fields*, 2015.
+-   J. Weed, F. Bach, “Sharp asymptotic and finite-sample rates of convergence of empirical measures in Wasserstein distance”, *Bernoulli*, 2019.
+-   S. Bobkov, M. Ledoux, “One-dimensional empirical measures, order statistics, and Kantorovich transport distances”, *Memoirs of the American Mathematical Society*, 2019.
+-   A. Ramdas, N. García Trillos, M. Cuturi, “On Wasserstein two-sample testing and related families of nonparametric tests”, *Entropy*, 2017.
+-   A. Genevay, G. Peyré, M. Cuturi, “Learning generative models with Sinkhorn divergences”, *AISTATS*, 2018.
+-   J. Feydy, T. Séjourné, F.-X. Vialard, S. Amari, A. Trouvé, G. Peyré, “Interpolating between optimal transport and MMD using Sinkhorn divergences”, *AISTATS*, 2019.
+-   A. Genevay, L. Chizat, F. Bach, M. Cuturi, G. Peyré, “Sample complexity of Sinkhorn divergences”, *AISTATS*, 2019.
+-   G. Mena, J. Niles-Weed, “Statistical bounds for entropic optimal transport: sample complexity and the central limit theorem”, *Advances in Neural Information Processing Systems*, 2019.
+-   J. Rabin, G. Peyré, J. Delon, M. Bernot, “Wasserstein barycenter and its application to texture mixing”, *Scale Space and Variational Methods in Computer Vision (SSVM 2011)*, Lecture Notes in Computer Science, Springer, 2012.
+-   N. Bonneel, J. Rabin, G. Peyré, H. Pfister, “Sliced and Radon Wasserstein barycenters of measures”, *Journal of Mathematical Imaging and Vision*, 2015.
+-   M. Agueh, G. Carlier, “Barycenters in the Wasserstein space”, *SIAM Journal on Mathematical Analysis*, 2011.
+-   P. C. Álvarez-Esteban, E. del Barrio, J. A. Cuesta-Albertos, C. Matrán, “A fixed-point approach to barycenters in Wasserstein space”, *Journal of Mathematical Analysis and Applications*, 2016.
+-   J. Delon, A. Desolneux, “A Wasserstein-type distance in the space of Gaussian mixture models”, *SIAM Journal on Imaging Sciences*, 2020.
+
+**Machine learning (ch. 7, 8)**
+
+-   I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair, A. Courville, Y. Bengio, “Generative adversarial nets”, *Advances in Neural Information Processing Systems*, 2014.
+-   M. Arjovsky, S. Chintala, L. Bottou, “Wasserstein generative adversarial networks”, *ICML*, 2017.
+-   I. Gulrajani, F. Ahmed, M. Arjovsky, V. Dumoulin, A. Courville, “Improved training of Wasserstein GANs”, *Advances in Neural Information Processing Systems*, 2017.
+-   M. Heusel, H. Ramsauer, T. Unterthiner, B. Nessler, S. Hochreiter, “GANs trained by a two time-scale update rule converge to a local Nash equilibrium”, *Advances in Neural Information Processing Systems*, 2017 — the FID.
+-   S. Mei, A. Montanari, P.-M. Nguyen, “A mean field view of the landscape of two-layer neural networks”, *Proceedings of the National Academy of Sciences*, 2018.
+-   L. Chizat, F. Bach, “On the global convergence of gradient descent for over-parameterized models using optimal transport”, *Advances in Neural Information Processing Systems*, 2018.
+-   L. Chizat, E. Oyallon, F. Bach, “On lazy training in differentiable programming”, *Advances in Neural Information Processing Systems*, 2019.
+-   J. Sirignano, K. Spiliopoulos, “Mean field analysis of neural networks: a law of large numbers”, *SIAM Journal on Applied Mathematics*, 2020.
+-   L. Chizat, “Mean-field Langevin dynamics: exponential convergence and annealing”, *Transactions on Machine Learning Research*, 2022.
+-   A. Nitanda, D. Wu, T. Suzuki, “Convex analysis of the mean field Langevin dynamics”, *AISTATS*, 2022.
+-   M. E. Sander, P. Ablin, M. Blondel, G. Peyré, “Sinkformers: Transformers with doubly stochastic attention”, *AISTATS*, 2022.
+-   B. Geshkovski, C. Letrouit, Y. Polyanskiy, P. Rigollet, “A mathematical perspective on Transformers”, arXiv preprint, 2023.
+-   J. Ho, A. Jain, P. Abbeel, “Denoising diffusion probabilistic models”, *Advances in Neural Information Processing Systems*, 2020.
+-   Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon, B. Poole, “Score-based generative modeling through stochastic differential equations”, *ICLR*, 2021.
+-   Y. Lipman, R. T. Q. Chen, H. Ben-Hamu, M. Nickel, M. Le, “Flow matching for generative modeling”, *ICLR*, 2023.
+-   X. Liu, C. Gong, Q. Liu, “Flow straight and fast: learning to generate and transfer data with rectified flow”, *ICLR*, 2023.
+-   A.-A. Pooladian, H. Ben-Hamu, C. Domingo-Enrich, B. Amos, Y. Lipman, R. T. Q. Chen, “Multisample flow matching: straightening flows with minibatch couplings”, *ICML*, 2023.
+-   A. Tong, K. Fatras, N. Malkin, G. Huguet, Y. Zhang, J. Rector-Brooks, G. Wolf, Y. Bengio, “Improving and generalizing flow-based generative models with minibatch optimal transport”, *Transactions on Machine Learning Research*, 2024.
+-   A. S. Dalalyan, “Theoretical guarantees for approximate sampling from smooth and log-concave densities”, *Journal of the Royal Statistical Society: Series B*, 2017.
+-   A. Durmus, É. Moulines, “Nonasymptotic convergence analysis for the unadjusted Langevin algorithm”, *Annals of Applied Probability*, 2017.
+
+**Research directions (ch. 9)**
+
+-   J.-C. Hütter, P. Rigollet, “Minimax estimation of smooth optimal transport maps”, *Annals of Statistics*, 2021.
+-   A.-A. Pooladian, J. Niles-Weed, “Entropic estimation of optimal transport maps”, arXiv preprint, 2021.
+-   S. Chewi, J. Niles-Weed, P. Rigollet, *Statistical Optimal Transport*, lecture notes, arXiv preprint, 2024.
+-   B. Amos, L. Xu, J. Z. Kolter, “Input convex neural networks”, *ICML*, 2017.
+-   A. Makkuva, A. Taghvaei, S. Oh, J. Lee, “Optimal transport mapping via input convex neural networks”, *ICML*, 2020.
+-   A. Korotin, L. Li, A. Genevay, J. Solomon, A. Filippov, E. Burnaev, “Do neural optimal transport solvers work? A continuous Wasserstein-2 benchmark”, *Advances in Neural Information Processing Systems*, 2021.
+-   C. Léonard, “A survey of the Schrödinger problem and some of its connections with optimal transport”, *Discrete and Continuous Dynamical Systems A*, 2014.
+-   V. De Bortoli, J. Thornton, J. Heng, A. Doucet, “Diffusion Schrödinger bridge with applications to score-based generative modeling”, *Advances in Neural Information Processing Systems*, 2021.
+-   V. Khrulkov, G. Ryzhakov, A. Chertkov, I. Oseledets, “Understanding DDPM latent codes through optimal transport”, *ICLR*, 2023.
+-   L. Chizat, G. Peyré, B. Schmitzer, F.-X. Vialard, “Scaling algorithms for unbalanced optimal transport problems”, *Mathematics of Computation*, 2018.
+-   M. Liero, A. Mielke, G. Savaré, “Optimal entropy-transport problems and a new Hellinger–Kantorovich distance between positive measures”, *Inventiones Mathematicae*, 2018.
+-   F. Mémoli, “Gromov–Wasserstein distances and the metric approach to object matching”, *Foundations of Computational Mathematics*, 2011.
+-   G. Peyré, M. Cuturi, J. Solomon, “Gromov–Wasserstein averaging of kernel and distance matrices”, *ICML*, 2016.

@@ -147,7 +147,7 @@ The description announces seven lectures, each split into about 2 h of lecture a
 | Lecture 6: high-dimensional extremes | [ch. 7](#ch7) |
 | Lecture 6: notions of sparsity in multivariate extremes | [ch. 7.1–7.2](#ch7) |
 | Lecture 6: applications to anomaly detection | [ch. 7.4](#ch7) |
-| Tutorial 6: PCA; multiple subspace clustering; anomaly detection | [ch. 7.3](#ch7) (Example 7.5, subspace clustering); Example 7.7 |
+| Tutorial 6: PCA; multiple subspace clustering; anomaly detection | [ch. 7.3](#ch7) (Example 7.4, subspace clustering); Example 7.6 |
 | Lecture 7: supervised learning with extreme values | [ch. 8](#ch8) |
 | Lecture 7: learning with extreme covariates (classification) | [ch. 8.1](#ch8) |
 | Lecture 7: dimension reduction with extreme targets | [ch. 8.2](#ch8) |
@@ -196,7 +196,7 @@ The master-mva.com page is not fully consistent about the last slots: it mention
 | 3 | 3 h | 2 | [ch. 3.3–3.4](#ch3) Karamata, Potter bounds, domains of attraction; [ch. 4](#ch4) Hill estimator, weak consistency, choice of $k$, extreme quantiles | Ex. 5, 6, 9; tutorial: Examples 3.9 and 4.7 |
 | 4 | 3 h | 2 | [ch. 5](#ch5) standardisation, max-id and simple max-stable laws, angular measure, multivariate POT, rank-based estimation | Ex. 7, 10; tutorial: Algorithm 5.10, Example 5.14 |
 | 5 | 3 h | 3 | [ch. 6](#ch6) Vapnik-type inequalities for rare events, stable tail dependence function and angular measure | Ex. 11; tutorial: Example 6.5 |
-| 6 | 3 h | 3 | [ch. 7](#ch7) sparsity, DAMEX, PCA and subspace clustering of extremes, anomaly detection | Ex. 14; tutorial: Examples 7.5 and 7.7 |
+| 6 | 3 h | 3 | [ch. 7](#ch7) sparsity, DAMEX, PCA and subspace clustering of extremes, anomaly detection | Ex. 14; tutorial: Examples 7.4 and 7.6 |
 | 7 | 3 h | 3 | [ch. 8](#ch8) classification in extreme regions, dimension reduction with extreme targets | Ex. 13, 15; tutorial: Examples 8.4 and 8.7 |
 | 8 | 2 h | 3 | Q&A session: help with homework and articles; the bonus rule (up to 4 past exercises improved); revision with the [written-exam proposal](#projects-exam) | Ex. 12; homework |
 | 9 | 2 h | 3 | Seminar / working group: student presentations of research articles from the [reading list](#ch9) and the paper studies of the [Projects section](#projects) | talks |
@@ -616,6 +616,10 @@ for m in [10, 30, 91, 365]:
     g = np.array(g)
     rmse = np.sqrt(np.mean((g - 1 / nu) ** 2))
     print(f"block size {m:>3} ({k:>4} blocks): mean {g.mean():.3f}, sd {g.std():.3f}, RMSE {rmse:.3f}")
+# block size  10 (1825 blocks): mean 0.121, sd 0.019, RMSE 0.130
+# block size  30 ( 608 blocks): mean 0.184, sd 0.033, RMSE 0.074
+# block size  91 ( 200 blocks): mean 0.196, sd 0.052, RMSE 0.075
+# block size 365 (  50 blocks): mean 0.238, sd 0.123, RMSE 0.124
 ```
 
 Block maxima waste information: the second-largest value of a stormy year is discarded while the maximum of a calm year is kept. The next chapter uses all large values instead.
@@ -744,7 +748,7 @@ The threshold trades bias against variance, as the block size did. Three diagnos
 ::: ex
 [Example 2.5 — POT on the daily data]{.tag} We reuse a sample of 18 250 values of the Student law with 4 degrees of freedom, and estimate the daily level exceeded with probability $p = 1/36\,500$, whose true value is 18.1. As the threshold rises from the 90 % to the 99 % sample quantile, $\hat\gamma$ moves from 0.17 to 0.20 and the estimate from 15.5 to 17.0.
 
-The empirical mean excess grows from 0.90 to 1.49 between $v = 1$ and $v = 4$, close to the asymptotic slope $\gamma/(1 - \gamma) = 1/3$.
+The empirical mean excess grows from 0.90 to 1.49 between $v = 1$ and $v = 4$. Its slope, about 0.2 and increasing, is still below the asymptotic value $\gamma/(1 - \gamma) = 1/3$: the same second-order effect makes $\hat\gamma$ too small.
 :::
 
 ```python
@@ -766,12 +770,13 @@ for q in [0.90, 0.95, 0.99]:
     print(f"u = {u:.2f} (k = {k:>4}): gamma {gam:.3f}, sigma {sig:.3f}, "
           f"x_p {x_p:.2f}  [truth {truth:.2f}]")
 
-# empirical mean excess: roughly linear in u with slope gamma / (1 - gamma) = 1/3
+# empirical mean excess: asymptotically linear in u, slope gamma / (1 - gamma) = 1/3
 for u in [1, 2, 3, 4]:
     print(f"mean excess over {u}: {np.mean(x[x > u] - u):.2f}")
 # u = 1.54 (k = 1825): gamma 0.172, sigma 0.779, x_p 15.54  [truth 18.10]
 # u = 2.12 (k =  913): gamma 0.197, sigma 0.843, x_p 16.61  [truth 18.10]
 # u = 3.68 (k =  183): gamma 0.201, sigma 1.176, x_p 17.00  [truth 18.10]
+# mean excess over 1, 2, 3, 4: 0.90, 1.03, 1.28, 1.49
 ```
 
 Both POT and block maxima underestimate $\gamma$ for the Student law at moderate thresholds: its tail is Pareto only up to a correction term, a second-order effect quantified in [ch. 4.3](#ch4).
@@ -886,7 +891,11 @@ The level $b$ is unknown, but about $k$ observations exceed it, so it is replace
 ::: ex
 [Example 3.9 — Seeing the tail measure converge]{.tag} For the absolute value of a Student variable with 3 degrees of freedom, compare $\nu_n((x, \infty])$ with $x^{-3}$.
 
-With $k/n = 0.05$, the value at $x = 0.5$ is 4.1 instead of 8: the level $U(n/k)/2$ is not yet in the tail. With $k/n = 0.001$, the four values are within sampling error of the limit, the error being largest in relative terms where the counts are small ($x = 4$).
+With $k/n = 0.05$, the value at $x = 0.5$ is 4.1 instead of 8: the level $U(n/k)/2$ is not yet in the tail.
+
+With $k/n = 0.001$, the values at $x = 1, 2, 4$ agree with the limit within two standard deviations of the counts. The relative noise is largest where the counts are small ($x = 4$).
+
+A gap remains at $x = 0.5$. The exact expectation there is 7.5, not 8: the level $U(n/k)/2 \approx 6.5$ is only moderately far in the tail. This is the second-order bias of [ch. 4.3](#ch4).
 :::
 
 ```python
@@ -1741,7 +1750,7 @@ $$
 Jalalzai, Clémençon and Sabourin (2018) assume that, given each class, $X$ is regularly varying with the same index. The law of $(\|X\|/t, \Theta, Y)$ given $\|X\| > t$ then converges to a limit law $P_\infty$ under which the radius is Pareto and independent of $(\Theta, Y)$.
 
 :::: prop
-[Proposition 8.2 — Angular classifiers are enough]{.tag} Let $\eta_\infty(\theta) = P_\infty(Y = 1 \mid \Theta = \theta)$. Among angular classifiers $g(x) = h(x/\|x\|)$ whose decision boundary has $P_\infty$-probability zero, the asymptotic risk is minimised by
+[Proposition 8.2 — Angular classifiers are enough]{.tag} Let $\eta_\infty(\theta) = P_\infty(Y = 1 \mid \Theta = \theta)$. Among angular classifiers $g(x) = h(x/\|x\|)$ whose decision boundary has $P_\infty$-probability zero, the asymptotic risk is minimised, when the set $\{\eta_\infty = 1/2\}$ is also $P_\infty$-null, by
 $$
 g^*_\infty(x) = \mathrm{sign}\big(\eta_\infty(x/\|x\|) - 1/2\big) .
 $$
@@ -1831,7 +1840,7 @@ Multiplying by $\Sigma^{-1/2}$ gives the claim. [∎]{.qed}
 :::
 ::::
 
-The estimator whitens the covariates, averages them over the $k$ largest responses, and maps the result back with $\hat\Sigma^{-1/2}$. Several tail slices or second moments give more than one direction. This tail inverse regression is studied by Aghbalou, Portier, Sabourin and Zhou, with consistency as $k \to \infty$ and $k/n \to 0$. A symmetric link makes the mean vanish (Exercise 13).
+The estimator whitens the covariates, averages them over the $k$ largest responses, and maps the result back with $\hat\Sigma^{-1/2}$. Several tail slices or second moments give more than one direction. This tail inverse regression is studied by Aghbalou, Portier, Sabourin and Zhou (2024), with consistency as $k \to \infty$ and $k/n \to 0$. A symmetric link makes the mean vanish (Exercise 13).
 
 ::: ex
 [Example 8.7 — One direction out of ten]{.tag} With $X$ standard Gaussian in dimension 10 and $Y = (1 + e^{\beta^\top X})\,W$, where $W$ is Pareto with index 3, the event $\{Y > t\}$ depends on $X$ through $\beta^\top X$ only.
@@ -1894,7 +1903,9 @@ Open questions:
 
 ### 9.3 Non-asymptotic theory
 
-The bounds of [ch. 6](#ch6) come from Goix, Sabourin and Clémençon (2015), Lhaut, Sabourin and Segers (2022) and Clémençon, Jalalzai, Lhaut, Sabourin and Segers (2023). They are mostly upper bounds. Matching lower bounds, that is minimax rates for the estimation of the angular measure in high dimension, are largely open, as is a data-driven choice of $k$ with non-asymptotic guarantees. Most results also assume independent observations; extremes of time series cluster in time, which changes the effective number of extremes.
+The bounds of [ch. 6](#ch6) come from Goix, Sabourin and Clémençon (2015), Lhaut, Sabourin and Segers (2022) and Clémençon, Jalalzai, Lhaut, Sabourin and Segers (2023). They are mostly upper bounds.
+
+In fixed dimension, Drees and Huang (1998) give best attainable rates for estimators of the stable tail dependence function. Matching lower bounds in high dimension, that is minimax rates for the estimation of the angular measure, are largely open, as is a data-driven choice of $k$ with non-asymptotic guarantees. Most results also assume independent observations; extremes of time series cluster in time, which changes the effective number of extremes.
 
 ### 9.4 Regular variation in general spaces
 
@@ -1902,7 +1913,7 @@ Hult and Lindskog (2006) define regular variation for measures on metric spaces,
 
 ### 9.5 Supervised and generative learning
 
-Classification in extreme regions (Jalalzai, Clémençon and Sabourin, 2018) and tail inverse regression (Aghbalou, Portier, Sabourin and Zhou, arXiv preprint, 2021) are first steps. Model selection is a further difficulty: cross-validation estimates a risk on the extreme region from very few points, and its guarantees must again scale with $k$.
+Classification in extreme regions (Jalalzai, Clémençon and Sabourin, 2018) and tail inverse regression (Aghbalou, Portier, Sabourin and Zhou, 2024) are first steps. Model selection is a further difficulty: cross-validation estimates a risk on the extreme region from very few points, and its guarantees must again scale with $k$.
 
 Generative models raise a structural question. If a generator $G$ is $L$-Lipschitz and its latent noise $Z$ is Gaussian, Gaussian concentration gives
 $$
@@ -1976,7 +1987,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
     $$
     x_{10^{-3}} = 10.93, \qquad x_{10^{-4}} = 19.29 .
     $$
-    The second one lies beyond the expected sample maximum: it is a genuine extrapolation.
+    The second one has probability $1/n$: it sits at the level of the sample maximum, where the empirical quantile carries almost no information, and only the tail model can estimate it.
 
 5.  **★ Regularly varying or not.** ([ch. 3](#ch3)) Which of these functions are regularly varying, and with which index: $\log(1 + x)$, $\exp(\sqrt{\log x})$, $2 + \sin x$, $\exp(\sin \log x)$, $x^{-1}\log x$?
 
@@ -2037,7 +2048,10 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 12. **★★ Block maxima or POT?** ([ch. 1](#ch1), 2; Python) Simulate 100 data sets of 50 years of daily Student data with 4 degrees of freedom. For each, estimate the 100-year return level of the annual maximum by a GEV fit to annual maxima, and by a GPD fit above the 99 % sample quantile, converted with the daily probability $1 - 0.99^{1/365}$. Compare relative biases and root-mean-square errors.
 
-    *Hints and expected result.* Combine the code of Examples 1.8 and 2.5; the true value is 18.08. Both methods have a median ratio slightly below 1, about 0.96 and 0.95. POT is more precise: relative RMSE about 0.24, against 0.34 for block maxima, because it uses about 180 excesses instead of 50 maxima.
+    *Hints and expected result.* Combine the code of Examples 1.8 and 2.5; the true value is 18.08.
+
+    -   Both methods have a median ratio between about 0.95 and 1; the exact value moves with the seed.
+    -   POT is more precise: relative RMSE about 0.20, against about 0.26 for block maxima, because it uses about 180 excesses instead of 50 maxima.
 
 13. **★★ When the tail mean is blind.** ([ch. 8](#ch8)) Let $X \sim \mathcal N(0, I_p)$ and $Y = (1 + (\beta^\top X)^2)\,W$ with $W$ Pareto, independent of $X$, and $\|\beta\| = 1$.
 
@@ -2071,8 +2085,9 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Hints and expected result.* Small $k$ gives a noisy threshold; large $k$ brings in moderate radii, where the optimal threshold is different.
 
-    -   With $n = 20\,000$ and 30 repetitions, the error is about 0.079 at $k = 20$, 0.040 near $k = 200$ and 0.22 at $k = 10\,000$, against a Bayes error of 0.036.
-    -   With $n = 80\,000$ the minimum moves to $k \approx 800$, as the bias depends on $n/k$, as for the Hill estimator in [ch. 4.3](#ch4).
+    -   On that region the threshold varies little, and the Bayes error is $2 \times 0.05 \log 2/(\pi/2) \approx 0.044$.
+    -   With $n = 20\,000$ and 30 repetitions, the error is about 0.08 to 0.1 at $k = 20$, about 0.05 for $k$ between 100 and 500, and about 0.22 at $k = 10\,000$.
+    -   With $n = 80\,000$ the minimum moves to $k \approx 400$–800. The bias depends on $n/k$, as for the Hill estimator in [ch. 4.3](#ch4).
 
 ## Projects and assessment {#projects}
 
@@ -2222,6 +2237,7 @@ Total: 5 + 5 + 6 + 4 = 20 points.
 -   S. Clémençon, H. Jalalzai, S. Lhaut, A. Sabourin, J. Segers, Concentration bounds for the empirical angular measure with statistical learning applications, *Bernoulli* 29(4), 2023.
 -   H. Jalalzai, S. Clémençon, A. Sabourin, On binary classification in extreme regions, *Advances in Neural Information Processing Systems 31 (NeurIPS)*, 2018.
 -   K.-C. Li, Sliced inverse regression for dimension reduction, *Journal of the American Statistical Association* 86(414):316–327, 1991.
+-   A. Aghbalou, F. Portier, A. Sabourin, C. Zhou, Tail inverse regression: dimension reduction for prediction of extremes, *Bernoulli* 30(1), 2024.
 -   N. Meyer, O. Wintenberger, Sparse regular variation, *Advances in Applied Probability* 53(4), 2021.
 -   D. Cooley, E. Thibaud, Decompositions of dependence for high-dimensional extremes, *Biometrika* 106(3), 2019.
 -   H. Drees, A. Sabourin, Principal component analysis for multivariate extremes, *Electronic Journal of Statistics* 15(1), 2021.

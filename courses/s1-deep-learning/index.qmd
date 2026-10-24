@@ -1674,7 +1674,7 @@ for it in range(1, 101):                           # 100 iterations of 10 episod
     for feats, _ in batch:                        # reward 1 per step: discounted reward-to-go
         G = (1 - gamma ** np.arange(len(feats), 0, -1)) / (1 - gamma)
         returns.append(G)
-    b = np.mean(np.concatenate(returns))          # constant baseline (Proposition 9.6)
+    b = np.mean(np.concatenate(returns))          # constant baseline (Proposition 9.7)
     grad = np.zeros(5)
     for (feats, actions), G in zip(batch, returns):
         p = 1 / (1 + np.exp(-feats @ theta))
@@ -1719,7 +1719,11 @@ $$
 ::: proof
 -   The queries, keys and values of $P X$ are $P Q$, $P K$ and $P V$, so the score matrix becomes $P\, Q K^\top P^\top$.
 -   A row-wise softmax commutes with permuting the rows, and with permuting the columns.
--   The output is therefore $P\, \operatorname{softmax}(Q K^\top / \sqrt{d_k})\, P^\top P\, V$, and $P^\top P = I$. [∎]{.qed}
+-   The output is therefore the matrix below, and $P^\top P = I$ concludes:
+$$
+P\, \operatorname{softmax}\big(Q K^\top / \sqrt{d_k}\big)\, P^\top P\, V = P\, \mathrm{Attn}(X).
+$$
+    [∎]{.qed}
 :::
 ::::
 
@@ -1824,3 +1828,642 @@ Key takeaways — chapter 10
 ### Brains and machines
 
 -   **Credit assignment.** Lillicrap et al. (2020) review how the brain might approximate backpropagation, from feedback alignment to local learning rules. Whether networks that predict neural responses (ch. 1) also reproduce behaviour and learning remains debated.
+
+## Exercises {#ex}
+
+Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ open-ended or research-flavoured. The *Practice* column of the [session plan](#sessions) says when to do each one.
+
+1.  **★ Gradients through a ReLU layer.** Let $f(W) = \frac12 \|\mathrm{ReLU}(W x) - y\|^2$, with
+    $$
+    x = (1, 2), \qquad W = \begin{pmatrix} 1 & 1 \\ -1 & 0 \end{pmatrix}, \qquad y = (2, 0).
+    $$
+    Compute $f(W)$, the gradient $\nabla_W f$ and the gradient with respect to $x$, using Definition 0.1 and Proposition 0.2.
+
+    *Solution*: $W x = (3, -1)$, so $\mathrm{ReLU}(W x) = (3, 0)$, the residual is $(1, 0)$ and $f = 0.5$.
+
+    The Jacobian of the ReLU is $\operatorname{diag}(1, 0)$, so the error at the pre-activation is $\delta = (1, 0)$. Then
+    $$
+    \nabla_W f = \delta\, x^\top = \begin{pmatrix} 1 & 2 \\ 0 & 0 \end{pmatrix}, \qquad \nabla_x f = W^\top \delta = (1, 1).
+    $$
+    The second row gets no gradient: the second unit is inactive on this input.
+
+2.  **★ Boolean functions and the perceptron.** (a) Give threshold neurons (Definition 1.1) for NAND and for the majority of three binary inputs. (b) Run the perceptron rule (Definition 1.2) on OR, with labels $\pm 1$, a constant 1 appended to each input, the order $(0,0), (0,1), (1,0), (1,1)$ and $w = 0$ at the start, until a full pass makes no mistake. (c) Compare the number of mistakes with Theorem 1.3 for the unit vector $w^\star = (2, 2, -1)/3$.
+
+    *Solution*: (a) NAND: $w = (-1, -1)$, $b = 1.5$. Majority: $w = (1, 1, 1)$, $b = -1.5$.
+
+    **(b)** The weights after each mistake are, pass by pass:
+    $$
+    \begin{aligned}
+    &\text{pass 1: } (0, 0, -1),\ (0, 1, 0),\ (1, 1, 1); && \text{pass 2: } (1, 1, 0); && \text{pass 3: } (1, 1, -1),\ (1, 2, 0);\\
+    &\text{pass 4: } (1, 2, -1),\ (2, 2, 0); && \text{pass 5: } (2, 2, -1).
+    \end{aligned}
+    $$
+    The sixth pass makes no mistake: 9 mistakes in total, and the final weights are $(2, 2, -1)$.
+
+    **(c)** The margins of $w^\star$ on the four inputs are 1/3, 1/3, 1/3 and 1, so $\gamma = 1/3$; the longest input is (1, 1, 1), of norm $R = \sqrt{3}$. The bound is
+    $$
+    (R / \gamma)^2 = 27 \geq 9 .
+    $$
+
+3.  **★ Backpropagation through a softmax.** A network has one hidden ReLU layer with $W_1 = I_2$ and no biases, then logits $z_2 = W_2 a_1$ and a softmax. With
+    $$
+    x = (1, -1), \qquad W_2 = \begin{pmatrix} 1 & -1 \\ 0 & 1 \end{pmatrix},
+    $$
+    and the second class as label, compute the loss, then the gradients with respect to $W_2$ and $W_1$ by Theorem 2.5.
+
+    *Solution*: $z_1 = (1, -1)$, $a_1 = (1, 0)$, $z_2 = (1, 0)$, so $p = (0.731, 0.269)$ and the loss is $-\log 0.269 = 1.313$.
+
+    By Proposition 2.4, $\delta_2 = p - e_2 = (0.731, -0.731)$. Then $W_2^\top \delta_2 = (0.731, -1.462)$, and the ReLU mask $(1, 0)$ gives $\delta_1 = (0.731, 0)$:
+    $$
+    \frac{\partial \mathcal{L}}{\partial W_2} = \delta_2\, a_1^\top = \begin{pmatrix} 0.731 & 0 \\ -0.731 & 0 \end{pmatrix}, \qquad \frac{\partial \mathcal{L}}{\partial W_1} = \delta_1\, x^\top = \begin{pmatrix} 0.731 & -0.731 \\ 0 & 0 \end{pmatrix}.
+    $$
+    A gradient step lowers the logit of the wrong class and raises that of the right one.
+
+4.  **★ Parameters, shapes and receptive fields.** A network for $3 \times 32 \times 32$ images applies, in order:
+
+    -   a $3 \times 3$ convolution from 3 to 32 channels, with stride 1 and padding 1, a ReLU, and a $2 \times 2$ max-pooling of stride 2;
+    -   a $3 \times 3$ convolution from 32 to 64 channels, with padding 1, a ReLU and the same pooling;
+    -   global average pooling, and a linear layer to 10 classes.
+
+    **(a)** Count the parameters of each layer. (b) Give the shape after each layer. (c) What is the receptive field of one output of the second convolution? (d) How many weights would a dense layer need, from the input to as many outputs as the first convolution?
+
+    *Solution*: (a) By Definition 2.6, the convolutions have $32 \cdot 3 \cdot 9 + 32 = 896$ and $64 \cdot 32 \cdot 9 + 64 = 18\,496$ parameters, and the linear layer $64 \cdot 10 + 10 = 650$: 20 042 in total.
+
+    **(b)** The shapes are $32 \times 32 \times 32$, then $32 \times 16 \times 16$, $64 \times 16 \times 16$, $64 \times 8 \times 8$, a vector of 64, and 10 logits.
+
+    **(c)** Each layer adds (kernel size − 1) times the current pixel spacing: 3 after the first convolution, 4 after the pooling (spacing 2), then $4 + 2 \cdot 2 = 8$. The receptive field is $8 \times 8$ pixels.
+
+    **(d)** $3072 \times 32\,768 \approx 1.0 \times 10^8$ weights, five thousand times more than the whole network.
+
+5.  **★ Momentum and Adam on a constant gradient.** Assume the gradient is the same vector $g$ at every step. (a) Give the momentum buffer of Definition 3.1 after $t$ steps, started at 0, and its limit for $\mu = 0.9$. (b) Show that, with $\epsilon = 0$, every Adam step moves each coordinate by exactly $\eta$, in the direction opposite to the sign of $g$. (c) What would the first step be without the bias corrections?
+
+    *Solution*: (a) The buffer is a geometric sum:
+    $$
+    v_t = (1 + \mu + \dots + \mu^{t-1})\, g = \frac{1 - \mu^t}{1 - \mu}\, g .
+    $$
+    It tends to $10 g$: momentum multiplies the effective step by 10.
+
+    **(b)** By induction, $m_t = (1 - \beta_1^t)\, g$ and $s_t = (1 - \beta_2^t)\, g^2$. After the bias corrections, the update is $\eta\, g / |g|$ coordinatewise, whatever the scale of $g$.
+
+    **(c)** Without them, the first step would be multiplied by the factor below: the corrections remove a spurious jump at the start.
+    $$
+    \frac{1 - \beta_1}{\sqrt{1 - \beta_2}} = \frac{0.1}{\sqrt{0.001}} \approx 3.16
+    $$
+
+6.  **★ The GAN optimum on three points.** On the set $\{a, b, c\}$, let $p_{\text{data}} = (1/2, 1/2, 0)$ and $p_g = (1/4, 1/4, 1/2)$. (a) Give the optimal discriminator of Proposition 5.2. (b) Compute $C(G)$ and deduce the Jensen–Shannon divergence from Theorem 5.3. (c) Check the result by computing the divergence directly.
+
+    *Solution*: (a) $D^\star = (2/3, 2/3, 0)$: the point $c$ is certainly fake.
+
+    **(b)** Only $a$ and $b$ count in the first expectation, and $c$ contributes $\log 1 = 0$ to the second:
+    $$
+    C(G) = \log \tfrac23 + \tfrac12 \log \tfrac13 = -0.955, \qquad \mathrm{JSD} = \frac{C(G) + \log 4}{2} = 0.216 .
+    $$
+
+    **(c)** The mixture is $M = (3/8, 3/8, 1/4)$, and the mean of the two divergences below is 0.216:
+    $$
+    \mathrm{KL}(p_{\text{data}} \,\|\, M) = \log \tfrac43 = 0.288, \qquad \mathrm{KL}(p_g \,\|\, M) = \tfrac12 \log \tfrac23 + \tfrac12 \log 2 = 0.144 .
+    $$
+
+7.  **★ Perplexity and the size of an LSTM.** (a) A language model gives the probabilities 0.5, 0.25, 0.1 and 0.4 to the four tokens of a test text. What is its perplexity (Definition 6.1)? (b) How many parameters has an LSTM layer (Definition 6.4) with inputs of dimension 300 and a hidden state of dimension 512? Compare with a vanilla RNN of the same sizes. (c) What is the perplexity of a uniform model over 10 000 tokens?
+
+    *Solution*: (a) The product of the probabilities is 0.005, so the perplexity is $0.005^{-1/4} = 200^{1/4} \approx 3.76$.
+
+    **(b)** Each of the four gates has a $512 \times 812$ matrix acting on $u_t = (h_{t-1}, x_t)$, and a bias:
+    $$
+    4 \times (512 \times 812 + 512) = 1\,665\,024 .
+    $$
+    PyTorch keeps two bias vectors per gate and counts 1 667 072. The vanilla RNN has $512 \times 812 + 512 = 416\,256$ parameters, a quarter.
+
+    **(c)** 10 000, the size of the vocabulary.
+
+8.  **★ IoU, NMS and AP by hand.** Two objects $G_1 = (0, 0, 10, 10)$ and $G_2 = (20, 0, 30, 10)$ are detected by four boxes, in decreasing order of score: $D_1 = (1, 1, 11, 11)$, $D_2 = (2, 0, 12, 10)$, $D_3 = (20, 2, 30, 12)$ and $D_4 = (40, 0, 50, 10)$. (a) Compute the IoU of each box with each object. (b) Compute AP at IoU 0.5 (Definition 7.2) without NMS. (c) Apply NMS with threshold 0.5 (Algorithm 7.3), and compute AP again.
+
+    *Solution*: (a) Only three IoUs are non-zero; $D_4$ meets no object.
+
+    -   $D_1$ with $G_1$: the intersection is a $9 \times 9$ square, so the IoU is 81/119 = 0.681.
+    -   $D_2$ with $G_1$, and $D_3$ with $G_2$: the intersection has area 80, and the IoU is 80/120 = 0.667.
+
+    **(b)** $D_1$ is correct, $D_2$ is a duplicate (a false positive), $D_3$ is correct and $D_4$ is false. The precisions are 1, 0.5, 0.667 and 0.5, the recalls 0.5, 0.5, 1 and 1. With the precision envelope,
+    $$
+    \mathrm{AP} = 0.5 \times 1 + 0.5 \times 0.667 = 0.833 .
+    $$
+
+    **(c)** $\mathrm{IoU}(D_1, D_2) = 0.681 \geq 0.5$, so NMS deletes $D_2$. The list $D_1, D_3, D_4$ has precisions 1, 1, 0.667 and reaches recall 1 at rank 2, so $\mathrm{AP} = 1$. The functions of the code of ch. 7 give the same numbers.
+
+9.  **★★ Early stopping as weight decay.** Run gradient descent with step $\eta$ from $\theta_0 = 0$ on the quadratic loss of Proposition 3.4, with $0 < \eta \lambda_i \leq 1$ for every eigenvalue. (a) Show that after $t$ steps
+    $$
+    \theta_t = \sum_i \Big[1 - (1 - \eta \lambda_i)^t\Big]\, \big(u_i^\top \theta^\star\big)\, u_i .
+    $$
+    **(b)** Show that stopping after $t$ steps shrinks the eigendirections roughly like weight decay with $\alpha = 1/(\eta t)$. (c) Compare the two shrinkage factors for $\eta = 1$, $t = 100$ and eigenvalues from 0.001 to 1.
+
+    *Solution*: (a) The gradient is $H(\theta - \theta^\star)$, so each step multiplies the error by $I - \eta H$:
+    $$
+    \theta_{t+1} - \theta^\star = (I - \eta H)(\theta_t - \theta^\star), \qquad \theta_t - \theta^\star = -(I - \eta H)^t\, \theta^\star .
+    $$
+    Diagonalising $H$ gives the formula.
+
+    **(b)** When $\eta \lambda t \ll 1$, the factor is close to $\eta \lambda t = \lambda / \alpha$, like $\lambda / (\lambda + \alpha)$. When $\eta \lambda t \gg 1$, both factors are close to 1. Early stopping keeps the high-curvature directions and shrinks the flat ones.
+
+    **(c)** The factors agree at both ends and differ by at most 0.13 in between:
+
+    | Eigenvalue | Early stopping | Weight decay |
+    |---|---|---|
+    | 0.001 | 0.095 | 0.091 |
+    | 0.01 | 0.634 | 0.500 |
+    | 0.1 | 1.000 | 0.909 |
+    | 1 | 1.000 | 0.990 |
+
+10. **★★ The autoencoder finds the subspace, not the axes.** In the setting of Theorem 4.3: (a) show that if $(E, D)$ is optimal, so is $(E A, A^{-1} D)$ for every invertible $k \times k$ matrix $A$; (b) with tied weights $D = E^\top$, show that every optimal encoder has orthonormal columns spanning the principal subspace; (c) explain how to recover the principal axes from an optimal encoder.
+
+    *Solution*: (a) The product $E A A^{-1} D = E D$ is unchanged, and so is the error.
+
+    **(b)** The argument takes three steps.
+
+    -   At the optimum, $P = E E^\top$ equals the projector $V_k V_k^\top$, of rank $k$. So $E$ has rank $k$, and $G = E^\top E$ is invertible.
+    -   From $P^2 = P$, we get $E\, G\, E^\top = E E^\top$. Multiplying by $E^\top$ on the left and by $E$ on the right gives $G^3 = G^2$, hence $G = I$.
+    -   The columns of $E$ are therefore orthonormal, and they span the range of $P$, the principal subspace.
+
+    **(c)** Then $E = V_k R$, with $R = V_k^\top E$ orthogonal, and the codes $X E$ have the second-moment matrix
+    $$
+    E^\top X^\top X E = R^\top \operatorname{diag}(\sigma_1^2, \dots, \sigma_k^2)\, R .
+    $$
+    Diagonalising this $k \times k$ matrix gives $R$, hence the axes $V_k = E R^\top$, when the singular values are distinct.
+
+11. **★★ Disjoint supports: why the Jensen–Shannon divergence stops helping.** On the real line, the data distribution is a point mass $\delta_0$, and the generator produces the point mass $\delta_\theta$.
+
+    **(a)** Show that the Jensen–Shannon divergence between them is $\log 2$ for every $\theta \neq 0$, so that the criterion $C(G)$ of Theorem 5.3 is flat in $\theta$. (b) What is $\mathrm{KL}(\delta_0 \,\|\, \delta_\theta)$? (c) Show that the Wasserstein-1 distance is $|\theta|$, and conclude.
+
+    *Solution*: (a) The mixture $M = \frac12 (\delta_0 + \delta_\theta)$ gives mass 1/2 to each point, so both divergences to $M$ equal $\log 2$:
+    $$
+    \mathrm{KL}(\delta_0 \,\|\, M) = \log \frac{1}{1/2} = \log 2, \qquad C(G) = -\log 4 + 2 \log 2 = 0 \quad (\theta \neq 0).
+    $$
+    The criterion is constant, and its gradient vanishes.
+
+    **(b)** It is infinite, since $\delta_\theta$ gives no mass to 0.
+
+    **(c)** The only coupling moves a unit mass over the distance $|\theta|$. This distance decreases continuously as $\theta \to 0$, and gives a useful gradient. Arjovsky, Chintala and Bottou (2017) use this kind of example to motivate the Wasserstein GAN of ch. 5.
+
+12. **★★ Exploding gradients and clipping.** A scalar linear recurrent network reads one impulse and is penalised on its final state:
+    $$
+    h_t = w\, h_{t-1} + x_t, \qquad h_0 = 0, \quad x_1 = 1, \quad x_t = 0 \ (t \geq 2), \qquad \ell = \tfrac12 h_T^2 .
+    $$
+    **(a)** Compute $h_T$ and $d\ell / dw$. (b) Evaluate the derivative for $T = 50$ at $w = 1.1$ and at $w = 0.9$. (c) Show that gradient clipping keeps a descent direction. Compare the steps at $w = 1.1$, with learning rate 0.01, without clipping and with clipping at norm 1.
+
+    *Solution*: (a) $h_T = w^{T-1}$, so $\ell = \frac12 w^{2T-2}$ and $d\ell / dw = (T - 1)\, w^{2T-3}$.
+
+    **(b)** $49 \times 1.1^{97} \approx 5.1 \times 10^5$ and $49 \times 0.9^{97} \approx 1.8 \times 10^{-3}$: eleven orders of magnitude apart, as Proposition 6.3 predicts for $\|W\|$ above and below 1.
+
+    **(c)** Clipping multiplies the gradient by $\lambda = \min(1, c / \|g\|) \in (0, 1]$, so its inner product with the gradient is $\lambda \|g\|^2 > 0$. Without clipping, the step is about −5 100 and sends $w$ near −5 100, where the loss is astronomical. With clipping, the step is −0.01, and $w$ becomes 1.09.
+
+13. **★★ The gradient of the focal loss.** For an object anchor with logit $u$, let $p = \sigma(u)$ be the probability of the true class, so $p_t = p$ in Definition 7.6. (a) Show that
+    $$
+    \frac{d\, \mathrm{FL}}{du} = (1 - p)^\gamma \Big(\gamma\, p \log p - (1 - p)\Big).
+    $$
+    **(b)** Compare the gradients of the focal loss with $\gamma = 2$ and of the cross-entropy, at $p = 0.99$ and at $p = 0.3$. (c) Interpret.
+
+    *Solution*: (a) With $dp/du = p(1 - p)$, the product rule gives
+    $$
+    \frac{d}{du}\Big[-(1 - p)^\gamma \log p\Big] = \Big[\gamma (1 - p)^{\gamma - 1} \log p - \frac{(1 - p)^\gamma}{p}\Big]\, p\, (1 - p),
+    $$
+    which is the claim. For $\gamma = 0$ it is $-(1 - p)$, the gradient of the cross-entropy.
+
+    **(b)** At $p = 0.99$: $-0.01$ for the cross-entropy, $-3.0 \times 10^{-6}$ for the focal loss. At $p = 0.3$: $-0.700$ and $-0.697$.
+
+    **(c)** The easy anchor's gradient is divided by about 3 300, the hard anchor's is almost unchanged. The gradient, not only the loss of Example 7.7, concentrates on the hard examples.
+
+14. **★★ How much information can InfoNCE certify?**
+
+    **(a)** Show that $\mathcal{L}_N \geq 0$, so that the bound of Theorem 8.3 never exceeds $\log N$.
+
+    **(b)** Let $X$ be uniform on $K$ values and $Y = X$, with the critic $f(x, y) = c\, \mathbb{1}[x = y]$ and uniform negatives. As $c \to \infty$, show that the loss tends to the limit below, where $B \sim \mathrm{Bin}(N - 1, 1/K)$ counts the negatives equal to the positive:
+    $$
+    \mathcal{L}_N \to \mathbb{E} \log(1 + B) .
+    $$
+
+    **(c)** Evaluate the bound for $(K, N)$ equal to (1000, 256), (10, 256) and (1000, 65 536), and compare with $I(X; Y) = \log K$.
+
+    *Solution*: (a) The positive term is one of the terms of the denominator, so the fraction is at most 1 and its logarithm at most 0.
+
+    **(b)** As $c \to \infty$, the softmax spreads uniformly over the candidates equal to $x$: the positive and the $B$ matching negatives. The positive therefore gets probability $1 / (1 + B)$. The loss stays between 0 and $\log N$, so dominated convergence applies.
+
+    **(c)** The bounds are 5.38, 2.28 and 6.90 nats, against $\log K$ = 6.91, 2.30 and 6.91. With 256 negatives, the bound is capped near $\log 256 = 5.55$: certifying $\log K$ nats takes $N \gg K$ (McAllester and Stratos, 2020).
+
+15. **★★ Value iteration on a two-state MDP.** Two states $s_1, s_2$ and two deterministic actions: *stay*, or *move* to the other state. Staying in $s_2$ earns 1, everything else earns 0, and $\gamma = 0.9$. (a) Compute $Q^\star$ and an optimal policy with Proposition 9.2. (b) Starting from $Q_0 = 0$, how many iterations of value iteration does Theorem 9.3 require to reach $\|Q_k - Q^\star\|_\infty \leq 0.01$? (c) Is the bound tight here?
+
+    *Solution*: (a) Staying in $s_2$ forever is worth $1/(1 - \gamma) = 10$. From $s_1$, moving then staying is worth $\gamma \times 10 = 9$. Hence
+    $$
+    Q^\star(s_1, \cdot) = (8.1,\ 9), \qquad Q^\star(s_2, \cdot) = (10,\ 8.1),
+    $$
+    for (stay, move): move in $s_1$, stay in $s_2$.
+
+    **(b)** $\|Q_0 - Q^\star\|_\infty = 10$, so it suffices that $10 \times 0.9^k \leq 0.01$, that is $k \geq \log 1000 / \log(1/0.9) = 65.6$: 66 iterations.
+
+    **(c)** Yes. By induction $Q_k(s_2, \text{stay}) = 10\,(1 - 0.9^k)$, whose error is exactly $10 \times 0.9^k$. Running value iteration confirms that iteration 66 is the first within 0.01.
+
+16. **★★ Baselines on a three-armed bandit.** A softmax policy $\pi_\theta(a) \propto e^{\theta_a}$ chooses among three arms with Gaussian rewards of variance 1 and means 10, 10.5 and 11. (a) Show that $\nabla_\theta \log \pi_\theta(a) = e_a - \pi_\theta$, and that the exact gradient of $J(\theta) = \sum_a \pi_\theta(a)\, \bar{r}_a$ has coordinates $\pi_\theta(b)\, (\bar{r}_b - J)$. (b) Run the code below: it compares the single-sample REINFORCE estimates with and without the baseline $b = J$ (Proposition 9.7), then learns with each. (c) Explain the results.
+
+    ```python
+    import numpy as np
+    rng = np.random.default_rng(0)
+    means = np.array([10.0, 10.5, 11.0])                  # three arms, unit-variance Gaussian rewards
+
+    def softmax(theta):
+        p = np.exp(theta - theta.max())
+        return p / p.sum()
+
+    pi = np.ones(3) / 3                                   # uniform policy, theta = 0
+    a = rng.choice(3, size=100000, p=pi)
+    r = means[a] + rng.normal(size=a.size)
+    score = np.eye(3)[a] - pi                             # grad log pi(a) = e_a - pi
+    for name, b in [("no baseline", 0.0), ("baseline J", pi @ means)]:
+        g = (r - b)[:, None] * score
+        print(f"{name:12s} mean {g.mean(0).round(3)}  total variance {g.var(0).sum():7.2f}")
+    print("exact gradient", (pi * (means - pi @ means)).round(3))
+
+    for name, use_b in [("no baseline", False), ("baseline", True)]:
+        best = []
+        for run in range(20):                             # 20 independent runs of 1000 steps
+            theta, r_avg = np.zeros(3), 0.0
+            for t in range(1, 1001):
+                p = softmax(theta)
+                a = rng.choice(3, p=p)
+                r = means[a] + rng.normal()
+                theta += 0.02 * (r - (r_avg if use_b else 0.0)) * (np.eye(3)[a] - p)
+                r_avg += (r - r_avg) / t                  # running mean of the rewards
+            best.append(softmax(theta)[2])
+        print(f"{name:12s} P(best arm) after 1000 steps: mean {np.mean(best):.2f}, worst run {np.min(best):.2f}")
+    ```
+
+    *Solution*: (a) The gradient of the expression below is $e_a - \pi_\theta$, as in Proposition 2.4:
+    $$
+    \log \pi_\theta(a) = \theta_a - \log \sum_{a'} e^{\theta_{a'}} .
+    $$
+    Averaging $\bar{r}_a (e_a - \pi_\theta)$ over $a \sim \pi_\theta$ gives the coordinates $\pi_\theta(b)\, \bar{r}_b - \pi_\theta(b)\, J$.
+
+    **(b)** Both estimates are unbiased, with mean close to the exact gradient $(-0.167, 0, 0.167)$. Their total variances are 74.3 without the baseline and 0.73 with it. After 1000 steps the best arm has probability 0.60 on average without the baseline, and 0.01 in the worst run; with it, 0.92 on average and 0.87 in the worst run.
+
+    **(c)** Without a baseline, every reward is about 10, so each update pushes up whichever arm was sampled, by a large amount. These pushes cancel only on average, and a run can lock onto a bad arm. Subtracting $J$ keeps only the informative part of the reward.
+
+17. **★★★ A causal attention layer learns a delay.** This exercise goes with the self-study ch. 10.
+
+    **(a)** Implement one head of causal self-attention (Definitions 10.1 and 10.4), with learned positional embeddings. Train it to output, at each position $t \geq 3$, the token found at position $t - 3$. (b) Check causality: changing future tokens must leave earlier outputs unchanged. (c) Remove the positional embeddings and explain the result with Proposition 10.2. (d) Open question: what does it take to learn an *induction head*, which predicts the token that followed the previous occurrence of the current token?
+
+    ```python
+    import torch
+    from torch import nn
+    torch.set_num_threads(1)
+    V, T, d, lag = 8, 16, 32, 3
+
+    class CausalAttention(nn.Module):
+        def __init__(self, positions=True):
+            super().__init__()
+            self.tok = nn.Embedding(V, d)
+            self.pos = nn.Parameter(0.5 * torch.randn(T, d)) if positions else None
+            self.q, self.k, self.v = (nn.Linear(d, d, bias=False) for _ in range(3))
+            self.out = nn.Linear(d, V)
+        def forward(self, s):
+            x = self.tok(s) + (self.pos if self.pos is not None else 0)
+            S = self.q(x) @ self.k(x).transpose(1, 2) / d ** 0.5
+            mask = torch.triu(torch.ones(T, T, dtype=torch.bool), 1)   # True above the diagonal
+            A = torch.softmax(S.masked_fill(mask, float("-inf")), dim=-1)
+            return self.out(A @ self.v(x)), A
+
+    def train(positions):
+        torch.manual_seed(0)
+        model = CausalAttention(positions)
+        opt = torch.optim.Adam(model.parameters(), lr=3e-3)
+        for step in range(1500):                          # target at position t: the token at t - lag
+            s = torch.randint(V, (64, T))
+            logits, _ = model(s)
+            loss = nn.functional.cross_entropy(logits[:, lag:].reshape(-1, V), s[:, :-lag].reshape(-1))
+            opt.zero_grad(); loss.backward(); opt.step()
+        return model
+
+    for positions in (True, False):
+        model = train(positions)
+        s = torch.randint(V, (500, T))
+        with torch.no_grad():
+            logits, A = model(s)
+            s2 = s.clone(); s2[:, 10:] = torch.randint(V, (500, T - 10))   # change the future of t = 9
+            leak = (model(s2)[0][:, :10] - logits[:, :10]).abs().max().item()
+        acc = (logits[:, lag:].argmax(-1) == s[:, :-lag]).float().mean().item()
+        offset = (torch.arange(T)[:, None] - A.mean(0).argmax(1)[:, None]).squeeze()[lag:]
+        print(f"positions {positions!s:5s}: accuracy {acc:.3f} (chance {1 / V:.3f}), "
+              f"future leak {leak:.1e}, most attended offset {offset.tolist()}")
+    ```
+
+    *Hints and expected result*: (a) With positions, the accuracy is 1.000, and at every position the most attended key lies exactly 3 steps back.
+
+    **(b)** Changing the tokens after position 9 changes the outputs up to position 9 by exactly 0.
+
+    **(c)** Without positions the accuracy falls to 0.330. The output at $t$ then depends only on the current token and on the set of visible tokens, not on their order (Proposition 10.2 applied to the causal prefix). The best guess is a visible token, which beats the chance level 0.125 only at early positions, where few tokens are visible.
+
+    **(d)** Olsson and coauthors (2022) find that induction heads are formed by two heads in successive layers: a previous-token head, like the one trained here, then a head that matches on its output. Try two layers on sequences with repeated random segments.
+
+18. **★★★ One-shot recognition of new classes.** The code of ch. 4 trains and tests on the same ten digit classes. (a) Train the triplet network on the digits 0–4 only, and evaluate 5-way one-shot recognition on the digits 5–9, against nearest neighbour on pixels. (b) Vary the number of training steps, and compare with one-shot accuracy on the training classes. (c) Look for a change that makes the embedding beat pixels on new classes: augmentations (ch. 8), a smaller embedding, fewer or more training classes.
+
+    *Hints and expected result*: change the dictionary of training indices to the classes 0–4, and the one-shot function to draw its support and query from the classes 5–9.
+
+    (a)–(b) Pixels reach 0.713. The embedding reaches 0.51, 0.54 and 0.47 after 50, 200 and 1000 steps, while it is at 0.98–1.00 on the training classes: longer training specialises the metric to the classes it has seen.
+
+    **(c)** On the 2-way task 8 against 9, pixels reach 0.79. Training on 2, 4 or 8 other classes gave between 0.63 and 0.71, and between 0.73 and 0.80 with random one-pixel shifts. With ten classes in total, the digits cannot show the benefit of many training classes; this is why one-shot benchmarks such as Omniglot (964 training characters) and miniImageNet (Vinyals and coauthors, 2016) exist.
+
+19. **★★★ Long lags: RNN against LSTM.** A network reads a sequence of $T$ random symbols out of 4, and must output the *first* symbol from its final state. (a) Run the code below for a vanilla RNN and for LSTMs with forget-gate bias 0 and 3, at lags 5, 20 and 30. (b) Repeat with other seeds, and find the longest lag that each model learns in 300 steps. (c) Relate the results to Propositions 6.3 and 6.5. (d) Open question: add attention over all the hidden states (Definition 6.6), and test $T = 100$.
+
+    ```python
+    import torch
+    from torch import nn
+    torch.set_num_threads(1)
+
+    class Model(nn.Module):
+        def __init__(self, cell, forget_bias=None):
+            super().__init__()
+            self.rnn = cell(4, 32, batch_first=True)
+            self.out = nn.Linear(32, 4)
+            if forget_bias is not None:                  # PyTorch gate order: i, f, g, o
+                with torch.no_grad():
+                    self.rnn.bias_ih_l0[32:64].fill_(forget_bias)
+        def forward(self, x):
+            h, _ = self.rnn(x)
+            return self.out(h[:, -1])                     # read the final state only
+
+    def run(cell, T, forget_bias=None, steps=300):
+        torch.manual_seed(0)
+        model = Model(cell, forget_bias)
+        opt = torch.optim.Adam(model.parameters(), lr=1e-2)
+        for step in range(steps):                         # target: the FIRST symbol of the sequence
+            s = torch.randint(4, (64, T))
+            loss = nn.functional.cross_entropy(model(nn.functional.one_hot(s, 4).float()), s[:, 0])
+            opt.zero_grad(); loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+        s = torch.randint(4, (1000, T))
+        with torch.no_grad():
+            return (model(nn.functional.one_hot(s, 4).float()).argmax(1) == s[:, 0]).float().mean().item()
+
+    print("  T    RNN   LSTM b_f=0  LSTM b_f=3    (chance 0.25)")
+    for T in (5, 20, 30):
+        print(f"{T:3d}  {run(nn.RNN, T):.2f}   {run(nn.LSTM, T, 0.0):.2f}        {run(nn.LSTM, T, 3.0):.2f}")
+    ```
+
+    *Hints and expected result*: (a) At lag 5 all three models reach accuracy 1.00. At lags 20 and 30, the RNN (0.38 and 0.23) and the LSTM with bias 0 (0.27 and 0.26) stay near chance, while the LSTM with bias 3 reaches 1.00.
+
+    **(b)** Single runs vary at longer lags: with the seed above, the LSTM with bias 3 is still at chance at lag 50 after 300 steps, and reaches 0.49 after 1000 steps.
+
+    **(c)** With bias 3, the forget gates start near $\sigma(3) \approx 0.95$, and $0.95^{30} \approx 0.2$ of the error signal survives along the cell path. With bias 0 the factor is about $0.5^{30} \approx 10^{-9}$, and the RNN's Jacobian products decay as fast, as measured in ch. 6.
+
+20. **★★★ The alternating game need not converge.** Near its equilibrium, a GAN with a linear discriminator and a point-mass generator reduces to the bilinear game $\min_x \max_y\, x y$, the *Dirac GAN* of Mescheder, Geiger and Nowozin (2018). Its unique equilibrium is $(0, 0)$.
+
+    **(a)** Show that simultaneous gradient descent–ascent with step $\eta$ multiplies the distance to the equilibrium by $\sqrt{1 + \eta^2}$ at each step. (b) Show that alternating updates, as in the GAN code of ch. 5, neither converge nor diverge when $0 < \eta < 2$. (c) Show that the extragradient method converges for $0 < \eta < 1$. (d) Check with the code. (e) Open question: compare with optimistic updates (Daskalakis and coauthors, 2018) and with the gradient penalties studied by Mescheder and coauthors (2018).
+
+    ```python
+    import numpy as np
+    eta, steps = 0.1, 200
+    for name in ["simultaneous", "alternating", "extragradient"]:
+        x, y = 1.0, 0.0                                   # min_x max_y x*y, equilibrium (0, 0)
+        for t in range(steps):
+            if name == "simultaneous":
+                x, y = x - eta * y, y + eta * x
+            elif name == "alternating":
+                x = x - eta * y
+                y = y + eta * x
+            else:                                         # extrapolate, then update from the old point
+                xh, yh = x - eta * y, y + eta * x
+                x, y = x - eta * yh, y + eta * xh
+        print(f"{name:14s} distance to equilibrium after {steps} steps: {np.hypot(x, y):.3f}")
+    ```
+
+    *Solution*: (a) The update is $(x, y) \mapsto (x - \eta y,\ y + \eta x)$. Its matrix is $I + \eta J$, with $J$ the rotation by a quarter turn, so it multiplies every norm by $\sqrt{1 + \eta^2}$: the iterates spiral outwards.
+
+    **(b)** The alternating update $x' = x - \eta y$, then $y' = y + \eta x'$, has the matrix
+    $$
+    A = \begin{pmatrix} 1 & -\eta \\ \eta & 1 - \eta^2 \end{pmatrix}, \qquad \det A = 1, \qquad \operatorname{tr} A = 2 - \eta^2 .
+    $$
+    For $0 < \eta < 2$, the trace lies in $(-2, 2)$, so the two eigenvalues are complex conjugates of product 1, of modulus 1. The iterates circle on an ellipse around the equilibrium.
+
+    **(c)** The extragradient matrix is $(1 - \eta^2) I + \eta J$, a rotation scaled by the factor below, which is smaller than 1 for $0 < \eta < 1$:
+    $$
+    \sqrt{(1 - \eta^2)^2 + \eta^2} = \sqrt{1 - \eta^2 + \eta^4} .
+    $$
+
+    **(d)** With $\eta = 0.1$ and 200 steps, the distance becomes $1.01^{100} = 2.705$ for simultaneous updates, stays near 1 (1.020) for alternating ones, and falls to $0.9901^{100} = 0.370$ with extragradient. The code prints these three numbers.
+
+## Projects and assessment {#projects}
+
+The official assessment (master-mva.com) is based on individual mini-projects on object recognition, natural language processing and reinforcement learning: two according to *Mode de validation*, three according to *Evaluation*. The labs of the sessions start them and give feedback. The Université Paris-Saclay course detail describes the assessment as partial continuous assessment (“Evaluation Continue non Intégrale”). No weights and no written exam are displayed.
+
+Solo subjects 1–3 below are shaped like these mini-projects, one per domain, each a paper study. Solo subject 4 and the group subjects are larger variants for further work. The written exam is only a self-assessment proposal, and the rubric is a proposal for the mini-projects.
+
+### Solo projects {#projects-solo}
+
+1.  **[Solo · ≈ 20 h] Mini-project 1, object recognition: how transferable are the features of a CNN?** A paper study of Yosinski, Clune, Bengio and Lipson, “How transferable are features in deep neural networks?” (NeurIPS 2014), at the scale of CIFAR-10 (Krizhevsky, 2009).
+    -   *Question*: which layers of a network trained on some classes help on other classes, and does fine-tuning recover what freezing loses?
+    -   *Implement*: split CIFAR-10 into two halves A and B of five classes, and train a small residual network (ch. 2) on each. Transfer its first blocks from A to B, frozen (AnB) or fine-tuned (AnB+), with the self-transfer BnB as control (ch. 5).
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 2, 3, 5. Laptop or free GPU tier.
+    -   *Success*: the shape of Figure 2 of the paper over 3 seeds: the dip of BnB in the middle layers, the drop of AnB at the top, and AnB+ at or above the baseline.
+2.  **[Solo · ≈ 20 h] Mini-project 2, natural language processing: regularising an LSTM language model.** A paper study of Zaremba, Sutskever and Vinyals, “Recurrent neural network regularization” (arXiv, 2014).
+    -   *Question*: where should dropout go in an LSTM language model, and how much perplexity does it save?
+    -   *Implement*: a two-layer word-level LSTM language model (ch. 6) on the language-modelling version of the Penn Treebank (Marcus, Santorini and Marcinkiewicz, 1993), or on WikiText-2 (Merity and coauthors, 2017). Use truncated backpropagation through time and gradient clipping. Compare no dropout, dropout on the non-recurrent connections only (the paper's choice), and dropout everywhere (ch. 3).
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 3, 6.
+    -   *Success*: validation and test perplexities of the three variants with the paper's ordering, and the medium model within 10 % of the perplexity the paper reports for it.
+3.  **[Solo · ≈ 20 h] Mini-project 3, reinforcement learning: does DQN overestimate, and does Double DQN fix it?** A paper study of van Hasselt, Guez and Silver, “Deep reinforcement learning with double Q-learning” (AAAI 2016).
+    -   *Question*: how large is the bias of Proposition 9.5 in practice?
+    -   *Implement*: DQN with a replay buffer and a target network (Definition 9.4), then Double DQN. Use CartPole-v1 of Gymnasium, the maintained successor of OpenAI Gym (Brockman and coauthors, 2016), and two MinAtar games (Young and Tian, 2019). Compare the predicted values with the discounted returns of Monte Carlo rollouts of the greedy policy.
+    -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 3, 9. Runs on a laptop CPU.
+    -   *Success*: an average return of at least 475 on CartPole-v1 over 100 evaluation episodes. On each game, estimated and true values over training for both methods, over 5 seeds, showing whether Double DQN shrinks the gap, as in the paper.
+4.  **[Solo · ≈ 15 h] Contrastive pre-training at small scale: which augmentations matter?** A paper study of Chen, Kornblith, Norouzi and Hinton, “A simple framework for contrastive learning of visual representations” (ICML 2020).
+    -   *Implement*: SimCLR (ch. 8) with a ResNet-18 on CIFAR-10: InfoNCE with a temperature, a projection head, then a linear probe on frozen features (ch. 4).
+    -   *Ablations*: crops alone, colour distortion alone, or both; temperatures 0.1, 0.5 and 1; probing before or after the projection head.
+    -   *Deliverables*: code, a 4-page report. *Chapters*: ch. 4, 8. Free GPU tier.
+    -   *Success*: linear-probe accuracies against a random encoder and a supervised encoder of the same architecture, and the two findings of the paper reproduced: the composition of crops and colour distortion beats each alone, and features before the head probe better than after it.
+
+### Group projects {#projects-group}
+
+1.  **[Group of 3 · ≈ 30 h each] Object detection: two stages against one, and what the focal loss buys.** A paper study of Lin, Goyal, Girshick, He and Dollár, “Focal loss for dense object detection” (ICCV 2017).
+    -   *Data*: PASCAL VOC 2007 (Everingham and coauthors, 2010), trainval for training and test for evaluation.
+    -   *Implement*: the VOC evaluation (IoU, NMS and AP of ch. 7) from scratch, checked against a reference implementation. Fine-tune the Faster R-CNN and RetinaNet models of torchvision from ImageNet-pre-trained backbones (ch. 5).
+    -   *Ablations*: the focusing parameter in {0, 0.5, 1, 2, 5}, the NMS threshold, the anchor scales.
+    -   *Split*: evaluation code and error analysis; the two-stage detector; the one-stage detector and the focal loss.
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 2, 5, 7. Free GPU tier.
+    -   *Success*: mAP at IoU 0.5 for both detectors, the group's evaluation code within 0.5 points of the reference, and the direction of the paper's ablation (focusing parameter 2 better than 0) reproduced or its failure explained.
+2.  **[Group of 2–3 · ≈ 30 h each] GANs: measuring and curing mode collapse.** A paper study of Gulrajani, Ahmed, Arjovsky, Dumoulin and Courville, “Improved training of Wasserstein GANs” (NeurIPS 2017).
+    -   *Data*: the 8-Gaussian mixture of ch. 5, then MNIST (LeCun, Bottou, Bengio and Haffner, 1998).
+    -   *Implement*: a DCGAN with the non-saturating loss (ch. 5), a WGAN with weight clipping, and WGAN-GP. For evaluation, train an MNIST classifier, then count the digit classes generated and compute a Fréchet distance on its features, as FID does with Inception features (Heusel and coauthors, 2017).
+    -   *Split*: the models; the evaluation; the training dynamics, with Exercises 11 and 20 as starting points.
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 3, 5. Laptop or free GPU tier.
+    -   *Success*: for each method over 3 seeds, the modes covered and the Fréchet distance against training time, and a clear statement of which methods collapse or oscillate, with figures of the 2D samples.
+3.  **[Group of 3 · ≈ 30 h each] Domain-adversarial transfer from house numbers to handwritten digits.** A paper study of Ganin and coauthors, “Domain-adversarial training of neural networks” (JMLR 2016).
+    -   *Data*: SVHN (Netzer and coauthors, 2011) as the labelled source, MNIST as the target, unlabelled during training.
+    -   *Implement*: a source-only CNN; fine-tuning on 10 target labels per class, as a reference; DANN with a gradient-reversal layer (ch. 5).
+    -   *Analysis*: the domain distance between source and target features, before and after adaptation, measured by a domain classifier as in the paper; the link with Proposition 5.6; t-SNE plots.
+    -   *Split*: baselines and data; DANN; analysis.
+    -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 2, 5. Free GPU tier.
+    -   *Success*: a gain of at least 10 points of target accuracy over the source-only model, over 3 seeds, together with a smaller measured domain distance.
+
+### Written exam (proposal) {#projects-exam}
+
+Two hours, one handwritten A4 sheet allowed, no electronic device; four questions, 20 points.
+
+1.  **Question (4 points).** Explain why a vanilla recurrent network struggles to learn dependencies over long lags, what gradient clipping fixes and what it does not, and how the LSTM cell helps.
+
+    *Expected*:
+
+    -   The gradient over a lag $T - t$ is a product of Jacobians, bounded by $\|W\|^{T-t}$ (Proposition 6.3): it vanishes when the norm is below 1 and can explode above (1.5 pts).
+    -   Clipping rescales a large gradient and keeps its direction, so it handles explosion; it cannot restore a vanished signal (1 pt).
+    -   Along the cell path the Jacobian is the product of the forget gates (Proposition 6.5); with gates near 1, for instance a forget bias of 1 or more, the signal crosses long lags (1.5 pts).
+2.  **Question (5 points).** A network has one hidden ReLU layer without biases and a scalar output $z = w_2^\top \mathrm{ReLU}(W_1 x)$, with the loss $\frac12 (z - y)^2$ and
+    $$
+    x = (1, 2), \qquad W_1 = \begin{pmatrix} 1 & -1 \\ 0 & 1 \end{pmatrix}, \qquad w_2 = (1, 2), \qquad y = 1 .
+    $$
+    **(a)** Compute the forward pass and the loss. (b) Compute the gradients with respect to $w_2$ and $W_1$. (c) Take one gradient step of size 0.1 on $w_2$ only, and give the new loss.
+
+    *Expected*:
+
+    -   **(a)** $W_1 x = (-1, 2)$, the hidden layer is $a = (0, 2)$, $z = 4$ and the loss is 4.5 (1.5 pts).
+    -   **(b)** The output error is $z - y = 3$, so the gradient in $w_2$ is $3a = (0, 6)$. Back through the ReLU, $\delta_1 = (0, 6)$, and the gradient in $W_1$ is $\delta_1 x^\top$, with rows (0, 0) and (6, 12) (2.5 pts).
+    -   **(c)** $w_2$ becomes $(1, 1.4)$, so $z = 2.8$ and the loss falls to 1.62 (1 pt).
+3.  **Question (5 points).** State and prove the perceptron convergence theorem. Apply it to data with $R = 2$ and margin $\gamma = 0.1$, and explain why it says nothing about XOR.
+
+    *Expected*:
+
+    -   The statement of Theorem 1.3 (1 pt).
+    -   Each mistake raises the alignment with $w^\star$ by at least $\gamma$ and the squared norm by at most $R^2$; Cauchy–Schwarz gives $k \gamma \leq \sqrt{k} R$ (2.5 pts).
+    -   At most $(2 / 0.1)^2 = 400$ mistakes (0.5 pt).
+    -   XOR is not linearly separable (Proposition 1.4), so no margin exists and the assumption fails (1 pt).
+4.  **Question (6 points).** (a) For a fixed generator, derive the optimal discriminator of the GAN game, and the expression of the generator's criterion with the Jensen–Shannon divergence. (b) On two points, let $p_{\text{data}} = (1/2, 1/2)$ and $p_g = (3/4, 1/4)$; compute $D^\star$, $C(G)$ and the divergence. (c) Explain why the generator is trained with the non-saturating loss, and what mode collapse is.
+
+    *Expected*:
+
+    -   **(a)** Pointwise maximisation of the integrand of $V$ gives $D^\star = p_{\text{data}} / (p_{\text{data}} + p_g)$; substituting gives $C(G) = -\log 4 + 2\, \mathrm{JSD}$ (Proposition 5.2, Theorem 5.3) (2.5 pts).
+    -   **(b)** $D^\star = (0.4, 0.667)$, and the four terms of $C(G)$ add up as follows, so the divergence is $(-1.319 + 1.386) / 2 = 0.034$ (1.5 pts):
+        $$
+        C(G) = \tfrac12 \log 0.4 + \tfrac12 \log \tfrac23 + \tfrac34 \log 0.6 + \tfrac14 \log \tfrac13 = -0.458 - 0.203 - 0.383 - 0.275 = -1.319 .
+        $$
+    -   **(c)** When the discriminator rejects the samples confidently, the minimax loss saturates while the non-saturating loss keeps a unit gradient in the logit (Proposition 5.4); mode collapse sends many noise values to a few outputs that fool the current discriminator (2 pts).
+
+### Grading rubric (proposal) {#projects-rubric}
+
+| Criterion | Weight | What earns the marks |
+|---|---|---|
+| Question and baselines | 15 % | One precise question; a simple baseline run first: a linear probe, an n-gram model, a random or linear policy |
+| Correctness | 25 % | Code that does what the report says: gradients checked, shapes and masks tested, the metric (AP, perplexity, return) checked on a toy case such as Exercise 8 |
+| Experimental protocol | 20 % | Separate training, validation and test data; hyperparameters chosen on validation only; at least 3 seeds with their spread; compute budget stated |
+| Analysis | 20 % | Learning curves, ablations, failure cases, and the link to a result of the course, such as Proposition 6.3, Theorem 5.3 or Proposition 9.5 |
+| Reproducibility | 10 % | One command reruns the main table; seeds, library versions and data sources recorded |
+| Communication | 10 % | Report and talk clear within the limits; figures readable on a projector |
+
+## References {#refs}
+
+**Official references (master-mva.com course page).**
+
+-   I. Goodfellow, Y. Bengio, A. Courville, *Deep Learning*, MIT Press, 2016 — the reading material of the course, free online at [deeplearningbook.org](https://www.deeplearningbook.org).
+-   Software tools named by the course page: Python, Keras and PyTorch. A. Paszke et al., “PyTorch: an imperative style, high-performance deep learning library”, *NeurIPS* 2019; F. Chollet et al., *Keras*, software, 2015.
+-   Related conferences named by the course page: NIPS (now NeurIPS), ICML, ICLR, CVPR, ECCV and ICCV.
+-   Related course named by the course page: [Deep Learning in Practice](../s2-deep-learning-in-practice/index.html), semester 2.
+
+**Textbooks.**
+
+-   C. M. Bishop, H. Bishop, *Deep Learning: Foundations and Concepts*, Springer, 2024.
+-   S. J. D. Prince, *Understanding Deep Learning*, MIT Press, 2023.
+-   A. Zhang, Z. C. Lipton, M. Li, A. J. Smola, *Dive into Deep Learning*, Cambridge University Press, 2023.
+-   R. S. Sutton, A. G. Barto, *Reinforcement Learning: An Introduction*, 2nd ed., MIT Press, 2018.
+-   M. L. Puterman, *Markov Decision Processes: Discrete Stochastic Dynamic Programming*, Wiley, 1994.
+-   A. Griewank, A. Walther, *Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation*, 2nd ed., SIAM, 2008.
+
+**Ch. 1 — history and cognitive science.**
+
+-   W. S. McCulloch, W. Pitts, “A logical calculus of the ideas immanent in nervous activity”, *Bulletin of Mathematical Biophysics* 5, 1943; D. O. Hebb, *The Organization of Behavior*, Wiley, 1949.
+-   F. Rosenblatt, “The perceptron: a probabilistic model for information storage and organization in the brain”, *Psychological Review* 65, 1958; A. B. J. Novikoff, “On convergence proofs on perceptrons”, *Symposium on the Mathematical Theory of Automata*, Polytechnic Institute of Brooklyn, 1962; M. Minsky, S. Papert, *Perceptrons*, MIT Press, 1969.
+-   S. Linnainmaa, master's thesis on the Taylor expansion of accumulated rounding errors (reverse-mode differentiation), University of Helsinki, 1970; P. J. Werbos, *Beyond Regression: New Tools for Prediction and Analysis in the Behavioral Sciences*, PhD thesis, Harvard University, 1974.
+-   K. Fukushima, “Neocognitron: a self-organizing neural network model for a mechanism of pattern recognition unaffected by shift in position”, *Biological Cybernetics* 36, 1980.
+-   D. E. Rumelhart, G. E. Hinton, R. J. Williams, “Learning representations by back-propagating errors”, *Nature* 323, 1986; D. E. Rumelhart, J. L. McClelland and the PDP Research Group, *Parallel Distributed Processing*, MIT Press, 1986.
+-   Y. LeCun et al., “Backpropagation applied to handwritten zip code recognition”, *Neural Computation* 1, 1989; G. E. Hinton, S. Osindero, Y.-W. Teh, “A fast learning algorithm for deep belief nets”, *Neural Computation* 18, 2006.
+-   J. Deng et al., “ImageNet: a large-scale hierarchical image database”, *CVPR* 2009; A. Krizhevsky, I. Sutskever, G. E. Hinton, “ImageNet classification with deep convolutional neural networks”, *NeurIPS* 2012.
+-   J. A. Fodor, Z. W. Pylyshyn, “Connectionism and cognitive architecture: a critical analysis”, *Cognition* 28, 1988; B. M. Lake, T. D. Ullman, J. B. Tenenbaum, S. J. Gershman, “Building machines that learn and think like people”, *Behavioral and Brain Sciences* 40, 2017.
+-   D. H. Hubel, T. N. Wiesel, “Receptive fields, binocular interaction and functional architecture in the cat's visual cortex”, *Journal of Physiology* 160, 1962.
+-   D. L. K. Yamins et al., “Performance-optimized hierarchical models predict neural responses in higher visual cortex”, *PNAS* 111, 2014; D. L. K. Yamins, J. J. DiCarlo, “Using goal-driven deep learning models to understand sensory cortex”, *Nature Neuroscience* 19, 2016.
+-   W. Schultz, P. Dayan, P. R. Montague, “A neural substrate of prediction and reward”, *Science* 275, 1997.
+-   T. P. Lillicrap, D. Cownden, D. B. Tweed, C. J. Akerman, “Random synaptic feedback weights support error backpropagation for deep learning”, *Nature Communications* 7, 2016; T. P. Lillicrap, A. Santoro, L. Marris, C. J. Akerman, G. Hinton, “Backpropagation and the brain”, *Nature Reviews Neuroscience* 21, 2020.
+
+**Ch. 2–3 — feedforward networks, optimisation and regularisation.**
+
+-   G. Cybenko, “Approximation by superpositions of a sigmoidal function”, *Mathematics of Control, Signals and Systems* 2, 1989; M. Leshno, V. Ya. Lin, A. Pinkus, S. Schocken, “Multilayer feedforward networks with a nonpolynomial activation function can approximate any function”, *Neural Networks* 6, 1993; M. Telgarsky, “Benefits of depth in neural networks”, *COLT* 2016.
+-   K. He, X. Zhang, S. Ren, J. Sun, “Deep residual learning for image recognition”, *CVPR* 2016, and “Delving deep into rectifiers: surpassing human-level performance on ImageNet classification”, *ICCV* 2015.
+-   X. Glorot, Y. Bengio, “Understanding the difficulty of training deep feedforward neural networks”, *AISTATS* 2010.
+-   D. P. Kingma, J. Ba, “Adam: a method for stochastic optimization”, *ICLR* 2015; I. Loshchilov, F. Hutter, “Decoupled weight decay regularization”, *ICLR* 2019.
+-   S. Ghadimi, G. Lan, “Stochastic first- and zeroth-order methods for nonconvex stochastic programming”, *SIAM Journal on Optimization* 23, 2013; L. Bottou, F. E. Curtis, J. Nocedal, “Optimization methods for large-scale machine learning”, *SIAM Review* 60, 2018 — background for Theorem 3.2.
+-   N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, R. Salakhutdinov, “Dropout: a simple way to prevent neural networks from overfitting”, *JMLR* 15, 2014.
+-   S. Ioffe, C. Szegedy, “Batch normalization: accelerating deep network training by reducing internal covariate shift”, *ICML* 2015; J. L. Ba, J. R. Kiros, G. E. Hinton, “Layer normalization”, arXiv:1607.06450, 2016.
+
+**Ch. 4 — representation learning and siamese networks.**
+
+-   Y. Bengio, A. Courville, P. Vincent, “Representation learning: a review and new perspectives”, *IEEE Transactions on Pattern Analysis and Machine Intelligence* 35, 2013.
+-   P. Baldi, K. Hornik, “Neural networks and principal component analysis: learning from examples without local minima”, *Neural Networks* 2, 1989; P. Vincent, H. Larochelle, Y. Bengio, P.-A. Manzagol, “Extracting and composing robust features with denoising autoencoders”, *ICML* 2008.
+-   J. Bromley, I. Guyon, Y. LeCun, E. Säckinger, R. Shah, “Signature verification using a ‘siamese’ time delay neural network”, *NIPS* 1993; S. Chopra, R. Hadsell, Y. LeCun, “Learning a similarity metric discriminatively, with application to face verification”, *CVPR* 2005; R. Hadsell, S. Chopra, Y. LeCun, “Dimensionality reduction by learning an invariant mapping”, *CVPR* 2006.
+-   F. Schroff, D. Kalenichenko, J. Philbin, “FaceNet: a unified embedding for face recognition and clustering”, *CVPR* 2015.
+-   G. Koch, R. Zemel, R. Salakhutdinov, “Siamese neural networks for one-shot image recognition”, *ICML Deep Learning Workshop*, 2015; J. Snell, K. Swersky, R. Zemel, “Prototypical networks for few-shot learning”, *NeurIPS* 2017; O. Vinyals, C. Blundell, T. Lillicrap, K. Kavukcuoglu, D. Wierstra, “Matching networks for one shot learning”, *NeurIPS* 2016.
+-   B. M. Lake, R. Salakhutdinov, J. B. Tenenbaum, “Human-level concept learning through probabilistic program induction”, *Science* 350, 2015 (Omniglot).
+
+**Ch. 5 — generative adversarial networks and transfer learning.**
+
+-   I. Goodfellow et al., “Generative adversarial nets”, *NeurIPS* 2014; A. Radford, L. Metz, S. Chintala, “Unsupervised representation learning with deep convolutional generative adversarial networks”, *ICLR* 2016.
+-   M. Arjovsky, S. Chintala, L. Bottou, “Wasserstein generative adversarial networks”, *ICML* 2017; I. Gulrajani, F. Ahmed, M. Arjovsky, V. Dumoulin, A. Courville, “Improved training of Wasserstein GANs”, *NeurIPS* 2017.
+-   L. Mescheder, A. Geiger, S. Nowozin, “Which training methods for GANs do actually converge?”, *ICML* 2018; C. Daskalakis, A. Ilyas, V. Syrgkanis, H. Zeng, “Training GANs with optimism”, *ICLR* 2018.
+-   P. Isola, J.-Y. Zhu, T. Zhou, A. A. Efros, “Image-to-image translation with conditional adversarial networks”, *CVPR* 2017; J.-Y. Zhu, T. Park, P. Isola, A. A. Efros, “Unpaired image-to-image translation using cycle-consistent adversarial networks”, *ICCV* 2017; T. Karras, S. Laine, T. Aila, “A style-based generator architecture for generative adversarial networks”, *CVPR* 2019.
+-   M. Heusel, H. Ramsauer, T. Unterthiner, B. Nessler, S. Hochreiter, “GANs trained by a two time-scale update rule converge to a local Nash equilibrium”, *NeurIPS* 2017 (FID).
+-   J. Yosinski, J. Clune, Y. Bengio, H. Lipson, “How transferable are features in deep neural networks?”, *NeurIPS* 2014; A. S. Razavian, H. Azizpour, J. Sullivan, S. Carlsson, “CNN features off-the-shelf: an astounding baseline for recognition”, *CVPR Workshops* 2014; M. Oquab, L. Bottou, I. Laptev, J. Sivic, “Learning and transferring mid-level image representations using convolutional neural networks”, *CVPR* 2014; S. Kornblith, J. Shlens, Q. V. Le, “Do better ImageNet models transfer better?”, *CVPR* 2019.
+-   S. Ben-David, J. Blitzer, K. Crammer, A. Kulesza, F. Pereira, J. W. Vaughan, “A theory of learning from different domains”, *Machine Learning* 79, 2010; Y. Ganin et al., “Domain-adversarial training of neural networks”, *JMLR* 17, 2016.
+
+**Ch. 6 — recurrent networks and language.**
+
+-   J. L. Elman, “Finding structure in time”, *Cognitive Science* 14, 1990; Y. Bengio, P. Simard, P. Frasconi, “Learning long-term dependencies with gradient descent is difficult”, *IEEE Transactions on Neural Networks* 5, 1994; R. Pascanu, T. Mikolov, Y. Bengio, “On the difficulty of training recurrent neural networks”, *ICML* 2013.
+-   S. Hochreiter, J. Schmidhuber, “Long short-term memory”, *Neural Computation* 9, 1997; F. A. Gers, J. Schmidhuber, F. Cummins, “Learning to forget: continual prediction with LSTM”, *Neural Computation* 12, 2000; R. Jozefowicz, W. Zaremba, I. Sutskever, “An empirical exploration of recurrent network architectures”, *ICML* 2015.
+-   K. Cho et al., “Learning phrase representations using RNN encoder–decoder for statistical machine translation”, *EMNLP* 2014; I. Sutskever, O. Vinyals, Q. V. Le, “Sequence to sequence learning with neural networks”, *NeurIPS* 2014; D. Bahdanau, K. Cho, Y. Bengio, “Neural machine translation by jointly learning to align and translate”, *ICLR* 2015.
+-   T. Mikolov, I. Sutskever, K. Chen, G. Corrado, J. Dean, “Distributed representations of words and phrases and their compositionality”, *NeurIPS* 2013; J. Pennington, R. Socher, C. D. Manning, “GloVe: global vectors for word representation”, *EMNLP* 2014; M. E. Peters et al., “Deep contextualized word representations”, *NAACL* 2018.
+-   W. Zaremba, I. Sutskever, O. Vinyals, “Recurrent neural network regularization”, arXiv:1409.2329, 2014; M. P. Marcus, B. Santorini, M. A. Marcinkiewicz, “Building a large annotated corpus of English: the Penn Treebank”, *Computational Linguistics* 19, 1993; S. Merity, C. Xiong, J. Bradbury, R. Socher, “Pointer sentinel mixture models”, *ICLR* 2017 (WikiText).
+
+**Ch. 7 — object detection.**
+
+-   M. Everingham, L. Van Gool, C. K. I. Williams, J. Winn, A. Zisserman, “The PASCAL Visual Object Classes (VOC) challenge”, *International Journal of Computer Vision* 88, 2010; T.-Y. Lin et al., “Microsoft COCO: common objects in context”, *ECCV* 2014.
+-   R. Girshick, J. Donahue, T. Darrell, J. Malik, “Rich feature hierarchies for accurate object detection and semantic segmentation”, *CVPR* 2014; R. Girshick, “Fast R-CNN”, *ICCV* 2015; S. Ren, K. He, R. Girshick, J. Sun, “Faster R-CNN: towards real-time object detection with region proposal networks”, *NeurIPS* 2015.
+-   T.-Y. Lin, P. Dollár, R. Girshick, K. He, B. Hariharan, S. Belongie, “Feature pyramid networks for object detection”, *CVPR* 2017; T.-Y. Lin, P. Goyal, R. Girshick, K. He, P. Dollár, “Focal loss for dense object detection”, *ICCV* 2017.
+-   J. Redmon, S. Divvala, R. Girshick, A. Farhadi, “You only look once: unified, real-time object detection”, *CVPR* 2016; W. Liu et al., “SSD: single shot multibox detector”, *ECCV* 2016.
+-   N. Carion, F. Massa, G. Synnaeve, N. Usunier, A. Kirillov, S. Zagoruyko, “End-to-end object detection with transformers”, *ECCV* 2020; H. W. Kuhn, “The Hungarian method for the assignment problem”, *Naval Research Logistics Quarterly* 2, 1955.
+
+**Ch. 8 — self-supervised methods.**
+
+-   C. Doersch, A. Gupta, A. A. Efros, “Unsupervised visual representation learning by context prediction”, *ICCV* 2015; M. Noroozi, P. Favaro, “Unsupervised learning of visual representations by solving jigsaw puzzles”, *ECCV* 2016; S. Gidaris, P. Singh, N. Komodakis, “Unsupervised representation learning by predicting image rotations”, *ICLR* 2018; R. Zhang, P. Isola, A. A. Efros, “Colorful image colorization”, *ECCV* 2016.
+-   J. Devlin, M.-W. Chang, K. Lee, K. Toutanova, “BERT: pre-training of deep bidirectional transformers for language understanding”, *NAACL* 2019; K. He, X. Chen, S. Xie, Y. Li, P. Dollár, R. Girshick, “Masked autoencoders are scalable vision learners”, *CVPR* 2022.
+-   A. van den Oord, Y. Li, O. Vinyals, “Representation learning with contrastive predictive coding”, arXiv:1807.03748, 2018; D. McAllester, K. Stratos, “Formal limitations on the measurement of mutual information”, *AISTATS* 2020; T. Wang, P. Isola, “Understanding contrastive representation learning through alignment and uniformity on the hypersphere”, *ICML* 2020.
+-   T. Chen, S. Kornblith, M. Norouzi, G. Hinton, “A simple framework for contrastive learning of visual representations”, *ICML* 2020; K. He, H. Fan, Y. Wu, S. Xie, R. Girshick, “Momentum contrast for unsupervised visual representation learning”, *CVPR* 2020.
+-   J.-B. Grill et al., “Bootstrap your own latent: a new approach to self-supervised learning”, *NeurIPS* 2020; X. Chen, K. He, “Exploring simple siamese representation learning”, *CVPR* 2021; J. Zbontar, L. Jing, I. Misra, Y. LeCun, S. Deny, “Barlow Twins: self-supervised learning via redundancy reduction”, *ICML* 2021; A. Bardes, J. Ponce, Y. LeCun, “VICReg: variance-invariance-covariance regularization for self-supervised learning”, *ICLR* 2022.
+-   Y. Tian, X. Chen, S. Ganguli, “Understanding self-supervised learning dynamics without contrastive pairs”, *ICML* 2021; M. Caron et al., “Emerging properties in self-supervised vision transformers”, *ICCV* 2021.
+
+**Ch. 9 — deep reinforcement learning.**
+
+-   C. J. C. H. Watkins, P. Dayan, “Q-learning”, *Machine Learning* 8, 1992; V. Mnih et al., “Human-level control through deep reinforcement learning”, *Nature* 518, 2015; H. van Hasselt, A. Guez, D. Silver, “Deep reinforcement learning with double Q-learning”, *AAAI* 2016.
+-   R. J. Williams, “Simple statistical gradient-following algorithms for connectionist reinforcement learning”, *Machine Learning* 8, 1992; R. S. Sutton, D. McAllester, S. Singh, Y. Mansour, “Policy gradient methods for reinforcement learning with function approximation”, *NIPS* 1999 (proceedings 2000).
+-   V. Mnih et al., “Asynchronous methods for deep reinforcement learning”, *ICML* 2016; J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov, “Proximal policy optimization algorithms”, arXiv:1707.06347, 2017; L. Ouyang et al., “Training language models to follow instructions with human feedback”, *NeurIPS* 2022.
+-   D. Silver et al., “Mastering the game of Go with deep neural networks and tree search”, *Nature* 529, 2016; D. Silver et al., “A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play”, *Science* 362, 2018.
+-   A. G. Barto, R. S. Sutton, C. W. Anderson, “Neuronlike adaptive elements that can solve difficult learning control problems”, *IEEE Transactions on Systems, Man, and Cybernetics* 13, 1983 (cart-pole); G. Brockman et al., “OpenAI Gym”, arXiv:1606.01540, 2016; K. Young, T. Tian, “MinAtar: an Atari-inspired testbed for thorough and reproducible reinforcement learning experiments”, arXiv:1903.03176, 2019.
+
+**Ch. 10 — attention and transformers.**
+
+-   A. Vaswani et al., “Attention is all you need”, *NeurIPS* 2017; A. Radford, K. Narasimhan, T. Salimans, I. Sutskever, “Improving language understanding by generative pre-training”, OpenAI technical report, 2018; A. Dosovitskiy et al., “An image is worth 16x16 words: transformers for image recognition at scale”, *ICLR* 2021.
+-   C. Olsson et al., “In-context learning and induction heads”, *Transformer Circuits Thread*, 2022 (arXiv:2209.11895).
+
+**Ch. 11 — research directions.**
+
+-   J. Kaplan et al., “Scaling laws for neural language models”, arXiv:2001.08361, 2020; J. Hoffmann et al., “Training compute-optimal large language models”, *NeurIPS* 2022.
+-   A. Radford et al., “Learning transferable visual models from natural language supervision”, *ICML* 2021 (CLIP); M. Oquab et al., “DINOv2: learning robust visual features without supervision”, *Transactions on Machine Learning Research*, 2024.
+-   J. Ho, A. Jain, P. Abbeel, “Denoising diffusion probabilistic models”, *NeurIPS* 2020; Y. Song, J. Sohl-Dickstein, D. P. Kingma, A. Kumar, S. Ermon, B. Poole, “Score-based generative modeling through stochastic differential equations”, *ICLR* 2021; N. Carlini et al., “Extracting training data from diffusion models”, *USENIX Security* 2023.
+-   C. Zhang, S. Bengio, M. Hardt, B. Recht, O. Vinyals, “Understanding deep learning requires rethinking generalization”, *ICLR* 2017; M. Belkin, D. Hsu, S. Ma, S. Mandal, “Reconciling modern machine-learning practice and the classical bias–variance trade-off”, *PNAS* 116, 2019.
+-   C. Szegedy et al., “Intriguing properties of neural networks”, *ICLR* 2014; I. Goodfellow, J. Shlens, C. Szegedy, “Explaining and harnessing adversarial examples”, *ICLR* 2015; A. Madry, A. Makelov, L. Schmidt, D. Tsipras, A. Vladu, “Towards deep learning models resistant to adversarial attacks”, *ICLR* 2018.
+-   M. Assran et al., “Self-supervised learning from images with a joint-embedding predictive architecture”, *CVPR* 2023.
+-   J. Schrittwieser et al., “Mastering Atari, Go, chess and shogi by planning with a learned model”, *Nature* 588, 2020; S. Levine, A. Kumar, G. Tucker, J. Fu, “Offline reinforcement learning: tutorial, review, and perspectives on open problems”, arXiv:2005.01643, 2020; P. F. Christiano, J. Leike, T. Brown, M. Martic, S. Legg, D. Amodei, “Deep reinforcement learning from human preferences”, *NeurIPS* 2017.
+-   V. Lepetit, F. Moreno-Noguer, P. Fua, “EPnP: an accurate O(n) solution to the PnP problem”, *International Journal of Computer Vision* 81, 2009; M. Rad, V. Lepetit, “BB8: a scalable, accurate, robust to partial occlusion method for predicting the 3D poses of challenging objects without using depth”, *ICCV* 2017; B. Mildenhall et al., “NeRF: representing scenes as neural radiance fields for view synthesis”, *ECCV* 2020.
+-   O. Ronneberger, P. Fischer, T. Brox, “U-Net: convolutional networks for biomedical image segmentation”, *MICCAI* 2015.
+
+**Data sets used in the projects.**
+
+-   A. Krizhevsky, “Learning multiple layers of features from tiny images”, technical report, University of Toronto, 2009 (CIFAR-10); Y. LeCun, L. Bottou, Y. Bengio, P. Haffner, “Gradient-based learning applied to document recognition”, *Proceedings of the IEEE* 86, 1998 (MNIST); Y. Netzer, T. Wang, A. Coates, A. Bissacco, B. Wu, A. Y. Ng, “Reading digits in natural images with unsupervised feature learning”, *NIPS Workshop on Deep Learning and Unsupervised Feature Learning*, 2011 (SVHN).
