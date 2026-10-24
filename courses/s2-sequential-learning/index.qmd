@@ -107,7 +107,7 @@ The stated objective is to introduce and study the main concepts of online learn
 | “Les intervenants” (last item of the list) | Not a topic: the heading that introduces the instructors, Pierre Gaillard and Remy Degenne (INRIA), listed in the fiche |
 | Objective: data acquired and treated on the fly, feedbacks received and algorithms updated on the fly | ch. 1.1 (Definition 1.1, the protocol) |
 | Application: choosing which ads to display | ch. 1.1, [ch. 4](#ch4) and [ch. 5](#ch5) (bandit feedback), ch. 9.3 (contextual bandits) |
-| Application: repeated auctions | ch. 1.1, ch. 6.3 (no-regret bidders reach coarse correlated equilibria), ch. 8.1 (auction feedback) |
+| Application: repeated auctions | ch. 1.1, ch. 6.3 (Example 6.9: Hedge over a grid of bids, convergence to coarse correlated equilibria), ch. 8.1 (auction feedback) |
 | Application: spam detection | ch. 1.1, [ch. 3](#ch3) (online logistic regression, Python block) |
 | Application: experts / algorithm aggregation | [ch. 2](#ch2) (aggregation of forecasters, Corollary 2.3) |
 | Application: boosting | ch. 6.2 (boosting as a zero-sum game, Theorem 6.4) |
@@ -191,6 +191,10 @@ The function is **$\alpha$-strongly convex** if, for every $x$, $y$ and every $g
 $$
 f(y) \geq f(x) + \langle g, y - x \rangle + \frac{\alpha}{2}\, \|y - x\|^2 .
 $$
+With another norm $\|\cdot\|$ in place of the Euclidean one, this defines strong convexity for that norm. Its **dual norm** is
+$$
+\|g\|_* = \sup_{\|x\| \leq 1} \langle g, x \rangle .
+$$
 :::
 
 :::: prop
@@ -263,9 +267,9 @@ Fluctuations of order $\sqrt{T}$ are the unavoidable noise of any sequential pro
 $$
 \mathrm{KL}(p \,\|\, q) = \sum_{i=1}^N p_i \ln \frac{p_i}{q_i}, \qquad \mathrm{kl}(x, y) = x \ln \frac{x}{y} + (1 - x) \ln \frac{1 - x}{1 - y} .
 $$
-The divergence is non-negative and vanishes only when $p = q$, by Jensen's inequality. Pinsker's inequality gives the comparison with the squared distance:
+The divergence is non-negative and vanishes only when $p = q$, by Jensen's inequality. Pinsker's inequality compares it with the squared $\ell_1$ distance:
 $$
-\mathrm{kl}(x, y) \geq 2 (x - y)^2 .
+\mathrm{KL}(p \,\|\, q) \geq \frac{1}{2}\, \|p - q\|_1^2, \qquad \mathrm{kl}(x, y) \geq 2 (x - y)^2 .
 $$
 :::
 
@@ -448,7 +452,7 @@ Predicting the weighted average of the $f_t(i)$ with the weights of EWA has regr
 Indeed, by Jensen's inequality the loss of the average is at most $\langle p_t, \ell_t \rangle$, with $\ell_t(i) = \lambda(f_t(i), y_t)$.
 :::
 
-This is the aggregation of experts of the course description: the experts can be whole learning algorithms, for example several forecasting models of electricity load.
+This is the aggregation of experts of the course description: the experts can be whole learning algorithms, such as forecasting models of electricity load.
 
 ### 2.2 Randomized play and high probability
 
@@ -638,7 +642,7 @@ $$
 
 Two regularizers recover the algorithms seen so far.
 
--   The squared norm on $\mathbb{R}^d$ gives $x_t = -\eta \sum_{s<t} g_s$, a gradient descent that never forgets.
+-   Half the squared Euclidean norm on $\mathbb{R}^d$ gives $x_t = -\eta \sum_{s<t} g_s$, a gradient descent that never forgets.
 -   The negative entropy on the simplex gives weights proportional to $e^{-\eta \sum_{s<t} g_s(i)}$, by Proposition 0.7: exponential weights are FTRL with an entropic regularizer.
 
 :::: thm
@@ -901,7 +905,7 @@ $$
 When $\mu^\star$ stays away from 0 and 1, the term $4 / \Delta_i$ of UCB is therefore optimal up to a constant factor. Two algorithms reach the exact constant.
 
 -   **KL-UCB** replaces the Hoeffding width by the largest mean $q$ whose divergence $\mathrm{kl}(\hat\mu_i, q)$ stays below a threshold of order $\ln t / n_i$ (Garivier and Cappé, 2011).
--   **Thompson sampling** (Thompson, 1933) draws each mean from its Beta posterior and plays the arm with the largest draw; its asymptotic optimality was proved by Kaufmann, Korda and Munos (2012) and by Agrawal and Goyal (2012).
+-   **Thompson sampling** (Thompson, 1933) draws each mean from its Beta posterior and plays the arm with the largest draw. Agrawal and Goyal (2012) gave its first logarithmic bound; its asymptotic optimality was proved by Kaufmann, Korda and Munos (2012) and by Agrawal and Goyal (2013).
 
 The block compares explore-then-commit, UCB and Thompson sampling on four Bernoulli arms with means 0.6, 0.5, 0.45 and 0.4, averaged over 100 runs.
 
@@ -1074,8 +1078,6 @@ External regret is the special case of constant maps $\varphi$.
 *Proof.* Under the empirical distribution, the expected loss of player $k$ is her average loss; the loss after deviating to $a'_k$ (or after applying $\varphi$) is the average loss of that deviation. Their difference is her regret divided by $T$.
 :::
 
-In a repeated auction, bidders who run no-regret algorithms over a grid of bids thus play a CCE of the auction in the long run, and efficiency guarantees proved for all CCE apply to them (Roughgarden, 2015).
-
 :::: thm
 [Theorem 6.8 — From external to swap regret (Blum and Mansour, 2007)]{.tag} Run $N$ copies of an algorithm with external regret at most $R(T)$.
 
@@ -1100,6 +1102,20 @@ $$
 ::::
 
 With Hedge copies, the swap regret is at most $N \sqrt{(T/2) \ln N}$; a finer analysis gives order $\sqrt{N T \ln N}$ (Blum and Mansour, 2007).
+
+::: ex
+[Example 6.9 — Bidding in repeated first-price auctions]{.tag} A bidder of value 1 bids $b$ in the grid $\{0, 1/K, \dots, 1\}$ and wins when $b$ exceeds the highest competing bid $m_t$. Her gain is
+$$
+g_t(b) = (1 - b)\, \mathbf{1}\{b > m_t\} \in [0, 1] .
+$$
+If $m_t$ is published after each auction, the gain of every bid is known: this is prediction with $K + 1$ experts, and Hedge has regret at most $\sqrt{(T/2) \ln(K + 1)}$ against the best grid bid.
+
+Rounding a bid up to the grid keeps every win and costs at most $1/K$ per auction. With $T = 10{,}000$ and $K = 100$, the regret against every bid in $[0, 1]$ is at most
+$$
+\sqrt{5000 \ln 101} + 100 \approx 251.9 .
+$$
+When all bidders learn this way, their empirical play approaches a CCE (Theorem 6.7), and efficiency guarantees proved for all CCE apply to it (Roughgarden, 2015). If only the win is observed, the feedback is partial (ch. 8.1).
+:::
 
 :::: recap
 Key takeaways — chapter 6
@@ -1178,9 +1194,11 @@ Regret matching needs no learning rate, at the price of $\sqrt{N}$ instead of $\
 A weather forecaster announces each evening a probability of rain for the next day. She is calibrated if, among the days announced with probability 30 %, it rained on about 30 % of them.
 
 ::: def
-[Definition 7.4 — Calibration score]{.tag} The forecaster announces $p_t$ in the grid $\{0, 1/N, \dots, 1\}$ and then observes $y_t \in \{0, 1\}$. Let $R_T(k)$ be the sum of $y_t - k/N$ over the rounds with $p_t = k/N$. The **calibration score** is
+[Definition 7.4 — Calibration score]{.tag} The forecaster announces $p_t$ in the grid $\{0, 1/N, \dots, 1\}$ and then observes $y_t \in \{0, 1\}$.
+
+The **deficit** $B_T(k)$ of bin $k$ is the sum of $y_t - k/N$ over the rounds with $p_t = k/N$. The **calibration score** is
 $$
-C_T = \frac{1}{T} \sum_{k=0}^N \big| R_T(k) \big| = \sum_{k=0}^N \frac{n_T(k)}{T}\, \big| \rho_T(k) - \tfrac{k}{N} \big|,
+C_T = \frac{1}{T} \sum_{k=0}^N \big| B_T(k) \big| = \sum_{k=0}^N \frac{n_T(k)}{T}\, \big| \rho_T(k) - \tfrac{k}{N} \big|,
 $$
 where $n_T(k)$ is the number of rounds with forecast $k/N$ and $\rho_T(k)$ the frequency of ones among them. The forecaster is **$\varepsilon$-calibrated** if the limit superior of $C_T$ is at most $\varepsilon$.
 :::
@@ -1194,10 +1212,10 @@ Let $y_t = 1$ if $p_t < 1/2$ and $y_t = 0$ otherwise. Every bin with $k/N < 1/2$
 ::::
 
 :::: thm
-[Theorem 7.6 — A calibrated randomized forecaster (after Foster and Vohra, 1998)]{.tag} Forecast as follows, from the current deficits $R(k)$.
+[Theorem 7.6 — A calibrated randomized forecaster (after Foster and Vohra, 1998)]{.tag} Forecast as follows, from the current deficits $B(k)$.
 
--   If $R(0) \leq 0$, forecast 0; else, if $R(N) \geq 0$, forecast 1.
--   Otherwise pick $k$ with $R(k) > 0 \geq R(k+1)$, and forecast $k/N$ or $(k+1)/N$ with the probabilities that make the expected deficit-weighted outcome independent of $y$.
+-   If $B(0) \leq 0$, forecast 0; else, if $B(N) \geq 0$, forecast 1.
+-   Otherwise pick $k$ with $B(k) > 0 \geq B(k+1)$, and forecast $k/N$ or $(k+1)/N$ with the probabilities that make the expected deficit-weighted outcome independent of $y$.
 
 Against any adaptive opponent who does not see the forecaster's coin,
 $$
@@ -1205,10 +1223,10 @@ $$
 $$
 
 ::: proof
-Let $\Phi_t$ be the sum of the squares $R_t(k)^2$, and $J$ the index forecast at round $t$.
+Let $\Phi_t$ be the sum of the squares $B_t(k)^2$, and $J$ the index forecast at round $t$.
 
-1.  *Increment.* $\Phi_t - \Phi_{t-1} = 2 R(J)(y_t - J/N) + (y_t - J/N)^2$, and the last term is at most 1.
-2.  *Cross term.* In the first two cases it is non-positive. In the third, with $a = R(k)$ and $b = -R(k+1)$, a direct computation gives the expectation $2ab/((a + b)N)$, at most $\sqrt{\Phi_{t-1}}/(\sqrt{2} N)$.
+1.  *Increment.* $\Phi_t - \Phi_{t-1} = 2 B(J)(y_t - J/N) + (y_t - J/N)^2$, and the last term is at most 1.
+2.  *Cross term.* In the first two cases it is non-positive. In the third, with $a = B(k)$ and $b = -B(k+1)$, a direct computation gives the expectation $2ab/((a + b)N)$, at most $\sqrt{\Phi_{t-1}}/(\sqrt{2} N)$.
 3.  *Recursion.* By Jensen's inequality, $u_t = \mathbb{E}[\Phi_t]$ satisfies $u_t \leq u_{t-1} + \sqrt{u_{t-1}}/(\sqrt{2} N) + 1$, and an induction gives
 $$
 \sqrt{u_T} \leq \sqrt{T} + \frac{T}{2\sqrt{2}\, N} .
@@ -1224,44 +1242,44 @@ import numpy as np
 rng = np.random.default_rng(5)
 N, T = 20, 100_000                    # grid {0, 1/N, ..., 1} and horizon
 
-def calibrated_mix(R):
-    """Forecast of Theorem 7.6 from the deficits R(k): two grid points and a weight."""
-    if R[0] <= 0: return 0, 0, 1.0
-    if R[N] >= 0: return N, N, 1.0
-    k = np.flatnonzero((R[:-1] > 0) & (R[1:] <= 0))[0]     # sign change k -> k+1
-    return k, k + 1, -R[k + 1] / (R[k] - R[k + 1])        # P(forecast k/N) = q
+def calibrated_mix(B):
+    """Forecast of Theorem 7.6 from the deficits B(k): two grid points and a weight."""
+    if B[0] <= 0: return 0, 0, 1.0
+    if B[N] >= 0: return N, N, 1.0
+    k = np.flatnonzero((B[:-1] > 0) & (B[1:] <= 0))[0]     # sign change k -> k+1
+    return k, k + 1, -B[k + 1] / (B[k] - B[k + 1])        # P(forecast k/N) = q
 
-def score(R, t):                      # calibration score (1/t) sum_k |R(k)|
-    return np.abs(R).sum() / t
+def score(B, t):                      # calibration score (1/t) sum_k |B(k)|
+    return np.abs(B).sum() / t
 
 for adversary in ["adaptive", "i.i.d. 0.3"]:
-    R = np.zeros(N + 1)
+    B = np.zeros(N + 1)
     for t in range(T):
-        k0, k1, q = calibrated_mix(R)
+        k0, k1, q = calibrated_mix(B)
         if adversary == "adaptive":   # sees the mixed forecast, not the coin
             y = float((q * k0 + (1 - q) * k1) / N < 0.5)
         else:
             y = float(rng.random() < 0.3)
         k = k0 if rng.random() < q else k1        # the forecaster's private coin
-        R[k] += y - k / N
+        B[k] += y - k / N
     bound = np.sqrt((N + 1) / T) + np.sqrt(N + 1) / (2 * np.sqrt(2) * N)
-    print(f"{adversary:10s}: calibration score {score(R, T):.4f} (bound {bound:.4f})")
+    print(f"{adversary:10s}: calibration score {score(B, T):.4f} (bound {bound:.4f})")
 
 # A deterministic forecaster (running frequency) against y_t = 1{p_t < 1/2}
-R, ones = np.zeros(N + 1), 0
+B, ones = np.zeros(N + 1), 0
 for t in range(T):
     k = int(round(N * ones / max(t, 1)))
     y = float(k / N < 0.5)
     ones += y
-    R[k] += y - k / N
-print(f"deterministic forecaster: calibration score {score(R, T):.4f}")
+    B[k] += y - k / N
+print(f"deterministic forecaster: calibration score {score(B, T):.4f}")
 ```
 
 With $N = 20$ and $T = 100{,}000$, the randomized forecaster has score 0.0017 against the adaptive opponent and 0.0097 on i.i.d. outcomes of mean 0.3, both below the bound 0.0955. The deterministic forecaster scores 0.5238, as Proposition 7.5 predicts.
 
 ### 7.4 Calibration, regret and equilibria
 
-Calibration is more than a property of forecasts. If every player best-responds to calibrated forecasts of the others' actions, the empirical distribution of play converges to the set of correlated equilibria (Foster and Vohra, 1997). Perchet (2014) surveys how approachability, internal regret and calibration can each be derived from the others.
+If every player best-responds to calibrated forecasts of the others' actions, the empirical distribution of play converges to the set of correlated equilibria (Foster and Vohra, 1997). Perchet (2014) surveys how approachability, internal regret and calibration can each be derived from the others.
 
 :::: recap
 Key takeaways — chapter 7
@@ -1350,7 +1368,7 @@ From $T = 1000$ to $T = 100{,}000$ the regret grows from 111.1 to 2376.7, while 
 Whether a game is learnable at rate $\sqrt{T}$ depends on what the signals reveal about the differences of losses.
 
 -   A game is **globally observable** if, for any two actions, the difference of their loss rows is a linear function of the signals of all actions.
--   It is **locally observable** if, for neighbouring actions (two actions that are both optimal for some distribution of outcomes), the signals of these two actions suffice.
+-   It is **locally observable** if, for neighbouring actions, the signals of these two actions suffice. Two actions are neighbours when their sets of optimality, among the distributions of outcomes, meet along a face of dimension $M - 2$.
 
 ::: thm
 [Theorem 8.3 — Classification of finite games]{.tag} Up to logarithmic factors, the minimax regret of every finite partial-monitoring game is of one of four orders:
@@ -1685,7 +1703,7 @@ Exercises are sorted by level: ★ applies the course, ★★ combines results o
 
 ## Projects and assessment {#projects}
 
-master-mva.com announces a homework (“Devoir Maison”) and a final exam (“Mode de validation”), and the Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (non-integral continuous assessment); no weights are displayed. The solo subjects below are sized like a substantial homework or a paper study, in the MVA tradition; the group subjects are larger. The written exam is a proposal in the spirit of a blackboard course. Each project is evaluated with the rubric at the end of the section.
+master-mva.com announces a homework (“Devoir Maison”) and a final exam (“Mode de validation”), and the Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (partial continuous assessment); no weights are displayed. The solo subjects below are sized like a substantial homework or a paper study, in the MVA tradition; the group subjects are larger. The written exam is a proposal in the spirit of a blackboard course. Each project is evaluated with the rubric at the end of the section.
 
 ### Solo projects {#projects-solo}
 
@@ -1716,7 +1734,7 @@ master-mva.com announces a homework (“Devoir Maison”) and a final exam (“M
     -   *Success criterion*: an aggregated error below that of the best expert, regret curves against the best expert and the best convex combination, and behaviour across the shift.
 
 2.  **[Group of 2–3 · ≈ 30 h each] No-regret dynamics in games and auctions (paper study: Hart and Mas-Colell, 2000; Blum and Mansour, 2007).** Which equilibria do Hedge, regret matching and swap-regret learners reach?
-    -   *Data*: the game of chicken (Exercise 14), Shapley's $3 \times 3$ game, and a two-bidder first-price auction with uniform values and a grid of bids.
+    -   *Data*: the game of chicken (Exercise 14), Shapley's $3 \times 3$ game, and a two-bidder first-price auction with values drawn uniformly on a grid of 10 values, one learner per value over a grid of bids (Example 6.9).
     -   *Split*: member A writes linear programs that measure the violation of the CE and CCE constraints; member B implements the learners, including Theorem 6.8; member C runs the auction (ch. 6, 7).
     -   *Deliverables*: shared code, one report of 8–10 pages, a 20-minute talk.
     -   *Success criterion*: CE violations of swap-regret learners below $R_T / T$, a case where Hedge reaches a CCE that is not a CE, and auction bids compared with the equilibrium bid $v/2$.
@@ -1797,6 +1815,7 @@ Format (proposal): 3 hours, one handwritten A4 sheet allowed, no electronic devi
 -   A. Garivier, O. Cappé, “The KL-UCB algorithm for bounded stochastic bandits and beyond”, *COLT*, 2011.
 -   E. Kaufmann, N. Korda, R. Munos, “Thompson sampling: an asymptotically optimal finite-time analysis”, *ALT*, 2012.
 -   S. Agrawal, N. Goyal, “Analysis of Thompson sampling for the multi-armed bandit problem”, *COLT*, 2012.
+-   S. Agrawal, N. Goyal, “Further optimal regret bounds for Thompson sampling”, *AISTATS*, 2013.
 -   J.-Y. Audibert, S. Bubeck, “Minimax policies for adversarial and stochastic bandits”, *COLT*, 2009.
 -   G. Neu, “Explore no more: improved high-probability regret bounds for non-stochastic bandits”, *NeurIPS*, 2015.
 -   A. Garivier, P. Ménard, G. Stoltz, “Explore first, exploit next: the true shape of regret in bandit problems”, *Mathematics of Operations Research* 44(2), 2019.

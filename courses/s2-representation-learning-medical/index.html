@@ -418,7 +418,7 @@ window.Quarto = {
 <p>The derivative of the first term is <span class="math inline">-p_k</span>; the derivative of the log-sum-exp is <span class="math inline">e^{z_k} / \sum_j e^{z_j} = q_k</span>. <span class="qed">∎</span></p>
 </div>
 </div>
-<p>The gradient is “prediction minus target”. It returns in distillation (ch.&nbsp;5), where the target is itself a softmax, and in Grad-CAM (ch.&nbsp;9).</p>
+<p>The gradient is “prediction minus target”. It returns in distillation (ch.&nbsp;5), where the target is itself a softmax, and in the InfoNCE loss of ch.&nbsp;7, a cross-entropy over candidates.</p>
 <h3 id="convolutional-encoders-and-batch-normalisation">0.2 Convolutional encoders and batch normalisation</h3>
 <p>A convolutional encoder stacks convolutions, non-linearities and pooling, then averages the last feature map over space to obtain a vector <span class="math inline">z \in \mathbb{R}^d</span>: the representation. A convolution commutes with translations of its input, which ch.&nbsp;1.3 makes precise.</p>
 <div class="def">
@@ -526,7 +526,7 @@ f(g \cdot x) = f(x),
 </span> and equivariant if <span class="math inline">f(g \cdot x) = \rho(g) f(x)</span> for some action <span class="math inline">\rho</span> of <span class="math inline">G</span> on representations.</p>
 </div>
 <div class="prop">
-<p><span class="tag">Proposition 1.4 — Convolution is equivariant, global pooling makes it invariant</span> Let <span class="math inline">\tau_v</span> be the circular translation by <span class="math inline">v</span> on a periodic grid and <span class="math inline">w</span> a kernel. Then <span class="math display">
+<p><span class="tag">Proposition 1.4 — Convolution is equivariant, global pooling makes it invariant</span> On a periodic grid, let <span class="math inline">(\tau_v x)(u) = x(u - v)</span> be the circular translation by <span class="math inline">v</span>, and <span class="math inline">(w \star x)(u) = \sum_s w(s) \, x(u - s)</span> the convolution with a kernel <span class="math inline">w</span>. Then <span class="math display">
 w \star (\tau_v x) = \tau_v (w \star x),
 </span> and the spatial average of <span class="math inline">w \star x</span> is invariant to <span class="math inline">\tau_v</span>.</p>
 <div class="proof">
@@ -882,7 +882,7 @@ L_{\text{dom}}(d^\star, f) = \log 2 - \tfrac12 \mathrm{KL}(p_S \,\|\, m) - \tfra
 <span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>      <span class="st">"| domain classifier"</span>, <span class="bu">round</span>(domain_acc(Xs2, Xt), <span class="dv">3</span>))</span>
 <span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"oracle (target labels):"</span>, <span class="bu">round</span>(cross_val_score(</span>
 <span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    LogisticRegression(max_iter<span class="op">=</span><span class="dv">3000</span>), Xt, yt, cv<span class="op">=</span><span class="dv">5</span>).mean(), <span class="dv">3</span>))</span></code></pre></div>
-<p>Before alignment, a domain classifier separates the two domains perfectly (accuracy 1.0) and the source model reaches 0.934 on the target. After CORAL, the domain classifier is at chance level, and the target accuracy rises to 0.946, close to the 0.951 of a model trained on target labels.</p>
+<p>Before alignment, a domain classifier separates the two domains perfectly (accuracy 1.0) and the source model reaches 0.934 on the target. After CORAL, the cross-validated domain classifier falls to 0.36, below the 0.5 of chance: the means now match exactly over the pooled data, so a direction learned on some folds points the wrong way on the held-out one. The target accuracy rises to 0.946, close to the 0.951 of a model trained on target labels.</p>
 <div class="recap">
 <div class="recap-title">
 <p>Key takeaways — chapter 3</p>
@@ -913,14 +913,14 @@ L(\theta_{\text{sh}}, \theta_1, \dots, \theta_T) = \sum_{t=1}^T w_t \, L_t(\thet
 <h3 id="weighting-the-losses-by-uncertainty">4.2 Weighting the losses by uncertainty</h3>
 <p>Hand-tuning the weights <span class="math inline">w_t</span> is costly, and the losses often have different units (a Dice loss, a squared error in years). Kendall, Gal and Cipolla (2018) derive the weights from a likelihood.</p>
 <div class="thm">
-<p><span class="tag">Theorem 4.2 — Homoscedastic uncertainty weighting</span> Model each regression output <span class="math inline">t</span> as Gaussian with a learned noise level <span class="math inline">\sigma_t</span>. With <span class="math inline">L_t</span> the sum of squared errors of task <span class="math inline">t</span>, the negative log-likelihood is, up to a constant, <span class="math display">
+<p><span class="tag">Theorem 4.2 — Homoscedastic uncertainty weighting</span> Model the scalar output of each regression task <span class="math inline">t</span> as Gaussian with a learned noise level <span class="math inline">\sigma_t</span>. With <span class="math inline">L_t</span> the sum of squared errors of task <span class="math inline">t</span>, the negative log-likelihood is, up to a constant, <span class="math display">
 \mathcal{L}(\theta, \sigma) = \sum_{t=1}^T \Big( \frac{L_t(\theta)}{2 \sigma_t^2} + n \log \sigma_t \Big) .
 </span></p>
 <p>For fixed <span class="math inline">\theta</span>, the minimum over <span class="math inline">\sigma_t</span> is reached at <span class="math inline">\sigma_t^2 = L_t / n</span>, and then <span class="math display">
 \mathcal{L} = \frac{n}{2} \sum_{t=1}^T \log L_t(\theta) + \text{const} .
 </span></p>
 <div class="proof">
-<p><span class="proof-title"><em>Proof</em>. </span>Each of the <span class="math inline">n</span> samples of task <span class="math inline">t</span> contributes <span class="math inline">\| y - f_t(x) \|^2 / (2\sigma_t^2) + \log \sigma_t</span> plus a constant; summing gives <span class="math inline">\mathcal{L}</span>.</p>
+<p><span class="proof-title"><em>Proof</em>. </span>Each of the <span class="math inline">n</span> samples of task <span class="math inline">t</span> contributes <span class="math inline">(y - f_t(x))^2 / (2\sigma_t^2) + \log \sigma_t</span> plus a constant; summing gives <span class="math inline">\mathcal{L}</span>.</p>
 <p>The derivative in <span class="math inline">\sigma_t</span> is <span class="math inline">-L_t / \sigma_t^3 + n / \sigma_t</span>, zero at <span class="math inline">\sigma_t^2 = L_t / n</span>. Substituting gives <span class="math inline">n/2 + (n/2) \log(L_t / n)</span> for each task. <span class="qed">∎</span></p>
 </div>
 </div>
@@ -1170,7 +1170,7 @@ X \leftarrow X + \mathrm{MHSA}(\mathrm{LN}(X)), \qquad X \leftarrow X + \mathrm{
 z = \sum_{k=1}^N a_k h_k, \qquad a_k = \frac{\exp\big(w^\top \tanh(V h_k)\big)}{\sum_{j=1}^N \exp\big(w^\top \tanh(V h_j)\big)} .
 </span></p>
 </div>
-<p>The pooling is invariant to the order of the patches, as Proposition 6.3 requires of a set function. The weights <span class="math inline">a_k</span> form a heatmap of the patches that drove the decision; ch.&nbsp;9 explains why such maps must be checked before being read as explanations (Jain and Wallace, 2019).</p>
+<p>Like the token average of Proposition 6.3, the pooling is invariant to the order of the patches. The weights <span class="math inline">a_k</span> form a heatmap of the patches that drove the decision; ch.&nbsp;9 explains why such maps must be checked before being read as explanations (Jain and Wallace, 2019).</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn <span class="im">as</span> nn</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">0</span>)</span>
@@ -1265,7 +1265,7 @@ L_{\text{NCE}} \geq H(K \mid X, Y_{1:N}) = \log N - I(K; X, Y_{1:N}) .
 <p>Masking 75 % of 196 tokens leaves 49: the encoder’s attention costs <span class="math inline">(1/4)^2 = 1/16</span> of the full cost, and its MLPs a quarter. A high mask ratio also makes the task hard enough to require a global understanding of the image, since neighbouring patches are mostly hidden.</p>
 <h3 id="language-supervision-and-foundation-models">7.5 Language supervision and foundation models</h3>
 <p>CLIP (Radford et al., 2021) trains an image encoder and a text encoder on image–caption pairs with a symmetric InfoNCE loss: in a batch of <span class="math inline">N</span> pairs, each image must find its caption, and each caption its image. A new class is recognised zero-shot by embedding a prompt such as “a photo of a {class}” and choosing the closest one.</p>
-<p>In medicine, ConVIRT (Zhang et al., 2022) applied the same contrastive pairing to chest radiographs and their radiology reports, before CLIP and as one of its inspirations.</p>
+<p>In medicine, ConVIRT (Zhang et al., 2022; preprint 2020) applied the same contrastive pairing to chest radiographs and their radiology reports, before CLIP and as one of its inspirations.</p>
 <div class="def">
 <p><span class="tag">Definition 7.4 — Foundation model (Bommasani et al., 2021)</span> A foundation model is trained on broad data, generally by self-supervision at scale, and can be adapted to a wide range of downstream tasks.</p>
 </div>
@@ -1315,23 +1315,25 @@ L_{\text{NCE}} \geq H(K \mid X, Y_{1:N}) = \log N - I(K; X, Y_{1:N}) .
 <span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>    opt.zero_grad()</span>
 <span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
 <span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>    opt.step()</span>
-<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"final loss </span><span class="sc">{</span>loss<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss">; Theorem 7.3 certifies I &gt;= log(511) - loss = "</span></span>
-<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>np<span class="sc">.</span>log(<span class="dv">511</span>) <span class="op">-</span> loss<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss"> nats between views"</span>)</span>
-<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">0</span>)</span>
-<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>rand <span class="op">=</span> make_encoder()</span>
-<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>Xte_shifted <span class="op">=</span> shift(X[te])</span>
-<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>ytr, yte <span class="op">=</span> y[tr.numpy()], y[te.numpy()]</span>
-<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, f <span class="kw">in</span> [(<span class="st">"raw pixels"</span>, nn.Flatten()), (<span class="st">"random encoder"</span>, rand), (<span class="st">"SimCLR encoder"</span>, enc)]:</span>
-<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>    clean, moved <span class="op">=</span> [], []</span>
-<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
-<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>):            <span class="co"># linear probe on 5 labelled images per class</span></span>
-<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>            r <span class="op">=</span> np.random.default_rng(s)</span>
-<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>            idx <span class="op">=</span> np.concatenate([r.choice(np.where(ytr <span class="op">==</span> c)[<span class="dv">0</span>], <span class="dv">5</span>, replace<span class="op">=</span><span class="va">False</span>) <span class="cf">for</span> c <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">10</span>)])</span>
-<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>            clf <span class="op">=</span> LogisticRegression(max_iter<span class="op">=</span><span class="dv">3000</span>).fit(f(X[tr])[idx].numpy(), ytr[idx])</span>
-<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>            clean.append(clf.score(f(X[te]).numpy(), yte))</span>
-<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>            moved.append(clf.score(f(Xte_shifted).numpy(), yte))</span>
-<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:15s}</span><span class="ss"> probe accuracy: clean test </span><span class="sc">{</span>np<span class="sc">.</span>mean(clean)<span class="sc">:.3f}</span><span class="ss">, shifted test </span><span class="sc">{</span>np<span class="sc">.</span>mean(moved)<span class="sc">:.3f}</span><span class="ss">"</span>)</span></code></pre></div>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Theorem 7.3 assumes independent negatives; here they come in correlated pairs of views,</span></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a><span class="co"># and the loss is a single-batch value, so log(511) - loss is only an indicative estimate.</span></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"final loss </span><span class="sc">{</span>loss<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss">; log(511) - loss = "</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>np<span class="sc">.</span>log(<span class="dv">511</span>) <span class="op">-</span> loss<span class="sc">.</span>item()<span class="sc">:.2f}</span><span class="ss"> nats (indicative reading of Theorem 7.3)"</span>)</span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">0</span>)</span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>rand <span class="op">=</span> make_encoder()</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>Xte_shifted <span class="op">=</span> shift(X[te])</span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>ytr, yte <span class="op">=</span> y[tr.numpy()], y[te.numpy()]</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, f <span class="kw">in</span> [(<span class="st">"raw pixels"</span>, nn.Flatten()), (<span class="st">"random encoder"</span>, rand), (<span class="st">"SimCLR encoder"</span>, enc)]:</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>    clean, moved <span class="op">=</span> [], []</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>):            <span class="co"># linear probe on 5 labelled images per class</span></span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>            r <span class="op">=</span> np.random.default_rng(s)</span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>            idx <span class="op">=</span> np.concatenate([r.choice(np.where(ytr <span class="op">==</span> c)[<span class="dv">0</span>], <span class="dv">5</span>, replace<span class="op">=</span><span class="va">False</span>) <span class="cf">for</span> c <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">10</span>)])</span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>            clf <span class="op">=</span> LogisticRegression(max_iter<span class="op">=</span><span class="dv">3000</span>).fit(f(X[tr])[idx].numpy(), ytr[idx])</span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>            clean.append(clf.score(f(X[te]).numpy(), yte))</span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>            moved.append(clf.score(f(Xte_shifted).numpy(), yte))</span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:15s}</span><span class="ss"> probe accuracy: clean test </span><span class="sc">{</span>np<span class="sc">.</span>mean(clean)<span class="sc">:.3f}</span><span class="ss">, shifted test </span><span class="sc">{</span>np<span class="sc">.</span>mean(moved)<span class="sc">:.3f}</span><span class="ss">"</span>)</span></code></pre></div>
 <p>With 5 labels per class, the probe on the SimCLR features reaches 0.856 on clean test images, against 0.851 for raw pixels and 0.831 for a random encoder of the same shape. On translated test images, the pixel and random-feature probes fall to about 0.36, the SimCLR probe to 0.46: the invariance taught by the augmentations is partly learned.</p>
 <div class="recap">
 <div class="recap-title">
@@ -1502,7 +1504,7 @@ H\big[p(y \mid x, \mathcal{D})\big] = \mathbb{E}_{\theta} H\big[p(y \mid x, \the
 <p><span class="tag">Theorem 9.4 — Split conformal prediction (Vovk, Gammerman and Shafer, 2005; Angelopoulos and Bates, 2023)</span> Let <span class="math inline">s(x, y) = 1 - q_y(x)</span> be a score computed from any fixed model. On <span class="math inline">n</span> calibration cases, let <span class="math inline">\hat q</span> be the <span class="math inline">k</span>-th smallest score with <span class="math inline">k = \lceil (n + 1)(1 - \alpha) \rceil</span>, and define <span class="math display">
 C(x) = \{ y : s(x, y) \leq \hat q \} .
 </span></p>
-<p>If the calibration cases and the test case are exchangeable, then <span class="math display">
+<p>If the calibration cases and the test case are exchangeable, and <span class="math inline">\alpha \geq 1 / (n + 1)</span> so that <span class="math inline">k \leq n</span>, then <span class="math display">
 P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 </span></p>
 <div class="proof">
@@ -1533,7 +1535,7 @@ P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 <p><strong>Grad-CAM</strong> (Selvaraju et al., 2017) works on the last convolutional feature maps <span class="math inline">A^k</span>. It weights each map by the spatial average of the gradient of the class score, and keeps the positive part: <span class="math display">
 \alpha_k = \frac{1}{Z} \sum_{i, j} \frac{\partial F}{\partial A^k_{ij}}, \qquad L = \mathrm{ReLU}\Big( \sum_k \alpha_k A^k \Big) .
 </span></p>
-<p>The map is coarse but class-specific, and is upsampled to the image size.</p>
+<p>Here <span class="math inline">Z</span> is the number of positions <span class="math inline">(i, j)</span>. The map is coarse but class-specific, and is upsampled to the image size.</p>
 <p>Explanations must be tested. Adebayo et al.&nbsp;(2018) proposed sanity checks: randomise the network’s weights layer by layer, or train it on random labels, and verify that the explanation changes. Some popular methods barely change, behaving like edge detectors rather than explanations of the model. Attention maps (ch.&nbsp;6) need the same checks.</p>
 <p><strong>Concept-based</strong> explanations ask about notions that clinicians use. TCAV (Kim et al., 2018) learns a direction in a layer’s activation space that separates examples of a concept from random images, then measures how often moving along this direction increases the class score.</p>
 <p>Explanations are most useful to detect shortcuts. DeGrave, Janizek and Lee (2021) showed with saliency maps and generative counterfactuals that COVID-19 detectors trained on radiographs relied on text markers and image borders instead of lung findings.</p>
@@ -1653,7 +1655,7 @@ P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 <h3 id="what-networks-represent-and-how-it-transfers">10.3 What networks represent, and how it transfers</h3>
 <p>Representation-similarity tools such as CKA (ch.&nbsp;1.4) compare architectures. Raghu et al.&nbsp;(2021) found that vision transformers have more uniform representations across layers than convolutional networks. In theory, Cordonnier, Loukas and Jaggi (2020) proved that multi-head self-attention with relative positional encodings and <span class="math inline">K^2</span> heads can express any <span class="math inline">K \times K</span> convolution.</p>
 <p>On transfer, Kornblith, Shlens and Le (2019) found that better ImageNet models tend to transfer better, both as fixed features and when fine-tuned. Kirichenko, Izmailov and Wilson (2023) showed that retraining only the last layer on a small balanced set can be enough for robustness to spurious correlations, in the spirit of the linear probing of ch.&nbsp;2.3.</p>
-<p>On distillation, Stanton et al.&nbsp;(2021) found that students often do not match their teachers closely even when they could, and that this fidelity matters less than generalisation. Furlanello et al.&nbsp;(2018) showed that a student of the same size as its teacher can surpass it (born-again networks).</p>
+<p>On distillation, Stanton et al.&nbsp;(2021) found that students often do not match their teachers closely even when they have the capacity to, and that matching the teacher more closely does not always improve the student’s generalisation. Furlanello et al.&nbsp;(2018) showed that a student of the same size as its teacher can surpass it (born-again networks).</p>
 <h3 id="meta-data-weak-supervision-and-identifiability">10.4 Meta-data, weak supervision and identifiability</h3>
 <p>Medical images come with meta-data (age, sex, scanner, clinical scores) that can guide representation learning. Dufumier et al.&nbsp;(2021) weight the positive pairs of a contrastive loss by a kernel on continuous meta-data, interpolating between SimCLR and supervised contrastive learning (Khosla et al., 2020).</p>
 <p>The theory of ch.&nbsp;8.4 makes the role of such variables precise: an auxiliary variable that makes the latent factors conditionally independent restores identifiability (Khemakhem et al., 2020). Causal representation learning (Schölkopf et al., 2021) asks for representations whose variables are causes that can be intervened on. Castro, Walker and Glocker (2020) argue that the causal direction between image and label in a medical task determines which shifts can occur and whether semi-supervised learning can help.</p>
@@ -1738,7 +1740,7 @@ P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 <li><p><span class="math inline">1025^2 \times 4</span> bytes <span class="math inline">\approx 4.0</span> MiB per matrix, and <span class="math inline">144</span> of them take about 577 MiB, kept for backpropagation.</p></li>
 <li><p>With <span class="math inline">32 \times 32</span> patches there are <span class="math inline">256 + 1</span> tokens, about 16 times less memory. The MAE encoder sees 256 of the 1024 patches, which also divides the attention cost by 16 (ch.&nbsp;7.4).</p></li>
 </ol></li>
-<li><p><strong>★★ Weight decay and the unseen directions.</strong> In the setting of Proposition 2.3, gradient descent with step <span class="math inline">\eta</span> adds weight decay: <span class="math inline">B_{t+1} = B_t - \eta (\nabla_B L + \lambda B_t)</span>. (a) Show that <span class="math inline">B_t P_\perp = (1 - \eta \lambda)^t B_0 P_\perp</span>. (b) Interpret for a pretrained encoder fine-tuned on a few images. (c) Why does LoRA initialise <span class="math inline">B</span> at zero?</p>
+<li><p><strong>★★ Weight decay and the unseen directions.</strong> In the setting of Proposition 2.3, gradient descent with step <span class="math inline">\eta</span> adds weight decay: <span class="math inline">B_{t+1} = B_t - \eta (\nabla_B L + \lambda B_t)</span>. (a) Show that <span class="math inline">B_t P_\perp = (1 - \eta \lambda)^t B_0 P_\perp</span>. (b) Interpret for a pretrained encoder fine-tuned on a few images. (c) Why does LoRA initialise its matrix <span class="math inline">B</span> (Definition 2.4, not the encoder <span class="math inline">B</span> above) at zero?</p>
 <p><em>Solution</em>: (a) As in the proof of Proposition 2.3, <span class="math inline">\nabla_B L \, P_\perp = 0</span>. Hence <span class="math inline">B_{t+1} P_\perp = (1 - \eta \lambda) B_t P_\perp</span>; iterate.</p>
 <ol start="2" type="a">
 <li><p>The pretrained features along directions absent from the target training set are not adapted: without weight decay they stay frozen, with it they shrink geometrically towards zero. Either way, they no longer match the new head, which hurts out of distribution.</p></li>
@@ -1795,7 +1797,7 @@ P_T(Y = 1 \mid x) = \frac{0.5 / 3}{0.5 / 3 + 0.5 \times 1.286} \approx 0.206 .
 <span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"d = </span><span class="sc">{</span>d<span class="sc">:2d}</span><span class="ss">: I = </span><span class="sc">{</span>true_mi<span class="sc">:6.2f}</span><span class="ss"> nats | bound with N = 16: </span><span class="sc">{</span>est[<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> (log N = </span><span class="sc">{</span>np<span class="sc">.</span>log(<span class="dv">16</span>)<span class="sc">:.2f}</span><span class="ss">)"</span></span>
 <span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f" | N = 128: </span><span class="sc">{</span>est[<span class="dv">1</span>]<span class="sc">:.2f}</span><span class="ss"> (log N = </span><span class="sc">{</span>np<span class="sc">.</span>log(<span class="dv">128</span>)<span class="sc">:.2f}</span><span class="ss">)"</span>)</span></code></pre></div>
 <p>For <span class="math inline">d = 1</span> (<span class="math inline">I = 0.83</span>), the bound is close to the truth (0.77 and 0.81). For <span class="math inline">d = 5</span> (<span class="math inline">I = 4.15</span>), it gives 2.44 and 3.58.</p>
-<p>For <span class="math inline">d = 20</span> (<span class="math inline">I = 16.6</span>), it equals <span class="math inline">\log N</span> exactly (2.77 and 4.85).</p>
+<p>For <span class="math inline">d = 20</span> (<span class="math inline">I = 16.6</span>), it equals <span class="math inline">\log N</span> to two decimals (2.77 and 4.85), while staying strictly below it, since the loss is positive.</p>
 <p>Theorem 7.3 holds in every case, but the bound saturates at <span class="math inline">\log N</span>: InfoNCE cannot certify more than <span class="math inline">\log N</span> nats, however good the critic.</p></li>
 <li><p><strong>★★ Total correlation of a Gaussian code.</strong> Let the aggregate posterior be <span class="math inline">q(z) = \mathcal{N}(0, \Sigma)</span> with correlation matrix <span class="math inline">C</span>. (a) Show that the total correlation is <span class="math inline">-\tfrac12 \log \det C</span>. (b) Compute it for two coordinates with correlation 0.6. (c) When is it zero?</p>
 <p><em>Solution</em>: (a) The product of the marginals is <span class="math inline">\mathcal{N}(0, D)</span> with <span class="math inline">D = \mathrm{diag}(\Sigma)</span>. The KL divergence between two centred Gaussians gives <span class="math display">
@@ -1870,7 +1872,7 @@ w_{ij} = \frac{K_\sigma(a_i - a_j)}{\sum_k K_\sigma(a_i - a_k)} .
 </ol>
 <p><em>Hints and expected result</em>: (a) When <span class="math inline">\sigma \to 0</span>, only views of subjects of exactly the same age are positives; with continuous ages, this is SimCLR. When <span class="math inline">\sigma \to \infty</span>, all views are equally positive, and nothing pushes subjects apart.</p>
 <ol start="2" type="a">
-<li><p>Collapse: the representation then only needs to be constant, as in ch.&nbsp;7.3, and loses everything that is not age.</p></li>
+<li><p>Collapse: when all views are positives, a constant representation minimises the loss, as in ch.&nbsp;7.3. For a large but finite <span class="math inline">\sigma</span>, the representation keeps little beyond coarse age differences.</p></li>
 <li><p>Train with several values of <span class="math inline">\sigma</span> on one data set, and evaluate linear probes on age and on a diagnostic task, preferably on another site. Plot both against <span class="math inline">\sigma</span>; Dufumier et al.&nbsp;(2021) study this kind of trade-off.</p></li>
 </ol></li>
 </ol>
@@ -1878,11 +1880,12 @@ w_{ij} = \frac{K_\sigma(a_i - a_j)}{\sum_k K_\sigma(a_i - a_k)} .
 <p>The official assessment (master-mva.com) combines the reports of the practical sessions (50 %) and a written or oral exam, depending on the number of students (50 %); the Université Paris-Saclay table describes it as partial continuous assessment. The solo subjects below extend the labs of the session plan and are sized like a substantial practical-session report. The group subjects suit study groups or a longer project, and say how the work divides. The written exam is a proposal for self-assessment, not the official exam.</p>
 <h3 id="projects-solo">Solo projects</h3>
 <ol type="1">
-<li><strong>[Solo · ≈ 20 h] Linear probing, fine-tuning and LP-FT under a change of hospital (paper study).</strong> Reproduce the main comparison of Kumar et al.&nbsp;(2022) on Camelyon17-WILDS (Koh et al., 2021), whose tumour patches come from five hospitals. Start from an ImageNet-pretrained ResNet-18 and compare linear probing, full fine-tuning and LP-FT, on the training hospitals and on the held-out one.
+<li><strong>[Solo · ≈ 20 h] Linear probing, fine-tuning and LP-FT under a change of hospital (paper study).</strong> Repeat the main comparison of Kumar et al.&nbsp;(2022) on Camelyon17-WILDS (Koh et al., 2021), whose tumour patches come from five hospitals. Start from an ImageNet-pretrained ResNet-18 and compare linear probing, full fine-tuning and LP-FT, on the training hospitals and on the held-out one.
 <ul>
+<li><em>Scale</em>: a class-balanced subset of about 30 000 training patches of 96 × 96 pixels, which fits a free GPU tier.</li>
 <li><em>Deliverables</em>: code, a 4–6 page report, a 10-minute talk.</li>
 <li><em>Chapters</em>: ch.&nbsp;1.4, 2, 3.</li>
-<li><em>Success criterion</em>: in- and out-of-distribution accuracies with 3 seeds; a CKA plot, layer by layer, between the pretrained and the fine-tuned encoders that shows where the features moved.</li>
+<li><em>Success criterion</em>: in- and out-of-distribution accuracies with 3 seeds, and a clear verdict on whether LP-FT beats fine-tuning out of distribution, as Kumar et al.&nbsp;report; a CKA plot, layer by layer, between the pretrained and the fine-tuned encoders that shows where the features moved.</li>
 </ul></li>
 <li><strong>[Solo · ≈ 20 h] Self-supervised pretraining on a small medical data set (paper study).</strong> Implement SimCLR (Chen et al., 2020) with a ResNet-18 on BloodMNIST or DermaMNIST from MedMNIST v2 (Yang et al., 2023), at <span class="math inline">64 \times 64</span> pixels. Compare with random initialisation and supervised pretraining under linear probes using 1 %, 10 % and 100 % of the labels, and ablate the augmentations.
 <ul>
@@ -1930,7 +1933,7 @@ w_{ij} = \frac{K_\sigma(a_i - a_j)}{\sum_k K_\sigma(a_i - a_k)} .
 <p>Then give the number of tokens of a ViT on a <span class="math inline">256 \times 256</span> image with <span class="math inline">16 \times 16</span> patches and a class token, and the memory of one attention matrix in float32.</p>
 <p><em>Expected</em>: scores <span class="math inline">(0.707, 0, -0.707)</span>, weights <span class="math inline">(0.576, 0.284, 0.140)</span>, output <span class="math inline">\approx 1.564</span>. There are <span class="math inline">16^2 + 1 = 257</span> tokens, and one matrix takes <span class="math inline">257^2 \times 4 \approx 264</span> kB.</p></li>
 <li><p><strong>Question (5 points).</strong> Short proof. State and prove the InfoNCE bound <span class="math inline">I(X; Y) \geq \log N - L_{\text{NCE}}</span>. A contrastive model uses batches with <span class="math inline">N = 64</span> candidates and reaches a loss of 2.5: what does the bound certify, and why do contrastive methods use large batches?</p>
-<p><em>Expected</em>: Theorem 7.3 and its three-step proof. The bound certifies <span class="math inline">I \geq \log 64 - 2.5 \approx 1.66</span> nats. It can never exceed <span class="math inline">\log N \approx 4.16</span> nats, whence large batches or queues of negatives.</p></li>
+<p><em>Expected</em>: Theorem 7.3 and its three-step proof. With independent negatives, as the theorem assumes, the bound certifies <span class="math inline">I \geq \log 64 - 2.5 \approx 1.66</span> nats. It can never exceed <span class="math inline">\log N \approx 4.16</span> nats, whence large batches or queues of negatives.</p></li>
 <li><p><strong>Question (5 points).</strong> Uncertainty and explanations. Three ensemble members predict <span class="math inline">P(y = 1 \mid x) = 0.8</span>, <span class="math inline">0.8</span> and <span class="math inline">0.2</span>. Decompose the predictive entropy into aleatoric and epistemic parts.</p>
 <p>With 99 calibration scores and <span class="math inline">\alpha = 0.1</span>, which order statistic defines the conformal threshold? State the completeness property of integrated gradients and one sanity check for saliency maps.</p>
 <p><em>Expected</em>: the mean is 0.6, total entropy <span class="math inline">\approx 0.673</span>; each member has entropy 0.500, so the aleatoric part is 0.500 and the epistemic part <span class="math inline">\approx 0.173</span> nats (Proposition 9.2). The threshold is the <span class="math inline">\lceil 100 \times 0.9 \rceil = 90</span>-th smallest score (Theorem 9.4). Proposition 9.6; weight randomisation (Adebayo et al., 2018).</p></li>

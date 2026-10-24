@@ -152,17 +152,17 @@ Level 1 = foundations, 2 = core methods and their analysis, 3 = advanced materia
 | Session | Hours | Level | Content | Practice |
 |---|---|---|---|---|
 | 1 | 3 h | 1 | ch. 0 Review: names and mutability, container costs, scripts, matrix-product cost and chain rule; ch. 1 NumPy arrays: strides, views and copies, dtypes and promotion | Ex. 1, 2; Q1–Q4 |
-| 2 | 3 h | 2 | ch. 2 Vectorisation, broadcasting, pairwise distances, reductions; ch. 3 Floating point, cancellation, conditioning, solvers, least squares, log-sum-exp | Ex. 3, 4, 6, 7, 9; Q5–Q7 |
-| 3 | 3 h | 2 | ch. 4 `scipy.optimize`, finite differences, CSR matrices, convolution theorem and filters, Matplotlib; ch. 5 Estimator API, pipelines, cross-validation, leakage, nested search | Ex. 5, 8; Q8–Q10 |
+| 2 | 3 h | 2 | ch. 2 Vectorisation, broadcasting, pairwise distances, reductions; ch. 3 Floating point, cancellation, conditioning, solvers, least squares, log-sum-exp | Ex. 3, 4, 7, 9; Q5–Q7 |
+| 3 | 3 h | 2 | ch. 4 `scipy.optimize`, finite differences, CSR matrices, convolution theorem and filters, Matplotlib; ch. 5 Estimator API, pipelines, cross-validation, leakage, nested search | Ex. 5, 6, 8; Q8–Q10 |
 | 4 | 3 h | 2 | ch. 6 Tensors, computational graph, backpropagation and its cost; ch. 7 Training loop, mini-batches, data loaders, GPUs; ch. 8 Seeds, environments, timing, Amdahl's law, profiling | Ex. 10, 11, 12; Q11–Q14 |
 
 **Self-study, outside the 12 h** (about 5 h in total): ch. 9 Going further — summation error, Kahan summation, forward and reverse mode, checkpointing, FP16 and BF16, the roofline model (≈ 3 h, with Ex. 13–14) · ch. 10 Research directions and open problems (≈ 2 h, with Ex. 15).
 
 ### How to study this module
 
--   Take the [diagnostic self-check](#projects-selfcheck) first. If you answer a step's questions without hesitation, skim that step and do its ★★ exercises only.
+-   Take the [diagnostic self-check](#projects-selfcheck) first. If you answer a step's questions without hesitation, skim that step and do only its highest-level exercises (★★ from step 2 on).
 -   Type the code blocks rather than pasting them, then change one number and predict the effect before running again.
--   Keep a single environment for the whole year: Python 3.10 or later with NumPy, SciPy, Matplotlib, scikit-learn and PyTorch (the CPU build is enough here). Every block fixes its seeds and runs in a few seconds on a laptop.
+-   Keep a single environment for the whole year: Python 3.10 or later with NumPy 2, SciPy 1.12 or later, Matplotlib, scikit-learn and PyTorch 2 (the CPU build is enough here). Older versions lack some functions used below, such as `sp.eye_array` and the `rtol` argument of `cg`. Every block fixes its seeds and runs in a few seconds on a laptop.
 -   After step 4, do one of the two [practice projects](#projects-practice): they combine all the steps the way the first MVA labs will.
 
 ::: note
@@ -383,7 +383,7 @@ print((y + 1.0).dtype, (y + np.ones(3)).dtype)   # float32 float64
 
 ## 2. Vectorisation and broadcasting {#ch2}
 
-A Python loop pays an interpreter overhead of tens of nanoseconds per iteration; a NumPy function pays it once per call. Vectorising writes a computation as a few whole-array operations, and broadcasting lets arrays of different shapes take part in one.
+A Python loop pays an interpreter overhead of tens to hundreds of nanoseconds per iteration; a NumPy function pays it once per call. Vectorising writes a computation as a few whole-array operations, and broadcasting lets arrays of different shapes take part in one.
 
 ### 2.1 Why loops are slow
 
@@ -550,7 +550,9 @@ From $\delta x = A^{-1} \delta b$ we get $\|\delta x\| \le \|A^{-1}\|\, \|\delta
 :::
 ::::
 
-The LAPACK solvers behind NumPy and SciPy are *backward stable*: they solve exactly a problem perturbed by a few units of $u$. Theorem 3.6 then gives a rule of thumb.
+The LAPACK solvers behind NumPy and SciPy are *backward stable* (for LU with partial pivoting, in practice): they solve exactly a problem whose data $A$ and $b$ are perturbed by a few units of $u$.
+
+Theorem 3.6 covers the perturbation of $b$. A relative perturbation $\varepsilon$ of $A$ has, to first order, the same effect, a relative error of at most $\kappa(A)\, \varepsilon$. Hence a rule of thumb.
 
 ::: key
 [Key result — digits lost to conditioning]{.tag}
@@ -835,7 +837,7 @@ $$
 :::
 
 :::: prop
-[Proposition 5.3 — Cross-validation is unbiased for a smaller sample]{.tag} Assume the pairs $(x_i, y_i)$ are i.i.d. and the folds have equal size $n/K$. Let $\hat f_{m}$ denote the procedure trained on $m$ points and $R(f)$ the risk of a fixed predictor $f$. Then
+[Proposition 5.3 — Cross-validation is unbiased for a smaller sample]{.tag} Assume the pairs $(x_i, y_i)$ are i.i.d., and the folds are fixed in advance with equal size $n/K$. Let $\hat f_{m}$ denote the procedure trained on $m$ points and $R(f)$ the risk of a fixed predictor $f$. Then
 $$
 \mathbb{E}\big[\widehat R_{\mathrm{CV}}\big] = \mathbb{E}\big[R(\hat f_{n(K-1)/K})\big] .
 $$
@@ -1078,12 +1080,17 @@ A shuffled epoch (`shuffle=True`) samples *without* replacement, which multiplie
 [Definition 7.2 — Dataset and DataLoader]{.tag} A map-style `Dataset` implements `__len__` and `__getitem__(i)`, which returns one sample. A `DataLoader` draws indices, in order or shuffled by a seeded generator, groups them into batches and stacks the samples into tensors. With `num_workers > 0` it loads batches in parallel worker processes.
 :::
 
-Random augmentations need care with workers. PyTorch seeds its own generator in each worker, but NumPy's state may be duplicated across workers; the documented fix is a `worker_init_fn` seeding NumPy from `torch.initial_seed()`.
+Random augmentations need care with workers. Each worker process receives a copy of the dataset.
+
+-   Since PyTorch 1.9, every worker re-seeds Python's `random`, PyTorch and NumPy's global generator from a base seed drawn from the loader's `generator`.
+-   A NumPy `Generator` object stored in the dataset is copied with its state, so all workers draw the same "random" noise.
+
+The fix is a `worker_init_fn` that gives each worker its own stream, seeded from the per-worker seed.
 
 ```python
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, get_worker_info
 
 
 class NoisyWindows(Dataset):
@@ -1092,30 +1099,34 @@ class NoisyWindows(Dataset):
     def __init__(self, n_windows=64, length=32):
         t = np.arange(n_windows * length) / 50.0
         self.clean = np.sin(t).reshape(n_windows, length).astype(np.float32)
+        self.rng = np.random.default_rng(0)        # copied, state included, into every worker
 
     def __len__(self):
         return len(self.clean)
 
     def __getitem__(self, i):
-        noise = np.random.standard_normal(self.clean.shape[1]).astype(np.float32)
+        noise = self.rng.standard_normal(self.clean.shape[1]).astype(np.float32)
         return torch.from_numpy(self.clean[i] + 0.1 * noise), torch.from_numpy(self.clean[i])
 
 
 def seed_worker(worker_id):
-    np.random.seed(torch.initial_seed() % 2**32)   # one NumPy seed per worker
+    info = get_worker_info()                       # info.seed comes from the loader's generator
+    info.dataset.rng = np.random.default_rng(info.seed)
 
 
-def first_values(seed):
+def noise_of_batches(seed, init=None):
     loader = DataLoader(NoisyWindows(), batch_size=16, shuffle=True, num_workers=2,
-                        worker_init_fn=seed_worker,
-                        generator=torch.Generator().manual_seed(seed))
-    return [xb[0, :3] for xb, _ in loader]
+                        worker_init_fn=init, generator=torch.Generator().manual_seed(seed))
+    return [xb - yb for xb, yb in loader]          # batch b is built by worker b % 2
 
 
 if __name__ == "__main__":       # required when workers are started by "spawn"
     torch.set_num_threads(1)
-    run1, run2 = first_values(0), first_values(0)
-    print(len(run1), all(torch.equal(a, b) for a, b in zip(run1, run2)))  # 4 True
+    dup = noise_of_batches(0)
+    print(torch.allclose(dup[0], dup[1], atol=1e-6))       # True: both workers drew the same noise
+    run1, run2 = noise_of_batches(0, seed_worker), noise_of_batches(0, seed_worker)
+    print(torch.allclose(run1[0], run1[1], atol=1e-6),     # False: one stream per worker
+          all(torch.equal(a, b) for a, b in zip(run1, run2)))  # True: and reproducible
 ```
 
 ### 7.3 GPUs
@@ -1281,7 +1292,7 @@ The product lies between $(1 - u)^k$ and $(1 + u)^k$.
 ::::
 
 :::: thm
-[Theorem 9.2 — Recursive summation]{.tag} Adding $x_1, \dots, x_n$ from left to right in floating point returns $\hat s$ with
+[Theorem 9.2 — Recursive summation]{.tag} Let $(n - 1)\,u < 1$. Adding $x_1, \dots, x_n$ from left to right in floating point returns $\hat s$ with
 $$
 |\hat s - s| \le \gamma_{n-1} \sum_{i=1}^n |x_i|, \qquad s = \sum_{i=1}^n x_i .
 $$
@@ -1505,10 +1516,10 @@ print(f"rows {t_rows:.2f} s, columns {t_cols:.2f} s")     # columns several time
 ::: recap
 **Key takeaways — chapter 9**
 
--   Left-to-right summation errs by up to $(n-1)u \sum_i |x_i|$; pairwise and Kahan summation remove most of this growth.
+-   Left-to-right summation errs by up to about $(n-1)u \sum_i |x_i|$; pairwise and Kahan summation remove most of this growth.
 -   Forward mode computes Jacobian–vector products, reverse mode vector–Jacobian products; choose by the number of inputs and outputs.
 -   Checkpointing every $\sqrt{L}$ layers cuts activation memory to $O(\sqrt{L})$ for one extra forward pass.
--   `bfloat16` keeps the range of `float32` with 3 digits; keep `float32` master weights.
+-   `bfloat16` keeps the range of `float32` with fewer than 3 significant digits; keep `float32` master weights.
 -   Elementwise operations are limited by memory bandwidth, matrix products by compute.
 :::
 
@@ -1557,7 +1568,7 @@ Bolte and Pauwels (2020, 2021) explained this with *conservative fields*: automa
 
 Training in `bfloat16` (Kalamkar and coauthors, 2019) and in 8-bit floating-point formats (Micikevicius and coauthors, 2022), and running inference with 8-bit integer matrix products (Dettmers and coauthors, 2022), push past the precisions analysed in ch. 9.3.
 
-*Stochastic rounding* rounds up or down at random, with probabilities that make the rounding unbiased. Connolly, Higham and Mary (2021) proved that it gives probabilistic error bounds growing like $\sqrt{n}\,u$ rather than $nu$, and that it avoids the stagnation of Proposition 9.7.
+*Stochastic rounding* rounds up or down at random, with probabilities that make the rounding unbiased. Connolly, Higham and Mary (2021) proved that it gives probabilistic error bounds growing like $\sqrt{n}\,u$ rather than $nu$. It also avoids the stagnation of Proposition 9.7: an update smaller than half a spacing is still applied, with a probability proportional to its size.
 
 *Open problem*: convergence theory of training at 8 bits and below, and the choice of formats per layer.
 
@@ -1630,7 +1641,9 @@ Halko, Martinsson and Tropp (2011) showed that multiplying a matrix by a few ran
         return (y_train[idx].mean(axis=1) > 0.5).astype(int)
     ```
 
-    With 2000 training and 1000 test points, the predictions coincide with scikit-learn's on all test points, with accuracy 0.892. The loop version is about 20 times slower. `argpartition` costs $O(m)$ per row instead of $O(m \log m)$ for a full sort.
+    With the first 2000 points for training and the last 1000 for testing, the predictions coincide with scikit-learn's on all test points, with accuracy 0.892.
+
+    The vectorised version takes about 30 ms. A double loop over test and training points takes several seconds, two orders of magnitude slower. `argpartition` costs $O(m)$ per row instead of $O(m \log m)$ for a full sort.
 
 7.  **★★ Hilbert matrices and lost digits (computational).** For $n = 4, 6, \dots, 12$, let $H_{ij} = 1/(i + j - 1)$ (`scipy.linalg.hilbert`), $x = (1, \dots, 1)$ and $b = Hx$. Solve $Hx = b$ with `np.linalg.solve`, and compare the relative error with $\kappa_2(H)\, u$.
 
@@ -1678,7 +1691,7 @@ Halko, Martinsson and Tropp (2011) showed that multiplying a matrix by a few ran
     \bar z = \bar h \odot (1 - h^2), \qquad \frac{\partial \ell}{\partial W_1} = \bar z\, x^\top .
     $$
 
-    In code, `torch.outer(z_bar, x)` matches `W1.grad`. The backward pass costs two matrix–vector products, the same order as the forward pass.
+    In code, `torch.outer(z_bar, x)` matches `W1.grad`. The backward pass costs one outer product $\bar z\, x^\top$, with as many multiplications as $W_1 x$, plus a few vector operations: the same order as the forward pass.
 
 11. **★★ Mini-batch variance without replacement.** Let $g_1, \dots, g_n$ be vectors with mean $\bar g$ and $\sigma^2 = \frac1n \sum_i \|g_i - \bar g\|^2$. Draw $B$ distinct indices uniformly. Show that the mean $\hat g$ of the drawn vectors satisfies
     $$
@@ -1788,9 +1801,9 @@ Both projects take about 6 hours, need only a laptop, and are evaluated with the
 
 1.  **[Solo · ≈ 6 h] k-means three ways: loops, NumPy and PyTorch.** How much do vectorisation and a GPU change the cost of Lloyd's algorithm, and do the versions agree?
     -   *Implement:* Lloyd's k-means in pure Python, in NumPy (distances by Example 2.3, `argmin`, centroid updates with `np.add.at` or `np.bincount`), and in PyTorch on any available device.
-    -   *Data:* `make_blobs` with 8 centres in dimension 16 and $n$ from $10^3$ to $10^6$ points, `random_state=0`.
+    -   *Data:* `make_blobs` with 8 centres in dimension 16 and $n$ from $10^3$ to $10^6$ points, `random_state=0`. The pure-Python version may stop at $n = 10^5$, where one Lloyd iteration already takes a few seconds.
     -   *Deliverables:* one script, an environment file, a 2-page note with a log–log plot of time against $n$ and a `cProfile` summary.
-    -   *Success criterion:* from the same initial centroids, all versions and `sklearn.cluster.KMeans(init=centroids, n_init=1)` give identical assignments (up to ties); the NumPy version is at least 50 times faster than the loops at $n = 10^4$.
+    -   *Success criterion:* every version iterates until no assignment changes. From the same initial centroids, all versions and `sklearn.cluster.KMeans(init=centroids, n_init=1, tol=0)` give identical assignments (up to ties). The NumPy version is at least 50 times faster than the loops at $n = 10^4$.
     -   *Chapters:* ch. 0–2, 4.4, 6, 7.3 and 8.
 2.  **[Solo · ≈ 6 h] One model, three solvers, one reproducible report.** Do SciPy, scikit-learn and PyTorch return the same $\ell_2$-regularised logistic regression?
     -   *Implement:* the objective $\frac1n \sum_i \ell_i(w) + \frac{\lambda}{2}\|w\|^2$ and its gradient in NumPy, checked with `check_grad` and minimised by L-BFGS-B. Compare with `LogisticRegression(C=1/(n*lam), fit_intercept=False)` and with `torch.optim.LBFGS` using autograd.
@@ -1799,7 +1812,7 @@ Both projects take about 6 hours, need only a laptop, and are evaluated with the
     -   *Success criterion:* the three coefficient vectors agree to a relative $10^{-5}$ (tight tolerances give about $4 \times 10^{-7}$), and rerunning the script reproduces the report exactly.
     -   *Chapters:* ch. 3, 4.1, 5, 6 and 8.
 
-### Self-assessment rubric {#projects-rubric}
+### Self-assessment grid {#projects-rubric}
 
 | Criterion | Weight | What earns the marks |
 |---|---|---|

@@ -71,7 +71,7 @@ format:
 
 **Audience**: a student who has taken a first deep-learning course, can train a network in PyTorch, and now wants to know why training works, when it fails, and how to make it work on data that is small, noisy, biased or governed by physics.
 
-**Empirical first**: a network with 38 410 parameters reaches 97 % test accuracy on 1 257 handwritten digits, yet it fits the same digits with randomly shuffled labels just as perfectly, at 9 % test accuracy (ch. 1). A classical capacity bound cannot tell the two runs apart; this course explains what can, and what to do in practice.
+**Empirical first**: trained on 1 257 handwritten digits, a network with 38 410 parameters reaches 97 % test accuracy, yet it fits the same digits with randomly shuffled labels just as perfectly, at 9 % test accuracy (ch. 1). A classical capacity bound cannot tell the two runs apart; this course explains what can, and what to do in practice.
 
 Deep learning works far better than its classical theory predicts, yet networks are hard to train, hard to explain and easily biased. Real problems rarely fit the textbook setting either: data are scarce or noisy, and physical laws are known. This course gives mathematical tools for these practical aspects. It continues the semester-1 [Deep Learning](../s1-deep-learning/index.html) course and shares tools with [Theoretical Foundations of Deep Learning](../s1-theoretical-foundations-dl/index.html), [Multimodal Explainable AI](../s2-multimodal-xai/index.html), [Responsible Machine Learning](../s2-responsible-ml/index.html) and [Learning Physical Phenomena](../s2-physics-learning-uq/index.html).
 
@@ -728,12 +728,12 @@ A network that predicts well may be right for the wrong reasons: a hiring model 
 
 ::: def
 [Definition 3.1 — Attribution]{.tag}
-A **local explanation** of a model $f$ at an input $x \in \mathbb{R}^d$, relative to a baseline $x'$, is a vector $A(x) \in \mathbb{R}^d$.
+A **local explanation** of a model $f$ at an input $x \in \mathbb{R}^d$, relative to a baseline $x'$, is a vector $E(x) \in \mathbb{R}^d$.
 
-Its component $i$ measures the contribution of feature $i$ to $f(x) - f(x')$. Sundararajan, Taly and Yan (2017) ask for three properties.
+Its component $i$ measures the contribution of feature $i$ to $f(x) - f(x')$. Sundararajan, Taly and Yan (2017) take the last two properties below as axioms, and add completeness.
 
 -   **Completeness**: the components sum to $f(x) - f(x')$.
--   **Sensitivity**: if $x$ and $x'$ differ in feature $i$ only and $f(x) \ne f(x')$, then $A_i(x) \ne 0$.
+-   **Sensitivity**: if $x$ and $x'$ differ in feature $i$ only and $f(x) \ne f(x')$, then $E_i(x) \ne 0$.
 -   **Implementation invariance**: two networks that compute the same function receive the same attributions.
 :::
 
@@ -791,7 +791,7 @@ Let $A$ be a sensitive attribute, such as gender, $Y$ the true outcome and $\hat
 -   **Counterfactual test**: changing $A$ in the input, all else fixed, does not change $\hat Y$.
 :::
 
-When the base rates of the groups differ, these criteria cannot all hold for a non-trivial predictor (Kleinberg, Mullainathan and Raghavan, 2017; Chouldechova, 2017). The choice belongs to the application, not to the algorithm.
+When the base rates of the groups differ and $Y$ is binary, demographic parity and equalised odds cannot both hold for a decision that is not independent of $Y$ (Barocas, Hardt and Narayanan, 2023). Likewise, a score calibrated within each group cannot have equal error rates across groups, except in degenerate cases (Kleinberg, Mullainathan and Raghavan, 2017; Chouldechova, 2017). The choice belongs to the application, not to the algorithm.
 
 :::: prop
 [Proposition 3.6 — Unawareness is not fairness]{.tag}
@@ -864,7 +864,7 @@ Without gender, the counterfactual test passes trivially, yet the parity gap is 
 $$
 \text{mean } |\mathrm{IG}_{\text{proxy}}| :\ 0.016 \ \longrightarrow\ 0.161 .
 $$
-The bias has moved to the proxy, and the attributions show where. Completeness holds to $10^{-3}$.
+The bias has moved to the proxy, and the attributions show where. Completeness holds to about $10^{-3}$.
 
 ### 3.3 Reducing biases
 
@@ -930,7 +930,7 @@ $$
 $$
 :::
 
-Confident predictions on easy views become targets for hard views. Entropy minimisation (Grandvalet and Bengio, 2005) is the soft version: it pushes the predictions on unlabelled data towards confidence, hence the boundary away from the data. Active learning chooses instead which points to label, for instance the most uncertain ones (Settles, 2009).
+Confident predictions on easy views become targets for hard views. Entropy minimisation (Grandvalet and Bengio, 2004) is the soft version: it pushes the predictions on unlabelled data towards confidence, hence the boundary away from the data. Active learning chooses instead which points to label, for instance the most uncertain ones (Settles, 2009).
 
 ### 4.3 Noisy labels
 
@@ -946,9 +946,12 @@ p(x) = \big(\mathbb{P}(y = k \mid x)\big)_{k = 1, \dots, K}.
 $$
 
 ::: proof
-1.  Let $\eta(x)$ be the clean posterior. The noisy posterior is $T^\top \eta(x)$, since $\mathbb{P}(\tilde y = j \mid x) = \sum_i T_{ij}\, \eta_i(x)$.
+1.  Let $p^\star(x)$ be the clean posterior. The noisy posterior is $T^\top p^\star(x)$, since
+    $$
+    \mathbb{P}(\tilde y = j \mid x) = \sum_i T_{ij}\, p^\star_i(x).
+    $$
 2.  At each $x$, the expected cross-entropy $\mathbb{E}[-\log q_{\tilde y}]$ over distributions $q$ is minimal exactly at the noisy posterior (Gibbs' inequality).
-3.  The choice $q = T^\top p(x)$ reaches it with $p = \eta$, and only then, since $T^\top$ is injective. [∎]{.qed}
+3.  The choice $q = T^\top p(x)$ reaches it with $p = p^\star$, and only then, since $T^\top$ is injective. [∎]{.qed}
 :::
 ::::
 
@@ -1247,7 +1250,7 @@ $$
 where the **target network** $\theta^-$ is a copy of $\theta$ refreshed every few thousand steps.
 :::
 
-With these two devices the same network learnt 49 Atari games from pixels, at a level comparable to a professional games tester on many of them. They answer two practical difficulties. The data are not independent, because they depend on the current policy: the buffer decorrelates and reuses them. The targets move with $\theta$: freezing $\theta^-$ turns each phase into a regression.
+With these two devices, one architecture with one set of hyper-parameters, trained separately on each game, learnt 49 Atari games from pixels, at a level comparable to a professional games tester on many of them. They answer two practical difficulties. The data are not independent, because they depend on the current policy: the buffer decorrelates and reuses them. The targets move with $\theta$: freezing $\theta^-$ turns each phase into a regression.
 
 Function approximation, bootstrapping and off-policy data together, the *deadly triad* of Sutton and Barto (2018), can still diverge. The maximum over noisy estimates is biased upwards, which Double DQN corrects (van Hasselt, Guez and Silver, 2016). [Reinforcement Learning](../s2-reinforcement-learning/index.html) treats the theory.
 
@@ -1669,7 +1672,7 @@ L \le \prod_{l} \|W_l\|_2 .
 $$
 
 ::: proof
-For each $j \ne y$, the function $F_y - F_j = (e_y - e_j)^\top F$ is $\sqrt 2\, L$-Lipschitz. Hence, for $\|x' - x\| \le \varepsilon$, it stays above $m(x) - \sqrt 2\, L \varepsilon > 0$. The bound on $L$ holds because Lipschitz constants multiply under composition (Tsuzuku, Sato and Sugiyama, 2018). [∎]{.qed}
+For each $j \ne y$, the function $F_y - F_j = (e_y - e_j)^\top F$ is $\sqrt 2\, L$-Lipschitz. Hence, for $\|x' - x\| \le \varepsilon$, it stays above $m(x) - \sqrt 2\, L \varepsilon > 0$. The bound on $L$ holds because Lipschitz constants multiply under composition. Tsuzuku, Sato and Sugiyama (2018) train networks to enlarge this certified margin. [∎]{.qed}
 :::
 ::::
 
@@ -1802,7 +1805,7 @@ Power, Burda, Edwards, Babuschkin and Misra (2022) described *grokking*: on smal
 
 ### 9.3 Generalisation bounds that predict
 
-Compression bounds (Arora, Ge, Neyshabur and Zhang, 2018) and optimised PAC-Bayes bounds (ch. 8) give the first non-vacuous guarantees. Frankle and Carbin (2019) found sparse sub-networks, *lottery tickets*, that train as well as the full network from the same initialisation, a sign that the effective complexity of trained networks is much lower than their size.
+Compression bounds (Arora, Ge, Neyshabur and Zhang, 2018) are orders of magnitude tighter than earlier norm bounds. Optimised PAC-Bayes bounds (ch. 8) give non-vacuous guarantees for networks with more parameters than data, and Zhou and coauthors (2019) combine them with compression to reach ImageNet. Frankle and Carbin (2019) found sparse sub-networks, *lottery tickets*, that train as well as the full network from the same initialisation, a sign that the effective complexity of trained networks is much lower than their size.
 
 -   *Open problem*: bounds that are non-vacuous and also rank architectures and training methods in the same order as their test errors.
 
@@ -1866,15 +1869,15 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
     *Solution*: (a) The logarithm of the size of the class is
     $$
-    \ln|\mathcal{F}| = 32 \times 38\,410 \times \ln 2 = 851\,958,
+    \ln|\mathcal{F}| = 32 \times 38\,410 \times \ln 2 = 851\,961,
     $$
     and $\ln 20 = 3.0$. The square-root term is
     $$
-    \sqrt{851\,961 / 2\,514} = 18.4,
+    \sqrt{851\,964 / 2\,514} = 18.4,
     $$
     far above 1: the bound is vacuous, for the true labels as for the random ones.
 
-    **(b)** $n = 851\,961 / (2 \times 0.05^2) \approx 1.7 \times 10^8$ points, about $10^5$ times the size of the data set.
+    **(b)** $n = 851\,964 / (2 \times 0.05^2) \approx 1.7 \times 10^8$ points, about $10^5$ times the size of the data set.
 
 3.  **★ The minimum-norm interpolator.** Let $A = (1\ \ 2)$ and $b = 5$, so that $p = 2 > n = 1$. (a) Give the minimum-norm solution of $A\theta = b$. (b) Gradient descent starts from $\theta_0 = (1, 0)$; what is its limit by Theorem 1.5, and which step sizes are allowed?
 
@@ -1904,7 +1907,7 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
 6.  **★ Correcting a noisy posterior.** Two classes are observed through the noise matrix with rows $(0.8, 0.2)$ and $(0.3, 0.7)$ (Theorem 4.3). (a) The clean posterior at $x$ is $(0.9, 0.1)$; what is the noisy posterior? (b) A model of the noisy labels outputs $(0.5, 0.5)$ at another input; what clean posterior does the forward correction attribute to it, and which class does it predict?
 
-    *Solution*: (a) The noisy posterior is $T^\top \eta$:
+    *Solution*: (a) The noisy posterior is $T^\top p^\star$:
     $$
     (0.8 \times 0.9 + 0.3 \times 0.1,\ 0.2 \times 0.9 + 0.7 \times 0.1) = (0.75,\ 0.25).
     $$
@@ -2008,13 +2011,13 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
     Since $|qp| \le H$, the true energy stays in $[\tilde H/(2 + h), \tilde H/(2 - h)]$.
 
-    **(c)** Explicit Euler multiplies the energy by $1.01^{1000} \approx 2.1 \times 10^4$. Symplectic Euler keeps it within about 5 % of its initial value forever. Learnt Hamiltonians (Proposition 5.5) deserve symplectic integrators.
+    **(c)** Explicit Euler multiplies the energy by $1.01^{1000} \approx 2.1 \times 10^4$. Symplectic Euler keeps it forever between $\tilde H / 2.1$ and $\tilde H / 1.9$, a band of relative width about 10 %. Learnt Hamiltonians (Proposition 5.5) deserve symplectic integrators.
 
 17. **★★ Regularisation removes the peak (Python).** In Code 1.2, replace the minimum-norm fit by ridge regression, $a = F^\top (F F^\top + \lambda n I)^{-1} y$, for $\lambda \in \{10^{-3}, 10^{-1}\}$, and plot the median test error against $p$. Explain the result with Theorem 1.5.
 
-    *Hints and expected result*: with $\lambda = 10^{-3}$, the peak at $p = n$ falls from several units to about 0.25.
+    *Hints and expected result*: with $\lambda = 10^{-3}$, the peak at $p = n$ falls from 7.5 to about 0.23.
 
-    With $\lambda = 10^{-1}$ it disappears: the error decreases with $p$, from about 0.12 at $p = 50$ to 0.07 at $p = 100$ and 0.05 at $p = 2\,000$.
+    With $\lambda = 10^{-1}$ it disappears: the error decreases with $p$, up to noise, from about 0.12 at $p = 50$ to 0.08 at $p = 100$ and 0.05 at $p = 2\,000$.
 
     Ridge lifts the small eigenvalues of $F F^\top$ by $\lambda n$, so the norm of the fit cannot explode at the threshold. As $\lambda \to 0$, ridge tends to the minimum-norm interpolator of Theorem 1.5, which explains why unregularised interpolation shows the peak. Nakkiran, Venkat, Kakade and Ma (2021) prove that optimally tuned ridge removes double descent in linear models.
 
@@ -2026,7 +2029,7 @@ Levels: ★ apply the course, ★★ combine or prove a short result, ★★★ 
 
     **(b)** Rescaling balances the boundary term but the network stays near the trivial function 0, with an error near 1. Networks fit low frequencies first: this is the spectral bias of Rahaman and coauthors (2019).
 
-    **(c)** Fourier input features, in the spirit of Tancik and coauthors (2020), bring the error down to about $5 \times 10^{-2}$.
+    **(c)** For $k = 8$, Fourier input features, in the spirit of Tancik and coauthors (2020), bring the error down to about $2 \times 10^{-1}$ with the raw residual, and to about $5 \times 10^{-2}$ with the rescaled residual of (b).
 
 19. **★★★ A PAC-Bayes bound in numbers.** A network with $p = 10^5$ parameters is trained on $n = 60\,000$ examples. Take $Q = \mathcal{N}(w, \sigma^2 I)$, $P = \mathcal{N}(0, \sigma_0^2 I)$ and $\delta = 0.05$ in Theorem 8.2.
 
@@ -2079,7 +2082,7 @@ Six practical sheets (proposal), each about 3 h on a laptop CPU:
     -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 1, 2. Laptop CPU.
     -   *Success*: over 3 seeds, the logit-trained student closes at least half of the gap between the label-trained student and the teacher, with a curve of accuracy against the number of parameters.
 2.  **[Solo · ≈ 20 h] Double descent and the jamming transition in networks.** A paper study of Geiger and coauthors, “Scaling description of generalization with number of parameters in deep learning” (arXiv 2019).
-    -   *Implement*: fully connected networks of increasing width on 1 000 MNIST digits (LeCun, Bottou, Bengio and Haffner, 1998), trained to zero training loss. Locate the jamming threshold, then train 10 networks per width.
+    -   *Implement*: fully connected networks of increasing width on 1 000 MNIST digits (LeCun, Bottou, Bengio and Haffner, 1998), trained with the hinge loss of the paper until the training loss is exactly zero. Locate the jamming threshold, then train 10 networks per width.
     -   *Measure*: the test error of single networks and of their ensemble average, and the fluctuation of the outputs around their mean as a function of the number of parameters (ch. 1.4).
     -   *Deliverables*: code, a 4–6 page report, a 10-minute talk. *Chapters*: ch. 1. Laptop CPU.
     -   *Success*: the cusp at the threshold, its removal by ensemble averaging, and a fitted fluctuation exponent compared with the predicted $-1/4$.
@@ -2098,7 +2101,7 @@ Six practical sheets (proposal), each about 3 h on a laptop CPU:
 
 1.  **[Group of 3 · ≈ 30 h each] Right for the right reasons: auditing and debiasing a vision model.** A paper study of Hendricks, Burns, Saenko, Darrell and Rohrbach, “Women also Snowboard: Overcoming Bias in Captioning Models” (FAT-ML 2018), transposed to classification.
     -   *Data*: CelebA (Liu, Luo, Wang and Tang, 2015), predicting “blond hair”, an attribute correlated with gender in the data; Colored MNIST (Arjovsky, Bottou, Gulrajani and Lopez-Paz, 2019) as a warm-up.
-    -   *Implement*: a standard classifier; reweighting; an Equalizer-style confusion loss on images with the face masked; adversarial debiasing (Proposition 3.7); group distributionally robust optimisation (Sagawa, Koh, Hashimoto and Liang, 2020).
+    -   *Implement*: a standard classifier; reweighting; an Equalizer-style confusion loss, asking for equal probabilities of the two classes on images where the hair is hidden (tight face crops from the CelebA landmarks); adversarial debiasing (Proposition 3.7); group distributionally robust optimisation (Sagawa, Koh, Hashimoto and Liang, 2020).
     -   *Split*: data and metrics; training methods; explanations, with Grad-CAM pointing tests.
     -   *Deliverables*: repository, an 8-page report, a 15-minute defence. *Chapters*: ch. 3, 4. Free GPU tier.
     -   *Success*: over 3 seeds, a gain of at least 10 points of worst-group accuracy over the standard classifier, for a loss of at most 3 points of average accuracy, and Grad-CAM maps that move to the hair.
@@ -2212,6 +2215,7 @@ Two hours, one handwritten A4 sheet allowed, no electronic device; four question
 -   J. Adebayo, J. Gilmer, M. Muelly, I. Goodfellow, M. Hardt, B. Kim, “Sanity checks for saliency maps”, *NeurIPS* 2018.
 -   S. M. Lundberg, S.-I. Lee, “A unified approach to interpreting model predictions”, *NeurIPS* 2017.
 -   M. Hardt, E. Price, N. Srebro, “Equality of opportunity in supervised learning”, *NeurIPS* 2016.
+-   S. Barocas, M. Hardt, A. Narayanan, *Fairness and Machine Learning: Limitations and Opportunities*, MIT Press, 2023.
 -   J. Kleinberg, S. Mullainathan, M. Raghavan, “Inherent trade-offs in the fair determination of risk scores”, *ITCS* 2017; A. Chouldechova, “Fair prediction with disparate impact: a study of bias in recidivism prediction instruments”, *Big Data* 5, 2017.
 -   J. Zhao, T. Wang, M. Yatskar, V. Ordonez, K.-W. Chang, “Men also like shopping: reducing gender bias amplification using corpus-level constraints”, *EMNLP* 2017.
 -   B. H. Zhang, B. Lemoine, M. Mitchell, “Mitigating unwanted biases with adversarial learning”, *AAAI/ACM Conference on AI, Ethics, and Society* 2018.
@@ -2265,7 +2269,7 @@ Two hours, one handwritten A4 sheet allowed, no electronic device; four question
 
 -   L. Chizat, E. Oyallon, F. Bach, “On lazy training in differentiable programming”, *NeurIPS* 2019; S. Mei, A. Montanari, P.-M. Nguyen, “A mean field view of the landscape of two-layer neural networks”, *PNAS* 115, 2018; L. Chizat, F. Bach, “On the global convergence of gradient descent for over-parameterized models using optimal transport”, *NeurIPS* 2018.
 -   J. Cohen, S. Kaur, Y. Li, J. Z. Kolter, A. Talwalkar, “Gradient descent on neural networks typically occurs at the edge of stability”, *ICLR* 2021; A. Power, Y. Burda, H. Edwards, I. Babuschkin, V. Misra, “Grokking: generalization beyond overfitting on small algorithmic datasets”, arXiv, 2022.
--   S. Arora, R. Ge, B. Neyshabur, Y. Zhang, “Stronger generalization bounds for deep nets via a compression approach”, *ICML* 2018; J. Frankle, M. Carbin, “The lottery ticket hypothesis: finding sparse, trainable neural networks”, *ICLR* 2019.
+-   S. Arora, R. Ge, B. Neyshabur, Y. Zhang, “Stronger generalization bounds for deep nets via a compression approach”, *ICML* 2018; W. Zhou, V. Veitch, M. Austern, R. P. Adams, P. Orbanz, “Non-vacuous generalization bounds at the ImageNet scale: a PAC-Bayesian compression approach”, *ICLR* 2019; J. Frankle, M. Carbin, “The lottery ticket hypothesis: finding sparse, trainable neural networks”, *ICLR* 2019.
 -   C. Olah et al., “Zoom in: an introduction to circuits”, *Distill*, 2020; T. Bricken et al., “Towards monosemanticity: decomposing language models with dictionary learning”, *Transformer Circuits Thread*, 2023; B. Kim et al., “Interpretability beyond feature attribution: quantitative testing with concept activation vectors (TCAV)”, *ICML* 2018.
 -   M. J. Kusner, J. Loftus, C. Russell, R. Silva, “Counterfactual fairness”, *NeurIPS* 2017; P. W. Koh et al., “WILDS: a benchmark of in-the-wild distribution shifts”, *ICML* 2021.
 -   A. Radford et al., “Learning transferable visual models from natural language supervision”, *ICML* 2021.

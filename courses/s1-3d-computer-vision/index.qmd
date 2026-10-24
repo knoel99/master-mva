@@ -137,7 +137,7 @@ The official prerequisites are linear algebra, optimization, and basic programmi
 
 ### Session plan {#sessions}
 
-**21 h in class = 7 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (lectures 18 h, tutorials 3 h); master-mva.com organises the course as six 3-hour lectures and one exam session. The split below is a proposal: it gives one session to each of the seven official themes, in the official order, and pairs about 2 h of lecture with 1 h of practice in every session. On the official calendar two themes share a lecture to free the exam slot.
+**21 h in class = 7 sessions of 3 h.** The volume is the official one of the Université Paris-Saclay programme table (lectures 18 h, tutorials 3 h); master-mva.com organises the course as six 3-hour lectures and one exam session. The split below is a proposal: it gives one session to each of the seven official themes, in the official order, and pairs about 2 h of lecture with 1 h of practice in every session. master-mva.com lists seven themes for six lectures; this proposal gives each theme a session of its own.
 
 Level 1 = foundations, 2 = core results and algorithms, 3 = advanced and research-level material; the level never decreases.
 
@@ -240,6 +240,8 @@ $$
 \arg\min_{\|h\| = 1} \|A h\| = v_n , \quad \text{the last right singular vector of } A
 $$
 :::
+
+When $m < n$, as for the minimal samples of RANSAC ([ch. 4.4](#ch4)), complete the SVD with zero singular values. Then $\sigma_n = 0$, the vector $v_n$ lies in the kernel of $A$, and the full SVD of NumPy returns it as the last row of $V^\top$.
 
 :::: thm
 [Theorem 0.5 — Eckart–Young, Frobenius norm]{.tag} Among the matrices of rank at most $r$, the closest to $A$ in Frobenius norm is the truncated SVD:
@@ -457,7 +459,7 @@ Four points in general position and their images determine a unique projective m
 :::
 ::::
 
-Stacking $n \ge 4$ correspondences gives a $2n \times 9$ matrix $A$, and Theorem 0.4 gives $h$. With raw pixel coordinates the entries of $A$ range from 1 to about $10^5$; Hartley (1997) showed that normalising the data first fixes this conditioning problem.
+Stacking $n \ge 4$ correspondences gives a $2n \times 9$ matrix $A$, and Theorem 0.4 gives $h$. With raw pixel coordinates the entries of $A$ range from 1 to about $10^5$; normalising the data first fixes this conditioning problem, as Hartley (1997) showed for the eight-point algorithm of ch. 4.
 
 ::: def
 [Algorithm 1.8 — Normalised DLT]{.tag}
@@ -524,7 +526,7 @@ The principal point moves to $u = 611.2 = 320 + 800 \tan 20°$. The ratio $\sigm
 
 ### 1.5 Panorama construction
 
-By Theorem 1.6, photographs taken by a camera turning about its centre are related by homographies $K R K^{-1}$, whatever the depth of the scene.
+By Theorem 1.6, images from a camera turning about its centre are related by homographies $K R K^{-1}$, whatever the depth.
 
 1.  Rotate the camera about its centre, on a panoramic head, or by hand when the scene is far away.
 2.  Match interest points between overlapping images ([ch. 3](#ch3)) and estimate the homographies with RANSAC ([ch. 4.4](#ch4)).
@@ -535,7 +537,7 @@ By Theorem 1.6, photographs taken by a camera turning about its centre are relat
 ::: ex
 [Example 1.10 — How wide can a planar panorama be?]{.tag} With $f = 800$ pixels, a pan by $\theta$ sends the principal point to $u = c_x + f \tan\theta$. The offset is 291 pixels at 20°, 800 at 45°, 2198 at 70° and 9144 at 85°.
 
-The horizontal stretch at angle $\theta$ is $du/d\theta = f / \cos^2\theta$, that is $1 / \cos^2 70° = 8.5$ times the central one at $70°$. A planar panorama is therefore limited to well below $180°$.
+The horizontal stretch at angle $\theta$ is $du/d\theta = f / \cos^2\theta$, that is $1 / \cos^2 70° = 8.5$ times the central one at $70°$. A planar panorama is therefore limited to well below $180°$, in practice to about $120°$, where the border stretch is already 4.
 
 Wide panoramas use cylindrical coordinates instead:
 $$
@@ -620,6 +622,12 @@ $$
 depends only on the intrinsic parameters. Defined up to scale, it has 5 degrees of freedom, and $K$ is recovered from it by a Cholesky factorisation.
 :::
 
+Since $K^{-1} v_i \sim R\, d_i$, vanishing points of orthogonal directions also constrain $\omega$:
+$$
+v_1^\top \omega\, v_2 = 0 ,
+$$
+as announced in ch. 1.2 (Exercise 4).
+
 :::: prop
 [Proposition 2.4 — Zhang's constraints]{.tag} Each view of the plane gives two linear equations on $\omega$:
 $$
@@ -639,7 +647,7 @@ The columns $r_1$ and $r_2$ of a rotation are orthonormal: $r_1^\top r_2 = 0$ an
 1.  Take $n \ge 3$ views of the plane in different orientations, and estimate the homographies $H_j$.
 2.  Write $h_i^\top \omega h_j$ as a linear form in the vector $b$ of the six distinct entries of $\omega$, ordered $(\omega_{11}, \omega_{12}, \omega_{22})$ then $(\omega_{13}, \omega_{23}, \omega_{33})$. Stack the $2n$ equations of Proposition 2.4 and solve by Theorem 0.4.
 3.  Factor $\omega = L L^\top$ (Cholesky, $L$ lower triangular); then $K^{-1} \sim L^\top$.
-4.  For each view, set $\mu = 1 / \|K^{-1} h_1\|$ and
+4.  For each view, set $\mu = \pm 1 / \|K^{-1} h_1\|$, with the sign that puts the target in front of the camera ($t_3 > 0$), and
     $$
     r_1 = \mu K^{-1} h_1, \quad r_2 = \mu K^{-1} h_2, \quad r_3 = r_1 \times r_2, \quad t = \mu K^{-1} h_3 ;
     $$
@@ -844,7 +852,7 @@ resp = [-sg**2 * ndi.gaussian_laplace(blob, sg)[n // 2, n // 2] for sg in sigmas
 print("characteristic scale:", sigmas[int(np.argmax(resp))], " (blob size", s_blob, ")")
 ```
 
-The four corners are found at (25, 53), (53, 103), (75, 25) and (103, 75), each about 2 pixels inside the true corners, which the blur rounds. The response is $2.0 \times 10^{-4}$ at a corner, $-6.2 \times 10^{-5}$ in the middle of a side and about $10^{-11}$ in a flat area, as Proposition 3.2 predicts. The scale search returns $\sigma = 4.0$.
+The four corners are found at (25, 53), (53, 103), (75, 25) and (103, 75), each about 2 pixels inside the true corners, which the blur rounds. The response is $2.0 \times 10^{-4}$ at a corner, $-6.2 \times 10^{-5}$ in the middle of a side and $5.4 \times 10^{-12}$ in a flat area, as Proposition 3.2 predicts. The scale search returns $\sigma = 4.0$.
 
 ### 3.3 The SIFT detector and descriptor
 
@@ -865,7 +873,7 @@ $$
 $$
 an increasing function of $r \ge 1$. Lowe rejects the point when $r > 10$, a strongly elongated response.
 
-The descriptor is invariant to translations, rotations, changes of scale, and affine changes of intensity $I \mapsto aI + b$ with $a > 0$.
+Up to sampling effects, the descriptor is invariant to translations, rotations, changes of scale, and affine changes of intensity $I \mapsto aI + b$ with $a > 0$.
 
 ::: proof
 The first identity is $(\alpha + \beta)^2 / (\alpha\beta)$ written with $\alpha = r\beta$.
@@ -1065,7 +1073,7 @@ For $p = 0.99$ the bound grows quickly with the sample size:
 
 The inlier ratio is unknown in advance. Adaptive RANSAC updates $N$ with the best ratio found so far and stops when the number of iterations reaches it.
 
-The threshold follows from the noise. If each coordinate has Gaussian noise of standard deviation $\sigma$, the squared distance of an inlier to its epipolar line is $\sigma^2 \chi^2_1$, and $\tau^2 = 3.84\, \sigma^2$ keeps 95 % of the inliers. For a homography, the transfer error has two dimensions and $\tau^2 = 5.99\, \sigma^2$.
+The threshold follows from the noise. If each coordinate has Gaussian noise of standard deviation $\sigma$, the squared Sampson distance of an inlier (codimension 1 in the joint space of both images) is approximately $\sigma^2 \chi^2_1$. Then $\tau^2 = 3.84\, \sigma^2$ keeps 95 % of the inliers. For a homography, the transfer error has two dimensions and $\tau^2 = 5.99\, \sigma^2$.
 
 **Code 4.10 — Relative pose from contaminated matches.** 200 points 4 to 8 m away; the second camera is turned by $10°$ and moved about 1 m sideways. The image noise is 0.5 pixel and 30 % of the matches are replaced by random points.
 
@@ -1143,7 +1151,7 @@ x2 = proj(K @ np.c_[R_true, t_true], X) + 0.5 * rng.standard_normal((200, 2))
 out = rng.random(200) < 0.3                                    # 30 % of wrong matches
 x2[out] = rng.uniform([0, 0], [640, 480], (out.sum(), 2))
 
-F, inl, iters = ransac_F(x1, x2)
+F, inl, iters = ransac_F(x1, x2)                               # tau = 1.5 px = 3 sigma, looser than the 95 % rule
 print(f"RANSAC: {iters} iterations; inliers kept {np.sum(inl & ~out)}/{np.sum(~out)}, "
       f"wrong matches kept {np.sum(inl & out)}/{out.sum()}")
 E = K.T @ F @ K                                                # Proposition 4.3
@@ -1421,7 +1429,7 @@ where the data term $D_p(d)$ is a matching cost, and the smoothness term is for 
 
 The energy is, up to a constant, minus the log-posterior of a Markov random field: its minimiser is a maximum a posteriori estimate. Truncation matters: an untruncated convex penalty charges large depth jumps heavily and smooths discontinuities away.
 
-Minimising $E$ with the Potts model and three or more labels is NP-hard (Boykov, Veksler and Zabih, 2001). Exact algorithms exist only on special graphs or for special energies.
+Minimising $E$ with the Potts model and three or more labels is NP-hard (Boykov, Veksler and Zabih, 2001); exact algorithms need special graphs or special energies.
 
 ### 6.2 Dynamic programming and semi-global matching
 
@@ -1742,7 +1750,7 @@ theta0 = np.r_[(cams_true[1:] + 0.02 * rng.standard_normal((m - 1, 6))).ravel(),
 rms = lambda th: np.sqrt(np.mean(residuals(th)**2))                  # per coordinate
 fit = least_squares(residuals, theta0, jac_sparsity=S, method="trf", x_scale="jac")
 print(f"RMS reprojection error: initial {rms(theta0):.1f} px, after bundle adjustment {rms(fit.x):.3f} px")
-p = theta0.size
+p = theta0.size - 1                                                  # the free scale is a gauge direction
 print(f"{fit.nfev} evaluations; expected residual 0.5 * sqrt(1 - {p}/{2 * m * n}) = "
       f"{0.5 * np.sqrt(1 - p / (2 * m * n)):.3f} px")
 X_hat = fit.x[6 * (m - 1):].reshape(n, 3)
@@ -1751,9 +1759,9 @@ print(f"scale factor {s:.4f}; median 3D error after rescaling "
       f"{1000 * np.median(np.linalg.norm(s * X_hat - pts, axis=1)):.1f} mm")
 ```
 
-The reprojection error drops from 17.7 to 0.386 pixel per coordinate in 6 evaluations. This is below the noise level of 0.5 pixel, as it should be: the 258 free parameters absorb part of the noise, and the expected residual is
+The reprojection error drops from 17.7 to 0.386 pixel per coordinate in 6 evaluations. This is below the noise level of 0.5 pixel, as it should be. The 258 free parameters absorb part of the noise; one of them, the scale, is a gauge direction that does not change the residuals, so 257 count, and the expected residual is
 $$
-0.5 \sqrt{1 - 258 / 640} \approx 0.386 \text{ pixel} .
+0.5 \sqrt{1 - 257 / 640} \approx 0.387 \text{ pixel} .
 $$
 Holding camera 0 fixes 6 of the 7 gauge parameters. The scale stays free, and the reconstruction comes out scaled by 0.9951; after rescaling, the median 3D error is 10 mm.
 
@@ -1769,11 +1777,11 @@ Key takeaways — chapter 7
 
 ## 8. Multiple view stereo {#ch8}
 
-With many calibrated views, depth is measured with several baselines at once, two-view ambiguities disappear, and the result can be a complete 3D model. This chapter presents plane sweep and multi-baseline matching, depth-map fusion and volumetric methods, and patch-based methods. The cameras are known, for instance from [ch. 7](#ch7).
+With many calibrated views, depth is measured with several baselines at once, two-view ambiguities disappear, and the result can be a complete 3D model. The cameras are known, for instance from [ch. 7](#ch7).
 
 ### 8.1 Plane sweep
 
-Take a reference camera $P_0 = K[I \mid 0]$ and other cameras $P_k = K_k [R_k \mid t_k]$. For the fronto-parallel plane $Z = z$ of the reference frame, Theorem 1.6 says that image $k$ maps into the reference by the homography
+Take a reference camera $P_0 = K[I \mid 0]$ and other cameras $P_k = K_k [R_k \mid t_k]$. For the fronto-parallel plane $Z = z$ of the reference frame, Theorem 1.6 gives the homography from the reference image to image $k$ induced by the plane:
 $$
 H_k(z) = K_k \Big( R_k + \frac{t_k\, n^\top}{z} \Big) K^{-1}, \qquad n = (0, 0, 1) .
 $$
@@ -1877,7 +1885,9 @@ The derivative in $D$ vanishes at the weighted mean. By induction, after $k$ upd
 Space carving starts from a volume containing the scene and removes the voxels that are not photo-consistent, whose projections in the images that see them have inconsistent colours. Visibility changes as voxels go, so the images are swept in a careful order.
 
 :::: thm
-[Theorem 8.5 — The photo hull (Kutulakos and Seitz, 2000)]{.tag} Among the shapes contained in the initial volume, there is a largest photo-consistent one, the **photo hull**. It contains every photo-consistent shape, the true scene included, and space carving computes it.
+[Theorem 8.5 — The photo hull (Kutulakos and Seitz, 2000)]{.tag} Among the shapes contained in the initial volume, there is a largest photo-consistent one, the **photo hull**. It contains every photo-consistent shape, and space carving computes it.
+
+The true scene is one of these photo-consistent shapes if it lies in the initial volume and is itself photo-consistent (Lambertian, noise-free images).
 
 ::: proof
 See Kutulakos and Seitz (2000). The key step is monotonicity: a voxel that is inconsistent for a shape stays inconsistent for every smaller shape, because removing voxels can only reveal more of its views. [∎]{.qed}
@@ -1920,7 +1930,7 @@ This chapter is for self-study. It surveys how learning has entered each step of
 
 ### 9.2 Learned stereo
 
--   Žbontar and LeCun (2016) learned the matching cost with a convolutional network and kept the classical aggregation (SGM, [ch. 6.2](#ch6)): with the learned cost alone they reported state-of-the-art results on the KITTI and Middlebury benchmarks of the time.
+-   Žbontar and LeCun (2016) learned the matching cost with a convolutional network and kept the classical pipeline around it: cross-based aggregation, SGM ([ch. 6.2](#ch6)) and the left–right check. Replacing only the cost, they reported state-of-the-art results on the KITTI and Middlebury benchmarks of the time.
 -   GC-Net (Kendall and co-authors, 2017) builds a cost volume of learned features, regularises it with 3D convolutions, and reads the disparity with a differentiable soft argmin.
 -   RAFT-Stereo (Lipson, Teed and Deng, 2021) refines the disparity iteratively with a recurrent unit that looks up a correlation pyramid.
 
@@ -1990,11 +2000,11 @@ Key takeaways — chapter 9
     $$
     (v_1 - c) \cdot (v_2 - c) = -f^2 ,
     $$
-    and prove this identity for any two orthogonal directions, with square pixels and zero skew.
+    and prove this identity for any two orthogonal directions with finite vanishing points, with square pixels and zero skew.
 
     *Solution*: $KR(1, 0, 0) = (532.8, -120, -0.5)$ gives $v_1 = (-1065.6, 240)$; $KR(0, 0, 1)$ gives $v_2 = (781.9, 240)$; the vertical direction gives $(0, 800, 0)$, a point at infinity, because the camera is not tilted. The product is $(-1385.6)(461.9) = -640\,000 = -800^2$.
 
-    In general, write $R d_i = (p_i, q_i, r_i)$. Then $v_i - c = f\, (p_i / r_i, q_i / r_i)$, and orthogonality, $p_1 p_2 + q_1 q_2 + r_1 r_2 = 0$, gives the identity after division by $r_1 r_2$.
+    In general, write $R d_i = (p_i, q_i, r_i)$. Then $v_i - c = f\, (p_i / r_i, q_i / r_i)$, and orthogonality, $p_1 p_2 + q_1 q_2 + r_1 r_2 = 0$, gives the identity after division by $r_1 r_2 \neq 0$. This is the constraint $v_1^\top \omega\, v_2 = 0$ of ch. 2.3 written out.
 
 5.  **★ A RANSAC budget.** Using Proposition 4.9 with $w = 0.4$, compute the number of iterations for $s \in \{4, 5, 7, 8\}$, with $p = 0.99$ and then $p = 0.999$. Which estimator would you use for $F$?
 
@@ -2063,13 +2073,13 @@ Key takeaways — chapter 9
     $$
     Both epipoles are $(1, 0, 0)$, at infinity: the epipolar lines are the image rows.
 
-13. **★★ Graphs for pairwise terms and expansion moves.** (a) Apply the decomposition of Theorem 6.7 to the Potts term $\lambda [x_p \neq x_q]$, and compare with the two edges of capacity $\lambda$ used in Code 6.8. (b) Show that the truncated quadratic $\min((a - b)^2, T)$ is not a metric when $T \ge 4$, and find an expansion move that is not submodular.
+13. **★★ Graphs for pairwise terms and expansion moves.** (a) Apply the decomposition of Theorem 6.7 to the Potts term $\lambda [x_p \neq x_q]$, and compare with the two edges of capacity $\lambda$ used in Code 6.8. (b) Show that the truncated quadratic $\min((a - b)^2, T)$ is not a metric when $T > 2$, and find an expansion move that is not submodular.
 
     *Solution*: (a) $A = D = 0$ and $B = C = \lambda$ give $\lambda x_p - \lambda x_q + 2\lambda (1 - x_p) x_q$: an edge $p \to q$ of capacity $2\lambda$, plus unary terms.
 
     The two edges $p \to q$ and $q \to p$ of capacity $\lambda$ used in Code 6.8 are cut once whenever the labels differ, which gives $\lambda [x_p \neq x_q]$ directly: both graphs represent the same energy.
 
-    (b) $V(0, 2) = 4 > V(0, 1) + V(1, 2) = 2$. With $d_p = 0$, $d_q = 2$ and $\alpha = 1$, the move has $E(0, 0) + E(1, 1) = 4 + 0 > E(0, 1) + E(1, 0) = 1 + 1$.
+    (b) $V(0, 2) = \min(4, T) > 2 = V(0, 1) + V(1, 2)$. With $d_p = 0$, $d_q = 2$ and $\alpha = 1$, the move has $E(0, 0) + E(1, 1) = \min(4, T) + 0$, larger than $E(0, 1) + E(1, 0) = 1 + 1$.
 
 14. **★★ Why normalise? (Python).** Run the eight-point algorithm with and without the normalisation of Algorithm 4.6, on 20 noisy matches between two $1920 \times 1080$ images, and measure the distance of test points to their epipolar lines. Explain the difference with the condition number of Code 1.9.
 
@@ -2117,7 +2127,7 @@ Key takeaways — chapter 9
 
 15. **★★ Semi-global matching (Python).** Implement Definition 6.3 with four directions and apply it to the pair of Code 5.8, with the $3 \times 3$ data term of Code 6.4, $P_1 = 0.03$ and $P_2 = 0.1$. Compare with winner-takes-all and with the scanline dynamic programming of Code 6.4. Then vary $P_1$, $P_2$ and the number of directions.
 
-    *Hints and expected result*: the script prints 56.3 % of bad pixels for winner-takes-all and 5.0 % for SGM, against 6.9 % for the scanline optimisation: the vertical paths remove the streaks. Too large a $P_2$ rounds the corners of the square; too small a one lets noise through.
+    *Hints and expected result*: the script prints 56.3 % of bad pixels for winner-takes-all and 5.0 % for SGM, against 6.9 % for the scanline optimisation: the vertical paths remove the streaks. Too large a $P_2$ oversmooths the depth edges: with $P_2 = 1$, the error within 3 pixels of them rises from 20 % to 38 %. Too small a one lets noise through: $P_2 = P_1 = 0.03$ gives 22 % of bad pixels.
 
     ```python
     import numpy as np
@@ -2165,7 +2175,7 @@ Key takeaways — chapter 9
     $$
     \zeta_0 + j\, \frac{P}{\gcd(B_1, B_2)}, \qquad j \in \mathbb{Z} \setminus \{0\} .
     $$
-    (b) Change Code 8.2 to a period $P = 8$ and the baselines $(2, 4)$, then $(2, 3)$; predict and check the result. (c) Discuss how noise and non-periodic textures change the picture, and how you would choose three baselines for a given depth range.
+    (b) Change Code 8.2 to a period $P = 8$ and the baselines $(2, 4)$, then $(2, 3)$, evaluating from column 40 on since the shifts now reach 32 pixels; predict and check the result. (c) Discuss how noise and non-periodic textures change the picture, and how you would choose three baselines for a given depth range.
 
     *Hints and expected result*: (a) pair $k$ has minima where $B_k (\zeta - \zeta_0)$ is a multiple of $P$; the common values of $m / B_1$ and $k / B_2$ are the multiples of $1 / \gcd(B_1, B_2)$.
 
@@ -2183,6 +2193,8 @@ Key takeaways — chapter 9
 
     (b) Each candidate threshold changes both $k$ and $\alpha$. The NFA trades them against each other, and the selected threshold is the one at which the inlier set is least likely to be a coincidence, with no noise parameter to set.
 
+    (c) Both methods remove the fixed threshold. The a contrario RANSAC of Moisan, Moulon and Monasse sorts the residuals of each candidate model and keeps the number of inliers $k$ of lowest NFA. MAGSAC instead weights every match by its probability of being an inlier, marginalised over a range of noise scales, and refits by weighted least squares.
+
 ## Projects and assessment {#projects}
 
 The official assessment combines a written exam with weekly reports and the source code of the practical sessions, and a written exam for the re-take (master-mva.com, “Mode de validation”). The Université Paris-Saclay course detail describes it as “Evaluation Continue non Intégrale”, a continuous assessment that is not the only component of the grade; no weighting is displayed. The projects below are proposals for an extended practical report or for personal training, in the MVA tradition of studying and reimplementing a research paper. The written-exam proposal shows what a final exam on these notes could look like.
@@ -2198,7 +2210,7 @@ The official assessment combines a written exam with weekly reports and the sour
 2.  **[Solo · ≈ 20 h] Paper study: in defence of the eight-point algorithm (Hartley, 1997).** How much does normalisation matter, and how close does the normalised linear estimate come to the maximum-likelihood one?
     -   *Implement*: the unnormalised and normalised eight-point algorithms, the seven-point algorithm inside RANSAC, and a Levenberg–Marquardt refinement of $F$ on the Sampson distance.
     -   *Data*: synthetic scenes as in Code 4.10 and Exercise 14, varying the noise, the number of matches, the image size and the depth range.
-    -   *Success criterion*: reproduce the gain of normalisation (a factor of 3 or more in epipolar error at 1 pixel of noise); after refinement, an error within 10 % of the noise-limited value.
+    -   *Success criterion*: reproduce the gain of normalisation (a factor of 3 or more in epipolar error at 1 pixel of noise). After refinement, the RMS Sampson distance on the $n$ matches is within 10 % of $\sigma \sqrt{(n - 7)/n}$, the value expected for the maximum-likelihood estimate.
     -   *Deliverables and evaluation*: code, report, talk; rubric below. Chapters used: [ch. 0](#ch0), 1, 4.
 3.  **[Solo · ≈ 15 h] Panorama of a rotating camera.** Can the rotations of a camera be recovered from its images alone, and the images stitched without visible seams?
     -   *Implement*: Harris corners with normalised cross-correlation of patches as descriptors, RANSAC on homographies, inverse warping, cylindrical projection, feathering and multi-band blending.

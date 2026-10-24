@@ -116,7 +116,7 @@ The description announces eight lectures and one written exam, with the titles l
 | Assessment: 1 written exam (after class 8) and 1 programming assignment (after class 5); “Evaluation Continue non Intégrale” (Université Paris-Saclay) | [Projects and assessment](#projects): solo subjects sized like the assignment, which the session plan places after session 5 |
 | Université Paris-Saclay course detail: “Deep reinforcement learning” | [ch. 5](#ch5) (deep Q-networks, deep actor–critic methods), with [ch. 10](#ch10) for current deep-RL research |
 
-Every official lecture has a chapter in these notes, in the official order. The extensions beyond the syllabus are the review of ch. 0, the linear-quadratic regulator as the worked continuous MDP of ch. 5, the complements of ch. 9 (full proofs of the stochastic approximation theorem, of the Lai–Robbins bound and of the UCB-VI regret) and the research directions of ch. 10.
+Every official lecture has a chapter in these notes, in the official order. The extensions beyond the syllabus are the review of ch. 0, the linear-quadratic regulator as the worked continuous MDP of ch. 5, the complements of ch. 9 (proofs of the stochastic approximation theorem and of the Lai–Robbins bound, and a detailed sketch of the UCB-VI regret) and the research directions of ch. 10.
 
 ### Where this course fits in the programme
 
@@ -138,7 +138,7 @@ Official prerequisites: not displayed. The course uses finite Markov chains, con
 -   **6. Exploration and exploitation** — bandit regret, UCB, Lai–Robbins, Thompson sampling, optimism and posterior sampling in episodic MDPs.
 -   **7. Average reward and instance optimality** — gain and bias, the optimality equation, diameter, UCRL2, gap-dependent lower bounds and the algorithms that match them.
 -   **8. Pure exploration and planning** — best-arm identification with fixed confidence, the characteristic time, Track-and-Stop, sparse sampling and Monte Carlo tree search.
--   **9. Complements for self-study** — full proofs deferred from ch. 2, 3, 6 and 7.
+-   **9. Complements for self-study** — the proofs and sketches deferred from ch. 2, 3, 6 and 7.
 -   **10. Research directions and open problems** — offline RL, preference-based RL, theory of function approximation, reward-free exploration, open questions.
 
 ### Session plan {#sessions}
@@ -249,8 +249,8 @@ import numpy as np
 
 rng = np.random.default_rng(0)
 n, eps, p, reps = 100, 0.1, 0.5, 200_000
-means = rng.binomial(n, p, size=reps) / n
-freq = np.mean(np.abs(means - p) >= eps)
+heads = rng.binomial(n, p, size=reps)
+freq = np.mean(np.abs(heads - n * p) >= n * eps)   # integer counts: no rounding at the boundary
 bound = 2 * np.exp(-2 * n * eps**2)
 print(f"empirical P(|mean - p| >= {eps}) = {freq:.4f}")
 print(f"Hoeffding bound                 = {bound:.4f}")
@@ -258,7 +258,7 @@ delta = 0.05                       # half-width of a 95% confidence interval
 print(f"95% Hoeffding half-width, n={n}: {np.sqrt(np.log(2/delta)/(2*n)):.3f}")
 ```
 
-For 100 fair coins the deviation probability is 0.035 and the bound 0.271: Hoeffding's inequality is loose by a constant factor, but it holds for any bounded law. The 95 % half-width is
+For 100 fair coins the deviation probability is 0.057 and the bound 0.271: Hoeffding's inequality is loose by a constant factor, but it holds for any bounded law. The 95 % half-width is
 $$
 0.136 .
 $$
@@ -282,7 +282,7 @@ Key takeaways — chapter 0
 
 -   Irreducible finite chains have a unique stationary distribution, and time averages converge to stationary averages.
 -   A contraction has a unique fixed point, reached at a geometric rate by iteration.
--   Hoeffding: a mean of $n$ bounded samples is accurate to within $\sqrt{\log(2/\delta)/(2n)}$ times the range.
+-   Hoeffding: with probability $1 - \delta$, a mean of $n$ bounded samples is accurate to within $\sqrt{\log(2/\delta)/(2n)}$ times the range.
 -   Stochastic approximation needs steps with an infinite sum and a finite sum of squares.
 :::
 
@@ -300,7 +300,7 @@ When the environment is known, choosing how to act over time is a planning probl
 -   a reward function $r(s, a) \in [0, 1]$, the mean reward of playing $a$ in $s$;
 -   a discount factor $\gamma \in [0, 1)$.
 
-The agent observes $s_t$, plays $a_t$, receives a reward $r_t$ of mean $r(s_t, a_t)$ and moves to $s_{t+1} \sim P(\cdot \mid s_t, a_t)$. Its **return** is the discounted sum
+The agent observes $s_t$, plays $a_t$, receives a reward $r_t \in [0, 1]$ of mean $r(s_t, a_t)$ and moves to $s_{t+1} \sim P(\cdot \mid s_t, a_t)$. Its **return** is the discounted sum
 $$
 G = \sum_{t \ge 0} \gamma^t r_t \in \Big[0, \frac{1}{1 - \gamma}\Big] .
 $$
@@ -591,7 +591,7 @@ The convergence of TD(0), and of Q-learning below, follows from a single stochas
 $$
 x_{t+1}(i) = \big(1 - \alpha_t(i)\big)\, x_t(i) + \alpha_t(i) \big[ (H x_t)(i) + w_t(i) \big] ,
 $$
-where $\alpha_t(i) = 0$ for the coordinates not updated at time $t$, and the steps are adapted to the past $\mathcal{F}_t$.
+where $\alpha_t(i) \in [0, 1]$, $\alpha_t(i) = 0$ for the coordinates not updated at time $t$, and the steps are adapted to the past $\mathcal{F}_t$.
 
 Assume that the noise is centred with a variance of at most quadratic growth,
 $$
@@ -919,7 +919,7 @@ For the tabular softmax, the update is a multiplicative-weights step (derivation
 $$
 \pi_{k+1}(a \mid s) \propto \pi_k(a \mid s) \exp\big(\eta A^{\pi_k}(s, a)/(1 - \gamma)\big) .
 $$
-Its error satisfies, for every $\rho$ (Agarwal et al., 2021),
+Started from the uniform policy, its error satisfies, for every $\rho$ (Agarwal et al., 2021),
 $$
 V^\star(\rho) - V^{\pi_k}(\rho) \le \frac{\log A}{\eta k} + \frac{1}{(1 - \gamma)^2 k} .
 $$
@@ -973,7 +973,7 @@ $$
 :::
 
 :::: prop
-[Proposition 4.2 — The projected Bellman operator is a contraction]{.tag} Let $d$ be the stationary distribution of $P^\pi$. Then $\|P^\pi v\|_d \le \|v\|_d$ for every $v$.
+[Proposition 4.2 — The projected Bellman operator is a contraction]{.tag} Let $d$ be the stationary distribution of an irreducible $P^\pi$. Then $\|P^\pi v\|_d \le \|v\|_d$ for every $v$.
 
 Hence $\Pi T^\pi$ is a $\gamma$-contraction for the norm $\|\cdot\|_d$.
 
@@ -1175,7 +1175,7 @@ Key takeaways — chapter 4
 
 ## 5. Scaling up: towards deep RL and continuous MDPs {#ch5}
 
-Deep networks can represent value functions and policies on images or high-dimensional states, but they make the bootstrapped regressions of ch. 4 unstable. Continuous actions make the maximum over actions an optimisation problem of its own. This chapter shows how deep Q-networks and deep actor–critic methods handle both, and solves the one continuous MDP with a closed form, the linear-quadratic regulator.
+Deep networks can represent value functions and policies on images or high-dimensional states, but they make the bootstrapped regressions of ch. 4 unstable. Continuous actions make the maximum over actions an optimisation problem of its own. This chapter shows how deep Q-networks and deep actor–critic methods handle both, and solves the classical continuous MDP with a closed form, the linear-quadratic regulator.
 
 ### Deep Q-networks
 
@@ -1294,7 +1294,7 @@ Try $V(x) = -x^\top P x - c$. With $u$ fixed, the expected next value is $-(Ax +
 
 The right-hand side of the Bellman equation is therefore the maximum over $u$ of a concave quadratic. Its gradient vanishes at $(R + \gamma B^\top P B) u = -\gamma B^\top P A x$, which is $u = -Kx$.
 
-Substituting back, the quadratic part in $x$ matches $-x^\top P x$ exactly when $P$ solves the Riccati equation. The constants match when $c = \gamma\, \mathrm{tr}(PW) + \gamma c$. That this solution is the optimal value, among all policies of finite cost, requires a stabilisability condition and a growth argument; see Bertsekas (2017), vol. I, sec. 3.1. [∎]{.qed}
+Substituting back, the quadratic part in $x$ matches $-x^\top P x$ exactly when $P$ solves the Riccati equation. The constants match when $c = \gamma\, \mathrm{tr}(PW) + \gamma c$. That this solution is the optimal value, among all policies of finite cost, requires a stabilisability condition and a growth argument; see Bertsekas (2017), vol. I, on linear systems with quadratic cost. [∎]{.qed}
 :::
 ::::
 
@@ -1438,7 +1438,9 @@ $$
 $$
 :::
 
-By Pinsker's inequality, $\mathrm{kl}(\mu_a, \mu^\star) \ge 2\Delta_a^2$, so UCB1 is optimal up to a constant factor. KL-UCB ([ch. 7](#ch7)) and **Thompson sampling** reach the constant itself. Thompson sampling (Thompson, 1933) samples a mean for each arm from its posterior and plays the best sample. For Bernoulli arms with uniform priors it is asymptotically optimal (Kaufmann, Korda and Munos, 2012; Agrawal and Goyal, 2012).
+Pinsker's inequality, $\mathrm{kl}(\mu_a, \mu^\star) \ge 2\Delta_a^2$, bounds the constant by $\sum_a 1/(2\Delta_a)$. Conversely, the KL divergence is at most the $\chi^2$ divergence, $\Delta_a^2/(\mu^\star(1 - \mu^\star))$, so UCB1 is optimal up to a constant factor when the means stay away from 0 and 1.
+
+KL-UCB ([ch. 7](#ch7)) and **Thompson sampling** reach the constant itself. Thompson sampling (Thompson, 1933) samples a mean for each arm from its posterior and plays the best sample. For Bernoulli arms with uniform priors it is asymptotically optimal (Kaufmann, Korda and Munos, 2012; Agrawal and Goyal, 2013).
 
 ### Optimism in episodic MDPs
 
@@ -1766,7 +1768,7 @@ Summing over $t < T$, the terms $h^\star(s_t) - (Ph^\star)(s_t, a_t)$ add up to 
 For a bandit, $\Delta(s, a)$ is the gap $\Delta_a$ and the proposition is Proposition 6.2. On the river chain, the gaps of the action "left" are 0.424 at the left bank and between 1.5 and 1.86 elsewhere.
 
 ::: thm
-[Theorem 7.9 — Instance-dependent lower bound (Burnetas and Katehakis, 1997)]{.tag} Consider ergodic MDPs with unknown transition laws. For every consistent algorithm,
+[Theorem 7.9 — Instance-dependent lower bound (Burnetas and Katehakis, 1997)]{.tag} Consider ergodic MDPs, where every stationary policy induces an irreducible chain, with unknown transition laws. For every consistent algorithm,
 $$
 \liminf_{T \to \infty} \frac{\mathbb{E}[R_T]}{\log T} \ge C(M) = \sum_{(s, a) \text{ critical}} \frac{\Delta(s, a)}{K_{s,a}(M)} .
 $$
@@ -1837,7 +1839,7 @@ where $\Delta_{a^\star}$ is the smallest positive gap.
 $$
 \mathbb{E}_\mu[\tau_\delta] \ge T^\star(\mu)\, \mathrm{kl}(\delta, 1 - \delta), \qquad T^\star(\mu)^{-1} = \sup_{w \in \Sigma_K} \inf_{\lambda \in \mathrm{Alt}(\mu)} \sum_a w_a\, d(\mu_a, \lambda_a) .
 $$
-Since $\mathrm{kl}(\delta, 1 - \delta) \sim \log(1/\delta)$, the ratio $\mathbb{E}[\tau_\delta]/\log(1/\delta)$ is asymptotically at least $T^\star(\mu)$.
+Here $\Sigma_K$ is the simplex of weights on the $K$ arms. Since $\mathrm{kl}(\delta, 1 - \delta) \sim \log(1/\delta)$, the ratio $\mathbb{E}[\tau_\delta]/\log(1/\delta)$ is asymptotically at least $T^\star(\mu)$.
 
 ::: proof
 *Key step, the transportation lemma* (Kaufmann, Cappé and Garivier, 2016): for $\lambda \in \mathrm{Alt}(\mu)$,
@@ -2042,7 +2044,11 @@ The projection of $Q^\pi$ on such functions is the advantage, and $w = A^\pi$ at
 
 A step $\eta$ in that direction multiplies $\pi(a \mid s)$ by $\exp(\eta A^\pi(s, a)/(1 - \gamma))$, which is the update of Definition 3.8. It is mirror ascent with the KL divergence in each state, and its analysis is the multiplicative-weights argument of online learning (Agarwal et al., 2021).
 
-The plain softmax gradient behaves very differently. The constants of its convergence can be very poor: Li, Wei, Chi, Gu and Chen (2021) exhibit MDPs where softmax policy gradient needs a time exponential in the number of states. The plateau of Example 3.5 is a mild version of this.
+The plain softmax gradient behaves very differently. The constants of its convergence can be very poor: Li, Wei, Chi, Gu and Chen (2021) exhibit MDPs where softmax policy gradient needs a time exponential in the number of states.
+
+Example 3.5 shows two mild versions of this. The first step goes the wrong way in state 1: it lowers $\pi(\text{risky} \mid 1)$ from 0.5 to 0.17, before the improvement of state 2 reverses the sign of the gradient.
+
+Near the optimum, the gradient vanishes as the policy becomes deterministic. The value is $16.092$ after 100 steps, but it reaches $16.101$ only after 2000 steps.
 
 ### The dual linear program (Proposition 1.12)
 
@@ -2179,7 +2185,7 @@ The dominant principle is **pessimism**, the mirror image of the optimism of [ch
 
 When rewards are hard to write down, they can be learnt from comparisons. Christiano, Leike, Brown, Martic, Legg and Amodei (2017) fitted a reward model to human preferences between trajectory segments and optimised it with RL. Ouyang and coauthors (2022) applied the same pipeline, with PPO, to fine-tune language models.
 
-Rafailov and coauthors (2023) showed that the KL-regularised problem has a closed-form optimal policy: a Boltzmann policy, as in Proposition 5.6 with a reference policy in place of the uniform law. This gives *direct preference optimisation*, a supervised loss with no RL loop. Which of these methods is preferable, and why, is an open empirical and theoretical question.
+The KL-regularised problem has a closed-form optimal policy: a Boltzmann policy, as in Proposition 5.6 with a reference policy in place of the uniform law. Rafailov and coauthors (2023) inverted this relation to write the reward through the policy, which gives *direct preference optimisation*, a supervised loss with no RL loop. Which of these methods is preferable, and why, is an open empirical and theoretical question.
 
 ### Function approximation with guarantees
 
@@ -2445,7 +2451,7 @@ Format: 2 h 30, one handwritten A4 sheet allowed, no electronic device; four ind
 
     *Expected*: *(a)* Proposition 6.2. *(b)* $\mathrm{kl}(0.8, 0.9) = 0.0444$, so the regret is at least $(0.1/0.0444)\log T = 2.25\log T$, about 20.7 at $T = 10^4$.
 
-    *(c)* Theorem 6.4 gives about $80 \log T + 0.43 \approx 737$, a factor 35 above. *(d)* Regret penalises every pull of the worse arm, so it pulls it only $O(\log T)$ times. Identification needs both means precisely, and for two arms of equal variance it samples them about equally (Theorem 8.4).
+    *(c)* Theorem 6.4 gives about $80 \log T + 0.43 \approx 737$, a factor 35 above. *(d)* Regret penalises every pull of the worse arm, so it pulls it only $O(\log T)$ times. Identification needs both means precisely: for these two arms the optimal weights of Theorem 8.4 are about $(0.52, 0.48)$, so it samples them almost equally.
 
 ### Grading rubric (proposal) {#projects-rubric}
 
@@ -2527,6 +2533,7 @@ The course page on master-mva.com lists no references for this course. The lists
 ### Exploration, regret and average reward (ch. 6–7)
 
 -   S. Agrawal and N. Goyal. Analysis of Thompson sampling for the multi-armed bandit problem. *Proceedings of the 25th Conference on Learning Theory (COLT)*, 2012.
+-   S. Agrawal and N. Goyal. Further optimal regret bounds for Thompson sampling. *Proceedings of the 16th International Conference on Artificial Intelligence and Statistics (AISTATS)*, 2013.
 -   P. Auer, N. Cesa-Bianchi and P. Fischer. Finite-time analysis of the multiarmed bandit problem. *Machine Learning* 47, 2002.
 -   M. G. Azar, I. Osband and R. Munos. Minimax regret bounds for reinforcement learning. *Proceedings of the 34th International Conference on Machine Learning (ICML)*, 2017.
 -   P. L. Bartlett and A. Tewari. REGAL: a regularization based algorithm for reinforcement learning in weakly communicating MDPs. *Proceedings of the 25th Conference on Uncertainty in Artificial Intelligence (UAI)*, 2009.

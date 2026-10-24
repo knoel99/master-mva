@@ -170,7 +170,7 @@ Level 1 = foundations, 2 = core results and algorithms, 3 = advanced or research
 -   After each session, solve the exercises of the *Practice* column; the ★★★ exercises are good starting points for a project.
 -   Read ch. 9 after session 8: it applies the generate-and-check pattern of ch. 8 to tests, repairs and agents, with the tools of ch. 5.
 -   Keep a small open code model at hand (a free GPU tier is enough for models up to about 1.5 billion parameters) to try every decoding, constraining and retrieval method on real samples.
--   Follow the course page announced on master-mva.com, <https://llm.labri.fr/>, for the official homework and schedule; the subjects on this page are proposals, not the official ones.
+-   Follow the course page announced on master-mva.com, <https://llm.labri.fr/>, for the organisation of the sessions; the homework and exam subjects on this page are proposals, not the official ones.
 
 ## 0. Review: language models, gradients and formal languages {#ch0}
 
@@ -356,7 +356,7 @@ A row-wise softmax commutes with permuting rows and with permuting columns, so i
 :::
 ::::
 
-Without position information, `a - b` and `b - a` would get the same multiset of representations. Positions must therefore be injected, which is the role of Definition 1.6.
+In an unmasked layer without position information, `a - b` and `b - a` would get the same multiset of representations. Positions must therefore be injected, which is the role of Definition 1.6.
 
 :::: prop
 [Proposition 1.3 — Why divide by the square root of the dimension]{.tag} If $q, k \in \mathbb{R}^{d_k}$ are independent with independent coordinates of mean 0 and variance 1, then $\mathbb{E}[q^\top k] = 0$ and
@@ -399,7 +399,7 @@ Attention has four $d \times d$ matrices, $4d^2$ parameters. The MLP has two mat
 ::: def
 [Definition 1.6 — Rotary position embedding (RoPE)]{.tag} Su et al. (2024) rotate queries and keys according to their position. Split $q \in \mathbb{R}^{d_k}$ into $d_k/2$ pairs of coordinates and let $R(\alpha)$ be the rotation of the plane by angle $\alpha$.
 
-At position $m$, pair $i$ is multiplied by $R(m\theta_i)$, with $\theta_i = 10000^{-2i/d_k}$. Call $R_m$ the resulting block-diagonal orthogonal matrix.
+At position $m$, pair $i$ is multiplied by $R(m\theta_i)$, with $\theta_i = 10000^{-2i/d_k}$ for $i = 0, \dots, d_k/2 - 1$. Call $R_m$ the resulting block-diagonal orthogonal matrix.
 
 The score between a query at position $m$ and a key at position $n$ is $(R_m q)^\top (R_n k)$.
 :::
@@ -563,7 +563,7 @@ Each replacement turns two symbols into one. Decoding is well defined because ea
 :::
 ::::
 
-Each step makes the locally best choice, so BPE does not minimize the final length over all vocabularies of the same size. It is a greedy heuristic, and the merges learnt on one corpus can transfer poorly to another.
+Each step makes the locally best choice, and BPE need not minimize the final length over all vocabularies of the same size. It is a greedy heuristic, and the merges learnt on one corpus can transfer poorly to another.
 
 ::: ex
 [Code 2.4 — Training BPE on Python source]{.tag} The merges are learnt on `json.decoder` and evaluated on `json.encoder`, a held-out file of the same library.
@@ -837,7 +837,7 @@ Kaplan et al. (2020) had recommended growing the model much faster than the data
 
 ### 3.4 When data run out
 
-Public code is finite, and a large code model can see all of it. Muennighoff et al. (2023) fit scaling laws with repeated data: up to about 4 epochs, repeated tokens are worth almost as much as new ones, and their value then decays quickly. Mixing in natural language and mathematics extends the budget.
+Public code is finite, and a large code model can see all of it. Muennighoff et al. (2023) fit scaling laws with repeated data: up to about 4 epochs, repeated tokens are worth almost as much as new ones, and their value then decays quickly. They also find that filling up to half of a natural-language budget with code costs little; symmetrically, code models are trained on a mix of code, natural language and mathematics.
 
 The compute-optimal model is not the cheapest to serve. A model used for billions of completions is better trained longer and kept smaller, beyond the Chinchilla ratio, a trade-off studied in Exercise 17 and ch. 10.
 
@@ -904,7 +904,7 @@ $$
 \frac{\partial \mathcal{L}}{\partial B} = s\, G A^\top, \qquad \frac{\partial \mathcal{L}}{\partial A} = s\, B^\top G .
 $$
 
-At initialization $B = 0$, so the first step moves $B$ only, along $G$ projected on the row space of $A$.
+At initialization $B = 0$, so only $B$ moves at the first step. For a gradient step of size $\eta$, the change of $W$ is $-\eta s^2 G A^\top A$, whose rows lie in the row space of $A$.
 
 ::: proof
 $W$ depends on $B$ through $sBA$, which is linear in $B$. For a perturbation $\delta B$, the first-order change of the loss is, for the Frobenius inner product,
@@ -1155,7 +1155,7 @@ The metric $n$@$k$ counts a problem as solved when one of $n$ submissions, selec
 Key takeaways — chapter 5
 :::
 
--   Greedy decoding is not the most probable sequence; beam search approximates the mode.
+-   Greedy decoding need not return the most probable sequence; beam search approximates the mode.
 -   Temperature, top-$k$ and nucleus sampling trade quality for diversity; entropy grows with the temperature.
 -   Code is evaluated by execution: pass@$k$ is the probability that one of $k$ samples passes the tests.
 -   $1 - \binom{n-c}{k}/\binom{n}{k}$ is unbiased; the plug-in $1 - (1 - c/n)^k$ is biased downward.
@@ -1175,7 +1175,7 @@ A program that does not parse, a JSON object with a missing brace or a SQL query
 :::
 
 :::: prop
-[Proposition 6.2 — Soundness and progress]{.tag} Suppose the vocabulary contains a token for every character of $\Sigma$. Then constrained decoding never blocks: at every step at least one token is allowed. Every output that ends with $\langle\mathrm{eos}\rangle$ belongs to $L$.
+[Proposition 6.2 — Soundness and progress]{.tag} Suppose that $L$ is non-empty and that the vocabulary contains a token for every character of $\Sigma$. Then constrained decoding never blocks: at every step at least one token is allowed. Every output that ends with $\langle\mathrm{eos}\rangle$ belongs to $L$.
 
 ::: proof
 The empty prefix is viable if $L$ is non-empty, and each step keeps the prefix viable.
@@ -1212,7 +1212,7 @@ The index is computed once per constraint, not once per step. Because the automa
 
 ### 6.3 Grammar constraints
 
-Programming languages need context-free grammars (Proposition 0.8). The viable-prefix test then needs a parser that works on prefixes.
+Programming languages need at least context-free grammars (Proposition 0.8). The viable-prefix test then needs a parser that works on prefixes.
 
 :::: prop
 [Proposition 6.4 — Viable prefixes of a context-free language]{.tag} Assume every non-terminal of the grammar derives at least one terminal string. Earley's parser, run on a prefix $u$, ends with a non-empty set of items if and only if $u$ is a viable prefix. It processes a prefix of length $n$ in $O(n^3)$ time in general, $O(n^2)$ for unambiguous grammars, and linear time for many grammars of programming languages.
@@ -1249,7 +1249,7 @@ which is the formula. If $w$ takes only the values 0 and 1, then $w$ is the viab
 ::::
 
 ::: ex
-[Example 6.6 — Masking over-represents unlikely prefixes]{.tag} The valid strings are `1` and `-1`. The model first emits `1` or `-` with probability 0.5 each. After `1`, it ends correctly with probability 0.9; after `-`, it emits `1` with probability 0.1 and an invalid letter otherwise.
+[Example 6.6 — Masking over-represents unlikely prefixes]{.tag} The valid strings are `1` and `-1`. The model first emits `1` or `-` with probability 0.5 each. After `1`, it ends correctly with probability 0.9; after `-`, it emits `1` with probability 0.1 and an invalid letter otherwise; after `-1`, it always ends.
 
 -   Exact conditional: $p(L) = 0.45 + 0.05 = 0.5$, so $p(\texttt{1} \mid L) = 0.9$ and $p(\texttt{-1} \mid L) = 0.1$.
 -   Masking: the first step keeps both tokens at 0.5; after `-`, only `1` is allowed and gets probability 1.
@@ -1428,7 +1428,7 @@ for q, gold in queries.items():
 print(f"recall@1 = {sum(r == 1 for r in rr) / len(rr):.1f}, MRR = {sum(rr) / len(rr):.2f}")
 ```
 
-Recall@1 is 0.8 and the MRR 0.90. The failure is instructive: "download a web page" shares no word with "send a GET request", and the common word "with" makes `sha256_file` win.
+Recall@1 is 0.8 and the MRR 0.90. The failure is instructive: "download a web page" shares no content word with "send a GET request". The function word "with", which occurs only in the description of `sha256_file`, scores as much as "timeout", and the shorter chunk wins.
 :::
 
 ### 7.2 Retrieval-augmented models
@@ -1487,7 +1487,7 @@ A proof assistant accepts a proof only if every step checks. Pairing it with a l
 ### 8.1 Proof assistants and the Curry–Howard correspondence
 
 ::: def
-[Definition 8.1 — Propositions as types]{.tag} In a proof assistant based on type theory, such as Lean 4 (de Moura and Ullrich, 2021) or Coq, a proposition is a type and a proof is a term of that type. An implication $A \to B$ is the type of functions from proofs of $A$ to proofs of $B$, and a conjunction $A \wedge B$ is the type of pairs.
+[Definition 8.1 — Propositions as types]{.tag} In a proof assistant based on type theory, such as Lean 4 (de Moura and Ullrich, 2021) or Rocq (formerly Coq), a proposition is a type and a proof is a term of that type. An implication $A \to B$ is the type of functions from proofs of $A$ to proofs of $B$, and a conjunction $A \wedge B$ is the type of pairs.
 
 A proof is valid exactly when its term type-checks, which a small trusted kernel decides.
 :::
@@ -1522,7 +1522,7 @@ A **policy** $p_\theta(a \mid g)$ gives a probability to each tactic $a$ in goal
 [Proposition 8.4 — Soundness and optimality of best-first search]{.tag}
 
 1.  Every returned proof is valid, whatever the policy.
-2.  With an unlimited budget and finitely many tactics per state, the first proof returned has the highest probability $\prod_j p_\theta(a_j \mid g_j)$ among all proofs.
+2.  With an unlimited budget, finitely many tactics per state and all of them enumerated, the first proof returned has the highest probability $\prod_j p_\theta(a_j \mid g_j)$ among all proofs.
 
 ::: proof
 1.  Every transition was executed by the proof assistant, so the final empty state certifies the tactic sequence.
@@ -1808,7 +1808,7 @@ $$
 $$
 
 ::: proof
-Differentiate $J = \sum_y p_\theta(y \mid x) R(x, y)$ and use $\nabla p_\theta = p_\theta \nabla \log p_\theta$: this is the first formula (REINFORCE). For the second, the conditional expectation given $R = 1$ is
+Differentiate $J = \sum_y p_\theta(y \mid x) R(x, y)$ and use $\nabla p_\theta = p_\theta \nabla \log p_\theta$: this is the first formula (REINFORCE; Williams, 1992). For the second, the conditional expectation given $R = 1$ is
 
 $$
 \frac{\mathbb{E}[R\, \nabla \log p_\theta]}{\mathbb{P}(R = 1)} = \frac{\nabla J}{J} = \nabla \log J .
@@ -1818,7 +1818,11 @@ $$
 :::
 ::::
 
-Fine-tuning on the samples that pass the tests, as in STaR (Zelikman et al., 2022) or in the expert iteration of ch. 8, is therefore stochastic gradient ascent on the log pass rate. CodeRL (Le et al., 2022) uses the policy gradient directly, with a learned critic. Subtracting a baseline from $R$, such as the average reward of other samples for the same task, keeps the first gradient unbiased and reduces its variance.
+Fine-tuning on one passing sample per solved task, as in STaR (Zelikman et al., 2022) or in the expert iteration of ch. 8, is therefore stochastic gradient ascent on the sum of the log pass rates of the tasks.
+
+Pooling all the passing samples of a fixed number of draws per task weights each task by its pass rate $J$ instead. Since $J\, \nabla \log J = \nabla J$, it ascends the sum of the pass rates themselves.
+
+CodeRL (Le et al., 2022) uses the policy gradient directly, with a learned critic. Subtracting a baseline from $R$, such as the average reward of other samples for the same task, keeps the first gradient unbiased and reduces its variance.
 
 :::: recap
 ::: recap-title
@@ -1828,7 +1832,7 @@ Key takeaways — chapter 9
 -   Filtering by visible tests is rejection sampling: its precision is only as good as the tests.
 -   At a fixed budget, repairing beats resampling only when a repair succeeds more often than a fresh sample.
 -   Agents multiply step reliabilities; long trajectories need very reliable steps.
--   Fine-tuning on passing samples ascends the log pass rate; policy gradients optimize the pass rate itself.
+-   Fine-tuning on one passing sample per task ascends the log pass rate; policy gradients, or all passing samples pooled, ascend the pass rate itself.
 -   Generated code is executed only in a sandbox.
 ::::
 
@@ -1914,9 +1918,11 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Solution*: Top-3 keeps the first three tokens, of total 0.82, and renormalizes them to 0.549, 0.305 and 0.146. The nucleus is the smallest prefix of total at least 0.85: the first four tokens, of total 0.90, renormalized to 0.5, 0.278, 0.133 and 0.089.
 
-7.  **★★ Shifting positions in RoPE.** (a) Show with Proposition 1.7 that RoPE attention scores, and hence the attention weights, are unchanged if every position is shifted by the same integer. (b) For $d_k = 2$, $\theta_1 = 1$ and $q = k = (1, 0)$, compute the score as a function of $n - m$.
+7.  **★★ Shifting positions in RoPE.** (a) Show with Proposition 1.7 that RoPE attention scores, and hence the attention weights, are unchanged if every position is shifted by the same integer. (b) For $d_k = 2$, so that the only frequency is $\theta_0 = 1$, and $q = k = (1, 0)$, compute the score as a function of $n - m$.
 
-    *Solution*: (a) The score between positions $m + c$ and $n + c$ is $q^\top R_{(n+c)-(m+c)} k = q^\top R_{n-m} k$. Each score is unchanged, and so is each softmax row. (b) $R_{n-m} k = (\cos(n-m), \sin(n-m))$, so the score is $\cos(n - m)$. It is maximal at distance 0 but oscillates with the distance, so one frequency cannot tell distances apart: several frequencies $\theta_i$ are needed.
+    *Solution*: (a) The score between positions $m + c$ and $n + c$ is $q^\top R_{(n+c)-(m+c)} k = q^\top R_{n-m} k$. Each score is unchanged, and so is each softmax row.
+
+    (b) $R_{n-m} k = (\cos(n-m), \sin(n-m))$, so the score is $\cos(n - m)$. It is maximal at distance 0 but does not decrease with the distance: distance 6 scores $\cos 6 \approx 0.96$, almost as much as distance 0, and the sign of $n - m$ is lost. Several frequencies $\theta_i$ are needed to separate distances robustly.
 
 8.  **★★ Banding for near-duplicate detection.** The $k = br$ MinHash values of a file are split into $b$ bands of $r$ values. Two files become a candidate pair if they agree on all values of at least one band.
 
@@ -2091,7 +2097,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
 ## Projects and assessment {#projects}
 
-The official assessment (master-mva.com, “Mode de validation”) is homework worth 30 % and a final exam worth 70 %; the Université Paris-Saclay course detail describes it as partial continuous assessment (“Evaluation Continue non Intégrale”). The official homework is published on the course page. The subjects below are proposals in the same spirit, sized for a laptop or a free GPU tier, with public or synthetic data and a measurable success criterion; the written exam proposal shows what a final exam on this material can look like.
+The official assessment (master-mva.com, “Mode de validation”) is homework worth 30 % and a final exam worth 70 %; the Université Paris-Saclay course detail describes it as partial continuous assessment (“Evaluation Continue non Intégrale”). The official homework subjects are not reproduced here; master-mva.com refers to the course page <https://llm.labri.fr/> for the organisation of the sessions. The subjects below are proposals in the same spirit, sized for a laptop or a free GPU tier, with public or synthetic data and a measurable success criterion; the written exam proposal shows what a final exam on this material can look like.
 
 ### Solo projects {#projects-solo}
 
@@ -2109,13 +2115,13 @@ The official assessment (master-mva.com, “Mode de validation”) is homework w
 
 1.  **[Group of 2–3 · ≈ 30 h each] A small code model with fill-in-the-middle.** Paper study of Bavarian et al. (2022). Train a GPT of 10 to 30 million parameters on the deduplicated Python sources of the CPython standard library, with FIM rates 0, 0.5 and 0.9.
     -   *Success criterion*: reproduce "FIM for free" qualitatively: left-to-right perplexity on held-out files within a few percent across FIM rates, and infilling exact match on single-line middles that grows strongly with the rate.
-    -   *Split*: tokenizer, MinHash deduplication and data pipeline; model and training; evaluation and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 1–3.
+    -   *Split*: tokenizer, MinHash deduplication and data pipeline; model and training; evaluation and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 1–3. *Evaluation*: the rubric below, with individual questions on each member's part.
 2.  **[Group of 2–3 · ≈ 30 h each] LoRA on MBPP.** Paper study of Hu et al. (2022). Fine-tune a small open code model of at most 1.5 billion parameters with LoRA of ranks 4 to 64 on the training split of MBPP (Austin et al., 2021), and evaluate on its test split in a sandbox.
     -   *Success criterion*: pass@1 and pass@10 with the unbiased estimator and bootstrap intervals, a measured gain over the base model, and a rank ablation with trainable-parameter counts.
-    -   *Split*: data and training; sandboxed evaluation harness; statistical analysis and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 4, 5, 9.
+    -   *Split*: data and training; sandboxed evaluation harness; statistical analysis and report. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 4, 5, 9. *Evaluation*: the rubric below, with individual questions on each member's part.
 3.  **[Group of 2–3 · ≈ 30 h each] A tactic policy by expert iteration.** Paper study of Polu and Sutskever (2020) and Polu et al. (2023) in a toy domain. Extend the prover of Code 8.6 with conjunction and disjunction, generate random provable formulas, and train a small policy network on the proofs found, round after round.
     -   *Success criterion*: within a fixed expansion budget, the fraction of held-out formulas proved rises over three rounds above the fixed-prior baseline, and every proof is replayed by the checker.
-    -   *Split*: environment, checker and formula generator; policy model and training; search, expert iteration and evaluation. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 8, 9.4.
+    -   *Split*: environment, checker and formula generator; policy model and training; search, expert iteration and evaluation. *Deliverables*: code, a 6–8 page report, a 15-minute talk. *Chapters*: ch. 8, 9.4. *Evaluation*: the rubric below, with individual questions on each member's part.
 
 ### Written exam (proposal) {#projects-exam}
 
@@ -2160,7 +2166,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic devices, four q
 
 Official reference (master-mva.com):
 
--   Course page announced on master-mva.com: <https://llm.labri.fr/> — organisation of the sessions and course material.
+-   Course page announced on master-mva.com: <https://llm.labri.fr/> — cited there for the organisation of the sessions.
 
 Books:
 
@@ -2242,7 +2248,7 @@ Chapters 8–9 (proof, verification, execution feedback):
 -   L. de Moura, N. Bjørner, "Z3: An Efficient SMT Solver", TACAS 2008.
 -   J. Liu, C. S. Xia, Y. Wang, L. Zhang, "Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation", NeurIPS 2023.
 -   X. Chen, M. Lin, N. Schärli, D. Zhou, "Teaching Large Language Models to Self-Debug", ICLR 2024.
--   N. Shinn, F. Cassano, A. Gopinath, K. Narasimhan, S. Yao, "Reflexion: Language Agents with Verbal Reinforcement Learning", NeurIPS 2023.
+-   N. Shinn et al., "Reflexion: Language Agents with Verbal Reinforcement Learning", NeurIPS 2023.
 -   T. X. Olausson, J. P. Inala, C. Wang, J. Gao, A. Solar-Lezama, "Is Self-Repair a Silver Bullet for Code Generation?", ICLR 2024.
 -   S. Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models", ICLR 2023.
 -   C. E. Jimenez, J. Yang, A. Wettig, S. Yao, K. Pei, O. Press, K. Narasimhan, "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?", ICLR 2024.

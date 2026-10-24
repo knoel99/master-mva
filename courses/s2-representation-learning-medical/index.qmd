@@ -203,7 +203,7 @@ The derivative of the first term is $-p_k$; the derivative of the log-sum-exp is
 :::
 ::::
 
-The gradient is "prediction minus target". It returns in distillation (ch. 5), where the target is itself a softmax, and in Grad-CAM (ch. 9).
+The gradient is "prediction minus target". It returns in distillation (ch. 5), where the target is itself a softmax, and in the InfoNCE loss of ch. 7, a cross-entropy over candidates.
 
 ### 0.2 Convolutional encoders and batch normalisation
 
@@ -359,7 +359,7 @@ and equivariant if $f(g \cdot x) = \rho(g) f(x)$ for some action $\rho$ of $G$ o
 :::
 
 :::: prop
-[Proposition 1.4 — Convolution is equivariant, global pooling makes it invariant]{.tag} Let $\tau_v$ be the circular translation by $v$ on a periodic grid and $w$ a kernel. Then
+[Proposition 1.4 — Convolution is equivariant, global pooling makes it invariant]{.tag} On a periodic grid, let $(\tau_v x)(u) = x(u - v)$ be the circular translation by $v$, and $(w \star x)(u) = \sum_s w(s) \, x(u - s)$ the convolution with a kernel $w$. Then
 $$
 w \star (\tau_v x) = \tau_v (w \star x),
 $$
@@ -825,7 +825,7 @@ print("oracle (target labels):", round(cross_val_score(
     LogisticRegression(max_iter=3000), Xt, yt, cv=5).mean(), 3))
 ```
 
-Before alignment, a domain classifier separates the two domains perfectly (accuracy 1.0) and the source model reaches 0.934 on the target. After CORAL, the domain classifier is at chance level, and the target accuracy rises to 0.946, close to the 0.951 of a model trained on target labels.
+Before alignment, a domain classifier separates the two domains perfectly (accuracy 1.0) and the source model reaches 0.934 on the target. After CORAL, the cross-validated domain classifier falls to 0.36, below the 0.5 of chance: the means now match exactly over the pooled data, so a direction learned on some folds points the wrong way on the held-out one. The target accuracy rises to 0.946, close to the 0.951 of a model trained on target labels.
 
 :::: recap
 ::: recap-title
@@ -870,7 +870,7 @@ Tasks that share nothing can also hurt each other: this negative transfer is why
 Hand-tuning the weights $w_t$ is costly, and the losses often have different units (a Dice loss, a squared error in years). Kendall, Gal and Cipolla (2018) derive the weights from a likelihood.
 
 :::: thm
-[Theorem 4.2 — Homoscedastic uncertainty weighting]{.tag} Model each regression output $t$ as Gaussian with a learned noise level $\sigma_t$. With $L_t$ the sum of squared errors of task $t$, the negative log-likelihood is, up to a constant,
+[Theorem 4.2 — Homoscedastic uncertainty weighting]{.tag} Model the scalar output of each regression task $t$ as Gaussian with a learned noise level $\sigma_t$. With $L_t$ the sum of squared errors of task $t$, the negative log-likelihood is, up to a constant,
 $$
 \mathcal{L}(\theta, \sigma) = \sum_{t=1}^T \Big( \frac{L_t(\theta)}{2 \sigma_t^2} + n \log \sigma_t \Big) .
 $$
@@ -881,7 +881,7 @@ $$
 $$
 
 ::: proof
-Each of the $n$ samples of task $t$ contributes $\| y - f_t(x) \|^2 / (2\sigma_t^2) + \log \sigma_t$ plus a constant; summing gives $\mathcal{L}$.
+Each of the $n$ samples of task $t$ contributes $(y - f_t(x))^2 / (2\sigma_t^2) + \log \sigma_t$ plus a constant; summing gives $\mathcal{L}$.
 
 The derivative in $\sigma_t$ is $-L_t / \sigma_t^3 + n / \sigma_t$, zero at $\sigma_t^2 = L_t / n$. Substituting gives $n/2 + (n/2) \log(L_t / n)$ for each task. [∎]{.qed}
 :::
@@ -1220,7 +1220,7 @@ z = \sum_{k=1}^N a_k h_k, \qquad a_k = \frac{\exp\big(w^\top \tanh(V h_k)\big)}{
 $$
 :::
 
-The pooling is invariant to the order of the patches, as Proposition 6.3 requires of a set function. The weights $a_k$ form a heatmap of the patches that drove the decision; ch. 9 explains why such maps must be checked before being read as explanations (Jain and Wallace, 2019).
+Like the token average of Proposition 6.3, the pooling is invariant to the order of the patches. The weights $a_k$ form a heatmap of the patches that drove the decision; ch. 9 explains why such maps must be checked before being read as explanations (Jain and Wallace, 2019).
 
 ```python
 import torch
@@ -1344,7 +1344,7 @@ Masking 75 % of 196 tokens leaves 49: the encoder's attention costs $(1/4)^2 = 1
 
 CLIP (Radford et al., 2021) trains an image encoder and a text encoder on image–caption pairs with a symmetric InfoNCE loss: in a batch of $N$ pairs, each image must find its caption, and each caption its image. A new class is recognised zero-shot by embedding a prompt such as "a photo of a {class}" and choosing the closest one.
 
-In medicine, ConVIRT (Zhang et al., 2022) applied the same contrastive pairing to chest radiographs and their radiology reports, before CLIP and as one of its inspirations.
+In medicine, ConVIRT (Zhang et al., 2022; preprint 2020) applied the same contrastive pairing to chest radiographs and their radiology reports, before CLIP and as one of its inspirations.
 
 ::: def
 [Definition 7.4 — Foundation model (Bommasani et al., 2021)]{.tag} A foundation model is trained on broad data, generally by self-supervision at scale, and can be adapted to a wide range of downstream tasks.
@@ -1400,8 +1400,10 @@ for step in range(400):
     opt.zero_grad()
     loss.backward()
     opt.step()
-print(f"final loss {loss.item():.2f}; Theorem 7.3 certifies I >= log(511) - loss = "
-      f"{np.log(511) - loss.item():.2f} nats between views")
+# Theorem 7.3 assumes independent negatives; here they come in correlated pairs of views,
+# and the loss is a single-batch value, so log(511) - loss is only an indicative estimate.
+print(f"final loss {loss.item():.2f}; log(511) - loss = "
+      f"{np.log(511) - loss.item():.2f} nats (indicative reading of Theorem 7.3)")
 
 torch.manual_seed(0)
 rand = make_encoder()
@@ -1653,7 +1655,7 @@ $$
 C(x) = \{ y : s(x, y) \leq \hat q \} .
 $$
 
-If the calibration cases and the test case are exchangeable, then
+If the calibration cases and the test case are exchangeable, and $\alpha \geq 1 / (n + 1)$ so that $k \leq n$, then
 $$
 P\big(Y_{\text{test}} \in C(X_{\text{test}})\big) \geq 1 - \alpha .
 $$
@@ -1701,7 +1703,7 @@ $$
 \alpha_k = \frac{1}{Z} \sum_{i, j} \frac{\partial F}{\partial A^k_{ij}}, \qquad L = \mathrm{ReLU}\Big( \sum_k \alpha_k A^k \Big) .
 $$
 
-The map is coarse but class-specific, and is upsampled to the image size.
+Here $Z$ is the number of positions $(i, j)$. The map is coarse but class-specific, and is upsampled to the image size.
 
 Explanations must be tested. Adebayo et al. (2018) proposed sanity checks: randomise the network's weights layer by layer, or train it on random labels, and verify that the explanation changes. Some popular methods barely change, behaving like edge detectors rather than explanations of the model. Attention maps (ch. 6) need the same checks.
 
@@ -1845,7 +1847,7 @@ Representation-similarity tools such as CKA (ch. 1.4) compare architectures. Rag
 
 On transfer, Kornblith, Shlens and Le (2019) found that better ImageNet models tend to transfer better, both as fixed features and when fine-tuned. Kirichenko, Izmailov and Wilson (2023) showed that retraining only the last layer on a small balanced set can be enough for robustness to spurious correlations, in the spirit of the linear probing of ch. 2.3.
 
-On distillation, Stanton et al. (2021) found that students often do not match their teachers closely even when they could, and that this fidelity matters less than generalisation. Furlanello et al. (2018) showed that a student of the same size as its teacher can surpass it (born-again networks).
+On distillation, Stanton et al. (2021) found that students often do not match their teachers closely even when they have the capacity to, and that matching the teacher more closely does not always improve the student's generalisation. Furlanello et al. (2018) showed that a student of the same size as its teacher can surpass it (born-again networks).
 
 ### 10.4 Meta-data, weak supervision and identifiability
 
@@ -1955,7 +1957,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     (c) With $32 \times 32$ patches there are $256 + 1$ tokens, about 16 times less memory. The MAE encoder sees 256 of the 1024 patches, which also divides the attention cost by 16 (ch. 7.4).
 
-7.  **★★ Weight decay and the unseen directions.** In the setting of Proposition 2.3, gradient descent with step $\eta$ adds weight decay: $B_{t+1} = B_t - \eta (\nabla_B L + \lambda B_t)$. (a) Show that $B_t P_\perp = (1 - \eta \lambda)^t B_0 P_\perp$. (b) Interpret for a pretrained encoder fine-tuned on a few images. (c) Why does LoRA initialise $B$ at zero?
+7.  **★★ Weight decay and the unseen directions.** In the setting of Proposition 2.3, gradient descent with step $\eta$ adds weight decay: $B_{t+1} = B_t - \eta (\nabla_B L + \lambda B_t)$. (a) Show that $B_t P_\perp = (1 - \eta \lambda)^t B_0 P_\perp$. (b) Interpret for a pretrained encoder fine-tuned on a few images. (c) Why does LoRA initialise its matrix $B$ (Definition 2.4, not the encoder $B$ above) at zero?
 
     *Solution*: (a) As in the proof of Proposition 2.3, $\nabla_B L \, P_\perp = 0$. Hence $B_{t+1} P_\perp = (1 - \eta \lambda) B_t P_\perp$; iterate.
 
@@ -2028,7 +2030,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     For $d = 1$ ($I = 0.83$), the bound is close to the truth (0.77 and 0.81). For $d = 5$ ($I = 4.15$), it gives 2.44 and 3.58.
 
-    For $d = 20$ ($I = 16.6$), it equals $\log N$ exactly (2.77 and 4.85).
+    For $d = 20$ ($I = 16.6$), it equals $\log N$ to two decimals (2.77 and 4.85), while staying strictly below it, since the loss is positive.
 
     Theorem 7.3 holds in every case, but the bound saturates at $\log N$: InfoNCE cannot certify more than $\log N$ nats, however good the critic.
 
@@ -2123,7 +2125,7 @@ The exercises are sorted by level: ★ applies the course, ★★ combines resul
 
     *Hints and expected result*: (a) When $\sigma \to 0$, only views of subjects of exactly the same age are positives; with continuous ages, this is SimCLR. When $\sigma \to \infty$, all views are equally positive, and nothing pushes subjects apart.
 
-    (b) Collapse: the representation then only needs to be constant, as in ch. 7.3, and loses everything that is not age.
+    (b) Collapse: when all views are positives, a constant representation minimises the loss, as in ch. 7.3. For a large but finite $\sigma$, the representation keeps little beyond coarse age differences.
 
     (c) Train with several values of $\sigma$ on one data set, and evaluate linear probes on age and on a diagnostic task, preferably on another site. Plot both against $\sigma$; Dufumier et al. (2021) study this kind of trade-off.
 
@@ -2133,10 +2135,11 @@ The official assessment (master-mva.com) combines the reports of the practical s
 
 ### Solo projects {#projects-solo}
 
-1.  **[Solo · ≈ 20 h] Linear probing, fine-tuning and LP-FT under a change of hospital (paper study).** Reproduce the main comparison of Kumar et al. (2022) on Camelyon17-WILDS (Koh et al., 2021), whose tumour patches come from five hospitals. Start from an ImageNet-pretrained ResNet-18 and compare linear probing, full fine-tuning and LP-FT, on the training hospitals and on the held-out one.
+1.  **[Solo · ≈ 20 h] Linear probing, fine-tuning and LP-FT under a change of hospital (paper study).** Repeat the main comparison of Kumar et al. (2022) on Camelyon17-WILDS (Koh et al., 2021), whose tumour patches come from five hospitals. Start from an ImageNet-pretrained ResNet-18 and compare linear probing, full fine-tuning and LP-FT, on the training hospitals and on the held-out one.
+    -   *Scale*: a class-balanced subset of about 30 000 training patches of 96 × 96 pixels, which fits a free GPU tier.
     -   *Deliverables*: code, a 4–6 page report, a 10-minute talk.
     -   *Chapters*: ch. 1.4, 2, 3.
-    -   *Success criterion*: in- and out-of-distribution accuracies with 3 seeds; a CKA plot, layer by layer, between the pretrained and the fine-tuned encoders that shows where the features moved.
+    -   *Success criterion*: in- and out-of-distribution accuracies with 3 seeds, and a clear verdict on whether LP-FT beats fine-tuning out of distribution, as Kumar et al. report; a CKA plot, layer by layer, between the pretrained and the fine-tuned encoders that shows where the features moved.
 2.  **[Solo · ≈ 20 h] Self-supervised pretraining on a small medical data set (paper study).** Implement SimCLR (Chen et al., 2020) with a ResNet-18 on BloodMNIST or DermaMNIST from MedMNIST v2 (Yang et al., 2023), at $64 \times 64$ pixels. Compare with random initialisation and supervised pretraining under linear probes using 1 %, 10 % and 100 % of the labels, and ablate the augmentations.
     -   *Deliverables*: code, a report, a talk.
     -   *Chapters*: ch. 1.4, 7.
@@ -2180,7 +2183,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device; four ex
 
 3.  **Question (5 points).** Short proof. State and prove the InfoNCE bound $I(X; Y) \geq \log N - L_{\text{NCE}}$. A contrastive model uses batches with $N = 64$ candidates and reaches a loss of 2.5: what does the bound certify, and why do contrastive methods use large batches?
 
-    *Expected*: Theorem 7.3 and its three-step proof. The bound certifies $I \geq \log 64 - 2.5 \approx 1.66$ nats. It can never exceed $\log N \approx 4.16$ nats, whence large batches or queues of negatives.
+    *Expected*: Theorem 7.3 and its three-step proof. With independent negatives, as the theorem assumes, the bound certifies $I \geq \log 64 - 2.5 \approx 1.66$ nats. It can never exceed $\log N \approx 4.16$ nats, whence large batches or queues of negatives.
 
 4.  **Question (5 points).** Uncertainty and explanations. Three ensemble members predict $P(y = 1 \mid x) = 0.8$, $0.8$ and $0.2$. Decompose the predictive entropy into aleatoric and epistemic parts.
 
