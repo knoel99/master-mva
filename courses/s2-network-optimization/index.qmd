@@ -310,7 +310,7 @@ Its **LP relaxation** drops the integrality of the variables in $J$; its value i
 $$
 z_{LP} \leq z_{IP} .
 $$
-For any feasible integer solution of value $z_{UB}$, the optimality gap $(z_{UB} - z_{LP}) / z_{UB}$ bounds how far that solution is from the optimum.
+For any feasible integer solution of value $z_{UB} > 0$, the optimality gap $(z_{UB} - z_{LP}) / z_{UB}$ bounds how far that solution is from the optimum.
 
 ::: proof
 Every feasible point of the MILP is feasible for the relaxation, so the relaxation minimises over a larger set. [∎]{.qed}
@@ -460,9 +460,9 @@ With non-negative lengths, every permanent label equals the distance. A binary h
 ::: proof
 By induction on the permanent nodes, whose labels are assumed exact. Let $u$ be the next node made permanent and take a shortest path $P$ to $u$.
 
-1.  Let $(x, y)$ be the first arc of $P$ that leaves the permanent set. Since $x$ is permanent, its arcs were relaxed, so $\ell(y) \leq \mathrm{dist}(s, y)$.
-2.  Lengths are non-negative, so $\mathrm{dist}(s, y) \leq \mathrm{dist}(s, u)$, the length of $P$.
-3.  Node $u$ was chosen with the smallest label, so $\ell(u) \leq \ell(y)$. Chaining, $\ell(u) \leq \mathrm{dist}(s, u)$, and a label is always the length of some path, hence equality. [∎]{.qed}
+1.  Let $(q, r)$ be the first arc of $P$ that leaves the permanent set. Since $q$ is permanent, its arcs were relaxed, so $\ell(r) \leq \mathrm{dist}(s, r)$.
+2.  Lengths are non-negative, so $\mathrm{dist}(s, r) \leq \mathrm{dist}(s, u)$, the length of $P$.
+3.  Node $u$ was chosen with the smallest label, so $\ell(u) \leq \ell(r)$. Chaining, $\ell(u) \leq \mathrm{dist}(s, u)$, and a label is always the length of some path, hence equality. [∎]{.qed}
 :::
 ::::
 
@@ -682,7 +682,7 @@ For the cut bound, take $\mu_a = 1 / c(\delta^+(S))$ on the arcs of $\delta^+(S)
 :::
 ::::
 
-The optimal dual lengths $\mu$ are the shadow prices of the capacities: they say which links limit the network and by how much one more Gb/s would lower $U^\star$.
+The optimal dual lengths $\mu$ are the shadow prices of the capacities: they say which links limit the network. As long as the same dual stays optimal, one more Gb/s on arc $a$ lowers $U^\star$ at the rate $U^\star \mu_a$.
 
 ```python
 import numpy as np, networkx as nx
@@ -803,7 +803,7 @@ Design decides which links to build; capacity planning decides how many modules 
 
 ### 4.1 Fixed-charge network design
 
-Let $E$ be a set of candidate links, each with an opening cost $f_e$ and a capacity $u_e$ per direction; arc $a$ belongs to link $e(a)$.
+Let $E$ be a set of candidate links, each with an opening cost $f_e$ and a capacity $c_e$ per direction; arc $a$ belongs to link $e(a)$.
 
 ::: def
 [Definition 4.1 — Fixed-charge multicommodity network design]{.tag} With binary $y_e$ (link $e$ is built) and arc-node flows $x^k$,
@@ -812,7 +812,7 @@ $$
 $$
 subject to the conservation constraints of Definition 2.9 and the **weak linking constraints**
 $$
-\sum_{k \in K} x^k_a \leq u_{e(a)} \, y_{e(a)} \qquad (a \in A).
+\sum_{k \in K} x^k_a \leq c_{e(a)} \, y_{e(a)} \qquad (a \in A).
 $$
 :::
 
@@ -840,7 +840,7 @@ and the first inequality can be strict.
 ::: proof
 $Q_s$ has the constraints of $Q_w$ and more, so it is smaller and its minimum is larger.
 
-For strictness, take one link with $u_e = 10$ and $f_e = 1$, one demand of 1 Gb/s and no routing cost. The weak relaxation sets $y_e = 0.1$, of value 0.1; the strong one forces $y_e = 1$, the integer optimum. [∎]{.qed}
+For strictness, take one link with $c_e = 10$ and $f_e = 1$, one demand of 1 Gb/s and no routing cost. The weak relaxation sets $y_e = 0.1$, of value 0.1; the strong one forces $y_e = 1$, the integer optimum. [∎]{.qed}
 :::
 ::::
 
@@ -942,7 +942,7 @@ On the backbone with $C = 10$ Gb/s and $S = \{A, B, C\}$, the demand across is $
 
 ### 4.5 Metric inequalities and multi-period planning
 
-Theorem 2.12 removes the flows altogether: a capacity vector $C y$ carries the traffic if and only if
+Theorem 2.12 removes the flows altogether. With capacities shared by both directions, it holds with one length $\mu_e$ per link and the same proof. A capacity vector $C y$ carries the traffic if and only if
 $$
 \sum_{e} \mu_e \, C y_e \geq \sum_{k} d_k \, \mathrm{dist}_\mu(s_k, t_k) \qquad \text{for all } \mu \geq 0 .
 $$
@@ -976,7 +976,7 @@ A solver call hides several algorithms. This chapter opens the box: it enumerate
 :::
 
 :::: prop
-[Proposition 5.2 — Correctness]{.tag} If the variables are bounded, Algorithm 5.1 terminates, and the final incumbent is optimal.
+[Proposition 5.2 — Correctness]{.tag} If the integer variables are bounded, Algorithm 5.1 terminates. The final incumbent is optimal, and if none was found, the MILP is infeasible.
 
 ::: proof
 Branching splits the feasible integer set of a node into two disjoint parts and loses no integer point. A node is discarded only if its LP, hence its integer set (Proposition 0.9), contains nothing better than the incumbent. Bounded integer variables can be branched on finitely often. [∎]{.qed}
@@ -1053,7 +1053,7 @@ The **Lagrangian dual** is $z_{LD} = \max_{\lambda \geq 0} L(\lambda)$.
 :::: thm
 [Theorem 5.6 — Lagrangian bounds]{.tag} For every $\lambda \geq 0$, $L(\lambda) \leq z$.
 
-If $X$ is the set of integer points of a polyhedron, $z_{LD}$ is the minimum of $c^\top x$ over $Ax \leq b$ and the convex hull of $X$. Hence, if the subproblem has integral LP solutions,
+If $X$ is the set of integer points of a rational polyhedron, $z_{LD}$ is the minimum of $c^\top x$ over $Ax \leq b$ and the convex hull of $X$. Hence, if the subproblem has integral LP solutions,
 $$
 z_{LD} = z_{LP} .
 $$
@@ -1067,7 +1067,7 @@ $L$ is concave and piecewise linear. If $x_\lambda$ minimises the Lagrangian at 
 $$
 L(\lambda') \leq L(\lambda) + g^\top (\lambda' - \lambda) \quad \text{for all } \lambda' \geq 0 .
 $$
-The projected subgradient method updates $\lambda \leftarrow \max(0, \lambda + t_k g)$ with steps $t_k \to 0$ and $\sum_k t_k = \infty$; it converges to $z_{LD}$.
+The projected subgradient method updates $\lambda \leftarrow \max(0, \lambda + t_k g)$ with steps $t_k \to 0$ and $\sum_k t_k = \infty$. When the subgradients are bounded, the best value found converges to $z_{LD}$.
 
 Relaxing the capacities of the min-cost multicommodity flow with multipliers $\pi_a$ leaves one shortest-path problem per demand, for the lengths $w_a + \pi_a$. The multipliers act as congestion tolls.
 
@@ -1209,6 +1209,11 @@ All three are NP-hard on general graphs. The constraint $z_{ij} \leq y_j$ is the
 In a software-defined network, each switch talks to a controller. Heller, Sherwood and McKeown (2012) posed the controller placement problem: average latency leads to the $p$-median, worst-case latency to the $p$-center.
 
 The simplest heuristic adds sites one at a time, each time the one that reduces the cost most. Its quality is understood through submodularity.
+
+A set function $g$ is **submodular** when an element adds less to a larger set: for $S \subseteq S'$ and $j \notin S'$,
+$$
+g(S \cup \{j\}) - g(S) \geq g(S' \cup \{j\}) - g(S') .
+$$
 
 :::: prop
 [Proposition 6.2 — Greedy placement and submodularity]{.tag} For a set $S$ of open sites and a reference cost $d_{i0} \geq \max_j d_{ij}$, the savings function
@@ -1658,7 +1663,7 @@ After removing $R$, the maximum flow equals the minimum cut of the remaining gra
 :::
 ::::
 
-Wood (1993) proved the problem NP-hard, even though both the attack on a fixed cut (a knapsack) and the cut for a fixed attack are easy separately.
+Wood (1993) proved the problem NP-hard, even when every removal costs 1. Yet, with unit costs, both halves are easy separately: the best attack on a fixed cut removes its $B$ largest arcs, and the cut for a fixed attack is a minimum cut. The difficulty lies in choosing them together.
 
 Other security requirements are covering or separation constraints.
 
@@ -1734,7 +1739,7 @@ Operators solve the same kinds of instances again and again: the same network, s
 
 ### 10.1 Three ways to combine learning and optimization
 
-Bengio, Lodi and Prouvost (2021) distinguish three patterns.
+Bengio, Lodi and Prouvost (2021) distinguish learning end to end, learning to configure an algorithm, and learning alongside an optimization algorithm. For network problems, this gives three practical patterns.
 
 -   **Learning to configure or assist an exact solver**: a model takes the decisions that the solver takes by rules, such as the branching variable or which cuts to add. The solver stays exact; only its speed changes.
 -   **Learning to predict solutions**: a model predicts part of the solution (values of binaries, a candidate set) that a solver then completes or repairs.
@@ -1750,7 +1755,7 @@ The further one goes down this list, the faster the answer and the weaker the gu
 [Definition 10.1 — Bipartite representation of a MILP]{.tag} A MILP $\min \{ c^\top x : A x \leq b \}$ is represented by a bipartite graph with one node per variable and one node per constraint, and an edge $(i, j)$ with feature $A_{ij}$ whenever $A_{ij} \neq 0$. Variable nodes carry features such as $c_j$, bounds and the current LP value; constraint nodes carry $b_i$ and slacks.
 :::
 
-A graph neural network on this graph is invariant to the order of variables and constraints, and applies to instances of any size. Since branching only changes the order of exploration, Proposition 5.2 still holds: the learned solver returns a proven optimum. A bad model makes it slower, never wrong.
+A graph neural network on this graph is invariant to the order of variables and constraints, and applies to instances of any size. Proposition 5.2 holds whatever fractional variable is branched on, so the learned solver still returns a proven optimum. A bad model makes it slower, never wrong.
 
 ### 10.3 Learning to prune
 
@@ -1944,7 +1949,7 @@ Exercises are sorted by level: ★ applies the course, ★★ combines results o
 
 4.  **★ Integral or not.** (a) Show that the matrix with rows $(1, 1, 0)$, $(0, 1, 1)$, $(1, 0, 1)$ is not totally unimodular. (b) Why is the LP relaxation of the assignment problem integral? (c) Why can the arc-node LP of a two-commodity flow not always have integral optimal solutions?
 
-    *Solution*: (a) its determinant is 2; it is the incidence matrix of a triangle, an odd cycle. (b) The node–edge incidence matrix of a bipartite graph is TU (orient edges from one side to the other: it becomes a node–arc incidence matrix, Theorem 2.6). (c) Integral two-commodity flow is NP-hard (Even, Itai and Shamir, 1976), so an LP cannot solve it in general unless P = NP; the capacity rows coupling the commodities break total unimodularity.
+    *Solution*: (a) its determinant is 2; it is the incidence matrix of a triangle, an odd cycle. (b) The node–edge incidence matrix of a bipartite graph is TU: negating the rows of one side, which preserves total unimodularity, gives the node–arc incidence matrix of the graph with every edge oriented towards that side (Theorem 2.6). (c) Integral two-commodity flow is NP-hard (Even, Itai and Shamir, 1976), so an LP cannot solve it in general unless P = NP; the capacity rows coupling the commodities break total unimodularity.
 
 5.  **★ Cut bounds for the maximum utilisation.** Compute the bound of Theorem 3.3 for $S = \{A\}$, $S = \{C\}$ and $S = \{A, B, C\}$. Which link upgrade lowers $U^\star$, and to what value if C–E becomes 10 Gb/s?
 
@@ -1965,7 +1970,7 @@ Exercises are sorted by level: ★ applies the course, ★★ combines results o
 
     (c) Split each $b_i b_j$ demand equally through $a_1$ and $a_2$ (load 0.75 on each edge) and the $a_1 a_2$ demand equally through $b_1, b_2, b_3$ (0.25 more): every edge carries exactly 1.
 
-8.  **★★ The best possible Fortz–Thorup cost.** Using Proposition 3.1, write the LP that minimises the Fortz–Thorup cost over splittable routings, and solve it in Python for the backbone. Compare with the local search of Example 7.3.
+8.  **★★ The best possible Fortz–Thorup cost.** Using Proposition 3.1, write the LP that minimises the Fortz–Thorup cost over splittable routings, and solve it in Python for the backbone. After session 7, compare with the local search of Example 7.3.
 
     *Hints and expected result*: the affine pieces of $c \, \phi(\ell / c)$ are
     $$
@@ -1979,7 +1984,9 @@ Exercises are sorted by level: ★ applies the course, ★★ combines results o
 
 10. **★★ Search strategies in branch-and-bound.** Modify the knapsack block of ch. 5.1 to process nodes in best-bound order (a priority queue on the LP bound). Count the nodes and explain the difference with depth-first search.
 
-    *Hints and expected result*: best-bound explores 83 nodes instead of 118 and reaches the same optimum, 761. Best-bound never expands a node whose bound is below the optimum, which minimises the tree; depth-first finds good incumbents early and needs less memory.
+    *Hints and expected result*: counting every node taken from the queue, as the block does, best-bound explores about 90 nodes instead of 118 (89 or 90, depending on how ties are broken) and reaches the same optimum, 761. Discarding a node without counting it, when its bound is no better than the incumbent at the moment it is taken, brings the count to about 60.
+
+    Best-bound never expands a node whose bound is below the optimum, which minimises the tree; depth-first finds good incumbents early and needs less memory.
 
 11. **★★ Lagrangian and LP bounds.** (a) Prove that relaxing the capacity constraints of the min-cost multicommodity flow gives a Lagrangian dual equal to its LP optimum. (b) For the fixed-charge design of Definition 4.1, relax the weak linking constraints instead: what is the subproblem, and is its bound better than the weak LP bound?
 
@@ -2029,7 +2036,7 @@ Exercises are sorted by level: ★ applies the course, ★★ combines results o
 
 ## Projects and assessment {#projects}
 
-The Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (non-integral continuous assessment); master-mva.com gives no modality, and no weights are displayed. The course description announces labs with solvers and heuristics in the first part, and the reading and presentation of research papers in the second. The subjects below fit that pattern: each is a lab-scale implementation or a paper study, sized for continuous assessment. The written exam is a proposal for self-assessment only, since the official pages do not announce one.
+The Université Paris-Saclay course detail describes the assessment as “Evaluation Continue non Intégrale” (non-integral continuous assessment); master-mva.com gives no modality, and no weights are displayed. The course description announces labs with solvers and heuristics in the first part, and the reading and presentation of research papers in the second. The subjects below fit that pattern: each is a lab-scale implementation or a paper study, sized for continuous assessment. The written exam is a proposal for self-assessment: the official pages do not say whether the assessment includes one.
 
 ### Solo projects {#projects-solo}
 
@@ -2081,7 +2088,7 @@ Format: 2 hours, one handwritten A4 sheet allowed, no electronic device, four ex
 
 2.  **Computation (6 points).** A four-node ring A–B–C–D–A has links of 10 Gb/s and a chord A–C of 5 Gb/s. Demands: 12 Gb/s from A to C and 6 Gb/s from B to D. (a) Give a cut bound on the maximum utilisation. (b) Find a routing that attains it. (c) Compute the maximum utilisation of ECMP with unit weights. (d) Find a weight for the arc A→C that brings it to 0.8.
 
-    *Expected*: (a) $S = \{A, B\}$: 18 Gb/s across arcs A→D, A→C, B→C of total capacity 25, so $U^\star \geq 0.72$. (b) 3.6 Gb/s on the chord, 4.2 through B and 4.2 through D for A→C; 3 and 3 for B→D: all cut arcs at 0.72. (c) A→C takes the chord alone: $12 / 5 = 2.4$. (d) Weight 2 creates three equal paths: 4 Gb/s each, chord at 0.8, other arcs at 0.7.
+    *Expected*: (a) $S = \{A, B\}$: 18 Gb/s across arcs A→D, A→C, B→C of total capacity 25, so $U^\star \geq 0.72$. (b) 3.6 Gb/s on the chord, 4.2 through B and 4.2 through D for A→C; 3 and 3 for B→D: all cut arcs at 0.72. (c) A→C takes the chord alone: $12 / 5 = 2.4$. (d) Weight 2 creates three equal paths: 4 Gb/s each, chord at 0.8, every other arc at 0.7 or less.
 
 3.  **Short proof (5 points).** (a) Prove the cut-set inequality of Proposition 4.5. (b) Prove that the Lagrangian function gives a lower bound for every $\lambda \geq 0$, and that the constraint violation at a minimiser is a subgradient.
 
