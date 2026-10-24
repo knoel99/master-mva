@@ -71,7 +71,7 @@ format:
 
 **Audience**: a student with an M1 in mathematics, computer science or physics who knows multivariate calculus and some Python, and who wants to extract contours, surfaces and thin structures from medical or natural images with methods whose behaviour can be proved.
 
-**Empirical first**: put a closed elastic curve of radius 8 pixels inside a noisy disk of radius 30 and let it minimise its energy. It does not move: the edge is too far away to be felt (Code 1.11). Push it from inside with a small pressure and it stops at a radius of 30.45; push a little harder and it bursts through the edge and leaves the image.
+**Empirical first**: put a closed elastic curve of radius 8 pixels inside a noisy disk of radius 30 and let it minimise its energy. It never reaches the edge: it only shrinks a little, to a mean radius of 7.2, because the edge is too far away to be felt (Code 1.11). Push it from inside with a small pressure and it stops at a radius of 30.45; push a little harder and it bursts through the edge and leaves the image.
 
 Shortest paths have a similar surprise: on a 4-connected pixel grid, the shortest path between two pixels overestimates the diagonal distance by 41 % (Code 5.11). This course explains both phenomena and builds the methods that cure them.
 
@@ -151,8 +151,8 @@ Level 1 = foundations, 2 = core models and algorithms, 3 = advanced metrics and 
 
 | Session | Hours | Level | Content | Practice |
 |---|---|---|---|---|
-| 1 | 3 h | 1 | ch. 0 Review: first variation, Euler–Lagrange, gradient flows, curvature, stability of finite differences, edge indicator, Dijkstra (0.1–0.11); ch. 1.1–1.6 the snake energy, its Euler–Lagrange equation and the semi-implicit scheme | Ex. 1–2 |
-| 2 | 3 h | 2 | ch. 1.7–1.11 shrinking, balloon force, distance potentials, gradient vector flow; ch. 2 finite elements, dispersion, deformable surfaces (2.1–2.9) | Ex. 3 |
+| 1 | 3 h | 1 | ch. 0 Review: first variation, Euler–Lagrange, gradient flows, curvature, stability of finite differences, edge indicator, Dijkstra (0.1–0.11); ch. 1.1–1.6 the snake energy, its Euler–Lagrange equation and the semi-implicit scheme | Ex. 2 |
+| 2 | 3 h | 2 | ch. 1.7–1.11 shrinking, balloon force, distance potentials, gradient vector flow; ch. 2 finite elements, dispersion, deformable surfaces (2.1–2.9) | Ex. 1, 3 |
 | 3 | 3 h | 2 | ch. 3 Level sets: geometric evolutions, the level-set equation, geometric and geodesic active contours, upwind schemes, topology changes, competing fronts (3.1–3.11) | Ex. 4, 9 |
 | 4 | 3 h | 2 | ch. 4 Active regions and shape priors: Mumford–Shah, Chan–Vese, region competition, geodesic active regions, PCA of signed distance functions (4.1–4.11) | Ex. 7, 10 |
 | 5 | 3 h | 2 | ch. 4 Lab A, deformable models: snake and balloon, finite elements, geodesic active contour with a topology change, Chan–Vese, a shape prior | lab A: Code 1.11, 2.5, 3.11, 4.8, 4.11; Ex. 11 |
@@ -481,7 +481,7 @@ $$
 
 Consequently:
 
--   the explicit scheme $v^{m+1} = (I - \tau A) v^m + \tau F(v^m)$ is stable only if $\tau \leq 2 / (4a + 16b)$;
+-   the explicit scheme $v^{m+1} = (I - \tau A) v^m + \tau F(v^m)$ is stable if and only if $\tau \lambda_{\max} \leq 2$; for $n$ even, $\lambda_{\max} = 4a + 16b$ and the condition reads $\tau \leq 2 / (4a + 16b)$;
 -   in the semi-implicit scheme, the internal step $(I + \tau A)^{-1}$ has eigenvalues in $(0, 1]$ for every $\tau > 0$: it never amplifies a mode.
 
 ::: proof
@@ -493,6 +493,8 @@ $$
 $D$ is circulant and symmetric, diagonalised by the Fourier vectors, with eigenvalues $2 - 2 \cos(2 \pi k / n) = \omega_k$ (as in Proposition 0.8).
 
 The same vectors diagonalise $A$, with eigenvalues $a \omega_k + b \omega_k^2$. They lie between $0$ and $4a + 16b$ since $0 \leq \omega_k \leq 4$.
+
+When $n$ is even, the upper value is reached at $k = n/2$.
 
 The explicit factors $1 - \tau \lambda_k$ stay in $[-1, 1]$ for all $k$ if and only if $\tau \lambda_{\max} \leq 2$. The semi-implicit factors $1 / (1 + \tau \lambda_k)$ are in $(0, 1]$. [∎]{.qed}
 :::
@@ -533,7 +535,9 @@ $$
 F(v) = k_1 \, N(v) - k \, \frac{\nabla P(v)}{\| \nabla P(v) \|} .
 $$
 
-With $k_1 > 0$ the curve inflates, with $k_1 < 0$ it deflates. The normalised image force has the constant magnitude $k$; choosing $k$ slightly larger than $|k_1|$ lets an edge stop the balloon while weak edges, where the pressure dominates, are passed.
+With $k_1 > 0$ the curve inflates, with $k_1 < 0$ it deflates.
+
+The normalised image force has the constant magnitude $k$ wherever $\nabla P \neq 0$. Choosing $k$ slightly larger than $|k_1|$ lets every edge point stop the balloon, whatever its contrast. Without the normalisation, the image force is proportional to the contrast: strong edges stop the balloon, and weak edges, where the pressure dominates, are passed.
 :::
 
 In a discrete implementation, the normalisation by the local norm makes the noise of flat regions as strong as a real edge. Code 1.11 therefore divides $\nabla P$ by its maximum over the image, so that the image force equals $k$ only on the strongest edges and fades in flat regions.
@@ -748,11 +752,11 @@ $$
 $$
 
 ::: proof
-As in Theorem 0.2, differentiate under the integral and integrate by parts on a closed (periodic) parameter domain.
+As in Theorem 0.2, differentiate under the integral in the direction of a test function $\psi$, and integrate by parts on a closed (periodic) parameter domain.
 
-The term $\frac12 w_{10} |v_r|^2$ gives $w_{10} \langle v_r, w_r \rangle$, hence $-w_{10} v_{rr}$ after one integration by parts.
+The term $\frac12 w_{10} |v_r|^2$ gives $w_{10} \langle v_r, \psi_r \rangle$, hence $-w_{10} v_{rr}$ after one integration by parts.
 
-The term $w_{11} |v_{rs}|^2$ gives $2 w_{11} \langle v_{rs}, w_{rs} \rangle$, hence $2 w_{11} v_{rrss}$ after integrating by parts once in $r$ and once in $s$. The other terms are similar. [∎]{.qed}
+The term $w_{11} |v_{rs}|^2$ gives $2 w_{11} \langle v_{rs}, \psi_{rs} \rangle$, hence $2 w_{11} v_{rrss}$ after integrating by parts once in $r$ and once in $s$. The other terms are similar. [∎]{.qed}
 :::
 ::::
 
@@ -1173,7 +1177,7 @@ $$
 w_j = \frac{\sigma_j^2}{\sigma_j^2 + s^2} \, \langle \phi - \bar \phi, u_j \rangle .
 $$
 
-Without the prior ($s \to 0$), this is the orthogonal projection onto the affine space of the model.
+When the noise vanishes ($s \to 0$) or the prior is flat ($\sigma_j \to \infty$), the shrinkage factor tends to 1 and this is the orthogonal projection onto the affine space of the model.
 
 ::: proof
 Minus the log-posterior is, up to a constant,
@@ -1238,7 +1242,7 @@ A snake finds the local minimum nearest to its initialisation. For an open curve
 ### Geodesic distance
 
 ::: def
-[Definition 5.1 — Weighted length and geodesic distance]{.tag} Let $\Omega$ be the closure of a bounded connected open set of $\mathbb{R}^d$, and $P : \Omega \to [\varepsilon, +\infty)$ a continuous **metric** (also called potential or cost), with $\varepsilon > 0$. The **weighted length** of a Lipschitz curve $C : [0, 1] \to \Omega$ is
+[Definition 5.1 — Weighted length and geodesic distance]{.tag} Let $\Omega$ be the closure of a bounded connected open set of $\mathbb{R}^d$ with a Lipschitz boundary (a rectangle, a box, a ball), and $P : \Omega \to [\varepsilon, +\infty)$ a continuous **metric** (also called potential or cost), with $\varepsilon > 0$. The **weighted length** of a Lipschitz curve $C : [0, 1] \to \Omega$ is
 $$
 L_P(C) = \int_0^1 P(C(p)) \, |C'(p)| \, dp .
 $$
@@ -1303,11 +1307,16 @@ U(x + te) \leq U(x) + t \max_{[x, x + te]} P .
 $$
 Dividing by $t$ and letting $t \to 0$: $\langle \nabla U(x), e \rangle \leq P(x)$ for every $e$, hence $|\nabla U(x)| \leq P(x)$.
 
-*Lower bound.* Let $\gamma$ be a minimal path from $p_0$ to $x$, parametrised by arclength, with $\gamma(L) = x$. Every sub-path of a minimal path is minimal, so
+*Lower bound.* Let $\gamma$ be a minimal path from $p_0$ to $x$, parametrised by arclength, with $\gamma(L) = x$. Every sub-path of a minimal path is minimal, so for $s < L$
 $$
-U(\gamma(s)) = U(x) - \int_s^L P(\gamma(\sigma)) \, d\sigma .
+U(x) - U(\gamma(s)) = \int_s^L P(\gamma(\sigma)) \, d\sigma .
 $$
-Differentiating at $s = L$ gives $\langle \nabla U(x), \gamma'(L) \rangle = P(x)$ with $|\gamma'(L)| = 1$, so $|\nabla U(x)| \geq P(x)$. [∎]{.qed}
+
+The right-hand side is $P(x)(L - s) + o(L - s)$, by continuity of $P$.
+
+The left-hand side is at most $|\nabla U(x)| \, |x - \gamma(s)| + o(L - s)$, because $U$ is differentiable at $x$, and $|x - \gamma(s)| \leq L - s$.
+
+Dividing by $L - s$ and letting $s \to L$ gives $P(x) \leq |\nabla U(x)|$. [∎]{.qed}
 :::
 ::::
 
@@ -1320,7 +1329,11 @@ $$
 $U$ has no local minimum other than $p_0$, so the descent cannot be trapped: it reaches $p_0$ after a length at most $U(p_1) / \varepsilon$.
 
 ::: proof
-In the lower bound above, $\langle \nabla U, \gamma' \rangle = P = |\nabla U|$ with $|\gamma'| = 1$: this is the equality case of the Cauchy–Schwarz inequality, so $\gamma' = \nabla U / |\nabla U|$. Followed backwards from $p_1$, the path descends along $-\nabla U$.
+Let $\gamma$ be the minimal path from $p_0$ to $p_1$, by arclength. The identity of the lower bound above gives $\frac{d}{ds} U(\gamma(s)) = P(\gamma(s))$.
+
+At a point where $U$ and $\gamma$ are differentiable, this reads $\langle \nabla U, \gamma' \rangle = P = |\nabla U|$ with $|\gamma'| = 1$. This is the equality case of the Cauchy–Schwarz inequality, so $\gamma' = \nabla U / |\nabla U|$.
+
+Followed backwards from $p_1$, the path therefore descends along $-\nabla U$.
 
 From any $x \neq p_0$, $U$ strictly decreases along the minimal path towards $p_0$, so $x$ is not a local minimum.
 
@@ -1806,7 +1819,9 @@ $$
 Q(x, r) = \frac{1}{2\pi} \int_0^{2\pi} \nabla I_\sigma(x + r n_\theta) \, n_\theta^\top \, d\theta, \qquad n_\theta = (\cos\theta, \sin\theta) .
 $$
 
-For a bright tube, the gradient on its walls points inwards. The smallest eigenvalue of the symmetric part of $Q$ is therefore most negative when the circle lies on the walls, that is when $r$ matches the radius, and its eigenvector gives the direction across the tube.
+For a bright tube, the gradient on its walls points inwards. The smallest eigenvalue of the symmetric part of $Q$ is therefore negative, and its eigenvector gives the direction across the tube.
+
+It is most negative when the circle just reaches the walls, that is for $r$ close to the radius of the tube. For a straight tube of radius $R$ and no smoothing, the circle meets the walls only when $r > R$, and the response is largest just above $R$; smoothing the image moves this peak a little further out.
 :::
 
 ::: ex
@@ -1886,7 +1901,9 @@ for x0 in [20, 60, 100]:
 
 The centreline is found with a mean error of 0.25 pixel. The radius is estimated with a mean error of 0.45 pixel, mostly by excess: 3.0, 4.5 and 6.0 for true radii 2.37, 3.87 and 5.36.
 
-The excess of about half a pixel is the discretisation of the tube, whose binary mask extends half a pixel beyond the continuous radius. Dijkstra on a graph is used here for brevity; Fast Marching on the lifted grid would remove the metrication error of Proposition 5.10.
+The excess of about half a pixel comes from the flux measure itself (Definition 7.10): the response peaks slightly beyond the true radius, and the image smoothing with $\sigma = 1$ shifts the peak further. The same bias appears on a noise-free tube drawn with exact anti-aliasing, so it is not an artefact of the binary mask. It can be calibrated on synthetic tubes of known radius.
+
+Dijkstra on a graph is used here for brevity; Fast Marching on the lifted grid would remove the metrication error of Proposition 5.10.
 :::
 
 ::: recap
@@ -2036,6 +2053,10 @@ Back-propagating from all the leaves of a vascular tree, once $U$ has been compu
 [Note 8.8 — Virtual endoscopy and surface segmentation]{.tag} In **virtual endoscopy**, a camera flies through a 3D image of a colon or a vessel along a centred path. Deschamps and Cohen (2001) obtain such paths with a metric built from the distance to the wall, as in part (b) of Code 8.6, and with a propagation stopped as soon as the end point is reached.
 
 For **surface segmentation**, minimal paths in a 3D image can sweep a surface. Ardon and Cohen (2006) build a surface between two given curves as a family of minimal paths joining them.
+
+One way to obtain such a family costs a single propagation. Run Fast Marching from all the points of the first curve $\Gamma_0$ at once, which gives $U_0 = d_P(\Gamma_0, \cdot)$. Back-propagation from each point of the second curve $\Gamma_1$ then descends to $\Gamma_0$ along a minimal path (Theorem 5.6, with the set $\Gamma_0$ as source).
+
+When minimal paths to $\Gamma_0$ are unique, the argument of Proposition 8.7 shows that two of these paths that meet coincide from there on, so they never cross. Together with the two curves, they form a network of curves on the sought surface, which is then interpolated or refined by a surface evolution.
 
 Vessels combine all the tools: a vesselness or flux metric (Definitions 7.2, 7.10), the radius dimension (Definition 7.9), anisotropy along the vessel, and trees of paths (Proposition 8.7). Benmansour and Cohen (2011), an official reference of the course, segment tubular structures in this way.
 :::
@@ -2206,7 +2227,7 @@ Levels: ★ apply the course, ★★ combine results or prove a short statement,
     $$
     Here $v = \ln 2 - \frac{3}{8} I^2$, positive when $|I| < 1.36$. Small values are better explained by the narrow model, large ones by the wide model. Chan–Vese, which compares only means, cannot separate these two regions.
 
-11. **★★ A robust projection on the shape model.** In Code 4.11, the occluded pixels pull the projection. Estimate the coefficients by least squares on the pixels farther than 20 pixels from the centre of the bite only, including a free constant. Then vary the number of modes in the plain projection from 1 to 5.
+11. **★★ A robust projection on the shape model.** In Code 4.11, the occluded pixels pull the projection. Estimate the coefficients of the two modes by least squares on the pixels farther than 20 pixels from the centre of the bite only, including a free constant. Then vary the number of modes in the plain projection from 1 to 5.
 
     *Hints and expected result*: with the mask, the intersection over union with the true ellipse rises to 0.950, against 0.867 for the plain projection.
 
@@ -2280,7 +2301,7 @@ The official assessment, per master-mva.com, is a project; the Université Paris
 
 3.  **[Solo · ≈ 20 h] Geodesic remeshing of an image domain: a paper study.** Study Peyré and Cohen (2006).
     -   *Implement*: farthest-point sampling with Fast Marching, the geodesic Voronoi diagram by front competition, and the dual Delaunay triangulation, for a metric built from the image gradient.
-    -   *Data*: a grey-level photograph from the scikit-learn sample images, or synthetic images with sharp edges.
+    -   *Data*: a photograph from the scikit-learn sample images (`load_sample_image("china.jpg")`), converted to grey levels, or synthetic images with sharp edges.
     -   *Success criterion*: the error of the piecewise-linear interpolation of the image on the mesh against the number of vertices, compared with a uniform mesh with the same number of vertices.
     -   *Deliverables*: code, report, talk. Chapters 6, 8.
 
@@ -2289,13 +2310,13 @@ The official assessment, per master-mva.com, is a project; the Université Paris
 1.  **[Group of 2–3 · ≈ 30 h each] Vessels in space and radius: a paper study.** Reproduce the idea of Li and Yezzi (2007) and the anisotropic metric of Benmansour and Cohen (2011), an official reference.
     -   *Data*: synthetic 2D and 3D vessel trees with known centrelines and radii, then the public DRIVE retinal images (Staal and coauthors, 2004).
     -   *Work split*: one member builds the multi-scale metrics (vesselness, oriented flux); one writes Fast Marching on the lifted grid, isotropic then anisotropic; one handles tree extraction from several leaves and the evaluation.
-    -   *Success criterion*: on synthetic data, centreline error below 1 pixel and radius error below 0.5 pixel; on DRIVE, extracted centrelines overlaid on the manual annotations.
+    -   *Success criterion*: on synthetic data, centreline error below 1 pixel and radius error below 0.5 pixel; on DRIVE, extracted centrelines overlaid on the manual annotations, with the fraction of centreline points that fall on an annotated vessel pixel reported for each image (aim: above 95 %).
     -   *Deliverables*: code, a 6-page report, a 15-minute talk. Chapters 6, 7, 8.
 
 2.  **[Group of 2–3 · ≈ 30 h each] Region segmentation: local flows against global minimisers.** Compare the level-set Chan–Vese flow (Chan and Vese, 2001) with the convex relaxation of Chan, Esedoglu and Nikolova (2006).
     -   *Data*: synthetic images with weak edges, textures of equal means (Exercise 10) and occlusions, then grey-level images of the Berkeley segmentation data set (Martin and coauthors, 2001).
     -   *Work split*: one member writes the level-set flows (geodesic active contour, Chan–Vese); one the primal–dual solver for the relaxation; one region competition with Gaussian models and a PCA shape prior.
-    -   *Success criterion*: a table of final energies and intersections over union, showing where the flows stop in a local minimum.
+    -   *Success criterion*: a table of final energies and intersections over union, showing where the flows stop in a local minimum; the thresholded relaxation must never have a higher Chan–Vese energy than the flow, for the same fixed constants (Proposition 9.1).
     -   *Deliverables*: code, report, talk. Chapters 3, 4, 9.
 
 3.  **[Group of 2–3 · ≈ 30 h each] Virtual endoscopy path planning in 3D: a paper study.** Study Deschamps and Cohen (2001).
@@ -2326,7 +2347,11 @@ Format: 3 hours, one handwritten A4 sheet allowed, no electronic device; four ex
 
 4.  **Problem (5 points).** A closed snake has $n = 50$ nodes, $a = 0.2$ and $b = 0.1$. (a) Give the spectrum of its matrix and the largest stable explicit step. (b) Without image force, how does a circle evolve under the continuous flow? (c) Write the balloon force and explain the choice $k > k_1$.
 
-    *Expected*: (a) eigenvalues $a\omega_k + b\omega_k^2$ in $[0, 2.4]$, so $\tau \leq 0.83$ (Theorem 1.5). (b) Exponential shrinking at the rate $4\pi^2\alpha + 16\pi^4\beta$ (Proposition 1.7). (c) Definition 1.8: a normal pressure balanced on edges by a normalised image force slightly stronger than the pressure.
+    *Expected*: (a) eigenvalues $a\omega_k + b\omega_k^2$ in $[0, 2.4]$, so $\tau \leq 0.83$ (Theorem 1.5).
+
+    (b) The circle stays a circle and shrinks exponentially at the rate $4\pi^2\alpha + 16\pi^4\beta$ (Proposition 1.7). With $h = 1/50$, $\alpha = a h^2 = 8 \times 10^{-5}$ and $\beta = b h^4 = 1.6 \times 10^{-8}$, the rate is $3.2 \times 10^{-3}$, close to the smallest nonzero eigenvalue $\lambda_1$ of the matrix.
+
+    (c) Definition 1.8: a normal pressure balanced on edges by a normalised image force slightly stronger than the pressure.
 
 ### Grading rubric (proposal) {#projects-rubric}
 
